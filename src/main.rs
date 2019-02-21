@@ -1,28 +1,27 @@
 mod constants;
 mod error;
 mod file_manager;
-mod interpreter;
+//mod interpreter;
 mod ir;
-mod ir2;
 mod lexer;
 mod location_info;
 mod name_resolution;
 mod parser;
 mod syntax;
 mod token;
-mod typechecker;
+//mod typechecker;
 mod util;
 
 use crate::error::Error;
 use crate::file_manager::FileManager;
-use crate::interpreter::Interpreter;
+//use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location_info::LocationInfo;
 use crate::name_resolution::resolver::Resolver;
 use crate::parser::parser::Parser;
 use crate::syntax::program::Program;
-use crate::typechecker::typechecker::Typechecker;
+//use crate::typechecker::typechecker::Typechecker;
 use std::env;
 
 fn parse(

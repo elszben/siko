@@ -1,5 +1,6 @@
-use crate::ir2::expr::ExprId;
-use crate::ir2::types::TypeSignatureId;
+use crate::ir::expr::ExprId;
+use crate::ir::types::TypeSignatureId;
+use crate::syntax::function::FunctionId as AstFunctionId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -19,4 +20,5 @@ pub struct Function {
     pub body: Option<ExprId>,
     pub name: Option<(String, String)>,
     pub type_signature: Option<TypeSignatureId>,
+    pub ast_function_id: AstFunctionId,
 }

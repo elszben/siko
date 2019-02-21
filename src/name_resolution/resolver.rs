@@ -1,26 +1,20 @@
-use crate::constants::BuiltinOperator;
 use crate::constants::PRELUDE_NAME;
 use crate::error::Error;
-use crate::ir::FunctionBody as IrFunctionBody;
-use crate::ir::FunctionType as IrFunctionType;
-use crate::ir::Module as IrModule;
-use crate::ir::NamedFunctionId;
-use crate::ir2::expr::Expr as IrExpr;
-use crate::ir2::expr::ExprId as IrExprId;
-use crate::ir2::expr::ExprInfo as IrExprInfo;
-use crate::ir2::function::Function as IrFunction;
-use crate::ir2::function::FunctionId as IrFunctionId;
-use crate::ir2::program::Program as IrProgram;
-use crate::ir2::types::TypeInfo;
-use crate::ir2::types::TypeSignature as IrTypeSignature;
-use crate::ir2::types::TypeSignatureId as IrTypeSignatureId;
+use crate::ir::expr::Expr as IrExpr;
+use crate::ir::expr::ExprId as IrExprId;
+use crate::ir::expr::ExprInfo as IrExprInfo;
+use crate::ir::function::Function as IrFunction;
+use crate::ir::function::FunctionId as IrFunctionId;
+use crate::ir::program::Program as IrProgram;
+use crate::ir::types::TypeInfo;
+use crate::ir::types::TypeSignature as IrTypeSignature;
+use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::name_resolution::capture_list::CaptureList;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::import::ImportKind;
 use crate::name_resolution::import::ImportStore;
 use crate::name_resolution::module::Module;
-use crate::syntax::expr::Expr as AstExpr;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
@@ -678,6 +672,7 @@ impl<'a> Resolver<'a> {
                     body: body,
                     name: Some(name),
                     type_signature: type_signature_id,
+                    ast_function_id: function.id,
                 };
                 ir_program.add_function(id, ir_function);
             }

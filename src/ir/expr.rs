@@ -1,4 +1,4 @@
-use crate::ir2::function::FunctionId;
+use crate::ir::function::FunctionId;
 use crate::syntax::expr::ExprId as AstExprId;
 use crate::util::format_list;
 use std::fmt;

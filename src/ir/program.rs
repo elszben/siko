@@ -1,11 +1,11 @@
-use crate::ir2::expr::Expr;
-use crate::ir2::expr::ExprId;
-use crate::ir2::expr::ExprInfo;
-use crate::ir2::function::Function;
-use crate::ir2::function::FunctionId;
-use crate::ir2::types::TypeInfo;
-use crate::ir2::types::TypeSignature;
-use crate::ir2::types::TypeSignatureId;
+use crate::ir::expr::Expr;
+use crate::ir::expr::ExprId;
+use crate::ir::expr::ExprInfo;
+use crate::ir::function::Function;
+use crate::ir::function::FunctionId;
+use crate::ir::types::TypeInfo;
+use crate::ir::types::TypeSignature;
+use crate::ir::types::TypeSignatureId;
 
 use crate::util::Counter;
 use std::collections::BTreeMap;
