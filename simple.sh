@@ -1,3 +1,4 @@
 #!/bin/bash
 
-cargo run --release -- simple.ss std/*.ss $@
+cargo build --release
+./siko simple.ss std/*.ss $@

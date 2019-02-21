@@ -1,5 +1,5 @@
 [package]
-name = "script2"
+name = "siko"
 version = "0.1.0"
 authors = ["elszben <notgonna@tell.you>"]
 edition = "2018"

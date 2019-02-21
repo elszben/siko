@@ -1,3 +1,5 @@
 #!/bin/bash
 
-cargo run --release -- tests/*.ss std/*.ss
+cargo build --release
+
+./siko tests/*.ss std/*.ss
