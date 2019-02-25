@@ -3,7 +3,6 @@ module alma.korte where
 import alma (korte)
 import szilva
 
-main = 5
 
 module alma where
 korte = 5
@@ -12,5 +11,10 @@ foo  = 5
 
 module szilva where
 
+foo ::  Int
+foo = foo
+
 korte a   :: (Int, Int, (String, String))
-korte af  =  \x -> 6
+korte af  =  do 
+                foo
+                \x -> 6

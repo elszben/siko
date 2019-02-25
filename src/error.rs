@@ -4,6 +4,7 @@ use crate::location_info::location::Location;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_set::LocationSet;
 use crate::name_resolution::error::ResolverError;
+use crate::typechecker::error::TypecheckError;
 use crate::util::format_list;
 use colored::*;
 use std::convert::From;
@@ -51,7 +52,7 @@ pub enum Error {
     LexerError(String, FilePath, Location),
     ParseError(String, FilePath, Location),
     ResolverError(Vec<ResolverError>),
-    TypeCheckError(String),
+    TypecheckError(Vec<TypecheckError>),
     RuntimeError(String),
 }
 
@@ -68,8 +69,8 @@ impl Error {
         Error::ResolverError(errors)
     }
 
-    pub fn typecheck_err(s: String) -> Error {
-        Error::TypeCheckError(s)
+    pub fn typecheck_err(errors: Vec<TypecheckError>) -> Error {
+        Error::TypecheckError(errors)
     }
 
     pub fn runtime_err(s: String) -> Error {
@@ -211,8 +212,22 @@ impl Error {
             Error::RuntimeError(err) => {
                 println!("Error: {}", err);
             }
-            Error::TypeCheckError(err) => {
-                println!("Error: {}", err);
+            Error::TypecheckError(errs) => {
+                for err in errs {
+                    match err {
+                        TypecheckError::UntypedExternFunction(name, id) => {
+                            println!(
+                                "Extern function {} must have a type signature",
+                                name.yellow()
+                            );
+                            let location_set = location_info.get_function_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::FunctionTypeDependencyLoop => {
+                            println!("Function type dependency loop detected");
+                        }
+                    }
+                }
             }
             _ => unimplemented!(),
         }
