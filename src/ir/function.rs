@@ -15,10 +15,22 @@ impl fmt::Display for FunctionId {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
-    pub id: FunctionId,
+pub struct NamedFunctionInfo {
     pub body: Option<ExprId>,
-    pub name: Option<(String, String)>,
+    pub module: String,
+    pub name: String,
     pub type_signature: Option<TypeSignatureId>,
     pub ast_function_id: AstFunctionId,
+}
+
+#[derive(Debug, Clone)]
+pub enum FunctionInfo {
+    Lambda(ExprId),
+    NamedFunction(NamedFunctionInfo),
+}
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub id: FunctionId,
+    pub info: FunctionInfo,
 }

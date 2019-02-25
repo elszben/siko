@@ -5,6 +5,8 @@ use crate::ir::expr::ExprId as IrExprId;
 use crate::ir::expr::ExprInfo as IrExprInfo;
 use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
+use crate::ir::function::FunctionInfo;
+use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
@@ -26,11 +28,8 @@ use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature as AstTypeSignature;
 use crate::syntax::types::TypeSignatureId;
-
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use std::rc::Rc;
 
 enum PathResolveResult {
     VariableRef(String),
@@ -213,7 +212,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
                 }
-                IrTypeSignature::Tuple(item_ids)
+                IrTypeSignature::Function(item_ids)
             }
         };
         let id = ir_program.get_type_signature_id();
@@ -346,6 +345,13 @@ impl<'a> Resolver<'a> {
                     &mut lambda_captures,
                 );
                 let ir_lambda_id = ir_program.get_function_id();
+
+                let ir_function = IrFunction {
+                    id: ir_lambda_id,
+                    info: FunctionInfo::Lambda(ir_lambda_body),
+                };
+                ir_program.add_function(ir_lambda_id, ir_function);
+
                 let captured_lambda_args: Vec<_> = capture_list
                     .captures()
                     .into_iter()
@@ -629,8 +635,11 @@ impl<'a> Resolver<'a> {
                     .modules
                     .get(&module.name.get())
                     .expect("Resolver module not found");
-                let name = (module.name.get(), function.name.clone());
-                let id = ir_program.get_function_id();
+                let id = self
+                    .function_map
+                    .get(&function.id)
+                    .expect("Function not found")
+                    .clone();
                 let mut type_signature_id = None;
                 let mut body = None;
                 if let Some(ty) = &function.func_type {
@@ -667,72 +676,22 @@ impl<'a> Resolver<'a> {
                     body = Some(body_id);
                 }
 
-                let ir_function = IrFunction {
-                    id: id,
+                let named_info = NamedFunctionInfo {
                     body: body,
-                    name: Some(name),
+                    name: function.name.clone(),
+                    module: module.name.get(),
                     type_signature: type_signature_id,
                     ast_function_id: function.id,
+                };
+
+                let ir_function = IrFunction {
+                    id: id,
+                    info: FunctionInfo::NamedFunction(named_info),
                 };
                 ir_program.add_function(id, ir_function);
             }
         }
 
-        //let mut lambdas = Vec::new();
-
-        /*
-                for module in self.modules.values() {
-                    let module_name = module.name.get();
-                    let mut ir_module = IrModule::new(module_name.clone(), module.name.location());
-                    for (name, info) in &module.exported_functions {
-                        let location = info[0].0.clone();
-                        let ast_function = &info[0].1;
-                        let (args, arg_names) = Resolver::process_args(&ast_function.args);
-                        if arg_names.len() != args.len() {
-                            let error = ResolverError::ArgumentConflict(
-                                format!("function {}", ast_function.name.ident),
-                                location.clone(),
-                            );
-                            errors.push(error);
-                        }
-                        let mut environment = Environment::new();
-                        for arg_name in arg_names {
-                            environment.add(arg_name);
-                        }
-                        let body = match &ast_function.body {
-                            AstFunctionBody::Expr(expr) => {
-                                let body = self.process_expr(
-                                    expr,
-                                    &mut environment,
-                                    &mut errors,
-                                    module,
-                                    None,
-                                    &mut lambdas,
-                                );
-                                IrFunctionBody::Expr(body)
-                            }
-                            AstFunctionBody::Extern => IrFunctionBody::Extern,
-                        };
-                        let func_type = self.process_func_type(&ast_function.func_type, &mut errors);
-                        let ir_function = IrFunction::new(
-                            false,
-                            name.clone(),
-                            module_name.clone(),
-                            location,
-                            args,
-                            body,
-                            func_type,
-                        );
-
-                        ir_module.functions.insert(name.clone(), ir_function);
-                    }
-                    ir_program.modules.insert(module_name, ir_module);
-                }
-
-                for lambda in lambdas {
-                    ir_program.lambdas.insert(lambda.name.clone(), lambda);
-                }
-        */
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));
         }

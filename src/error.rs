@@ -8,7 +8,6 @@ use crate::util::format_list;
 use colored::*;
 use std::convert::From;
 use std::io::Error as IoError;
-use std::iter;
 
 fn s_from_range(chars: &[char], start: usize, end: usize) -> String {
     let subs = &chars[start..end];

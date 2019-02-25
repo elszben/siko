@@ -118,7 +118,7 @@ impl Lexer {
             "as" => Token::KeywordAs,
             "extern" => Token::KeywordExtern,
             _ => match identifier.parse::<i64>() {
-                Ok(n) => Token::NumericLiteral(identifier),
+                Ok(_) => Token::NumericLiteral(identifier),
                 Err(_) => Token::Identifier(identifier),
             },
         };

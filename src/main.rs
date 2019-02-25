@@ -9,7 +9,7 @@ mod name_resolution;
 mod parser;
 mod syntax;
 mod token;
-//mod typechecker;
+mod typechecker;
 mod util;
 
 use crate::error::Error;
@@ -21,7 +21,7 @@ use crate::location_info::location_info::LocationInfo;
 use crate::name_resolution::resolver::Resolver;
 use crate::parser::parser::Parser;
 use crate::syntax::program::Program;
-//use crate::typechecker::typechecker::Typechecker;
+use crate::typechecker::typechecker::Typechecker;
 use std::env;
 
 fn parse(
@@ -78,11 +78,11 @@ fn compile(
     if verbose {
         println!("program {:#?}", ir_program);
     }
+
+    let typechecker = Typechecker::new();
+
+    typechecker.check(&ir_program)?;
     /*
-        let typechecker = Typechecker::new();
-
-        typechecker.check(&ir_program)?;
-
         let interpreter = Interpreter::new();
 
         let value = interpreter.run(&ir_program)?;

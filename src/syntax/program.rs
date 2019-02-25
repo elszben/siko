@@ -77,10 +77,6 @@ impl Program {
         self.type_signatures.insert(id, type_signature);
     }
 
-    pub fn get_module(&self, id: &ModuleId) -> &Module {
-        &self.modules.get(id).expect("Module not found")
-    }
-
     pub fn get_expr(&self, id: &ExprId) -> &Expr {
         &self.exprs.get(id).expect("Expr not found")
     }

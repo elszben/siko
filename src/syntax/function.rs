@@ -1,6 +1,5 @@
 use crate::syntax::expr::ExprId;
 use crate::syntax::types::TypeSignatureId;
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub enum FunctionBody {
