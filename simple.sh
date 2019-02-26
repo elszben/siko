@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cargo build --release
-./siko simple.ss std/*.ss $@
+./siko simple.sk std/*.sk $@

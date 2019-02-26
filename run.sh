@@ -2,4 +2,4 @@
 
 cargo build --release
 
-./siko tests/*.ss std/*.ss
+./siko tests/*.sk std/*.sk
