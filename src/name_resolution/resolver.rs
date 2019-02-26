@@ -163,7 +163,7 @@ impl<'a> Resolver<'a> {
         type_signature_id: &TypeSignatureId,
         program: &Program,
         ir_program: &mut IrProgram,
-        type_args: &BTreeSet<String>,
+        type_args: &BTreeMap<String, usize>,
         errors: &mut Vec<ResolverError>,
     ) -> Option<IrTypeSignatureId> {
         let type_signature = program.get_type_signature(type_signature_id);
@@ -174,8 +174,8 @@ impl<'a> Resolver<'a> {
                 "Bool" => IrTypeSignature::Bool,
                 "String" => IrTypeSignature::String,
                 _ => {
-                    if type_args.contains(n) {
-                        IrTypeSignature::TypeArgument(n.clone())
+                    if let Some(index) = type_args.get(n) {
+                        IrTypeSignature::TypeArgument(*index)
                     } else {
                         let error =
                             ResolverError::UnknownTypeName(n.clone(), type_signature_id.clone());
@@ -228,10 +228,10 @@ impl<'a> Resolver<'a> {
         ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
     ) -> Option<IrTypeSignatureId> {
-        let mut type_args = BTreeSet::new();
+        let mut type_args = BTreeMap::new();
         let mut conflicting_names = BTreeSet::new();
-        for type_arg in &func_type.type_args {
-            if !type_args.insert(type_arg.clone()) {
+        for (index, type_arg) in func_type.type_args.iter().enumerate() {
+            if type_args.insert(type_arg.clone(), index).is_some() {
                 conflicting_names.insert(type_arg.clone());
             }
         }

@@ -107,6 +107,10 @@ impl Typechecker {
         }
     }
 
+    fn check_untyped_function(&self, id: FunctionId, errors: &mut Vec<TypecheckError>) {
+        println!("Checking untyped {}", id);
+    }
+
     fn check_function_deps(
         &self,
         mut untyped_functions: BTreeSet<FunctionId>,
@@ -181,8 +185,6 @@ impl Typechecker {
                     }
                 }
             }
-            let deps: Vec<_> = function_info.function_deps.iter().collect();
-            println!("Deps: {}", format_list(&deps[..]));
             self.function_info_map.insert(*id, function_info);
         }
 
@@ -193,7 +195,7 @@ impl Typechecker {
         }
 
         for function_id in untyped_check_order {
-            println!("Checking untyped {}", function_id);
+            self.check_untyped_function(function_id, &mut errors);
         }
 
         for function_id in typed_functions {

@@ -13,7 +13,7 @@ pub enum TypeSignature {
     Nothing,
     Tuple(Vec<TypeSignatureId>),
     Function(Vec<TypeSignatureId>),
-    TypeArgument(String),
+    TypeArgument(usize),
 }
 
 #[derive(Debug, Clone)]
