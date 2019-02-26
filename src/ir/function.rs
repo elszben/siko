@@ -36,10 +36,10 @@ pub enum FunctionInfo {
 }
 
 impl FunctionInfo {
-    pub fn typed(&self) -> bool {
+    pub fn body(&self) -> ExprId {
         match self {
-            FunctionInfo::Lambda(_) => false,
-            FunctionInfo::NamedFunction(i) => i.type_signature.is_some()
+            FunctionInfo::Lambda(b) => *b,
+            FunctionInfo::NamedFunction(i) => i.body.expect("Body does not exist").clone(),
         }
     }
 }

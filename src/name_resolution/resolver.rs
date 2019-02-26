@@ -8,6 +8,7 @@ use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program as IrProgram;
+use crate::ir::types::FunctionType;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
@@ -212,7 +213,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
                 }
-                IrTypeSignature::Function(item_ids)
+                IrTypeSignature::Function(FunctionType::new(item_ids))
             }
         };
         let id = ir_program.get_type_signature_id();

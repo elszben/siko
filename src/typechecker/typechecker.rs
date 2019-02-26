@@ -5,7 +5,7 @@ use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::program::Program;
 use crate::typechecker::error::TypecheckError;
-use crate::util::format_list;
+use crate::typechecker::type_variable::TypeVariable;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -35,7 +35,7 @@ impl<'a> FunctionInfoCollector<'a> {
 }
 
 impl<'a> Collector for FunctionInfoCollector<'a> {
-    fn process(&mut self, program: &Program, expr: &Expr) {
+    fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {
         match expr {
             Expr::StaticFunctionCall(func_id, _) => {
                 self.function_type_info.function_deps.insert(*func_id);
@@ -48,13 +48,21 @@ impl<'a> Collector for FunctionInfoCollector<'a> {
     }
 }
 
+struct TypeVariableCollector {}
+
+impl<'a> Collector for TypeVariableCollector {
+    fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {
+
+    }
+}
+
 trait Collector {
-    fn process(&mut self, program: &Program, expr: &Expr) {}
+    fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {}
 }
 
 fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
     let expr = program.get_expr(id);
-    collector.process(program, &expr);
+    collector.process(program, &expr, *id);
     match expr {
         Expr::StaticFunctionCall(_, args) => {
             for arg in args {
@@ -107,8 +115,15 @@ impl Typechecker {
         }
     }
 
-    fn check_untyped_function(&self, id: FunctionId, errors: &mut Vec<TypecheckError>) {
+    fn check_untyped_function(
+        &self,
+        id: FunctionId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
         println!("Checking untyped {}", id);
+        let function = program.get_function(&id);
+        let body = function.info.body();
     }
 
     fn check_function_deps(
@@ -195,7 +210,7 @@ impl Typechecker {
         }
 
         for function_id in untyped_check_order {
-            self.check_untyped_function(function_id, &mut errors);
+            self.check_untyped_function(function_id, program, &mut errors);
         }
 
         for function_id in typed_functions {
