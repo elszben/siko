@@ -17,4 +17,5 @@ pub enum ResolverError {
     LambdaArgumentConflict(Vec<String>, ExprId),
     UnknownFunction(String, ExprId),
     AmbiguousName(String, ExprId),
+    FunctionTypeNameMismatch(String, String, TypeSignatureId),
 }

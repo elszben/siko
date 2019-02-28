@@ -14,7 +14,7 @@ module szilva where
 foo ::  Int
 foo = foo
 
-korte a   :: (Int, Int, (String, String))
+korte2 a   :: (Int, Int, (String, String))
 korte af  =  do 
                 foo
                 \x -> 6

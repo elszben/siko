@@ -1,6 +1,6 @@
 use super::type_variable::TypeVariable;
-use crate::ir::types::FunctionType;
-use crate::ir::types::TypeSignature;
+use crate::typechecker::function_type::FunctionType;
+use crate::typechecker::types::Type;
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl TypeIndex {
 #[derive(Debug)]
 pub struct TypeStore {
     variables: BTreeMap<TypeVariable, TypeIndex>,
-    indices: BTreeMap<TypeIndex, TypeSignature>,
+    indices: BTreeMap<TypeIndex, Type>,
     next_type_arg_id: usize,
 }
 
@@ -55,7 +55,7 @@ impl TypeStore {
         id
     }
 
-    pub fn add_var(&mut self, ty: TypeSignature) -> TypeVariable {
+    pub fn add_var(&mut self, ty: Type) -> TypeVariable {
         let type_var = TypeVariable::new(self.variables.len());
         let index = TypeIndex::new(self.indices.len());
         self.indices.insert(index, ty);
@@ -90,16 +90,16 @@ impl TypeStore {
         let var_ty2 = self.get_type(var2);
         println!("Unify vars t1:{} t2:{}", var_ty1, var_ty2);
         match (&var_ty1, &var_ty2) {
-            (TypeSignature::Int, TypeSignature::Int) => {}
-            (TypeSignature::String, TypeSignature::String) => {}
-            (TypeSignature::Bool, TypeSignature::Bool) => {}
-            (TypeSignature::TypeArgument(_), _) => {
+            (Type::Int, Type::Int) => {}
+            (Type::String, Type::String) => {}
+            (Type::Bool, Type::Bool) => {}
+            (Type::TypeArgument(_), _) => {
                 self.unify_variables(var2, var1);
             }
-            (_, TypeSignature::TypeArgument(_)) => {
+            (_, Type::TypeArgument(_)) => {
                 self.unify_variables(var1, var2);
             }
-            (TypeSignature::Tuple(subtypes1), TypeSignature::Tuple(subtypes2)) => {
+            (Type::Tuple(subtypes1), Type::Tuple(subtypes2)) => {
                 if subtypes1.len() != subtypes2.len() {
                     let err = format!(
                         "Tuples len mismatch {} != {}",
@@ -113,13 +113,13 @@ impl TypeStore {
                     }
                 }
             }
-            (TypeSignature::Function(f1), TypeSignature::Function(f2)) => {
+            (Type::Function(f1), Type::Function(f2)) => {
                 if f1.types.len() != f2.types.len() {
                     let err = format!("Function signature mismatch {} != {}", f1, f2);
                     result.add_error(err);
                 } else {
                     for (v1, v2) in f1.types.iter().zip(f2.types.iter()) {
-                        self.unify_vars(v1, v2, result);
+                        self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var(), result);
                     }
                 }
             }
@@ -130,7 +130,7 @@ impl TypeStore {
         }
     }
 
-    pub fn get_type(&self, var: TypeVariable) -> TypeSignature {
+    pub fn get_type(&self, var: TypeVariable) -> Type {
         let index = self.get_index(var);
         self.indices
             .get(&index)
@@ -138,7 +138,7 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn get_resolved_type(&self, var: TypeVariable) -> TypeSignature {
+    pub fn get_resolved_type(&self, var: TypeVariable) -> Type {
         let index = self.get_index(var);
         let t = self
             .indices
@@ -146,29 +146,29 @@ impl TypeStore {
             .expect("invalid type index")
             .clone();
         match t {
-            TypeSignature::Tuple(inners) => {
+            Type::Tuple(inners) => {
                 let resolved_types = inners
                     .into_iter()
                     .map(|v| match v {
-                        TypeSignature::TypeVar(v) => self.get_resolved_type(v),
+                        Type::TypeVar(v) => self.get_resolved_type(v),
                         _ => v,
                     })
                     .collect();
-                return TypeSignature::Tuple(resolved_types);
+                return Type::Tuple(resolved_types);
             }
-            TypeSignature::TypeVar(inner) => {
+            Type::TypeVar(inner) => {
                 return self.get_resolved_type(inner);
             }
-            TypeSignature::Function(inner) => {
+            Type::Function(inner) => {
                 let resolved_types = inner
                     .types
                     .into_iter()
                     .map(|v| match v {
-                        TypeSignature::TypeVar(v) => self.get_resolved_type(v),
+                        Type::TypeVar(v) => self.get_resolved_type(v),
                         _ => v,
                     })
                     .collect();
-                return TypeSignature::Function(FunctionType::new(resolved_types));
+                return Type::Function(FunctionType::new(resolved_types));
             }
             _ => {
                 return t;

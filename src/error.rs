@@ -172,40 +172,16 @@ impl Error {
                             println!("Ambiguous name {}", var_name.yellow());
                             let location_set = location_info.get_expr_location(id);
                             print_location_set(file_manager, location_set);
-                        } /*
-                          ResolverError::FunctionConflictInModule(errors) => {
-                              for ((name, module), locations) in errors.iter() {
-                                  println!(
-                                      "Function name {} defined more than once in module {}",
-                                      name, module
-                                  );
-                                  println!("Locations:");
-                                  for location in locations.iter() {
-                                      Error::report_location(file_manager, location);
-                                  }
-                              }
-                          }
-
-
-                          ResolverError::ImportedSymbolConflict(module, conflicts) => {
-                              for (symbol, modules) in conflicts.iter() {
-                                  let modules: Vec<_> = modules.iter().map(|s| s.clone()).collect();
-                                  println!(
-                                      "Symbol {} imported from {} in",
-                                      symbol,
-                                      modules.join(", ")
-                                  );
-                              }
-                              Error::report_location(file_manager, &module.location());
-                          }
-                          ResolverError::ArgumentConflict(func_name, location) => {
-                              println!("Arguments for {} are not unique", func_name);
-                              Error::report_location(file_manager, location);
-                          }
-
-
-
-                          */
+                        }
+                        ResolverError::FunctionTypeNameMismatch(n1, n2, id) => {
+                            println!(
+                                "Name mismatch in function type signature, {} != {}",
+                                n1.yellow(),
+                                n2.yellow()
+                            );
+                            let location_set = location_info.get_type_signature_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

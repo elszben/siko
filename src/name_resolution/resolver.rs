@@ -8,7 +8,6 @@ use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program as IrProgram;
-use crate::ir::types::FunctionType;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
@@ -213,7 +212,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
                 }
-                IrTypeSignature::Function(FunctionType::new(item_ids))
+                IrTypeSignature::Function(item_ids)
             }
         };
         let id = ir_program.get_type_signature_id();
@@ -644,6 +643,14 @@ impl<'a> Resolver<'a> {
                 let mut type_signature_id = None;
                 let mut body = None;
                 if let Some(ty) = &function.func_type {
+                    if ty.name != function.name {
+                        let err = ResolverError::FunctionTypeNameMismatch(
+                            ty.name.clone(),
+                            function.name.clone(),
+                            ty.full_type_signature_id,
+                        );
+                        errors.push(err);
+                    }
                     type_signature_id =
                         self.process_func_type(ty, program, &mut ir_program, &mut errors);
                 }
