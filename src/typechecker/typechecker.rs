@@ -5,7 +5,9 @@ use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::program::Program;
 use crate::typechecker::error::TypecheckError;
+use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
+use crate::typechecker::types::Type;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -48,11 +50,83 @@ impl<'a> Collector for FunctionInfoCollector<'a> {
     }
 }
 
-struct TypeVariableCollector {}
+struct TypeProcessor {
+    type_store: TypeStore,
+    type_vars: BTreeMap<ExprId, TypeVariable>,
+}
 
-impl<'a> Collector for TypeVariableCollector {
+impl TypeProcessor {
+    fn new() -> TypeProcessor {
+        TypeProcessor {
+            type_store: TypeStore::new(),
+            type_vars: BTreeMap::new(),
+        }
+    }
+
+    fn get_type_var_for_expr(&self, id: &ExprId) -> TypeVariable {
+        self.type_vars
+            .get(id)
+            .expect("Sub expr type var not found")
+            .clone()
+    }
+
+    fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
+        for (id, ty_var) in &self.type_vars {
+            let expr = program.get_expr(id);
+            match expr {
+                Expr::IntegerLiteral(_) => {}
+                Expr::BoolLiteral(_) => {}
+                Expr::If(cond, true_branch, false_branch) => {
+                    let cond_var = self.get_type_var_for_expr(cond);
+                    let true_var = self.get_type_var_for_expr(true_branch);
+                    let false_var = self.get_type_var_for_expr(false_branch);
+                    let cond_ty = self.type_store.get_type(cond_var);
+                    if cond_ty != Type::Bool {
+                        let var = self.type_store.add_var(Type::Bool);
+                        if !self.type_store.unify_vars(var, cond_var) {
+                            let ast_cond_id = program.get_ast_expr_id(cond);
+                            let cond_ty = self.type_store.get_resolved_type(cond_var);
+                            let cond_ty = format!("{}", cond_ty);
+                            let err = TypecheckError::IfCondition(*ast_cond_id, cond_ty);
+                            errors.push(err);
+                        }
+                    }
+                    if !self.type_store.unify_vars(true_var, false_var) {
+                        let ast_if_id = program.get_ast_expr_id(id);
+                        let true_type = self.type_store.get_resolved_type(true_var);
+                        let false_type = self.type_store.get_resolved_type(false_var);
+                        let true_type = format!("{}", true_type);
+                        let false_type = format!("{}", false_type);
+                        let err =
+                            TypecheckError::IfBranchMismatch(*ast_if_id, true_type, false_type);
+                        errors.push(err);
+                    }
+                }
+                _ => panic!("Check of expr {} is not implemented", expr),
+            }
+        }
+    }
+}
+
+impl<'a> Collector for TypeProcessor {
     fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {
-
+        match expr {
+            Expr::IntegerLiteral(_) => {
+                let ty = Type::Int;
+                let var = self.type_store.add_var(ty.clone());
+                self.type_vars.insert(id, var);
+            }
+            Expr::BoolLiteral(_) => {
+                let ty = Type::Bool;
+                let var = self.type_store.add_var(ty.clone());
+                self.type_vars.insert(id, var);
+            }
+            Expr::If(cond, true_branch, false_branch) => {
+                let true_var = self.get_type_var_for_expr(true_branch);
+                self.type_vars.insert(id, true_var);
+            }
+            _ => {}
+        }
     }
 }
 
@@ -62,7 +136,7 @@ trait Collector {
 
 fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
     let expr = program.get_expr(id);
-    collector.process(program, &expr, *id);
+
     match expr {
         Expr::StaticFunctionCall(_, args) => {
             for arg in args {
@@ -102,6 +176,7 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
         Expr::Bind(_, expr) => walker(program, expr, collector),
         Expr::VariableRef(_) => {}
     }
+    collector.process(program, &expr, *id);
 }
 
 pub struct Typechecker {
@@ -124,6 +199,9 @@ impl Typechecker {
         println!("Checking untyped {}", id);
         let function = program.get_function(&id);
         let body = function.info.body();
+        let mut type_processor = TypeProcessor::new();
+        walker(program, &body, &mut type_processor);
+        type_processor.check_constraints(program, errors);
     }
 
     fn check_function_deps(

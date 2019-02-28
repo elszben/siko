@@ -6,7 +6,7 @@ import szilva
 
 module alma where
 korte = 5
-foo  = 5
+foo  = if True then 3 else 4
 
 
 module szilva where
@@ -14,7 +14,7 @@ module szilva where
 foo ::  Int
 foo = foo
 
-korte2 a   :: (Int, Int, (String, String))
+korte a   :: (Int, Int, (String, String))
 korte af  =  do 
                 foo
                 \x -> 6

@@ -1,26 +1,8 @@
 use super::type_variable::TypeVariable;
+use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::types::Type;
 use std::collections::BTreeMap;
-
-#[derive(Debug)]
-pub struct UnificationResultCollector {
-    pub errors: Vec<String>,
-}
-
-impl UnificationResultCollector {
-    pub fn new() -> UnificationResultCollector {
-        UnificationResultCollector { errors: Vec::new() }
-    }
-
-    pub fn add_error(&mut self, error: String) {
-        self.errors.push(error);
-    }
-
-    pub fn is_failed(&self) -> bool {
-        !self.errors.is_empty()
-    }
-}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeIndex {
@@ -80,12 +62,7 @@ impl TypeStore {
         }
     }
 
-    pub fn unify_vars(
-        &mut self,
-        var1: TypeVariable,
-        var2: TypeVariable,
-        result: &mut UnificationResultCollector,
-    ) {
+    pub fn unify_vars(&mut self, var1: TypeVariable, var2: TypeVariable) -> bool {
         let var_ty1 = self.get_type(var1);
         let var_ty2 = self.get_type(var2);
         println!("Unify vars t1:{} t2:{}", var_ty1, var_ty2);
@@ -101,33 +78,31 @@ impl TypeStore {
             }
             (Type::Tuple(subtypes1), Type::Tuple(subtypes2)) => {
                 if subtypes1.len() != subtypes2.len() {
-                    let err = format!(
-                        "Tuples len mismatch {} != {}",
-                        subtypes1.len(),
-                        subtypes2.len()
-                    );
-                    result.add_error(err);
+                    return false;
                 } else {
                     for (v1, v2) in subtypes1.iter().zip(subtypes2.iter()) {
-                        self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var(), result);
+                        if !self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var()) {
+                            return false;
+                        }
                     }
                 }
             }
             (Type::Function(f1), Type::Function(f2)) => {
                 if f1.types.len() != f2.types.len() {
-                    let err = format!("Function signature mismatch {} != {}", f1, f2);
-                    result.add_error(err);
+                    return false;
                 } else {
                     for (v1, v2) in f1.types.iter().zip(f2.types.iter()) {
-                        self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var(), result);
+                        if !self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var()) {
+                            return false;
+                        }
                     }
                 }
             }
             _ => {
-                let err = format!("Unify variables error {} {}", var_ty1, var_ty2);
-                result.add_error(err);
+                return false;
             }
         }
+        return true;
     }
 
     pub fn get_type(&self, var: TypeVariable) -> Type {

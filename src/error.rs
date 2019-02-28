@@ -202,6 +202,19 @@ impl Error {
                         TypecheckError::FunctionTypeDependencyLoop => {
                             println!("Function type dependency loop detected");
                         }
+                        TypecheckError::IfBranchMismatch(if_id, true_branch, false_branch) => {
+                            let location_set = location_info.get_expr_location(if_id);
+                            print_location_set(file_manager, location_set);
+                            println!("Type of if branches mismatch:");
+                            println!("   {}", true_branch.yellow());
+                            println!("   {}", false_branch.yellow());
+                        }
+                        TypecheckError::IfCondition(cond_id, ty) => {
+                            let location_set = location_info.get_expr_location(cond_id);
+                            print_location_set(file_manager, location_set);
+                            println!("Type of if condition must be boolean instead of:");
+                            println!("   {}", ty.yellow());
+                        }
                     }
                 }
             }
