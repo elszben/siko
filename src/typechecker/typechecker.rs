@@ -106,6 +106,14 @@ impl TypeProcessor {
             }
         }
     }
+
+    fn dump_types(&self, program: &Program) {
+        for (id, var) in &self.type_vars {
+            let expr = program.get_expr(id);
+            let ty = self.type_store.get_resolved_type(*var);
+            println!("{} {} {}", id, expr, ty);
+        }
+    }
 }
 
 impl<'a> Collector for TypeProcessor {
@@ -174,7 +182,8 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
             }
         }
         Expr::Bind(_, expr) => walker(program, expr, collector),
-        Expr::VariableRef(_) => {}
+        Expr::ArgRef(_) => {}
+        Expr::ExprValue(_) => {}
     }
     collector.process(program, &expr, *id);
 }
@@ -196,12 +205,13 @@ impl Typechecker {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
     ) {
-        println!("Checking untyped {}", id);
         let function = program.get_function(&id);
+        println!("Checking untyped {},{}", id, function.info);
         let body = function.info.body();
         let mut type_processor = TypeProcessor::new();
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
+        type_processor.dump_types(program);
     }
 
     fn check_function_deps(

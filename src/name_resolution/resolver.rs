@@ -13,6 +13,7 @@ use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::name_resolution::capture_list::CaptureList;
 use crate::name_resolution::environment::Environment;
+use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::import::ImportKind;
 use crate::name_resolution::import::ImportStore;
@@ -32,7 +33,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 enum PathResolveResult {
-    VariableRef(String),
+    VariableRef(NamedRef),
     FunctionRef(IrFunctionId),
     Unknown(String),
     Ambiguous,
@@ -283,10 +284,9 @@ impl<'a> Resolver<'a> {
     ) -> PathResolveResult {
         let name = path.get();
         if path.path.len() == 1 {
-            let (valid, level) = environment.is_valid(&name);
-            if valid {
-                capture_list.process(&name, level);
-                return PathResolveResult::VariableRef(name);
+            if let Some((named_ref, level)) = environment.get_ref(&name) {
+                capture_list.process(named_ref.clone(), level);
+                return PathResolveResult::VariableRef(named_ref);
             }
         }
         let function_ids = module.imported_functions.get_function_id(&name);
@@ -302,6 +302,19 @@ impl<'a> Resolver<'a> {
                 return PathResolveResult::Ambiguous;
             }
         }
+    }
+
+    fn process_named_ref(
+        &self,
+        named_ref: NamedRef,
+        id: ExprId,
+        ir_program: &mut IrProgram,
+    ) -> IrExprId {
+        let ir_expr = match named_ref {
+            NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
+            NamedRef::FunctionArg(index) => IrExpr::ArgRef(index),
+        };
+        self.add_expr(ir_expr, id, ir_program)
     }
 
     fn process_expr(
@@ -321,11 +334,11 @@ impl<'a> Resolver<'a> {
                 let mut arg_names = BTreeSet::new();
                 let mut conflicting_names = BTreeSet::new();
                 let mut environment = Environment::child(environment);
-                for arg in args {
+                for (index, arg) in args.iter().enumerate() {
                     if !arg_names.insert(arg.clone()) {
                         conflicting_names.insert(arg.clone());
                     }
-                    environment.add(arg.clone());
+                    environment.add_arg(arg.clone(), index);
                 }
                 if !conflicting_names.is_empty() {
                     let err = ResolverError::LambdaArgumentConflict(
@@ -355,10 +368,7 @@ impl<'a> Resolver<'a> {
                 let captured_lambda_args: Vec<_> = capture_list
                     .captures()
                     .into_iter()
-                    .map(|v| {
-                        let ir_expr = IrExpr::VariableRef(v);
-                        self.add_expr(ir_expr, id, ir_program)
-                    })
+                    .map(|named_ref| self.process_named_ref(named_ref, id, ir_program))
                     .collect();
                 let ir_expr = IrExpr::LambdaFunction(ir_lambda_id, captured_lambda_args);
                 return self.add_expr(ir_expr, id, ir_program);
@@ -385,9 +395,9 @@ impl<'a> Resolver<'a> {
                             let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
                             return self.add_expr(ir_expr, id, ir_program);
                         }
-                        PathResolveResult::VariableRef(n) => {
-                            let ir_id_expr = IrExpr::VariableRef(n);
-                            let ir_id_expr_id = self.add_expr(ir_id_expr, *id_expr_id, ir_program);
+                        PathResolveResult::VariableRef(named_ref) => {
+                            let ir_id_expr_id =
+                                self.process_named_ref(named_ref, *id_expr_id, ir_program);
                             let ir_expr = IrExpr::DynamicFunctionCall(ir_id_expr_id, ir_args);
                             return self.add_expr(ir_expr, id, ir_program);
                         }
@@ -495,9 +505,8 @@ impl<'a> Resolver<'a> {
                         let ir_expr = IrExpr::StaticFunctionCall(n, vec![]);
                         return self.add_expr(ir_expr, id, ir_program);
                     }
-                    PathResolveResult::VariableRef(n) => {
-                        let ir_expr = IrExpr::VariableRef(n);
-                        return self.add_expr(ir_expr, id, ir_program);
+                    PathResolveResult::VariableRef(named_ref) => {
+                        return self.process_named_ref(named_ref, id, ir_program);
                     }
                     PathResolveResult::Unknown(n) => {
                         let err = ResolverError::UnknownFunction(n, id);
@@ -557,7 +566,7 @@ impl<'a> Resolver<'a> {
                     errors,
                     capture_list,
                 );
-                environment.add(name.clone());
+                environment.add_expr_value(name.clone(), ir_expr_id);
                 let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id);
                 return self.add_expr(ir_expr, id, ir_program);
             }
@@ -658,11 +667,11 @@ impl<'a> Resolver<'a> {
                     let mut environment = Environment::new();
                     let mut arg_names = BTreeSet::new();
                     let mut conflicting_names = BTreeSet::new();
-                    for arg in &function.args {
+                    for (index, arg) in function.args.iter().enumerate() {
                         if !arg_names.insert(arg.clone()) {
                             conflicting_names.insert(arg.clone());
                         }
-                        environment.add(arg.clone());
+                        environment.add_arg(arg.clone(), index);
                     }
                     if !conflicting_names.is_empty() {
                         let err = ResolverError::ArgumentConflict(

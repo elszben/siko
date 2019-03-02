@@ -1,6 +1,8 @@
+use crate::name_resolution::environment::NamedRef;
+
 #[derive(Debug)]
 pub struct CaptureList {
-    captures: Vec<String>,
+    captures: Vec<NamedRef>,
     level: usize,
 }
 
@@ -12,13 +14,13 @@ impl CaptureList {
         }
     }
 
-    pub fn process(&mut self, var: &str, level: usize) {
+    pub fn process(&mut self, r: NamedRef, level: usize) {
         if level < self.level {
-            self.captures.push(var.to_string());
+            self.captures.push(r);
         }
     }
 
-    pub fn captures(&self) -> Vec<String> {
+    pub fn captures(&self) -> Vec<NamedRef> {
         self.captures.clone()
     }
 }

@@ -27,7 +27,8 @@ pub enum Expr {
     StringLiteral(String),
     Do(Vec<ExprId>),
     Bind(String, ExprId),
-    VariableRef(String),
+    ArgRef(usize),
+    ExprValue(ExprId),
 }
 
 impl fmt::Display for Expr {
@@ -52,7 +53,8 @@ impl fmt::Display for Expr {
             Expr::StringLiteral(v) => write!(f, "String({})", v),
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
             Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
-            Expr::VariableRef(v) => write!(f, "VariableRef({})", v),
+            Expr::ArgRef(v) => write!(f, "ArgRef({})", v),
+            Expr::ExprValue(id) => write!(f, "ExprValue({})", id),
         }
     }
 }

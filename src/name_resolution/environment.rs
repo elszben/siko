@@ -1,7 +1,14 @@
-use std::collections::BTreeSet;
+use crate::ir::expr::ExprId;
+use std::collections::BTreeMap;
+
+#[derive(Debug, Clone)]
+pub enum NamedRef {
+    FunctionArg(usize),
+    ExprValue(ExprId),
+}
 
 pub struct Environment<'a> {
-    variables: BTreeSet<String>,
+    variables: BTreeMap<String, NamedRef>,
     parent: Option<&'a Environment<'a>>,
     level: usize,
 }
@@ -9,31 +16,35 @@ pub struct Environment<'a> {
 impl<'a> Environment<'a> {
     pub fn new() -> Environment<'a> {
         Environment {
-            variables: BTreeSet::new(),
+            variables: BTreeMap::new(),
             parent: None,
             level: 0,
         }
     }
 
-    pub fn add(&mut self, var: String) {
-        self.variables.insert(var);
+    pub fn add_expr_value(&mut self, var: String, id: ExprId) {
+        self.variables.insert(var, NamedRef::ExprValue(id));
     }
 
-    pub fn is_valid(&self, var: &String) -> (bool, usize) {
-        if self.variables.get(var).is_some() {
-            return (true, self.level);
+    pub fn add_arg(&mut self, var: String, index: usize) {
+        self.variables.insert(var, NamedRef::FunctionArg(index));
+    }
+
+    pub fn get_ref(&self, var: &String) -> Option<(NamedRef, usize)> {
+        if let Some(named_ref) = self.variables.get(var) {
+            return Some((named_ref.clone(), self.level));
         } else {
             if let Some(parent) = self.parent {
-                parent.is_valid(var)
+                parent.get_ref(var)
             } else {
-                (false, 0)
+                None
             }
         }
     }
 
     pub fn child(parent: &'a Environment<'a>) -> Environment<'a> {
         Environment {
-            variables: BTreeSet::new(),
+            variables: BTreeMap::new(),
             parent: Some(parent),
             level: parent.level + 1,
         }
