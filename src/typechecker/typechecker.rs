@@ -117,13 +117,14 @@ impl<'a> TypeProcessor<'a> {
                         .get(function_id)
                         .expect("Function type not found");
                     let ty = self.type_store.get_type(target_func_type_var);
-                    match ty {
+                    match &ty {
                         Type::Function(function_type) => {
-                            let types: Vec<_> = function_type
-                                .types
-                                .iter()
-                                .map(|ty| self.type_store.clone_type(ty))
-                                .collect();
+                            let cloned_function_type = self.type_store.clone_type(&ty);
+                            let types = if let Type::Function(ft) = cloned_function_type {
+                                ft.types
+                            } else {
+                                unreachable!();
+                            };
                             if args.len() > types.len() - 1 {
                                 let f = program.get_function(function_id);
                                 let name = format!("{}", f.info);
@@ -423,11 +424,11 @@ impl Typechecker {
     ) {
         let mut arg_map = BTreeMap::new();
         let var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
-        println!(
+        /*println!(
             "Registering function {} with type {}",
             function_id,
             self.type_store.get_resolved_type(&var)
-        );
+        );*/
         self.function_type_map.insert(function_id, var);
     }
 

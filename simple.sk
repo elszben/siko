@@ -4,4 +4,4 @@ foo a :: a -> (a, String) -> Int
 foo a b = extern
 
 korte af  =  
- foo 4 (True, "b")
+ foo 4 ("f", "b")
