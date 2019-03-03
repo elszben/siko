@@ -2,6 +2,7 @@ use super::type_variable::TypeVariable;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::types::Type;
+use crate::util::Counter;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -19,7 +20,9 @@ impl TypeIndex {
 pub struct TypeStore {
     variables: BTreeMap<TypeVariable, TypeIndex>,
     indices: BTreeMap<TypeIndex, Type>,
-    next_type_arg_id: usize,
+    var_counter: Counter,
+    index_counter: Counter,
+    arg_counter: Counter,
 }
 
 impl TypeStore {
@@ -27,19 +30,29 @@ impl TypeStore {
         TypeStore {
             variables: BTreeMap::new(),
             indices: BTreeMap::new(),
-            next_type_arg_id: 0,
+            var_counter: Counter::new(),
+            index_counter: Counter::new(),
+            arg_counter: Counter::new(),
         }
     }
 
     pub fn get_unique_type_arg(&mut self) -> usize {
-        let id = self.next_type_arg_id;
-        self.next_type_arg_id += 1;
-        id
+        self.arg_counter.next()
+    }
+
+    fn allocate_var(&mut self) -> TypeVariable {
+        let type_var = TypeVariable::new(self.var_counter.next());
+        type_var
+    }
+
+    fn allocate_index(&mut self) -> TypeIndex {
+        let index = TypeIndex::new(self.index_counter.next());
+        index
     }
 
     pub fn add_var(&mut self, ty: Type) -> TypeVariable {
-        let type_var = TypeVariable::new(self.variables.len());
-        let index = TypeIndex::new(self.indices.len());
+        let type_var = self.allocate_var();
+        let index = self.allocate_index();
         self.indices.insert(index, ty);
         self.variables.insert(type_var, index);
         type_var
@@ -154,44 +167,18 @@ impl TypeStore {
         }
     }
 
-    pub fn clone_type(&mut self, ty: &Type, arg_map: &mut BTreeMap<usize, usize>) -> Type {
-        match ty {
-            Type::Int => Type::Int,
-            Type::Bool => Type::Bool,
-            Type::String => Type::String,
-            Type::Nothing => Type::Nothing,
-            Type::Tuple(types) => {
-                let types: Vec<_> = types.iter().map(|t| self.clone_type(t, arg_map)).collect();
-                Type::Tuple(types)
-            }
-            Type::Function(func_type) => {
-                let types: Vec<_> = func_type
-                    .types
-                    .iter()
-                    .map(|t| self.clone_type(t, arg_map))
-                    .collect();
-                Type::Function(FunctionType::new(types))
-            }
-            Type::TypeArgument(index) => {
-                let arg = arg_map
-                    .entry(*index)
-                    .or_insert_with(|| self.get_unique_type_arg());
-                Type::TypeArgument(*arg)
-            }
-            Type::TypeVar(v) => {
-                let v2 = self.clone_type_var(*v, arg_map);
-                Type::TypeVar(v2)
-            }
+    pub fn clone_type(&mut self, ty: &Type) -> Type {
+        let mut vars = Vec::new();
+        let mut args = Vec::new();
+        ty.collect(&mut vars, &mut args);
+        let mut var_map = BTreeMap::new();
+        let mut arg_map = BTreeMap::new();
+        for var in vars {
+            var_map.insert(var, self.allocate_var());
         }
-    }
-
-    pub fn clone_type_var(
-        &mut self,
-        type_variable: TypeVariable,
-        arg_map: &mut BTreeMap<usize, usize>,
-    ) -> TypeVariable {
-        let ty = self.get_type(&type_variable);
-        let ty = self.clone_type(&ty, arg_map);
-        return self.add_var(ty);
+        for arg in args {
+            arg_map.insert(arg, self.get_unique_type_arg());
+        }
+        ty.clone_type(&var_map, &arg_map, &mut self)
     }
 }

@@ -26,6 +26,45 @@ impl Type {
         }
     }
 
+    pub fn clone_type(
+        &self,
+        vars: &BTreeMap<TypeVariable, TypeVariable>,
+        args: &BTreeMap<usize, usize>,
+        type_store: &mut TypeStore,
+    ) -> Type {
+        match self {
+            Type::Int => self.clone(),
+            Type::Bool => self.clone(),
+            Type::String => self.clone(),
+            Type::Nothing => self.clone(),
+            Type::Tuple(types) => {}
+            Type::Function(func_type) => {}
+            Type::TypeArgument(index) => {}
+            Type::TypeVar(var) => {}
+        }
+    }
+
+    pub fn collect(&self, vars: &mut Vec<TypeVariable>, args: &mut Vec<usize>) {
+        match self {
+            Type::Int => {}
+            Type::Bool => {}
+            Type::String => {}
+            Type::Nothing => {}
+            Type::Tuple(types) => {
+                types.iter().map(|t| t.collect(vars, args));
+            }
+            Type::Function(func_type) => {
+                func_type.types.iter().map(|t| t.collect(vars, args));
+            }
+            Type::TypeArgument(index) => {
+                args.push(*index);
+            }
+            Type::TypeVar(var) => {
+                vars.push(*var);
+            }
+        }
+    }
+
     pub fn as_string(&self, type_store: &TypeStore) -> String {
         if let Type::TypeVar(v) = self {
             let ty = type_store.get_resolved_type(v);

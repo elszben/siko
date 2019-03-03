@@ -120,10 +120,13 @@ impl<'a> TypeProcessor<'a> {
                     match ty {
                         Type::Function(function_type) => {
                             let mut arg_map = BTreeMap::new();
+                            let mut var_map = BTreeMap::new();
                             let types: Vec<_> = function_type
                                 .types
                                 .iter()
-                                .map(|ty| self.type_store.clone_type(ty, &mut arg_map))
+                                .map(|ty| {
+                                    self.type_store.clone_type(ty, &mut arg_map, &mut var_map)
+                                })
                                 .collect();
                             if args.len() > types.len() - 1 {
                                 let f = program.get_function(function_id);
@@ -369,7 +372,7 @@ impl Typechecker {
         &mut self,
         type_signature_id: &TypeSignatureId,
         program: &Program,
-        arg_map: &mut BTreeMap<usize, usize>,
+        arg_map: &mut BTreeMap<usize, TypeVariable>,
     ) -> TypeVariable {
         let type_signature = program.get_type_signature(type_signature_id);
         match type_signature {
@@ -406,11 +409,12 @@ impl Typechecker {
                 return self.type_store.add_var(ty);
             }
             TypeSignature::TypeArgument(index) => {
-                let arg = arg_map
-                    .entry(*index)
-                    .or_insert_with(|| self.type_store.get_unique_type_arg());
-                let ty = Type::TypeArgument(*arg);
-                return self.type_store.add_var(ty);
+                let var = arg_map.entry(*index).or_insert_with(|| {
+                    let arg = self.type_store.get_unique_type_arg();
+                    let ty = Type::TypeArgument(arg);
+                    self.type_store.add_var(ty)
+                });
+                *var
             }
         }
     }
