@@ -7,4 +7,5 @@ pub enum TypecheckError {
     FunctionTypeDependencyLoop,
     TooManyArguments(ExprId, String, usize, usize),
     TypeMismatch(ExprId, String, String),
+    FunctionArgumentMismatch(ExprId, String, String),
 }

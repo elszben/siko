@@ -11,7 +11,7 @@ use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
-
+use crate::util::format_list;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -125,6 +125,43 @@ impl<'a> TypeProcessor<'a> {
                                 .iter()
                                 .map(|ty| self.type_store.clone_type(ty, &mut arg_map))
                                 .collect();
+                            if args.len() > types.len() - 1 {
+                                let f = program.get_function(function_id);
+                                let name = format!("{}", f.info);
+                                let ast_id = program.get_ast_expr_id(&id);
+                                let err = TypecheckError::TooManyArguments(
+                                    *ast_id,
+                                    name,
+                                    types.len() - 1,
+                                    args.len(),
+                                );
+                                errors.push(err);
+                            } else {
+                                let mut mismatch = false;
+                                for (index, arg) in args.iter().enumerate() {
+                                    let arg_var = self.get_type_var_for_expr(arg);
+                                    let type_var = types[index].get_inner_type_var();
+                                    if !self.type_store.unify_vars(arg_var, type_var) {
+                                        mismatch = true;
+                                        break;
+                                    }
+                                }
+                                if mismatch {
+                                    let ast_id = program.get_ast_expr_id(&id);
+                                    let mut arg_types = Vec::new();
+                                    for arg in args {
+                                        let arg_var = self.get_type_var_for_expr(arg);
+                                        let ty = self.type_store.get_resolved_type(&arg_var);
+                                        arg_types.push(format!("{}", ty));
+                                    }
+                                    let arg_types = format_list(&arg_types[..]);
+                                    let func_type = function_type.as_string(self.type_store);
+                                    let err = TypecheckError::FunctionArgumentMismatch(
+                                        *ast_id, arg_types, func_type,
+                                    );
+                                    errors.push(err);
+                                }
+                            }
                         }
                         _ => {
                             if !args.is_empty() {
@@ -134,7 +171,6 @@ impl<'a> TypeProcessor<'a> {
                                 let err =
                                     TypecheckError::TooManyArguments(*ast_id, name, 0, args.len());
                                 errors.push(err);
-                                return;
                             } else {
                                 let call_var = self.get_type_var_for_expr(&id);
                                 if !self.type_store.unify_vars(call_var, *target_func_type_var) {

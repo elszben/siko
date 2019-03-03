@@ -1,6 +1,7 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
 use crate::typechecker::error::TypecheckError;
+use crate::typechecker::type_store::TypeStore;
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -22,6 +23,30 @@ impl Type {
             *v
         } else {
             unreachable!()
+        }
+    }
+
+    pub fn as_string(&self, type_store: &TypeStore) -> String {
+        if let Type::TypeVar(v) = self {
+            let ty = type_store.get_resolved_type(v);
+            format!("{}", ty)
+        } else {
+            match self {
+                Type::Int => format!("Int"),
+                Type::Bool => format!("Bool"),
+                Type::String => format!("String"),
+                Type::Nothing => format!("!"),
+                Type::Tuple(types) => {
+                    let ss: Vec<_> = types
+                        .iter()
+                        .map(|t| format!("{}", t.as_string(type_store)))
+                        .collect();
+                    format!("({})", ss.join(", "))
+                }
+                Type::Function(func_type) => func_type.as_string(type_store),
+                Type::TypeArgument(index) => format!("t{}", index),
+                Type::TypeVar(var) => format!("'{}", var.id),
+            }
         }
     }
 }

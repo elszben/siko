@@ -251,6 +251,13 @@ impl Error {
                             println!("Expected: {}", expected.yellow());
                             println!("Found:    {}", found.yellow());
                         }
+                        TypecheckError::FunctionArgumentMismatch(id, args, func) => {
+                            println!("{} invalid arguments", error.red());
+                            let location_set = location_info.get_expr_location(id);
+                            print_location_set(file_manager, location_set);
+                            println!("Arguments:        {}", args.yellow());
+                            println!("Function type:    {}", func.yellow());
+                        }
                     }
                 }
             }

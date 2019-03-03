@@ -1,6 +1,5 @@
-use crate::ir::function::FunctionId;
+use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::types::Type;
-use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -23,6 +22,19 @@ impl FunctionType {
 
     pub fn get_arg_types(&self) -> Vec<Type> {
         self.types[0..self.types.len() - 1].to_vec()
+    }
+
+    pub fn as_string(&self, type_store: &TypeStore) -> String {
+        if self.get_arg_count() != 0 {
+            let ss: Vec<_> = self
+                .types
+                .iter()
+                .map(|t| format!("{}", t.as_string(type_store)))
+                .collect();
+            format!("{}", ss.join(" -> "))
+        } else {
+            format!("{}", self.get_return_type().as_string(type_store))
+        }
     }
 }
 

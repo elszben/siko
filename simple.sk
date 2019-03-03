@@ -12,8 +12,8 @@ foo  = if "a" then
 
 module szilva where
 
-foo :: Int
-foo = 5
+foo :: Int -> Bool -> Int
+foo a b = 5
 
 korte af  =  
- foo 4
+ foo 4 (5, 6)
