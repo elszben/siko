@@ -58,6 +58,12 @@ impl TypeStore {
         type_var
     }
 
+    pub fn add_var_and_type(&mut self, type_var: TypeVariable, ty: Type) {
+        let index = self.allocate_index();
+        self.indices.insert(index, ty);
+        self.variables.insert(type_var, index);
+    }
+
     fn get_index(&self, var: &TypeVariable) -> TypeIndex {
         self.variables
             .get(var)
@@ -170,7 +176,7 @@ impl TypeStore {
     pub fn clone_type(&mut self, ty: &Type) -> Type {
         let mut vars = Vec::new();
         let mut args = Vec::new();
-        ty.collect(&mut vars, &mut args);
+        ty.collect(&mut vars, &mut args, self);
         let mut var_map = BTreeMap::new();
         let mut arg_map = BTreeMap::new();
         for var in vars {
@@ -179,6 +185,6 @@ impl TypeStore {
         for arg in args {
             arg_map.insert(arg, self.get_unique_type_arg());
         }
-        ty.clone_type(&var_map, &arg_map, &mut self)
+        ty.clone_type(&var_map, &arg_map, self)
     }
 }

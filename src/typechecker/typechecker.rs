@@ -119,14 +119,10 @@ impl<'a> TypeProcessor<'a> {
                     let ty = self.type_store.get_type(target_func_type_var);
                     match ty {
                         Type::Function(function_type) => {
-                            let mut arg_map = BTreeMap::new();
-                            let mut var_map = BTreeMap::new();
                             let types: Vec<_> = function_type
                                 .types
                                 .iter()
-                                .map(|ty| {
-                                    self.type_store.clone_type(ty, &mut arg_map, &mut var_map)
-                                })
+                                .map(|ty| self.type_store.clone_type(ty))
                                 .collect();
                             if args.len() > types.len() - 1 {
                                 let f = program.get_function(function_id);

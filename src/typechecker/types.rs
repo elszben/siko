@@ -37,30 +37,65 @@ impl Type {
             Type::Bool => self.clone(),
             Type::String => self.clone(),
             Type::Nothing => self.clone(),
-            Type::Tuple(types) => {}
-            Type::Function(func_type) => {}
-            Type::TypeArgument(index) => {}
-            Type::TypeVar(var) => {}
+            Type::Tuple(types) => {
+                let types: Vec<_> = types
+                    .iter()
+                    .map(|ty| ty.clone_type(vars, args, type_store))
+                    .collect();
+                Type::Tuple(types)
+            }
+            Type::Function(func_type) => {
+                let types: Vec<_> = func_type
+                    .types
+                    .iter()
+                    .map(|ty| ty.clone_type(vars, args, type_store))
+                    .collect();
+                Type::Function(FunctionType::new(types))
+            }
+            Type::TypeArgument(index) => {
+                let new_index = args
+                    .get(index)
+                    .expect("Type argument not found during clone");
+                Type::TypeArgument(*new_index)
+            }
+            Type::TypeVar(var) => {
+                let new_var = vars.get(var).expect("Type variable not found during clone");
+                let ty = type_store.get_type(var);
+                let ty = ty.clone_type(vars, args, type_store);
+                type_store.add_var_and_type(*new_var, ty);
+                Type::TypeVar(*new_var)
+            }
         }
     }
 
-    pub fn collect(&self, vars: &mut Vec<TypeVariable>, args: &mut Vec<usize>) {
+    pub fn collect(
+        &self,
+        vars: &mut Vec<TypeVariable>,
+        args: &mut Vec<usize>,
+        type_store: &TypeStore,
+    ) {
         match self {
             Type::Int => {}
             Type::Bool => {}
             Type::String => {}
             Type::Nothing => {}
             Type::Tuple(types) => {
-                types.iter().map(|t| t.collect(vars, args));
+                for ty in types {
+                    ty.collect(vars, args, type_store);
+                }
             }
             Type::Function(func_type) => {
-                func_type.types.iter().map(|t| t.collect(vars, args));
+                for ty in &func_type.types {
+                    ty.collect(vars, args, type_store);
+                }
             }
             Type::TypeArgument(index) => {
                 args.push(*index);
             }
             Type::TypeVar(var) => {
+                let ty = type_store.get_type(var);
                 vars.push(*var);
+                ty.collect(vars, args, type_store);
             }
         }
     }
