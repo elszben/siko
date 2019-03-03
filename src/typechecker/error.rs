@@ -7,4 +7,5 @@ pub enum TypecheckError {
     FunctionTypeDependencyLoop,
     IfBranchMismatch(ExprId, String, String),
     IfCondition(ExprId, String),
+    TooManyArguments(ExprId, String, usize, usize),
 }

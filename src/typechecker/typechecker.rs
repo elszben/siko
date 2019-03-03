@@ -55,13 +55,18 @@ impl<'a> Collector for FunctionInfoCollector<'a> {
 
 struct TypeProcessor<'a> {
     type_store: &'a mut TypeStore,
+    function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
     type_vars: BTreeMap<ExprId, TypeVariable>,
 }
 
 impl<'a> TypeProcessor<'a> {
-    fn new(type_store: &'a mut TypeStore) -> TypeProcessor<'a> {
+    fn new(
+        type_store: &'a mut TypeStore,
+        function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
+    ) -> TypeProcessor<'a> {
         TypeProcessor {
             type_store: type_store,
+            function_type_map: function_type_map,
             type_vars: BTreeMap::new(),
         }
     }
@@ -84,12 +89,12 @@ impl<'a> TypeProcessor<'a> {
                     let cond_var = self.get_type_var_for_expr(cond);
                     let true_var = self.get_type_var_for_expr(true_branch);
                     let false_var = self.get_type_var_for_expr(false_branch);
-                    let cond_ty = self.type_store.get_type(cond_var);
+                    let cond_ty = self.type_store.get_type(&cond_var);
                     if cond_ty != Type::Bool {
                         let var = self.type_store.add_var(Type::Bool);
                         if !self.type_store.unify_vars(var, cond_var) {
                             let ast_cond_id = program.get_ast_expr_id(cond);
-                            let cond_ty = self.type_store.get_resolved_type(cond_var);
+                            let cond_ty = self.type_store.get_resolved_type(&cond_var);
                             let cond_ty = format!("{}", cond_ty);
                             let err = TypecheckError::IfCondition(*ast_cond_id, cond_ty);
                             errors.push(err);
@@ -97,13 +102,34 @@ impl<'a> TypeProcessor<'a> {
                     }
                     if !self.type_store.unify_vars(true_var, false_var) {
                         let ast_if_id = program.get_ast_expr_id(id);
-                        let true_type = self.type_store.get_resolved_type(true_var);
-                        let false_type = self.type_store.get_resolved_type(false_var);
+                        let true_type = self.type_store.get_resolved_type(&true_var);
+                        let false_type = self.type_store.get_resolved_type(&false_var);
                         let true_type = format!("{}", true_type);
                         let false_type = format!("{}", false_type);
                         let err =
                             TypecheckError::IfBranchMismatch(*ast_if_id, true_type, false_type);
                         errors.push(err);
+                    }
+                }
+                Expr::StaticFunctionCall(function_id, args) => {
+                    let target_func_type_var = self
+                        .function_type_map
+                        .get(function_id)
+                        .expect("Function type not found");
+                    let ty = self.type_store.get_type(target_func_type_var);
+                    match ty {
+                        Type::Function(_) => {}
+                        _ => {
+                            if !args.is_empty() {
+                                let f = program.get_function(function_id);
+                                let name = format!("{}", f.info);
+                                let ast_id = program.get_ast_expr_id(id);
+                                let err =
+                                    TypecheckError::TooManyArguments(*ast_id, name, 0, args.len());
+                                errors.push(err);
+                                return;
+                            }
+                        }
                     }
                 }
                 _ => panic!("Check of expr {} is not implemented", expr),
@@ -114,7 +140,7 @@ impl<'a> TypeProcessor<'a> {
     fn dump_types(&self, program: &Program) {
         for (id, var) in &self.type_vars {
             let expr = program.get_expr(id);
-            let ty = self.type_store.get_resolved_type(*var);
+            let ty = self.type_store.get_resolved_type(var);
             println!("{} {} {}", id, expr, ty);
         }
     }
@@ -226,7 +252,7 @@ impl Typechecker {
         let function = program.get_function(&id);
         println!("Checking untyped {},{}", id, function.info);
         let body = function.info.body();
-        let mut type_processor = TypeProcessor::new(&mut self.type_store);
+        let mut type_processor = TypeProcessor::new(&mut self.type_store, &self.function_type_map);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
         type_processor.dump_types(program);
@@ -331,7 +357,12 @@ impl Typechecker {
     ) {
         let mut arg_map = BTreeMap::new();
         let var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
-        println!("Registering function {} with type {}", function_id, self.type_store.get_resolved_type(var));
+        println!(
+            "Registering function {} with type {}",
+            function_id,
+            self.type_store.get_resolved_type(&var)
+        );
+        self.function_type_map.insert(function_id, var);
     }
 
     pub fn check(&mut self, program: &Program) -> Result<(), Error> {

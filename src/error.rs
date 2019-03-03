@@ -105,6 +105,7 @@ impl Error {
     }
 
     pub fn report_error(&self, file_manager: &FileManager, location_info: &LocationInfo) {
+        println!("{}", "ERROR".red());
         match self {
             Error::LexerError(msg, file_path, location) => {
                 Error::report_error_base(msg, file_manager, file_path, location);
@@ -182,6 +183,11 @@ impl Error {
                             let location_set = location_info.get_type_signature_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::UnusedTypeArgument(args, id) => {
+                            println!("Unused type argument(s): {}", format_list(args).yellow());
+                            let location_set = location_info.get_type_signature_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
@@ -214,6 +220,13 @@ impl Error {
                             print_location_set(file_manager, location_set);
                             println!("Type of if condition must be boolean instead of:");
                             println!("   {}", ty.yellow());
+                        }
+                        TypecheckError::TooManyArguments(id, name, expected, found) => {
+                            let location_set = location_info.get_expr_location(id);
+                            print_location_set(file_manager, location_set);
+                            println!("Too many function arguments given for {}", name.yellow());
+                            println!("expected: {}", format!("{}", expected).yellow());
+                            println!("found: {}", format!("{}", found).yellow());
                         }
                     }
                 }

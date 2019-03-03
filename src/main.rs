@@ -31,7 +31,7 @@ fn parse(
     program: &mut Program,
     location_info: &mut LocationInfo,
 ) -> Result<(), Error> {
-    println!("Compiling {}", file_path.path);
+    //println!("Compiling {}", file_path.path);
     let mut lexer = Lexer::new(content, file_path.clone());
     let tokens = lexer.process()?;
     let token_kinds: Vec<_> = tokens

@@ -166,6 +166,7 @@ impl<'a> Resolver<'a> {
         ir_program: &mut IrProgram,
         type_args: &BTreeMap<String, usize>,
         errors: &mut Vec<ResolverError>,
+        used_type_args: &mut BTreeSet<String>,
     ) -> Option<IrTypeSignatureId> {
         let type_signature = program.get_type_signature(type_signature_id);
         let ir_type_signature = match type_signature {
@@ -176,6 +177,7 @@ impl<'a> Resolver<'a> {
                 "String" => IrTypeSignature::String,
                 _ => {
                     if let Some(index) = type_args.get(n) {
+                        used_type_args.insert(n.clone());
                         IrTypeSignature::TypeArgument(*index)
                     } else {
                         let error =
@@ -188,8 +190,14 @@ impl<'a> Resolver<'a> {
             AstTypeSignature::Tuple(items) => {
                 let mut item_ids = Vec::new();
                 for item in items {
-                    match self.process_type_signature(item, program, ir_program, type_args, errors)
-                    {
+                    match self.process_type_signature(
+                        item,
+                        program,
+                        ir_program,
+                        type_args,
+                        errors,
+                        used_type_args,
+                    ) {
                         Some(id) => {
                             item_ids.push(id);
                         }
@@ -203,8 +211,14 @@ impl<'a> Resolver<'a> {
             AstTypeSignature::Function(items) => {
                 let mut item_ids = Vec::new();
                 for item in items {
-                    match self.process_type_signature(item, program, ir_program, type_args, errors)
-                    {
+                    match self.process_type_signature(
+                        item,
+                        program,
+                        ir_program,
+                        type_args,
+                        errors,
+                        used_type_args,
+                    ) {
                         Some(id) => {
                             item_ids.push(id);
                         }
@@ -244,13 +258,29 @@ impl<'a> Resolver<'a> {
             errors.push(error);
         }
 
+        let mut used_type_args = BTreeSet::new();
+
         let id = self.process_type_signature(
             &func_type.type_signature_id,
             program,
             ir_program,
             &type_args,
             errors,
+            &mut used_type_args,
         );
+
+        let mut unused = Vec::new();
+        for type_arg in type_args.keys() {
+            if !used_type_args.contains(type_arg) {
+                unused.push(type_arg.clone());
+            }
+        }
+
+        if !unused.is_empty() {
+            let err = ResolverError::UnusedTypeArgument(unused, func_type.full_type_signature_id);
+            errors.push(err);
+        }
+
         id
     }
 
@@ -328,7 +358,7 @@ impl<'a> Resolver<'a> {
         capture_list: &mut CaptureList,
     ) -> IrExprId {
         let expr = program.get_expr(&id);
-        println!("Processing expr {}", expr);
+        //println!("Processing expr {}", expr);
         match expr {
             Expr::Lambda(args, lambda_body) => {
                 let mut arg_names = BTreeSet::new();

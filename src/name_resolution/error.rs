@@ -18,4 +18,5 @@ pub enum ResolverError {
     UnknownFunction(String, ExprId),
     AmbiguousName(String, ExprId),
     FunctionTypeNameMismatch(String, String, TypeSignatureId),
+    UnusedTypeArgument(Vec<String>, TypeSignatureId),
 }

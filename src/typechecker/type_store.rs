@@ -45,16 +45,16 @@ impl TypeStore {
         type_var
     }
 
-    fn get_index(&self, var: TypeVariable) -> TypeIndex {
+    fn get_index(&self, var: &TypeVariable) -> TypeIndex {
         self.variables
-            .get(&var)
+            .get(var)
             .expect("invalid type variable")
             .clone()
     }
 
     fn unify_variables(&mut self, from: TypeVariable, to: TypeVariable) {
-        let from_index = self.get_index(from);
-        let to_index = self.get_index(to);
+        let from_index = self.get_index(&from);
+        let to_index = self.get_index(&to);
         for (_, value) in self.variables.iter_mut() {
             if *value == to_index {
                 *value = from_index;
@@ -63,8 +63,8 @@ impl TypeStore {
     }
 
     pub fn unify_vars(&mut self, var1: TypeVariable, var2: TypeVariable) -> bool {
-        let var_ty1 = self.get_type(var1);
-        let var_ty2 = self.get_type(var2);
+        let var_ty1 = self.get_type(&var1);
+        let var_ty2 = self.get_type(&var2);
         //println!("Unify vars t1:{} t2:{}", var_ty1, var_ty2);
         match (&var_ty1, &var_ty2) {
             (Type::Int, Type::Int) => {}
@@ -105,7 +105,7 @@ impl TypeStore {
         return true;
     }
 
-    pub fn get_type(&self, var: TypeVariable) -> Type {
+    pub fn get_type(&self, var: &TypeVariable) -> Type {
         let index = self.get_index(var);
         self.indices
             .get(&index)
@@ -113,7 +113,7 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn get_resolved_type(&self, var: TypeVariable) -> Type {
+    pub fn get_resolved_type(&self, var: &TypeVariable) -> Type {
         let index = self.get_index(var);
         let t = self
             .indices
@@ -125,21 +125,21 @@ impl TypeStore {
                 let resolved_types = inners
                     .into_iter()
                     .map(|v| match v {
-                        Type::TypeVar(v) => self.get_resolved_type(v),
+                        Type::TypeVar(v) => self.get_resolved_type(&v),
                         _ => v,
                     })
                     .collect();
                 return Type::Tuple(resolved_types);
             }
             Type::TypeVar(inner) => {
-                return self.get_resolved_type(inner);
+                return self.get_resolved_type(&inner);
             }
             Type::Function(inner) => {
                 let resolved_types = inner
                     .types
                     .into_iter()
                     .map(|v| match v {
-                        Type::TypeVar(v) => self.get_resolved_type(v),
+                        Type::TypeVar(v) => self.get_resolved_type(&v),
                         _ => v,
                     })
                     .collect();
@@ -153,8 +153,8 @@ impl TypeStore {
 
     pub fn dump(&self) {
         for var in self.variables.keys() {
-            let ty = self.get_type(*var);
-            let index = self.get_index(*var);
+            let ty = self.get_type(var);
+            let index = self.get_index(var);
             println!("{:?} {:?} -> {}", var, index, ty);
         }
     }
