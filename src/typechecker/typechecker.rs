@@ -4,7 +4,10 @@ use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::program::Program;
+use crate::ir::types::TypeSignature;
+use crate::ir::types::TypeSignatureId;
 use crate::typechecker::error::TypecheckError;
+use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
@@ -12,24 +15,24 @@ use crate::typechecker::types::Type;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-struct FunctionTypeInfo {
+struct FunctionDependencyInfo {
     function_deps: BTreeSet<FunctionId>,
 }
 
-impl FunctionTypeInfo {
-    fn new() -> FunctionTypeInfo {
-        FunctionTypeInfo {
+impl FunctionDependencyInfo {
+    fn new() -> FunctionDependencyInfo {
+        FunctionDependencyInfo {
             function_deps: BTreeSet::new(),
         }
     }
 }
 
 struct FunctionInfoCollector<'a> {
-    function_type_info: &'a mut FunctionTypeInfo,
+    function_type_info: &'a mut FunctionDependencyInfo,
 }
 
 impl<'a> FunctionInfoCollector<'a> {
-    fn new(function_type_info: &'a mut FunctionTypeInfo) -> FunctionInfoCollector<'a> {
+    fn new(function_type_info: &'a mut FunctionDependencyInfo) -> FunctionInfoCollector<'a> {
         FunctionInfoCollector {
             function_type_info: function_type_info,
         }
@@ -50,15 +53,15 @@ impl<'a> Collector for FunctionInfoCollector<'a> {
     }
 }
 
-struct TypeProcessor {
-    type_store: TypeStore,
+struct TypeProcessor<'a> {
+    type_store: &'a mut TypeStore,
     type_vars: BTreeMap<ExprId, TypeVariable>,
 }
 
-impl TypeProcessor {
-    fn new() -> TypeProcessor {
+impl<'a> TypeProcessor<'a> {
+    fn new(type_store: &'a mut TypeStore) -> TypeProcessor<'a> {
         TypeProcessor {
-            type_store: TypeStore::new(),
+            type_store: type_store,
             type_vars: BTreeMap::new(),
         }
     }
@@ -76,6 +79,7 @@ impl TypeProcessor {
             match expr {
                 Expr::IntegerLiteral(_) => {}
                 Expr::BoolLiteral(_) => {}
+                Expr::StringLiteral(_) => {}
                 Expr::If(cond, true_branch, false_branch) => {
                     let cond_var = self.get_type_var_for_expr(cond);
                     let true_var = self.get_type_var_for_expr(true_branch);
@@ -116,24 +120,34 @@ impl TypeProcessor {
     }
 }
 
-impl<'a> Collector for TypeProcessor {
+impl<'a> Collector for TypeProcessor<'a> {
     fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {
         match expr {
             Expr::IntegerLiteral(_) => {
                 let ty = Type::Int;
-                let var = self.type_store.add_var(ty.clone());
+                let var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, var);
             }
             Expr::BoolLiteral(_) => {
                 let ty = Type::Bool;
-                let var = self.type_store.add_var(ty.clone());
+                let var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, var);
             }
-            Expr::If(cond, true_branch, false_branch) => {
+            Expr::StringLiteral(_) => {
+                let ty = Type::String;
+                let var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, var);
+            }
+            Expr::If(_, true_branch, _) => {
                 let true_var = self.get_type_var_for_expr(true_branch);
                 self.type_vars.insert(id, true_var);
             }
-            _ => {}
+            Expr::StaticFunctionCall(_, _) => {
+                let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let result_var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, result_var);
+            }
+            _ => panic!("Type processing of expr {} is not implemented", expr),
         }
     }
 }
@@ -189,18 +203,22 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
 }
 
 pub struct Typechecker {
-    function_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
+    function_info_map: BTreeMap<FunctionId, FunctionDependencyInfo>,
+    function_type_map: BTreeMap<FunctionId, TypeVariable>,
+    type_store: TypeStore,
 }
 
 impl Typechecker {
     pub fn new() -> Typechecker {
         Typechecker {
             function_info_map: BTreeMap::new(),
+            function_type_map: BTreeMap::new(),
+            type_store: TypeStore::new(),
         }
     }
 
     fn check_untyped_function(
-        &self,
+        &mut self,
         id: FunctionId,
         program: &Program,
         errors: &mut Vec<TypecheckError>,
@@ -208,7 +226,7 @@ impl Typechecker {
         let function = program.get_function(&id);
         println!("Checking untyped {},{}", id, function.info);
         let body = function.info.body();
-        let mut type_processor = TypeProcessor::new();
+        let mut type_processor = TypeProcessor::new(&mut self.type_store);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
         type_processor.dump_types(program);
@@ -255,12 +273,73 @@ impl Typechecker {
         untyped_check_order
     }
 
+    fn process_type_signature(
+        &mut self,
+        type_signature_id: &TypeSignatureId,
+        program: &Program,
+        arg_map: &mut BTreeMap<usize, usize>,
+    ) -> TypeVariable {
+        let type_signature = program.get_type_signature(type_signature_id);
+        match type_signature {
+            TypeSignature::Bool => {
+                let ty = Type::Bool;
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::Int => {
+                let ty = Type::Int;
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::String => {
+                let ty = Type::String;
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::Nothing => {
+                let ty = Type::Nothing;
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::Tuple(items) => {
+                let items: Vec<_> = items
+                    .iter()
+                    .map(|i| Type::TypeVar(self.process_type_signature(i, program, arg_map)))
+                    .collect();
+                let ty = Type::Tuple(items);
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::Function(items) => {
+                let items: Vec<_> = items
+                    .iter()
+                    .map(|i| Type::TypeVar(self.process_type_signature(i, program, arg_map)))
+                    .collect();
+                let ty = Type::Function(FunctionType::new(items));
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::TypeArgument(index) => {
+                let arg = arg_map
+                    .entry(*index)
+                    .or_insert_with(|| self.type_store.get_unique_type_arg());
+                let ty = Type::TypeArgument(*arg);
+                return self.type_store.add_var(ty);
+            }
+        }
+    }
+
+    fn add_type_signature(
+        &mut self,
+        type_signature_id: TypeSignatureId,
+        function_id: FunctionId,
+        program: &Program,
+    ) {
+        let mut arg_map = BTreeMap::new();
+        let var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
+        println!("Registering function {} with type {}", function_id, self.type_store.get_resolved_type(var));
+    }
+
     pub fn check(&mut self, program: &Program) -> Result<(), Error> {
         let mut errors = Vec::new();
         let mut untyped_functions = BTreeSet::new();
         let mut typed_functions = BTreeSet::new();
         for (id, function) in &program.functions {
-            let mut function_info = FunctionTypeInfo::new();
+            let mut function_info = FunctionDependencyInfo::new();
             let mut function_info_collector = FunctionInfoCollector::new(&mut function_info);
             match &function.info {
                 FunctionInfo::Lambda(e) => {
@@ -268,7 +347,13 @@ impl Typechecker {
                     untyped_functions.insert(*id);
                 }
                 FunctionInfo::NamedFunction(i) => {
-                    let untyped = i.type_signature.is_none();
+                    let untyped = match i.type_signature {
+                        Some(type_signature) => {
+                            self.add_type_signature(type_signature, *id, program);
+                            false
+                        }
+                        None => true,
+                    };
                     if untyped {
                         untyped_functions.insert(*id);
                     }

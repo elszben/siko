@@ -11,8 +11,7 @@ foo  = if True then 3 else 4
 
 module szilva where
 
-foo ::  Int
-foo = foo
+foo = "alma" + 1
 
 korte a   :: (Int, Int, (String, String))
 korte af  =  do 
