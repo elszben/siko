@@ -20,19 +20,27 @@ fn print_location_set(file_manager: &FileManager, location_set: &LocationSet) {
     let input = file_manager.content(&location_set.file_path);
     let lines: Vec<_> = input.lines().collect();
     let mut first = true;
+    let pipe = "|";
+    let mut last_line = 0;
     for (line_index, ranges) in &location_set.lines {
+        last_line = *line_index;
         if first {
             first = false;
             println!(
-                "--{}:{}",
+                "{}{}:{}",
+                "--".blue(),
                 location_set.file_path.path.green(),
-                format!("{}", line_index).green()
+                format!("{}", line_index + 1).green()
             );
+            if *line_index != 0 {
+                let line = &lines[*line_index - 1];
+                println!("{} {}", pipe.blue(), line);
+            }
         }
         let line = &lines[*line_index];
         let chars: Vec<_> = line.chars().collect();
         let first = s_from_range(&chars[..], 0, ranges[0].start);
-        print!("{}", first);
+        print!("{} {}", pipe.blue(), first);
         for (index, range) in ranges.iter().enumerate() {
             let s = s_from_range(&chars[..], range.start, range.end);
             print!("{}", s.yellow());
@@ -43,6 +51,10 @@ fn print_location_set(file_manager: &FileManager, location_set: &LocationSet) {
         }
         let last = s_from_range(&chars[..], ranges[ranges.len() - 1].end, chars.len());
         println!("{}", last);
+    }
+    if last_line + 1 < lines.len() {
+        let line = &lines[last_line + 1];
+        println!("{} {}", pipe.blue(), line);
     }
 }
 
@@ -105,7 +117,7 @@ impl Error {
     }
 
     pub fn report_error(&self, file_manager: &FileManager, location_info: &LocationInfo) {
-        println!("{}", "ERROR".red());
+        let error = "ERROR:";
         match self {
             Error::LexerError(msg, file_path, location) => {
                 Error::report_error_base(msg, file_manager, file_path, location);
@@ -118,7 +130,11 @@ impl Error {
                     match err {
                         ResolverError::ModuleConflict(errors) => {
                             for (name, ids) in errors.iter() {
-                                println!("Module name {} defined more than once", name.yellow());
+                                println!(
+                                    "{} module name {} defined more than once",
+                                    error.red(),
+                                    name.yellow()
+                                );
                                 for id in ids.iter() {
                                     let location_set = location_info.get_module_location(id);
                                     print_location_set(file_manager, location_set);
@@ -128,13 +144,21 @@ impl Error {
                         }
                         ResolverError::ImportedModuleNotFound(errors) => {
                             for (name, id) in errors.iter() {
-                                println!("Imported module {} does not exist", name.yellow());
+                                println!(
+                                    "{} imported module {} does not exist",
+                                    error.red(),
+                                    name.yellow()
+                                );
                                 let location_set = location_info.get_import_location(id);
                                 print_location_set(file_manager, location_set);
                             }
                         }
                         ResolverError::SymbolNotFoundInModule(name, id) => {
-                            println!("Imported symbol {} not found in module", name.yellow());
+                            println!(
+                                "{} imported symbol {} not found in module",
+                                error.red(),
+                                name.yellow()
+                            );
                             let location_set = location_info.get_import_location(id);
                             print_location_set(file_manager, location_set);
                         }
@@ -199,39 +223,31 @@ impl Error {
                     match err {
                         TypecheckError::UntypedExternFunction(name, id) => {
                             println!(
-                                "Extern function {} must have a type signature",
+                                "{} extern function {} must have a type signature",
+                                error.red(),
                                 name.yellow()
                             );
                             let location_set = location_info.get_function_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::FunctionTypeDependencyLoop => {
-                            println!("Function type dependency loop detected");
-                        }
-                        TypecheckError::IfBranchMismatch(if_id, true_branch, false_branch) => {
-                            let location_set = location_info.get_expr_location(if_id);
-                            print_location_set(file_manager, location_set);
-                            println!("Type of if branches mismatch:");
-                            println!("   {}", true_branch.yellow());
-                            println!("   {}", false_branch.yellow());
-                        }
-                        TypecheckError::IfCondition(cond_id, ty) => {
-                            let location_set = location_info.get_expr_location(cond_id);
-                            print_location_set(file_manager, location_set);
-                            println!("Type of if condition must be boolean instead of:");
-                            println!("   {}", ty.yellow());
+                            println!("{} function type dependency loop detected", error.red());
                         }
                         TypecheckError::TooManyArguments(id, name, expected, found) => {
+                            println!(
+                                "{} too many arguments given for {}",
+                                error.red(),
+                                name.yellow()
+                            );
                             let location_set = location_info.get_expr_location(id);
                             print_location_set(file_manager, location_set);
-                            println!("Too many function arguments given for {}", name.yellow());
-                            println!("expected: {}", format!("{}", expected).yellow());
-                            println!("found: {}", format!("{}", found).yellow());
+                            println!("Expected: {}", format!("{}", expected).yellow());
+                            println!("Found: {}", format!("{}", found).yellow());
                         }
                         TypecheckError::TypeMismatch(id, expected, found) => {
+                            println!("{} type mismatch in expression", error.red());
                             let location_set = location_info.get_expr_location(id);
                             print_location_set(file_manager, location_set);
-                            println!("Type mismatch:");
                             println!("Expected: {}", expected.yellow());
                             println!("Found:    {}", found.yellow());
                         }

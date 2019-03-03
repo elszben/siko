@@ -151,11 +151,44 @@ impl TypeStore {
         }
     }
 
-    pub fn dump(&self) {
-        for var in self.variables.keys() {
-            let ty = self.get_type(var);
-            let index = self.get_index(var);
-            println!("{:?} {:?} -> {}", var, index, ty);
+    pub fn clone_type(&mut self, ty: &Type, arg_map: &mut BTreeMap<usize, usize>) -> Type {
+        match ty {
+            Type::Int => Type::Int,
+            Type::Bool => Type::Bool,
+            Type::String => Type::String,
+            Type::Nothing => Type::Nothing,
+            Type::Tuple(types) => {
+                let types: Vec<_> = types.iter().map(|t| self.clone_type(t, arg_map)).collect();
+                Type::Tuple(types)
+            }
+            Type::Function(func_type) => {
+                let types: Vec<_> = func_type
+                    .types
+                    .iter()
+                    .map(|t| self.clone_type(t, arg_map))
+                    .collect();
+                Type::Function(FunctionType::new(types))
+            }
+            Type::TypeArgument(index) => {
+                let arg = arg_map
+                    .entry(*index)
+                    .or_insert_with(|| self.get_unique_type_arg());
+                Type::TypeArgument(*arg)
+            }
+            Type::TypeVar(v) => {
+                let v2 = self.clone_type_var(*v, arg_map);
+                Type::TypeVar(v2)
+            }
         }
+    }
+
+    pub fn clone_type_var(
+        &mut self,
+        type_variable: TypeVariable,
+        arg_map: &mut BTreeMap<usize, usize>,
+    ) -> TypeVariable {
+        let ty = self.get_type(&type_variable);
+        let ty = self.clone_type(&ty, arg_map);
+        return self.add_var(ty);
     }
 }

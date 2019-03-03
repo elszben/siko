@@ -79,8 +79,8 @@ impl<'a> TypeProcessor<'a> {
     }
 
     fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        for (id, ty_var) in &self.type_vars {
-            let expr = program.get_expr(id);
+        for (id, ty_var) in self.type_vars.clone() {
+            let expr = program.get_expr(&id);
             match expr {
                 Expr::IntegerLiteral(_) => {}
                 Expr::BoolLiteral(_) => {}
@@ -93,21 +93,21 @@ impl<'a> TypeProcessor<'a> {
                     if cond_ty != Type::Bool {
                         let var = self.type_store.add_var(Type::Bool);
                         if !self.type_store.unify_vars(var, cond_var) {
-                            let ast_cond_id = program.get_ast_expr_id(cond);
+                            let ast_id = program.get_ast_expr_id(cond);
                             let cond_ty = self.type_store.get_resolved_type(&cond_var);
+                            let bool_ty = format!("{}", Type::Bool);
                             let cond_ty = format!("{}", cond_ty);
-                            let err = TypecheckError::IfCondition(*ast_cond_id, cond_ty);
+                            let err = TypecheckError::TypeMismatch(*ast_id, bool_ty, cond_ty);
                             errors.push(err);
                         }
                     }
                     if !self.type_store.unify_vars(true_var, false_var) {
-                        let ast_if_id = program.get_ast_expr_id(id);
+                        let ast_id = program.get_ast_expr_id(&false_branch);
                         let true_type = self.type_store.get_resolved_type(&true_var);
                         let false_type = self.type_store.get_resolved_type(&false_var);
                         let true_type = format!("{}", true_type);
                         let false_type = format!("{}", false_type);
-                        let err =
-                            TypecheckError::IfBranchMismatch(*ast_if_id, true_type, false_type);
+                        let err = TypecheckError::TypeMismatch(*ast_id, true_type, false_type);
                         errors.push(err);
                     }
                 }
@@ -118,20 +118,27 @@ impl<'a> TypeProcessor<'a> {
                         .expect("Function type not found");
                     let ty = self.type_store.get_type(target_func_type_var);
                     match ty {
-                        Type::Function(_) => {}
+                        Type::Function(function_type) => {
+                            let mut arg_map = BTreeMap::new();
+                            let types: Vec<_> = function_type
+                                .types
+                                .iter()
+                                .map(|ty| self.type_store.clone_type(ty, &mut arg_map))
+                                .collect();
+                        }
                         _ => {
                             if !args.is_empty() {
                                 let f = program.get_function(function_id);
                                 let name = format!("{}", f.info);
-                                let ast_id = program.get_ast_expr_id(id);
+                                let ast_id = program.get_ast_expr_id(&id);
                                 let err =
                                     TypecheckError::TooManyArguments(*ast_id, name, 0, args.len());
                                 errors.push(err);
                                 return;
                             } else {
-                                let call_var = self.get_type_var_for_expr(id);
+                                let call_var = self.get_type_var_for_expr(&id);
                                 if !self.type_store.unify_vars(call_var, *target_func_type_var) {
-                                    let ast_id = program.get_ast_expr_id(id);
+                                    let ast_id = program.get_ast_expr_id(&id);
                                     let call_type = self.type_store.get_resolved_type(&call_var);
                                     let func_type =
                                         self.type_store.get_resolved_type(target_func_type_var);

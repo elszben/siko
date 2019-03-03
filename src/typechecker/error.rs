@@ -5,8 +5,6 @@ use crate::syntax::function::FunctionId;
 pub enum TypecheckError {
     UntypedExternFunction(String, FunctionId),
     FunctionTypeDependencyLoop,
-    IfBranchMismatch(ExprId, String, String),
-    IfCondition(ExprId, String),
     TooManyArguments(ExprId, String, usize, usize),
     TypeMismatch(ExprId, String, String),
 }

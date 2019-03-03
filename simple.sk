@@ -6,7 +6,8 @@ import szilva
 
 module alma where
 korte = 5
-foo  = if True then 3 else 4
+foo  = if "a" then
+  3 else True
 
 
 module szilva where
@@ -14,4 +15,5 @@ module szilva where
 foo :: Int
 foo = 5
 
-korte af  =  foo 4
+korte af  =  
+ foo 4

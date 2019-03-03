@@ -24,20 +24,6 @@ impl FunctionType {
     pub fn get_arg_types(&self) -> Vec<Type> {
         self.types[0..self.types.len() - 1].to_vec()
     }
-
-    pub fn collect_type_arg(&self, used_type_args: &mut Vec<usize>) {
-        for ty in &self.types {
-            ty.collect_type_arg(used_type_args);
-        }
-        used_type_args.sort();
-        used_type_args.dedup();
-    }
-
-    pub fn remap_type_args(&mut self, arg_mapping: &BTreeMap<usize, usize>) {
-        for ty in &mut self.types {
-            ty.remap_type_args(arg_mapping);
-        }
-    }
 }
 
 impl fmt::Display for FunctionType {
