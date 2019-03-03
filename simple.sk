@@ -3,5 +3,8 @@ module alma.korte where
 foo a :: a -> (a, String) -> Int
 foo a b = extern
 
+fooInt :: Int -> String
+fooInt a = a
+
 korte af  =  
- foo 4 ("f", "b")
+ foo (fooInt 5) (5, "b")
