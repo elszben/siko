@@ -65,7 +65,7 @@ impl TypeStore {
     pub fn unify_vars(&mut self, var1: TypeVariable, var2: TypeVariable) -> bool {
         let var_ty1 = self.get_type(&var1);
         let var_ty2 = self.get_type(&var2);
-        //println!("Unify vars t1:{} t2:{}", var_ty1, var_ty2);
+        println!("Unify vars t1:{} t2:{}", var_ty1, var_ty2);
         match (&var_ty1, &var_ty2) {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
@@ -74,7 +74,10 @@ impl TypeStore {
                 self.unify_variables(var2, var1);
             }
             (_, Type::TypeArgument(_)) => {
+                let before = self.get_type(&var2);
                 self.unify_variables(var1, var2);
+                let after = self.get_type(&var2);
+                println!("Unifying stuff {} -> {}", before, after);
             }
             (Type::Tuple(subtypes1), Type::Tuple(subtypes2)) => {
                 if subtypes1.len() != subtypes2.len() {

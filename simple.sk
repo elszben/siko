@@ -1,19 +1,7 @@
 module alma.korte where
 
-import alma (korte)
-import szilva
-
-
-module alma where
-korte = 5
-foo  = if "a" then
-  3 else True
-
-
-module szilva where
-
-foo :: Int -> Bool -> Int
-foo a b = 5
+foo a :: a -> (a, String) -> Int
+foo a b = extern
 
 korte af  =  
- foo 4 (5, 6)
+ foo 4 (True, "b")

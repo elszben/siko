@@ -188,6 +188,7 @@ impl<'a> TypeProcessor<'a> {
                         }
                     }
                 }
+                Expr::Tuple(_) => {}
                 _ => panic!("Check of expr {} is not implemented", expr),
             }
         }
@@ -228,6 +229,15 @@ impl<'a> Collector for TypeProcessor<'a> {
                 let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
                 let result_var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, result_var);
+            }
+            Expr::Tuple(items) => {
+                let items: Vec<_> = items
+                    .iter()
+                    .map(|i| Type::TypeVar(self.get_type_var_for_expr(i)))
+                    .collect();
+                let ty = Type::Tuple(items);
+                let var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, var);
             }
             _ => panic!("Type processing of expr {} is not implemented", expr),
         }
