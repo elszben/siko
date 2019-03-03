@@ -128,6 +128,19 @@ impl<'a> TypeProcessor<'a> {
                                     TypecheckError::TooManyArguments(*ast_id, name, 0, args.len());
                                 errors.push(err);
                                 return;
+                            } else {
+                                let call_var = self.get_type_var_for_expr(id);
+                                if !self.type_store.unify_vars(call_var, *target_func_type_var) {
+                                    let ast_id = program.get_ast_expr_id(id);
+                                    let call_type = self.type_store.get_resolved_type(&call_var);
+                                    let func_type =
+                                        self.type_store.get_resolved_type(target_func_type_var);
+                                    let call_type = format!("{}", call_type);
+                                    let func_type = format!("{}", func_type);
+                                    let err =
+                                        TypecheckError::TypeMismatch(*ast_id, call_type, func_type);
+                                    errors.push(err);
+                                }
                             }
                         }
                     }

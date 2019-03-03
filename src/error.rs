@@ -228,6 +228,13 @@ impl Error {
                             println!("expected: {}", format!("{}", expected).yellow());
                             println!("found: {}", format!("{}", found).yellow());
                         }
+                        TypecheckError::TypeMismatch(id, expected, found) => {
+                            let location_set = location_info.get_expr_location(id);
+                            print_location_set(file_manager, location_set);
+                            println!("Type mismatch:");
+                            println!("Expected: {}", expected.yellow());
+                            println!("Found:    {}", found.yellow());
+                        }
                     }
                 }
             }

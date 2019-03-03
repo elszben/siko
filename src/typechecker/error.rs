@@ -8,4 +8,5 @@ pub enum TypecheckError {
     IfBranchMismatch(ExprId, String, String),
     IfCondition(ExprId, String),
     TooManyArguments(ExprId, String, usize, usize),
+    TypeMismatch(ExprId, String, String),
 }
