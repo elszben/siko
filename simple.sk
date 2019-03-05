@@ -7,4 +7,6 @@ fooInt :: Int -> String
 fooInt a = a
 
 korte af  =  
- foo (fooInt 5) (5, "b")
+ do
+  foo 5 (5, "b")
+  foo (fooInt 5) ("a", "b")

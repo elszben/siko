@@ -210,6 +210,7 @@ impl<'a> TypeProcessor<'a> {
                     }
                 }
                 Expr::Tuple(_) => {}
+                Expr::Do(_) => {}
                 _ => panic!("Check of expr {} is not implemented", expr),
             }
         }
@@ -258,6 +259,11 @@ impl<'a> Collector for TypeProcessor<'a> {
                     .collect();
                 let ty = Type::Tuple(items);
                 let var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, var);
+            }
+            Expr::Do(items) => {
+                let last = items.last().expect("Empty do");
+                let var = self.get_type_var_for_expr(last);
                 self.type_vars.insert(id, var);
             }
             _ => panic!("Type processing of expr {} is not implemented", expr),
