@@ -163,23 +163,27 @@ impl<'a> TypeProcessor<'a> {
                                 } else {
                                     let call_var = self.get_type_var_for_expr(&id);
                                     let rest: Vec<Type> = types[args.len()..].to_vec();
-                                    if rest.len() == 1 {
-                                        let result_var = rest[0].get_inner_type_var();
-                                        if !self.type_store.unify_vars(call_var, result_var) {
-                                            let ast_id = program.get_ast_expr_id(&id);
-                                            let call_type =
-                                                self.type_store.get_resolved_type(&call_var);
-                                            let call_type = format!("{}", call_type);
-                                            let result_type =
-                                                self.type_store.get_resolved_type(&result_var);
-                                            let result_type = format!("{}", result_type);
-                                            let err = TypecheckError::TypeMismatch(
-                                                *ast_id,
-                                                call_type,
-                                                result_type,
-                                            );
-                                            errors.push(err);
-                                        }
+                                    let result_var = if rest.len() == 1 {
+                                        rest[0].get_inner_type_var()
+                                    } else {
+                                        let closure_type = FunctionType::new(rest);
+                                        let ty = Type::Function(closure_type);
+                                        self.type_store.add_var(ty)
+                                    };
+                                    if !self.type_store.unify_vars(call_var, result_var) {
+                                        let ast_id = program.get_ast_expr_id(&id);
+                                        let call_type =
+                                            self.type_store.get_resolved_type(&call_var);
+                                        let call_type = format!("{}", call_type);
+                                        let result_type =
+                                            self.type_store.get_resolved_type(&result_var);
+                                        let result_type = format!("{}", result_type);
+                                        let err = TypecheckError::TypeMismatch(
+                                            *ast_id,
+                                            call_type,
+                                            result_type,
+                                        );
+                                        errors.push(err);
                                     }
                                 }
                             }

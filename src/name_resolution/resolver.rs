@@ -530,6 +530,7 @@ impl<'a> Resolver<'a> {
                 return self.add_expr(ir_expr, id, ir_program);
             }
             Expr::Path(path) => {
+                println!("path {}", path.get());
                 match self.resolve_item_path(path, module, environment, capture_list) {
                     PathResolveResult::FunctionRef(n) => {
                         let ir_expr = IrExpr::StaticFunctionCall(n, vec![]);
