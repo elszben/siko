@@ -3,10 +3,7 @@ use crate::parser::parser::Parser;
 use crate::token::TokenInfo;
 use crate::token::TokenKind;
 
-pub fn report_unexpected_token<T>(
-    parser: &mut Parser,
-    msg: &str,
-) -> Result<T, Error> {
+pub fn report_unexpected_token<T>(parser: &mut Parser, msg: &str) -> Result<T, Error> {
     if parser.is_done() {
         let last = parser.get_last();
         return Err(Error::parse_err(
@@ -35,8 +32,9 @@ pub enum ParenParseResult<T> {
 
 pub fn parse_parens<T>(
     parser: &mut Parser,
-    inner_parser: fn(&mut Parser) -> Result<Option<T>, Error>,
-) -> Result<Option<ParenParseResult<T>>, Error> {
+    inner_parser: fn(&mut Parser) -> Result<T, Error>,
+    item_name: &str,
+) -> Result<ParenParseResult<T>, Error> {
     parser.expect(TokenKind::LParen)?;
     let mut parts = Vec::new();
     let mut comma_found = false;
@@ -44,24 +42,22 @@ pub fn parse_parens<T>(
         if parser.current(TokenKind::RParen) {
             break;
         }
-        if let Some(part) = inner_parser(parser)? {
-            parts.push(part);
-        } else {
-            return Ok(None);
-        }
+        let part = inner_parser(parser)?;
+        parts.push(part);
+
         if parser.current(TokenKind::Comma) {
             parser.advance()?;
             comma_found = true;
         } else if parser.current(TokenKind::RParen) {
             break;
         } else {
-            return Ok(None);
+            return report_unexpected_token(parser, &format!("Expected , or {}", item_name));
         }
     }
     parser.expect(TokenKind::RParen)?;
     if comma_found || parts.is_empty() {
-        Ok(Some(ParenParseResult::Tuple(parts)))
+        Ok(ParenParseResult::Tuple(parts))
     } else {
-        Ok(Some(ParenParseResult::Single(parts.pop().unwrap())))
+        Ok(ParenParseResult::Single(parts.pop().unwrap()))
     }
 }

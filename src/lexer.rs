@@ -154,7 +154,7 @@ impl Lexer {
                     format!("Unsupported operator {}", operator),
                     self.file_path.clone(),
                     Location::new(self.line_index, span),
-                ))
+                ));
             }
         };
         self.add_token(t, span);
@@ -262,7 +262,7 @@ impl Lexer {
                             format!("Unsupported character: {}", c),
                             self.file_path.clone(),
                             Location::new(self.line_index, span),
-                        ))
+                        ));
                     }
                 };
                 self.add_token(t, span);

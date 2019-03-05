@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn get_last(&self) -> TokenInfo {
-        self.tokens[self.tokens.len()-1].clone()
+        self.tokens[self.tokens.len() - 1].clone()
     }
 
     pub fn advance(&mut self) -> Result<TokenInfo, Error> {
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
         None
     }
 
-    pub fn parse_expr(&mut self) -> Result<Option<ExprId>, Error> {
+    pub fn parse_expr(&mut self) -> Result<ExprId, Error> {
         let id = parse_ops(self)?;
         Ok(id)
     }
@@ -238,48 +238,40 @@ impl<'a> Parser<'a> {
         id
     }
 
-    fn parse_tuple_type(&mut self) -> Result<Option<TypeSignatureId>, Error> {
+    fn parse_tuple_type(&mut self) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
-        if let Some(res) = parse_parens(self, |p| p.parse_function_type())? {
-            match res {
-                ParenParseResult::Single(t) => {
-                    return Ok(Some(t));
-                }
-                ParenParseResult::Tuple(ts) => {
-                    let type_signature = TypeSignature::Tuple(ts);
-                    let id = self.add_type_signature(type_signature, start_index);
-                    return Ok(Some(id));
-                }
+        let res = parse_parens(self, |p| p.parse_function_type(), "<type>")?;
+        match res {
+            ParenParseResult::Single(t) => {
+                return Ok(t);
             }
-        } else {
-            Ok(None)
+            ParenParseResult::Tuple(ts) => {
+                let type_signature = TypeSignature::Tuple(ts);
+                let id = self.add_type_signature(type_signature, start_index);
+                return Ok(id);
+            }
         }
     }
 
-    fn parse_function_type(&mut self) -> Result<Option<TypeSignatureId>, Error> {
+    fn parse_function_type(&mut self) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
         let mut parts = Vec::new();
         loop {
-            if let Some(part) = self.parse_type_part()? {
-                parts.push(part);
-                if let Some(next) = self.peek() {
-                    match next.token {
-                        Token::Op(BuiltinOperator::Arrow) => {
-                            self.advance()?;
-                        }
-                        _ => {
-                            break;
-                        }
+            let part = self.parse_type_part()?;
+            parts.push(part);
+            if let Some(next) = self.peek() {
+                match next.token {
+                    Token::Op(BuiltinOperator::Arrow) => {
+                        self.advance()?;
+                    }
+                    _ => {
+                        break;
                     }
                 }
-            } else {
-                break;
             }
         }
         let id: TypeSignatureId = match parts.len() {
-            0 => {
-                return Ok(None);
-            }
+            0 => unreachable!(),
             1 => parts.pop().unwrap(),
             _ => {
                 let type_signature = TypeSignature::Function(parts);
@@ -287,10 +279,10 @@ impl<'a> Parser<'a> {
                 id
             }
         };
-        Ok(Some(id))
+        Ok(id)
     }
 
-    fn parse_type_part(&mut self) -> Result<Option<TypeSignatureId>, Error> {
+    fn parse_type_part(&mut self) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
         match self.peek() {
             Some(token_info) => match token_info.token {
@@ -300,16 +292,20 @@ impl<'a> Parser<'a> {
                 Token::Op(BuiltinOperator::Not) => {
                     self.advance()?;
                     let id = self.add_type_signature(TypeSignature::Nothing, start_index);
-                    return Ok(Some(id));
+                    return Ok(id);
                 }
                 Token::Identifier(i) => {
                     self.advance()?;
                     let id = self.add_type_signature(TypeSignature::Named(i), start_index);
-                    return Ok(Some(id));
+                    return Ok(id);
                 }
-                _ => Ok(None),
+                _ => {
+                    return report_unexpected_token(self, "Expected type signature");
+                }
             },
-            None => Ok(None),
+            None => {
+                return report_unexpected_token(self, "Expected type signature");
+            }
         }
     }
 
@@ -356,28 +352,7 @@ impl<'a> Parser<'a> {
                 self.expect(TokenKind::KeywordExtern)?;
                 FunctionBody::Extern
             } else {
-                let body = match self.parse_expr()? {
-                    Some(body) => body,
-                    None => {
-                        if self.is_done() {
-                            return Err(Error::parse_err(
-                                format!("Expected expression as function body",),
-                                self.file_path.clone(),
-                                equal.location,
-                            ));
-                        } else {
-                            let found = self.advance()?;
-                            return Err(Error::parse_err(
-                                format!(
-                                    "Expected expression as function body, found {:?}",
-                                    found.token.kind()
-                                ),
-                                self.file_path.clone(),
-                                found.location,
-                            ));
-                        }
-                    }
-                };
+                let body = self.parse_expr()?;
                 FunctionBody::Expr(body)
             }
         } else {
