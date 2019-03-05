@@ -4,15 +4,15 @@ use crate::token::TokenInfo;
 use crate::token::TokenKind;
 
 pub fn report_unexpected_token<T>(
-    prev_token: TokenInfo,
     parser: &mut Parser,
     msg: &str,
 ) -> Result<T, Error> {
     if parser.is_done() {
+        let last = parser.get_last();
         return Err(Error::parse_err(
             format!("{}", msg),
             parser.get_file_path(),
-            prev_token.location,
+            last.location,
         ));
     } else {
         let found = parser.advance()?;

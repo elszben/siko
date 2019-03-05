@@ -79,6 +79,10 @@ impl<'a> Parser<'a> {
         self.index >= self.tokens.len()
     }
 
+    pub fn get_last(&self) -> TokenInfo {
+        self.tokens[self.tokens.len()-1].clone()
+    }
+
     pub fn advance(&mut self) -> Result<TokenInfo, Error> {
         if self.is_done() {
             let last = &self.tokens[self.tokens.len() - 1];
@@ -121,7 +125,7 @@ impl<'a> Parser<'a> {
             self.advance()?;
             return Ok(i);
         } else {
-            return report_unexpected_token(self.prev(), self, msg);
+            return report_unexpected_token(self, msg);
         }
     }
 
@@ -400,7 +404,7 @@ impl<'a> Parser<'a> {
             let path = ItemPath { path: name_parts };
             Ok(path)
         } else {
-            return report_unexpected_token(self.prev(), self, msg);
+            return report_unexpected_token(self, msg);
         }
     }
 
@@ -465,7 +469,7 @@ impl<'a> Parser<'a> {
                         if let Some(function) = self.parse_fn(function_id)? {
                             module.add_function(function_id, function);
                         } else {
-                            return report_unexpected_token(token, self, "Expected function");
+                            return report_unexpected_token(self, "Expected function");
                         }
                     }
                 }

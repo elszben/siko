@@ -46,9 +46,8 @@ fn parse_lambda(parser: &mut Parser) -> Result<ExprId, Error> {
         let expr = parser.parse_expr()?;
         let expr_id = match expr {
             Some(expr_id) => expr_id,
-            None => {
+            None => {  
                 return report_unexpected_token(
-                    arrow_token,
                     parser,
                     "Expected expression as lambda body",
                 );
@@ -58,7 +57,7 @@ fn parse_lambda(parser: &mut Parser) -> Result<ExprId, Error> {
         let id = parser.add_expr(lambda_expr, start_index);
         Ok(id)
     } else {
-        return report_unexpected_token(lambda_token, parser, "Expected lambda argument");
+        return report_unexpected_token( parser, "Expected lambda argument");
     }
 }
 
@@ -92,7 +91,6 @@ fn parse_do(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
             None => {
                 if exprs.is_empty() {
                     return report_unexpected_token(
-                        do_token,
                         parser,
                         "Expected expression as do body",
                     );
@@ -122,7 +120,7 @@ fn parse_if(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
     let cond = match cond {
         Some(cond) => cond,
         None => {
-            return report_unexpected_token(if_token, parser, "Expected expression as if condition");
+            return report_unexpected_token( parser, "Expected expression as if condition");
         }
     };
     let then_token = parser.expect(TokenKind::KeywordThen)?;
@@ -131,7 +129,6 @@ fn parse_if(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
         Some(true_branch) => true_branch,
         None => {
             return report_unexpected_token(
-                then_token,
                 parser,
                 "Expected expression as if true branch",
             );
@@ -143,7 +140,6 @@ fn parse_if(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
         Some(false_branch) => false_branch,
         None => {
             return report_unexpected_token(
-                else_token,
                 parser,
                 "Expected expression as if false branch",
             );
