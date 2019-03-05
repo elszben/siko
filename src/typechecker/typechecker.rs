@@ -211,6 +211,8 @@ impl<'a> TypeProcessor<'a> {
                 }
                 Expr::Tuple(_) => {}
                 Expr::Do(_) => {}
+                Expr::Bind(_, _) => {}
+                Expr::ExprValue(_) => {}
                 _ => panic!("Check of expr {} is not implemented", expr),
             }
         }
@@ -220,7 +222,7 @@ impl<'a> TypeProcessor<'a> {
         for (id, var) in &self.type_vars {
             let expr = program.get_expr(id);
             let ty = self.type_store.get_resolved_type(var);
-            println!("{} {} {}", id, expr, ty);
+            println!("{} {} => {}", id, expr, ty);
         }
     }
 }
@@ -264,6 +266,15 @@ impl<'a> Collector for TypeProcessor<'a> {
             Expr::Do(items) => {
                 let last = items.last().expect("Empty do");
                 let var = self.get_type_var_for_expr(last);
+                self.type_vars.insert(id, var);
+            }
+            Expr::Bind(_, _) => {
+                let ty = Type::Tuple(vec![]);
+                let var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, var);
+            }
+            Expr::ExprValue(expr_id) => {
+                let var = self.get_type_var_for_expr(expr_id);
                 self.type_vars.insert(id, var);
             }
             _ => panic!("Type processing of expr {} is not implemented", expr),

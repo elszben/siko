@@ -8,5 +8,6 @@ fooInt a = a
 
 korte af  =  
  do
-  foo 5 (5, "b")
-  foo (fooInt 5) ("a", "b")
+  a <- foo 5 (5, "b")
+  b <- "a"
+  foo (fooInt a) (b, "b")
