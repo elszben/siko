@@ -56,5 +56,6 @@ impl fmt::Display for FunctionInfo {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub id: FunctionId,
+    pub arg_count: usize,
     pub info: FunctionInfo,
 }

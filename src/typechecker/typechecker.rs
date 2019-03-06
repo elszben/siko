@@ -57,17 +57,20 @@ struct TypeProcessor<'a> {
     type_store: &'a mut TypeStore,
     function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
     type_vars: BTreeMap<ExprId, TypeVariable>,
+    args: Vec<TypeVariable>,
 }
 
 impl<'a> TypeProcessor<'a> {
     fn new(
         type_store: &'a mut TypeStore,
         function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
+        args: Vec<TypeVariable>,
     ) -> TypeProcessor<'a> {
         TypeProcessor {
             type_store: type_store,
             function_type_map: function_type_map,
             type_vars: BTreeMap::new(),
+            args: args,
         }
     }
 
@@ -253,6 +256,7 @@ impl<'a> TypeProcessor<'a> {
                         }
                     }
                 }
+                Expr::ArgRef(_) => {}
                 _ => panic!("Check of expr {} is not implemented", expr),
             }
         }
@@ -326,6 +330,9 @@ impl<'a> Collector for TypeProcessor<'a> {
                 let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
                 let result_var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, result_var);
+            }
+            Expr::ArgRef(index) => {
+                self.type_vars.insert(id, self.args[*index]);
             }
             _ => panic!("Type processing of expr {} is not implemented", expr),
         }
@@ -405,8 +412,16 @@ impl Typechecker {
     ) {
         let function = program.get_function(&id);
         println!("Checking untyped {},{}", id, function.info);
+        let mut args = Vec::new();
+        for _ in 0..function.arg_count {
+            let ty_arg = self.type_store.get_unique_type_arg();
+            let ty = Type::TypeArgument(ty_arg);
+            let var = self.type_store.add_var(ty);
+            args.push(var);
+        }
         let body = function.info.body();
-        let mut type_processor = TypeProcessor::new(&mut self.type_store, &self.function_type_map);
+        let mut type_processor =
+            TypeProcessor::new(&mut self.type_store, &self.function_type_map, args);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
         type_processor.dump_types(program);

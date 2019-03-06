@@ -392,6 +392,7 @@ impl<'a> Resolver<'a> {
 
                 let ir_function = IrFunction {
                     id: ir_lambda_id,
+                    arg_count: args.len(),
                     info: FunctionInfo::Lambda(ir_lambda_body),
                 };
                 ir_program.add_function(ir_lambda_id, ir_function);
@@ -742,6 +743,7 @@ impl<'a> Resolver<'a> {
 
                 let ir_function = IrFunction {
                     id: id,
+                    arg_count: function.args.len(),
                     info: FunctionInfo::NamedFunction(named_info),
                 };
                 ir_program.add_function(id, ir_function);
