@@ -11,7 +11,7 @@ use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
-use crate::util::format_list;
+use crate::util::format_list_simple;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -119,7 +119,7 @@ impl<'a> TypeProcessor<'a> {
                     let ty = self.type_store.get_resolved_type(&arg_var);
                     arg_types.push(format!("{}", ty));
                 }
-                let arg_types = format_list(&arg_types[..]);
+                let arg_types = format_list_simple(&arg_types[..]);
                 let func_type = function_type.as_string(self.type_store);
                 let err = TypecheckError::FunctionArgumentMismatch(*ast_id, arg_types, func_type);
                 errors.push(err);
