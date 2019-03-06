@@ -15,3 +15,24 @@ op_add x y = extern
 
 op_sub :: Int -> Int -> Int
 op_sub x y = extern
+
+op_mul :: Int -> Int -> Int
+op_mul x y = extern
+
+op_and :: Bool -> Bool -> Bool
+op_and a b = extern
+
+op_or :: Bool -> Bool -> Bool
+op_or a b = extern
+
+op_not :: Bool -> Bool
+op_not a  = extern
+
+op_lessthan :: Int -> Int -> Bool
+op_lessthan a b = extern
+
+op_equals :: Int -> Int -> Bool
+op_equals a b = extern
+
+op_notequals :: Int -> Int -> Bool
+op_notequals a b = extern
