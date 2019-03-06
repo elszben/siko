@@ -8,6 +8,7 @@ use std::fmt;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
     Int,
+    Float,
     Bool,
     String,
     Nothing,
@@ -34,6 +35,7 @@ impl Type {
     ) -> Type {
         match self {
             Type::Int => self.clone(),
+            Type::Float => self.clone(),
             Type::Bool => self.clone(),
             Type::String => self.clone(),
             Type::Nothing => self.clone(),
@@ -76,6 +78,7 @@ impl Type {
     ) {
         match self {
             Type::Int => {}
+            Type::Float => {}
             Type::Bool => {}
             Type::String => {}
             Type::Nothing => {}
@@ -107,6 +110,7 @@ impl Type {
         } else {
             match self {
                 Type::Int => format!("Int"),
+                Type::Float => format!("Float"),
                 Type::Bool => format!("Bool"),
                 Type::String => format!("String"),
                 Type::Nothing => format!("!"),
@@ -129,6 +133,7 @@ impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Type::Int => write!(f, "Int"),
+            Type::Float => write!(f, "Float"),
             Type::Bool => write!(f, "Bool"),
             Type::String => write!(f, "String"),
             Type::Nothing => write!(f, "!"),

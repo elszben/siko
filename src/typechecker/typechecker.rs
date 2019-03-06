@@ -148,6 +148,7 @@ impl<'a> TypeProcessor<'a> {
             let expr = program.get_expr(&id);
             match expr {
                 Expr::IntegerLiteral(_) => {}
+                Expr::FloatLiteral(_) => {}
                 Expr::BoolLiteral(_) => {}
                 Expr::StringLiteral(_) => {}
                 Expr::If(cond, true_branch, false_branch) => {
@@ -271,6 +272,11 @@ impl<'a> Collector for TypeProcessor<'a> {
         match expr {
             Expr::IntegerLiteral(_) => {
                 let ty = Type::Int;
+                let var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, var);
+            }
+            Expr::FloatLiteral(_) => {
+                let ty = Type::Float;
                 let var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, var);
             }
@@ -410,9 +416,9 @@ impl Typechecker {
         &self,
         mut untyped_functions: BTreeSet<FunctionId>,
         errors: &mut Vec<TypecheckError>,
+        program: &Program,
     ) -> Vec<FunctionId> {
         let mut untyped_check_order = Vec::new();
-
         while !untyped_functions.is_empty() {
             let mut processed = Vec::new();
             for id in &untyped_functions {
@@ -435,6 +441,10 @@ impl Typechecker {
                 }
             }
             if processed.is_empty() {
+                for id in &untyped_functions {
+                    let f = program.get_function(id);
+                    println!("Untyped function: {}", f.info);
+                }
                 let err = TypecheckError::FunctionTypeDependencyLoop;
                 errors.push(err);
                 break;
@@ -556,7 +566,7 @@ impl Typechecker {
             self.function_info_map.insert(*id, function_info);
         }
 
-        let untyped_check_order = self.check_function_deps(untyped_functions, &mut errors);
+        let untyped_check_order = self.check_function_deps(untyped_functions, &mut errors, program);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
