@@ -37,25 +37,16 @@ fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
 fn parse_lambda(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let lambda_token = parser.expect(TokenKind::Lambda)?;
-    if let Some(args) = parser.parse_list1(TokenKind::Identifier, TokenKind::Comma)? {
-        let args: Vec<_> = to_string_list(args);
-        let arrow_token = parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
-        let expr = parser.parse_expr()?;
-        let expr_id = match expr {
-            Some(expr_id) => expr_id,
-            None => {
-                return report_unexpected_token(parser, "Expected expression as lambda body");
-            }
-        };
-        let lambda_expr = Expr::Lambda(args, expr_id);
-        let id = parser.add_expr(lambda_expr, start_index);
-        Ok(id)
-    } else {
-        return report_unexpected_token(parser, "Expected lambda argument");
-    }
+    let args = parser.parse_list1(TokenKind::Identifier, TokenKind::Comma)?;
+    let args: Vec<_> = to_string_list(args);
+    let arrow_token = parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
+    let expr_id = parser.parse_expr()?;
+    let lambda_expr = Expr::Lambda(args, expr_id);
+    let id = parser.add_expr(lambda_expr, start_index);
+    Ok(id)
 }
 
-fn parse_do(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
+fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let do_token = parser.expect(TokenKind::KeywordDo)?;
     let mut exprs = Vec::new();
@@ -77,19 +68,7 @@ fn parse_do(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
             }
         }
         let expr = parser.parse_expr()?;
-        let expr: ExprId = match expr {
-            Some(expr) => {
-                parser.expect(TokenKind::EndOfItem)?;
-                expr
-            }
-            None => {
-                if exprs.is_empty() {
-                    return report_unexpected_token(parser, "Expected expression as do body");
-                } else {
-                    break;
-                }
-            }
-        };
+        parser.expect(TokenKind::EndOfItem)?;
         if let Some(bind_var) = bind_var {
             let expr = Expr::Bind(bind_var, expr);
             let id = parser.add_expr(expr, bind_start_index);
@@ -97,11 +76,14 @@ fn parse_do(parser: &mut Parser) -> Result<Option<ExprId>, Error> {
         } else {
             exprs.push(expr);
         }
+        if parser.current(TokenKind::EndOfBlock) {
+            break;
+        }
     }
     parser.expect(TokenKind::EndOfBlock)?;
     let expr = Expr::Do(exprs);
     let id = parser.add_expr(expr, start_index);
-    Ok(Some(id))
+    Ok(id)
 }
 
 fn parse_if(parser: &mut Parser) -> Result<ExprId, Error> {
@@ -122,8 +104,7 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
     let token_info = parser.peek().expect("Ran out of tokens");
     let id = match token_info.token {
         Token::Identifier(..) => {
-            let id = parse_path(parser)?;
-            return Ok(id);
+            return parse_path(parser);
         }
         Token::NumericLiteral(n) => {
             parser.advance()?;
@@ -146,19 +127,19 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
             let n = n.parse().expect("Failed to parse int");
             let expr = Expr::IntegerLiteral(n);
             let id = parser.add_expr(expr, start_index);
-            Some(id)
+            id
         }
         Token::BoolLiteral(b) => {
             parser.advance()?;
             let expr = Expr::BoolLiteral(b);
             let id = parser.add_expr(expr, start_index);
-            Some(id)
+            id
         }
         Token::StringLiteral(s) => {
             parser.advance()?;
             let expr = Expr::StringLiteral(s);
             let id = parser.add_expr(expr, start_index);
-            Some(id)
+            id
         }
         Token::LParen => {
             return parse_paren_expr(parser);
@@ -170,21 +151,32 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
             return parse_do(parser);
         }
         Token::Lambda => {
-            let id = parse_lambda(parser)?;
-            return Ok(Some(id));
+            return parse_lambda(parser);
         }
-        _ => None,
+        _ => {
+            return report_unexpected_token(parser, "Expected expression");
+        }
     };
     Ok(id)
 }
 
-fn parse_primary(parser: &mut Parser, end_token: TokenKind) -> Result<ExprId, Error> {
+fn parse_primary(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let f = parse_unary(parser, false)?;
     let mut args = Vec::new();
     loop {
-        if parser.current(end_token) {
-            break;
+        match parser.current_kind() {
+            TokenKind::Op(BuiltinOperator::Not)
+            | TokenKind::Op(BuiltinOperator::Sub)
+            | TokenKind::Identifier
+            | TokenKind::NumericLiteral
+            | TokenKind::BoolLiteral
+            | TokenKind::StringLiteral
+            | TokenKind::LParen
+            | TokenKind::KeywordIf
+            | TokenKind::KeywordDo
+            | TokenKind::Lambda => {}
+            _ => break,
         }
         let arg = parse_unary(parser, true)?;
         args.push(arg);

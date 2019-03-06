@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
         &mut self,
         item_kind: TokenKind,
         sep: TokenKind,
-    ) -> Result<Option<Vec<TokenInfo>>, Error> {
+    ) -> Result<Vec<TokenInfo>, Error> {
         let mut items = Vec::new();
         loop {
             if let Some(item) = self.peek() {
@@ -173,13 +173,10 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            break;
+            return report_unexpected_token(self, &format!("Expected {:?}", item_kind));
         }
-        if items.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(items))
-        }
+        assert!(!items.is_empty());
+        Ok(items)
     }
 
     fn parse_seq0(&mut self, item_kind: TokenKind) -> Result<Vec<TokenInfo>, Error> {
@@ -320,27 +317,24 @@ impl<'a> Parser<'a> {
         if let Some(next) = self.peek() {
             if next.token.kind() == TokenKind::KeywordDoubleColon {
                 self.advance()?;
-                if let Some(type_signature_id) = self.parse_function_type()? {
-                    let full_type_signature_id = self.program.get_type_signature_id();
-                    let location = self.get_location_set(start_index, self.get_index());
-                    let li_full_type_signature = LITypeSignature::new(location);
-                    self.location_info
-                        .add_type_signature(full_type_signature_id, li_full_type_signature);
-                    function_type = Some(FunctionType {
-                        name: name,
-                        type_args: args,
-                        full_type_signature_id: full_type_signature_id,
-                        type_signature_id: type_signature_id,
-                    });
-                    self.expect(TokenKind::EndOfItem)?;
-                    start_index = self.get_index();
-                    name = self.identifier("Expected identifier as function name")?;
-                    let func_args = self.parse_seq0(TokenKind::Identifier)?;
-                    end_index = self.get_index();
-                    args = to_string_list(func_args);
-                } else {
-                    return Ok(None);
-                }
+                let type_signature_id = self.parse_function_type()?;
+                let full_type_signature_id = self.program.get_type_signature_id();
+                let location = self.get_location_set(start_index, self.get_index());
+                let li_full_type_signature = LITypeSignature::new(location);
+                self.location_info
+                    .add_type_signature(full_type_signature_id, li_full_type_signature);
+                function_type = Some(FunctionType {
+                    name: name,
+                    type_args: args,
+                    full_type_signature_id: full_type_signature_id,
+                    type_signature_id: type_signature_id,
+                });
+                self.expect(TokenKind::EndOfItem)?;
+                start_index = self.get_index();
+                name = self.identifier("Expected identifier as function name")?;
+                let func_args = self.parse_seq0(TokenKind::Identifier)?;
+                end_index = self.get_index();
+                args = to_string_list(func_args);
             }
         }
         let location_set = self.get_location_set(start_index, end_index);
@@ -374,13 +368,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_item_path(&mut self, msg: &str) -> Result<ItemPath, Error> {
-        if let Some(name_parts) = self.parse_list1(TokenKind::Identifier, TokenKind::Dot)? {
-            let name_parts: Vec<_> = to_string_list(name_parts);
-            let path = ItemPath { path: name_parts };
-            Ok(path)
-        } else {
-            return report_unexpected_token(self, msg);
-        }
+        let name_parts = self.parse_list1(TokenKind::Identifier, TokenKind::Dot)?;
+        let name_parts: Vec<_> = to_string_list(name_parts);
+        let path = ItemPath { path: name_parts };
+        Ok(path)
     }
 
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
