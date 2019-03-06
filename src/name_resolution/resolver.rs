@@ -1,3 +1,4 @@
+use crate::constants::BuiltinOperator;
 use crate::constants::PRELUDE_NAME;
 use crate::error::Error;
 use crate::ir::expr::Expr as IrExpr;
@@ -446,23 +447,31 @@ impl<'a> Resolver<'a> {
                     }
                 } else {
                     if let Expr::Builtin(op) = id_expr {
-                        let path = ItemPath {
-                            path: vec![format!(
-                                "{}.op_{}",
-                                PRELUDE_NAME,
-                                format!("{:?}", op).to_lowercase()
-                            )],
-                        };
-                        match self.resolve_item_path(&path, module, environment, capture_list) {
-                            PathResolveResult::FunctionRef(n) => {
-                                let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
-                                return self.add_expr(ir_expr, id, ir_program);
+                        if *op == BuiltinOperator::PipeForward {
+                            assert_eq!(ir_args.len(), 2);
+                            let left = ir_args[0];
+                            let right = ir_args[0];
+                            let ir_expr = IrExpr::DynamicFunctionCall(right, vec![left]);
+                            return self.add_expr(ir_expr, id, ir_program);
+                        } else {
+                            let path = ItemPath {
+                                path: vec![format!(
+                                    "{}.op_{}",
+                                    PRELUDE_NAME,
+                                    format!("{:?}", op).to_lowercase()
+                                )],
+                            };
+                            match self.resolve_item_path(&path, module, environment, capture_list) {
+                                PathResolveResult::FunctionRef(n) => {
+                                    let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
+                                    return self.add_expr(ir_expr, id, ir_program);
+                                }
+                                _ => panic!(
+                                    "Couldn't handle builtin function {}, missing {}?",
+                                    path.get(),
+                                    PRELUDE_NAME
+                                ),
                             }
-                            _ => panic!(
-                                "Couldn't handle builtin function {}, missing {}?",
-                                path.get(),
-                                PRELUDE_NAME
-                            ),
                         }
                     } else {
                         let id_expr = self.process_expr(
