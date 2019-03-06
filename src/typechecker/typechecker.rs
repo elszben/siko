@@ -78,6 +78,71 @@ impl<'a> TypeProcessor<'a> {
             .clone()
     }
 
+    fn process_function_call(
+        &mut self,
+        ty: &Type,
+        function_type: &FunctionType,
+        args: &[ExprId],
+        id: ExprId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+        name: String,
+    ) {
+        let cloned_function_type = self.type_store.clone_type(&ty);
+        let types = if let Type::Function(ft) = cloned_function_type {
+            ft.types
+        } else {
+            unreachable!();
+        };
+        if args.len() > types.len() - 1 {
+            let ast_id = program.get_ast_expr_id(&id);
+            let err = TypecheckError::TooManyArguments(*ast_id, name, types.len() - 1, args.len());
+            errors.push(err);
+        } else {
+            let mut mismatch = false;
+            for (index, arg) in args.iter().enumerate() {
+                let arg_var = self.get_type_var_for_expr(arg);
+                let type_var = types[index].get_inner_type_var();
+                if !self.type_store.unify_vars(arg_var, type_var) {
+                    mismatch = true;
+                    break;
+                }
+            }
+            if mismatch {
+                let ast_id = program.get_ast_expr_id(&id);
+                let mut arg_types = Vec::new();
+                for arg in args {
+                    let arg_var = self.get_type_var_for_expr(arg);
+                    let ty = self.type_store.get_resolved_type(&arg_var);
+                    arg_types.push(format!("{}", ty));
+                }
+                let arg_types = format_list(&arg_types[..]);
+                let func_type = function_type.as_string(self.type_store);
+                let err = TypecheckError::FunctionArgumentMismatch(*ast_id, arg_types, func_type);
+                errors.push(err);
+            } else {
+                let call_var = self.get_type_var_for_expr(&id);
+                let rest: Vec<Type> = types[args.len()..].to_vec();
+                let result_var = if rest.len() == 1 {
+                    rest[0].get_inner_type_var()
+                } else {
+                    let closure_type = FunctionType::new(rest);
+                    let ty = Type::Function(closure_type);
+                    self.type_store.add_var(ty)
+                };
+                if !self.type_store.unify_vars(call_var, result_var) {
+                    let ast_id = program.get_ast_expr_id(&id);
+                    let call_type = self.type_store.get_resolved_type(&call_var);
+                    let call_type = format!("{}", call_type);
+                    let result_type = self.type_store.get_resolved_type(&result_var);
+                    let result_type = format!("{}", result_type);
+                    let err = TypecheckError::TypeMismatch(*ast_id, call_type, result_type);
+                    errors.push(err);
+                }
+            }
+        }
+    }
+
     fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         for (id, ty_var) in self.type_vars.clone() {
             let expr = program.get_expr(&id);
@@ -119,74 +184,17 @@ impl<'a> TypeProcessor<'a> {
                     let ty = self.type_store.get_type(target_func_type_var);
                     match &ty {
                         Type::Function(function_type) => {
-                            let cloned_function_type = self.type_store.clone_type(&ty);
-                            let types = if let Type::Function(ft) = cloned_function_type {
-                                ft.types
-                            } else {
-                                unreachable!();
-                            };
-                            if args.len() > types.len() - 1 {
-                                let f = program.get_function(function_id);
-                                let name = format!("{}", f.info);
-                                let ast_id = program.get_ast_expr_id(&id);
-                                let err = TypecheckError::TooManyArguments(
-                                    *ast_id,
-                                    name,
-                                    types.len() - 1,
-                                    args.len(),
-                                );
-                                errors.push(err);
-                            } else {
-                                let mut mismatch = false;
-                                for (index, arg) in args.iter().enumerate() {
-                                    let arg_var = self.get_type_var_for_expr(arg);
-                                    let type_var = types[index].get_inner_type_var();
-                                    if !self.type_store.unify_vars(arg_var, type_var) {
-                                        mismatch = true;
-                                        break;
-                                    }
-                                }
-                                if mismatch {
-                                    let ast_id = program.get_ast_expr_id(&id);
-                                    let mut arg_types = Vec::new();
-                                    for arg in args {
-                                        let arg_var = self.get_type_var_for_expr(arg);
-                                        let ty = self.type_store.get_resolved_type(&arg_var);
-                                        arg_types.push(format!("{}", ty));
-                                    }
-                                    let arg_types = format_list(&arg_types[..]);
-                                    let func_type = function_type.as_string(self.type_store);
-                                    let err = TypecheckError::FunctionArgumentMismatch(
-                                        *ast_id, arg_types, func_type,
-                                    );
-                                    errors.push(err);
-                                } else {
-                                    let call_var = self.get_type_var_for_expr(&id);
-                                    let rest: Vec<Type> = types[args.len()..].to_vec();
-                                    let result_var = if rest.len() == 1 {
-                                        rest[0].get_inner_type_var()
-                                    } else {
-                                        let closure_type = FunctionType::new(rest);
-                                        let ty = Type::Function(closure_type);
-                                        self.type_store.add_var(ty)
-                                    };
-                                    if !self.type_store.unify_vars(call_var, result_var) {
-                                        let ast_id = program.get_ast_expr_id(&id);
-                                        let call_type =
-                                            self.type_store.get_resolved_type(&call_var);
-                                        let call_type = format!("{}", call_type);
-                                        let result_type =
-                                            self.type_store.get_resolved_type(&result_var);
-                                        let result_type = format!("{}", result_type);
-                                        let err = TypecheckError::TypeMismatch(
-                                            *ast_id,
-                                            call_type,
-                                            result_type,
-                                        );
-                                        errors.push(err);
-                                    }
-                                }
-                            }
+                            let f = program.get_function(function_id);
+                            let name = format!("{}", f.info);
+                            self.process_function_call(
+                                &ty,
+                                function_type,
+                                args,
+                                id,
+                                program,
+                                errors,
+                                name,
+                            );
                         }
                         _ => {
                             if !args.is_empty() {
@@ -217,6 +225,33 @@ impl<'a> TypeProcessor<'a> {
                 Expr::Do(_) => {}
                 Expr::Bind(_, _) => {}
                 Expr::ExprValue(_) => {}
+                Expr::DynamicFunctionCall(func_expr_id, args) => {
+                    let type_var = self.get_type_var_for_expr(func_expr_id);
+                    let ty = self.type_store.get_type(&type_var);
+                    let resolved_type = self.type_store.get_resolved_type(&type_var);
+                    let name = format!("closure({})", resolved_type);
+                    match &ty {
+                        Type::Function(function_type) => {
+                            self.process_function_call(
+                                &ty,
+                                &function_type,
+                                args,
+                                id,
+                                program,
+                                errors,
+                                name,
+                            );
+                        }
+                        _ => {
+                            let ast_id = program.get_ast_expr_id(&id);
+                            let err = TypecheckError::NotCallableType(
+                                *ast_id,
+                                format!("{}", resolved_type),
+                            );
+                            errors.push(err);
+                        }
+                    }
+                }
                 _ => panic!("Check of expr {} is not implemented", expr),
             }
         }
@@ -280,6 +315,11 @@ impl<'a> Collector for TypeProcessor<'a> {
             Expr::ExprValue(expr_id) => {
                 let var = self.get_type_var_for_expr(expr_id);
                 self.type_vars.insert(id, var);
+            }
+            Expr::DynamicFunctionCall(_, _) => {
+                let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let result_var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, result_var);
             }
             _ => panic!("Type processing of expr {} is not implemented", expr),
         }

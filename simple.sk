@@ -1,13 +1,10 @@
 module alma.korte where
 
-foo a :: a -> (a, String) -> Int
-foo a b = extern
-
-fooInt :: Int -> String
-fooInt a = a
+twoParams :: Int -> String -> Int
+twoParams a b = extern
 
 korte af  =  
  do
-  a <- foo 5
-  b <- 6
-  foo (fooInt (a (4, "b"))) (b, "b")
+    a <- 5
+    b <- twoParams a 
+    c <- a 5 5

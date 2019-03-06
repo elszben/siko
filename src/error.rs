@@ -258,6 +258,15 @@ impl Error {
                             println!("Arguments:        {}", args.yellow());
                             println!("Function type:    {}", func.yellow());
                         }
+                        TypecheckError::NotCallableType(id, ty) => {
+                            println!(
+                                "{} trying to call a non-callable type {}",
+                                error.red(),
+                                ty.yellow()
+                            );
+                            let location_set = location_info.get_expr_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
