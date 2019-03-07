@@ -7,5 +7,4 @@ korte af  =
  do
     a <- 5
     \x -> x + a
-    \x -> x + \x -> x + a
-    
+    5

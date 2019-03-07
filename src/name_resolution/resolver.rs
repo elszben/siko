@@ -344,7 +344,7 @@ impl<'a> Resolver<'a> {
     ) -> IrExprId {
         let ir_expr = match named_ref {
             NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
-            NamedRef::FunctionArg(index) => IrExpr::ArgRef(index),
+            NamedRef::FunctionArg(arg_ref) => IrExpr::ArgRef(arg_ref),
             NamedRef::LambdaCapturedExprValue(id, index) => {
                 IrExpr::LambdaCapturedExprValue(id, index)
             }
@@ -369,6 +369,7 @@ impl<'a> Resolver<'a> {
         //println!("Processing expr {}", expr);
         match expr {
             Expr::Lambda(args, lambda_body) => {
+                let ir_lambda_id = ir_program.get_function_id();
                 let mut arg_names = BTreeSet::new();
                 let mut conflicting_names = BTreeSet::new();
                 let mut environment = Environment::child(environment);
@@ -376,7 +377,7 @@ impl<'a> Resolver<'a> {
                     if !arg_names.insert(arg.clone()) {
                         conflicting_names.insert(arg.clone());
                     }
-                    environment.add_arg(arg.clone(), index);
+                    environment.add_arg(arg.clone(), ir_lambda_id, index);
                 }
                 if !conflicting_names.is_empty() {
                     let err = ResolverError::LambdaArgumentConflict(
@@ -387,10 +388,10 @@ impl<'a> Resolver<'a> {
                 }
                 let mut local_lambda_helper = LambdaHelper::new(
                     environment.level(),
-                    true,
                     lambda_helper.host_function(),
                     lambda_helper.clone_counter(),
                 );
+
                 let ir_lambda_body = self.process_expr(
                     *lambda_body,
                     program,
@@ -400,7 +401,6 @@ impl<'a> Resolver<'a> {
                     errors,
                     &mut local_lambda_helper,
                 );
-                let ir_lambda_id = ir_program.get_function_id();
 
                 let lambda_info = LambdaInfo {
                     body: ir_lambda_body,
@@ -420,7 +420,6 @@ impl<'a> Resolver<'a> {
                     .into_iter()
                     .map(|named_ref| self.process_named_ref(named_ref, id, ir_program))
                     .collect();
-                println!("args {:?}", captured_lambda_args);
                 let ir_expr = IrExpr::LambdaFunction(ir_lambda_id, captured_lambda_args);
                 return self.add_expr(ir_expr, id, ir_program);
             }
@@ -704,7 +703,7 @@ impl<'a> Resolver<'a> {
                     .modules
                     .get(&module.name.get())
                     .expect("Resolver module not found");
-                let id = self
+                let ir_function_id = self
                     .function_map
                     .get(&function.id)
                     .expect("Function not found")
@@ -731,7 +730,7 @@ impl<'a> Resolver<'a> {
                         if !arg_names.insert(arg.clone()) {
                             conflicting_names.insert(arg.clone());
                         }
-                        environment.add_arg(arg.clone(), index);
+                        environment.add_arg(arg.clone(), ir_function_id, index);
                     }
                     if !conflicting_names.is_empty() {
                         let err = ResolverError::ArgumentConflict(
@@ -742,7 +741,7 @@ impl<'a> Resolver<'a> {
                     }
                     let host_function = format!("{}/{}", module.name.get(), function.name);
                     let mut lambda_helper =
-                        LambdaHelper::new(0, false, host_function, LambdaHelper::new_counter());
+                        LambdaHelper::new(0, host_function, LambdaHelper::new_counter());
                     let body_id = self.process_expr(
                         id,
                         program,
@@ -764,11 +763,11 @@ impl<'a> Resolver<'a> {
                 };
 
                 let ir_function = IrFunction {
-                    id: id,
+                    id: ir_function_id,
                     arg_count: function.args.len(),
                     info: FunctionInfo::NamedFunction(named_info),
                 };
-                ir_program.add_function(id, ir_function);
+                ir_program.add_function(ir_function_id, ir_function);
             }
         }
 

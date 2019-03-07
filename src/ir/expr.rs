@@ -3,6 +3,27 @@ use crate::syntax::expr::ExprId as AstExprId;
 use crate::util::format_list;
 use std::fmt;
 
+#[derive(Debug, Clone)]
+pub struct FunctionArgumentRef {
+    pub id: FunctionId,
+    pub index: usize,
+}
+
+impl FunctionArgumentRef {
+    pub fn new(id: FunctionId, index: usize) -> FunctionArgumentRef {
+        FunctionArgumentRef {
+            id: id,
+            index: index,
+        }
+    }
+}
+
+impl fmt::Display for FunctionArgumentRef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ArgRef({}.{})", self.id, self.index)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ExprId {
     pub id: usize,
@@ -27,9 +48,9 @@ pub enum Expr {
     StringLiteral(String),
     Do(Vec<ExprId>),
     Bind(String, ExprId),
-    ArgRef(usize),
+    ArgRef(FunctionArgumentRef),
     ExprValue(ExprId),
-    LambdaCapturedArg(usize, usize),
+    LambdaCapturedArg(FunctionArgumentRef, usize),
     LambdaCapturedExprValue(ExprId, usize),
 }
 

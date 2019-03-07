@@ -7,22 +7,15 @@ use std::rc::Rc;
 pub struct LambdaHelper {
     captures: Vec<NamedRef>,
     level: usize,
-    inside_lambda: bool,
     host_function: String,
     counter: Rc<RefCell<Counter>>,
 }
 
 impl LambdaHelper {
-    pub fn new(
-        level: usize,
-        inside_lambda: bool,
-        host_function: String,
-        counter: Rc<RefCell<Counter>>,
-    ) -> LambdaHelper {
+    pub fn new(level: usize, host_function: String, counter: Rc<RefCell<Counter>>) -> LambdaHelper {
         LambdaHelper {
             captures: Vec::new(),
             level: level,
-            inside_lambda: inside_lambda,
             host_function: host_function,
             counter: counter,
         }
@@ -31,10 +24,10 @@ impl LambdaHelper {
     pub fn process_named_ref(&mut self, r: NamedRef, level: usize) -> NamedRef {
         if level < self.level {
             let arg_index = self.captures.len();
-            let updated_ref = match r {
-                NamedRef::ExprValue(id) => NamedRef::LambdaCapturedExprValue(id, arg_index),
-                NamedRef::FunctionArg(index) => {
-                    NamedRef::LambdaCapturedFunctionArg(index, arg_index)
+            let updated_ref = match &r {
+                NamedRef::ExprValue(id) => NamedRef::LambdaCapturedExprValue(*id, arg_index),
+                NamedRef::FunctionArg(arg_ref) => {
+                    NamedRef::LambdaCapturedFunctionArg(arg_ref.clone(), arg_index)
                 }
                 _ => panic!("Unexpected name ref {:?}", r),
             };
@@ -47,10 +40,6 @@ impl LambdaHelper {
 
     pub fn captures(&self) -> Vec<NamedRef> {
         self.captures.clone()
-    }
-
-    pub fn is_inside_lambda(&self) -> bool {
-        self.inside_lambda
     }
 
     pub fn host_function(&self) -> String {

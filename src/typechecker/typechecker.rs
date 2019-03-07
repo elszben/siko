@@ -332,7 +332,12 @@ impl<'a> Collector for TypeProcessor<'a> {
                 self.type_vars.insert(id, result_var);
             }
             Expr::ArgRef(index) => {
-                self.type_vars.insert(id, self.args[*index]);
+                //self.type_vars.insert(id, self.args[*index]);
+            }
+            Expr::LambdaFunction(_, _) => {
+                let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let result_var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, result_var);
             }
             _ => panic!("Type processing of expr {} is not implemented", expr),
         }
@@ -345,7 +350,7 @@ trait Collector {
 
 fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
     let expr = program.get_expr(id);
-
+    println!("TC: {}: Processing expr {}", id, expr);
     match expr {
         Expr::StaticFunctionCall(_, args) => {
             for arg in args {

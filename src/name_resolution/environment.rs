@@ -1,12 +1,14 @@
 use crate::ir::expr::ExprId;
+use crate::ir::expr::FunctionArgumentRef;
+use crate::ir::function::FunctionId;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub enum NamedRef {
-    FunctionArg(usize),
+    FunctionArg(FunctionArgumentRef),
     ExprValue(ExprId),
     LambdaCapturedExprValue(ExprId, usize),
-    LambdaCapturedFunctionArg(usize, usize),
+    LambdaCapturedFunctionArg(FunctionArgumentRef, usize),
 }
 
 pub struct Environment<'a> {
@@ -28,8 +30,11 @@ impl<'a> Environment<'a> {
         self.variables.insert(var, NamedRef::ExprValue(id));
     }
 
-    pub fn add_arg(&mut self, var: String, index: usize) {
-        self.variables.insert(var, NamedRef::FunctionArg(index));
+    pub fn add_arg(&mut self, var: String, function_id: FunctionId, index: usize) {
+        self.variables.insert(
+            var,
+            NamedRef::FunctionArg(FunctionArgumentRef::new(function_id, index)),
+        );
     }
 
     pub fn get_ref(&self, var: &String) -> Option<(NamedRef, usize)> {
