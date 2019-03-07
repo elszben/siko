@@ -6,5 +6,6 @@ twoParams a b = extern
 korte af  =  
  do
     a <- 5
-    b <- twoParams a 
-    c <- b 5
+    \x -> x + a
+    \x -> x + \x -> x + a
+    

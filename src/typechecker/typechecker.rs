@@ -385,6 +385,8 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
         Expr::Bind(_, expr) => walker(program, expr, collector),
         Expr::ArgRef(_) => {}
         Expr::ExprValue(_) => {}
+        Expr::LambdaCapturedArg(_, _) => {}
+        Expr::LambdaCapturedExprValue(_, _) => {}
     }
     collector.process(program, &expr, *id);
 }
@@ -547,9 +549,10 @@ impl Typechecker {
             let mut function_info = FunctionDependencyInfo::new();
             let mut function_info_collector = FunctionInfoCollector::new(&mut function_info);
             match &function.info {
-                FunctionInfo::Lambda(e) => {
-                    walker(program, &e, &mut function_info_collector);
-                    untyped_functions.insert(*id);
+                FunctionInfo::Lambda(i) => {
+                    println!("Skipping lambda {}", i);
+                    //walker(program, &e, &mut function_info_collector);
+                    //untyped_functions.insert(*id);
                 }
                 FunctionInfo::NamedFunction(i) => {
                     let untyped = match i.type_signature {

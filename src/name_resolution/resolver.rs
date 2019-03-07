@@ -7,17 +7,18 @@ use crate::ir::expr::ExprInfo as IrExprInfo;
 use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
+use crate::ir::function::LambdaInfo;
 use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
-use crate::name_resolution::capture_list::CaptureList;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::import::ImportKind;
 use crate::name_resolution::import::ImportStore;
+use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
@@ -311,12 +312,12 @@ impl<'a> Resolver<'a> {
         path: &ItemPath,
         module: &Module<'a>,
         environment: &Environment,
-        capture_list: &mut CaptureList,
+        lambda_helper: &mut LambdaHelper,
     ) -> PathResolveResult {
         let name = path.get();
         if path.path.len() == 1 {
             if let Some((named_ref, level)) = environment.get_ref(&name) {
-                capture_list.process(named_ref.clone(), level);
+                lambda_helper.process_named_ref(named_ref.clone(), level);
                 return PathResolveResult::VariableRef(named_ref);
             }
         }
@@ -344,6 +345,12 @@ impl<'a> Resolver<'a> {
         let ir_expr = match named_ref {
             NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
             NamedRef::FunctionArg(index) => IrExpr::ArgRef(index),
+            NamedRef::LambdaCapturedExprValue(id, index) => {
+                IrExpr::LambdaCapturedExprValue(id, index)
+            }
+            NamedRef::LambdaCapturedFunctionArg(index1, index2) => {
+                IrExpr::LambdaCapturedArg(index1, index2)
+            }
         };
         self.add_expr(ir_expr, id, ir_program)
     }
@@ -356,7 +363,7 @@ impl<'a> Resolver<'a> {
         environment: &mut Environment,
         ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
-        capture_list: &mut CaptureList,
+        lambda_helper: &mut LambdaHelper,
     ) -> IrExprId {
         let expr = program.get_expr(&id);
         //println!("Processing expr {}", expr);
@@ -378,7 +385,12 @@ impl<'a> Resolver<'a> {
                     );
                     errors.push(err);
                 }
-                let mut lambda_captures = CaptureList::new(environment.level());
+                let mut local_lambda_helper = LambdaHelper::new(
+                    environment.level(),
+                    true,
+                    lambda_helper.host_function(),
+                    lambda_helper.clone_counter(),
+                );
                 let ir_lambda_body = self.process_expr(
                     *lambda_body,
                     program,
@@ -386,22 +398,29 @@ impl<'a> Resolver<'a> {
                     &mut environment,
                     ir_program,
                     errors,
-                    &mut lambda_captures,
+                    &mut local_lambda_helper,
                 );
                 let ir_lambda_id = ir_program.get_function_id();
+
+                let lambda_info = LambdaInfo {
+                    body: ir_lambda_body,
+                    host_info: local_lambda_helper.host_function(),
+                    index: local_lambda_helper.get_lambda_index(),
+                };
 
                 let ir_function = IrFunction {
                     id: ir_lambda_id,
                     arg_count: args.len(),
-                    info: FunctionInfo::Lambda(ir_lambda_body),
+                    info: FunctionInfo::Lambda(lambda_info),
                 };
                 ir_program.add_function(ir_lambda_id, ir_function);
 
-                let captured_lambda_args: Vec<_> = capture_list
+                let captured_lambda_args: Vec<_> = local_lambda_helper
                     .captures()
                     .into_iter()
                     .map(|named_ref| self.process_named_ref(named_ref, id, ir_program))
                     .collect();
+                println!("args {:?}", captured_lambda_args);
                 let ir_expr = IrExpr::LambdaFunction(ir_lambda_id, captured_lambda_args);
                 return self.add_expr(ir_expr, id, ir_program);
             }
@@ -416,13 +435,13 @@ impl<'a> Resolver<'a> {
                             environment,
                             ir_program,
                             errors,
-                            capture_list,
+                            lambda_helper,
                         )
                     })
                     .collect();
                 let id_expr = program.get_expr(id_expr_id);
                 if let Expr::Path(path) = id_expr {
-                    match self.resolve_item_path(path, module, environment, capture_list) {
+                    match self.resolve_item_path(path, module, environment, lambda_helper) {
                         PathResolveResult::FunctionRef(n) => {
                             let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
                             return self.add_expr(ir_expr, id, ir_program);
@@ -462,7 +481,8 @@ impl<'a> Resolver<'a> {
                                     format!("{:?}", op).to_lowercase()
                                 )],
                             };
-                            match self.resolve_item_path(&path, module, environment, capture_list) {
+                            match self.resolve_item_path(&path, module, environment, lambda_helper)
+                            {
                                 PathResolveResult::FunctionRef(n) => {
                                     let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
                                     return self.add_expr(ir_expr, id, ir_program);
@@ -482,7 +502,7 @@ impl<'a> Resolver<'a> {
                             environment,
                             ir_program,
                             errors,
-                            capture_list,
+                            lambda_helper,
                         );
                         let ir_expr = IrExpr::DynamicFunctionCall(id_expr, ir_args);
                         return self.add_expr(ir_expr, id, ir_program);
@@ -498,7 +518,7 @@ impl<'a> Resolver<'a> {
                     environment,
                     ir_program,
                     errors,
-                    capture_list,
+                    lambda_helper,
                 );
                 let ir_true_branch = self.process_expr(
                     *true_branch,
@@ -507,7 +527,7 @@ impl<'a> Resolver<'a> {
                     environment,
                     ir_program,
                     errors,
-                    capture_list,
+                    lambda_helper,
                 );
                 let ir_false_branch = self.process_expr(
                     *false_branch,
@@ -516,7 +536,7 @@ impl<'a> Resolver<'a> {
                     environment,
                     ir_program,
                     errors,
-                    capture_list,
+                    lambda_helper,
                 );
                 let ir_expr = IrExpr::If(ir_cond, ir_true_branch, ir_false_branch);
                 return self.add_expr(ir_expr, id, ir_program);
@@ -532,7 +552,7 @@ impl<'a> Resolver<'a> {
                             environment,
                             ir_program,
                             errors,
-                            capture_list,
+                            lambda_helper,
                         )
                     })
                     .collect();
@@ -540,7 +560,7 @@ impl<'a> Resolver<'a> {
                 return self.add_expr(ir_expr, id, ir_program);
             }
             Expr::Path(path) => {
-                match self.resolve_item_path(path, module, environment, capture_list) {
+                match self.resolve_item_path(path, module, environment, lambda_helper) {
                     PathResolveResult::FunctionRef(n) => {
                         let ir_expr = IrExpr::StaticFunctionCall(n, vec![]);
                         return self.add_expr(ir_expr, id, ir_program);
@@ -589,7 +609,7 @@ impl<'a> Resolver<'a> {
                             environment,
                             ir_program,
                             errors,
-                            capture_list,
+                            lambda_helper,
                         )
                     })
                     .collect();
@@ -604,7 +624,7 @@ impl<'a> Resolver<'a> {
                     environment,
                     ir_program,
                     errors,
-                    capture_list,
+                    lambda_helper,
                 );
                 environment.add_expr_value(name.clone(), ir_expr_id);
                 let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id);
@@ -720,7 +740,9 @@ impl<'a> Resolver<'a> {
                         );
                         errors.push(err);
                     }
-                    let mut capture_list = CaptureList::new(0);
+                    let host_function = format!("{}/{}", module.name.get(), function.name);
+                    let mut lambda_helper =
+                        LambdaHelper::new(0, false, host_function, LambdaHelper::new_counter());
                     let body_id = self.process_expr(
                         id,
                         program,
@@ -728,7 +750,7 @@ impl<'a> Resolver<'a> {
                         &mut environment,
                         &mut ir_program,
                         &mut errors,
-                        &mut capture_list,
+                        &mut lambda_helper,
                     );
                     body = Some(body_id);
                 }

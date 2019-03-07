@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 pub enum NamedRef {
     FunctionArg(usize),
     ExprValue(ExprId),
+    LambdaCapturedExprValue(ExprId, usize),
+    LambdaCapturedFunctionArg(usize, usize),
 }
 
 pub struct Environment<'a> {

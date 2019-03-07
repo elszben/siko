@@ -30,15 +30,28 @@ impl fmt::Display for NamedFunctionInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct LambdaInfo {
+    pub body: ExprId,
+    pub host_info: String,
+    pub index: usize,
+}
+
+impl fmt::Display for LambdaInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}/lambda#{}", self.host_info, self.index)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum FunctionInfo {
-    Lambda(ExprId),
+    Lambda(LambdaInfo),
     NamedFunction(NamedFunctionInfo),
 }
 
 impl FunctionInfo {
     pub fn body(&self) -> ExprId {
         match self {
-            FunctionInfo::Lambda(b) => *b,
+            FunctionInfo::Lambda(i) => i.body,
             FunctionInfo::NamedFunction(i) => i.body.expect("Body does not exist").clone(),
         }
     }
