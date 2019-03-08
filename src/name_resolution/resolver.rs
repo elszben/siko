@@ -345,8 +345,10 @@ impl<'a> Resolver<'a> {
         let ir_expr = match named_ref {
             NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
             NamedRef::FunctionArg(arg_ref) => IrExpr::ArgRef(arg_ref),
-            NamedRef::LambdaCapturedExprValue(_, index) => IrExpr::LambdaCapturedArgRef(index),
-            NamedRef::LambdaCapturedFunctionArg(_, index) => IrExpr::LambdaCapturedArgRef(index),
+            NamedRef::LambdaCapturedExprValue(_, arg_ref) => IrExpr::LambdaCapturedArgRef(arg_ref),
+            NamedRef::LambdaCapturedFunctionArg(_, arg_ref) => {
+                IrExpr::LambdaCapturedArgRef(arg_ref)
+            }
         };
         self.add_expr(ir_expr, id, ir_program)
     }
@@ -386,6 +388,7 @@ impl<'a> Resolver<'a> {
                     environment.level(),
                     lambda_helper.host_function(),
                     lambda_helper.clone_counter(),
+                    ir_lambda_id,
                 );
 
                 let ir_lambda_body = self.process_expr(
@@ -736,8 +739,12 @@ impl<'a> Resolver<'a> {
                         errors.push(err);
                     }
                     let host_function = format!("{}/{}", module.name.get(), function.name);
-                    let mut lambda_helper =
-                        LambdaHelper::new(0, host_function, LambdaHelper::new_counter());
+                    let mut lambda_helper = LambdaHelper::new(
+                        0,
+                        host_function,
+                        LambdaHelper::new_counter(),
+                        ir_function_id,
+                    );
                     let body_id = self.process_expr(
                         id,
                         program,

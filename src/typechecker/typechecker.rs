@@ -58,6 +58,7 @@ struct TypeProcessor<'a> {
     function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
     type_vars: BTreeMap<ExprId, TypeVariable>,
     function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
+    captured_function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
 }
 
 impl<'a> TypeProcessor<'a> {
@@ -74,6 +75,7 @@ impl<'a> TypeProcessor<'a> {
             function_type_map: function_type_map,
             type_vars: BTreeMap::new(),
             function_args: function_args,
+            captured_function_args: BTreeMap::new(),
         }
     }
 
@@ -340,13 +342,24 @@ impl<'a> Collector for TypeProcessor<'a> {
                     self.function_args.get(&index.id).expect("Missing arg set")[index.index],
                 );
             }
-            Expr::LambdaFunction(_, _) => {
+            Expr::LambdaFunction(lambda_id, captures) => {
                 let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
                 let result_var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, result_var);
+                let captured_vars: Vec<_> = captures
+                    .iter()
+                    .map(|c| self.get_type_var_for_expr(c))
+                    .collect();
+                self.captured_function_args
+                    .insert(*lambda_id, captured_vars);
             }
-            Expr::LambdaCapturedArgRef(_) => {}
-            _ => panic!("Type processing of expr {} is not implemented", expr),
+            Expr::LambdaCapturedArgRef(arg_ref) => {
+                let var = self
+                    .captured_function_args
+                    .get(&arg_ref.id)
+                    .expect("Missing lambda arg set")[arg_ref.index];
+                self.type_vars.insert(id, var);
+            }
         }
     }
 
@@ -375,14 +388,19 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
                 walker(program, arg, collector);
             }
         }
-        Expr::LambdaFunction(lambda_id, _) => {
+        Expr::LambdaFunction(lambda_id, captures) => {
             let lambda = program.get_function(lambda_id);
+            for captured in captures {
+                walker(program, captured, collector);
+            }
             collector.process_lambda_args(*lambda_id, lambda.arg_count);
+            collector.process(program, expr, *id);
             if let FunctionInfo::Lambda(info) = &lambda.info {
                 walker(program, &info.body, collector);
             } else {
                 unreachable!()
             }
+            return;
         }
         Expr::DynamicFunctionCall(id, args) => {
             walker(program, id, collector);
