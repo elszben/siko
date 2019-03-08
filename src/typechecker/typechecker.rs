@@ -262,7 +262,10 @@ impl<'a> TypeProcessor<'a> {
                     }
                 }
                 Expr::ArgRef(_) => {}
-                _ => panic!("Check of expr {} is not implemented", expr),
+                Expr::LambdaFunction(lambda_id, _) => {
+                    let type_var = self.get_type_var_for_expr(&id);
+                }
+                Expr::LambdaCapturedArgRef(arg_ref) => {}
             }
         }
     }
@@ -343,15 +346,28 @@ impl<'a> Collector for TypeProcessor<'a> {
                 );
             }
             Expr::LambdaFunction(lambda_id, captures) => {
-                let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
-                let result_var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, result_var);
                 let captured_vars: Vec<_> = captures
                     .iter()
                     .map(|c| self.get_type_var_for_expr(c))
                     .collect();
                 self.captured_function_args
                     .insert(*lambda_id, captured_vars);
+                let lambda_info = program.get_function(lambda_id);
+                let mut args = Vec::new();
+                let mut types = Vec::new();
+                for _ in 0..lambda_info.arg_count {
+                    let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                    types.push(ty.clone());
+                    let var = self.type_store.add_var(ty);
+                    args.push(var);
+                }
+                let lambda_result_type = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                types.push(lambda_result_type);
+                self.function_args.insert(*lambda_id, args);
+                let lambda_function_type = FunctionType::new(types);
+                let ty = Type::Function(lambda_function_type);
+                let result_var = self.type_store.add_var(ty);
+                self.type_vars.insert(id, result_var);
             }
             Expr::LambdaCapturedArgRef(arg_ref) => {
                 let var = self
@@ -362,21 +378,10 @@ impl<'a> Collector for TypeProcessor<'a> {
             }
         }
     }
-
-    fn process_lambda_args(&mut self, id: FunctionId, arg_count: usize) {
-        let mut args = Vec::new();
-        for _ in 0..arg_count {
-            let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
-            let var = self.type_store.add_var(ty);
-            args.push(var);
-        }
-        self.function_args.insert(id, args);
-    }
 }
 
 trait Collector {
     fn process(&mut self, program: &Program, expr: &Expr, id: ExprId);
-    fn process_lambda_args(&mut self, id: FunctionId, arg_count: usize) {}
 }
 
 fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
@@ -393,7 +398,6 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
             for captured in captures {
                 walker(program, captured, collector);
             }
-            collector.process_lambda_args(*lambda_id, lambda.arg_count);
             collector.process(program, expr, *id);
             if let FunctionInfo::Lambda(info) = &lambda.info {
                 walker(program, &info.body, collector);
@@ -589,12 +593,13 @@ impl Typechecker {
         let mut errors = Vec::new();
         let mut untyped_functions = BTreeSet::new();
         let mut typed_functions = BTreeSet::new();
+        println!("All function count {}", program.functions.len());
         for (id, function) in &program.functions {
             let mut function_info = FunctionDependencyInfo::new();
             let mut function_info_collector = FunctionInfoCollector::new(&mut function_info);
             match &function.info {
                 FunctionInfo::Lambda(i) => {
-                    println!("Skipping lambda {}", i);
+                    println!("Skipping lambda {},{}", id, i);
                     //walker(program, &e, &mut function_info_collector);
                     //untyped_functions.insert(*id);
                 }
@@ -634,12 +639,18 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        for function_id in untyped_check_order {
-            self.check_untyped_function(function_id, program, &mut errors);
-        }
+        println!(
+            "Typed {}, untyped {}",
+            typed_functions.len(),
+            untyped_check_order.len()
+        );
 
         for function_id in typed_functions {
             println!("Checking typed {}", function_id);
+        }
+
+        for function_id in untyped_check_order {
+            self.check_untyped_function(function_id, program, &mut errors);
         }
 
         if errors.is_empty() {
