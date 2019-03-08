@@ -264,8 +264,19 @@ impl<'a> TypeProcessor<'a> {
                 Expr::ArgRef(_) => {}
                 Expr::LambdaFunction(lambda_id, _) => {
                     let type_var = self.get_type_var_for_expr(&id);
+                    let ty = self.type_store.get_type(&type_var);
+                    if let Type::Function(function_type) = ty {
+                        let return_type = function_type.get_return_type();
+                        let lambda_info = program.get_function(lambda_id);
+                        let body_id = lambda_info.info.body();
+                        let body_var = self.get_type_var_for_expr(&body_id);
+                        self.type_store
+                            .unify_vars(body_var, return_type.get_inner_type_var());
+                    } else {
+                        panic!("Type of lambda is not a function {}", ty);
+                    }
                 }
-                Expr::LambdaCapturedArgRef(arg_ref) => {}
+                Expr::LambdaCapturedArgRef(_) => {}
             }
         }
     }
@@ -363,6 +374,10 @@ impl<'a> Collector for TypeProcessor<'a> {
                 }
                 let lambda_result_type = Type::TypeArgument(self.type_store.get_unique_type_arg());
                 types.push(lambda_result_type);
+                let types = types
+                    .into_iter()
+                    .map(|ty| Type::TypeVar(self.type_store.add_var(ty)))
+                    .collect();
                 self.function_args.insert(*lambda_id, args);
                 let lambda_function_type = FunctionType::new(types);
                 let ty = Type::Function(lambda_function_type);
