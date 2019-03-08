@@ -317,7 +317,7 @@ impl<'a> Resolver<'a> {
         let name = path.get();
         if path.path.len() == 1 {
             if let Some((named_ref, level)) = environment.get_ref(&name) {
-                lambda_helper.process_named_ref(named_ref.clone(), level);
+                let named_ref = lambda_helper.process_named_ref(named_ref.clone(), level);
                 return PathResolveResult::VariableRef(named_ref);
             }
         }
@@ -345,12 +345,8 @@ impl<'a> Resolver<'a> {
         let ir_expr = match named_ref {
             NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
             NamedRef::FunctionArg(arg_ref) => IrExpr::ArgRef(arg_ref),
-            NamedRef::LambdaCapturedExprValue(id, index) => {
-                IrExpr::LambdaCapturedExprValue(id, index)
-            }
-            NamedRef::LambdaCapturedFunctionArg(index1, index2) => {
-                IrExpr::LambdaCapturedArg(index1, index2)
-            }
+            NamedRef::LambdaCapturedExprValue(_, index) => IrExpr::LambdaCapturedArgRef(index),
+            NamedRef::LambdaCapturedFunctionArg(_, index) => IrExpr::LambdaCapturedArgRef(index),
         };
         self.add_expr(ir_expr, id, ir_program)
     }

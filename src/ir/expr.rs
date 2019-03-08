@@ -50,8 +50,7 @@ pub enum Expr {
     Bind(String, ExprId),
     ArgRef(FunctionArgumentRef),
     ExprValue(ExprId),
-    LambdaCapturedArg(FunctionArgumentRef, usize),
-    LambdaCapturedExprValue(ExprId, usize),
+    LambdaCapturedArgRef(usize),
 }
 
 impl fmt::Display for Expr {
@@ -76,14 +75,9 @@ impl fmt::Display for Expr {
             Expr::StringLiteral(v) => write!(f, "String({})", v),
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
             Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
-            Expr::ArgRef(v) => write!(f, "ArgRef({})", v),
+            Expr::ArgRef(v) => write!(f, "{}", v),
             Expr::ExprValue(id) => write!(f, "ExprValue({})", id),
-            Expr::LambdaCapturedArg(index1, index2) => {
-                write!(f, "LambdaCapturedArg({}, {})", index1, index2)
-            }
-            Expr::LambdaCapturedExprValue(id, index) => {
-                write!(f, "LambdaCapturedExprValue({}, {})", id, index)
-            }
+            Expr::LambdaCapturedArgRef(index) => write!(f, "LambdaCapturedArgRef({})", index),
         }
     }
 }

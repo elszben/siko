@@ -31,6 +31,7 @@ impl LambdaHelper {
                 }
                 _ => panic!("Unexpected name ref {:?}", r),
             };
+            println!("Captured variable {:?}", updated_ref);
             self.captures.push(r);
             updated_ref
         } else {

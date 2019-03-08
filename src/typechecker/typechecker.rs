@@ -57,20 +57,23 @@ struct TypeProcessor<'a> {
     type_store: &'a mut TypeStore,
     function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
     type_vars: BTreeMap<ExprId, TypeVariable>,
-    args: Vec<TypeVariable>,
+    function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
 }
 
 impl<'a> TypeProcessor<'a> {
     fn new(
         type_store: &'a mut TypeStore,
         function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
+        function_id: FunctionId,
         args: Vec<TypeVariable>,
     ) -> TypeProcessor<'a> {
+        let mut function_args = BTreeMap::new();
+        function_args.insert(function_id, args);
         TypeProcessor {
             type_store: type_store,
             function_type_map: function_type_map,
             type_vars: BTreeMap::new(),
-            args: args,
+            function_args: function_args,
         }
     }
 
@@ -332,20 +335,35 @@ impl<'a> Collector for TypeProcessor<'a> {
                 self.type_vars.insert(id, result_var);
             }
             Expr::ArgRef(index) => {
-                //self.type_vars.insert(id, self.args[*index]);
+                self.type_vars.insert(
+                    id,
+                    self.function_args.get(&index.id).expect("Missing arg set")[index.index],
+                );
             }
             Expr::LambdaFunction(_, _) => {
                 let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
                 let result_var = self.type_store.add_var(ty);
                 self.type_vars.insert(id, result_var);
             }
+            Expr::LambdaCapturedArgRef(_) => {}
             _ => panic!("Type processing of expr {} is not implemented", expr),
         }
+    }
+
+    fn process_lambda_args(&mut self, id: FunctionId, arg_count: usize) {
+        let mut args = Vec::new();
+        for _ in 0..arg_count {
+            let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+            let var = self.type_store.add_var(ty);
+            args.push(var);
+        }
+        self.function_args.insert(id, args);
     }
 }
 
 trait Collector {
-    fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {}
+    fn process(&mut self, program: &Program, expr: &Expr, id: ExprId);
+    fn process_lambda_args(&mut self, id: FunctionId, arg_count: usize) {}
 }
 
 fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
@@ -357,9 +375,13 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
                 walker(program, arg, collector);
             }
         }
-        Expr::LambdaFunction(_, args) => {
-            for arg in args {
-                walker(program, arg, collector);
+        Expr::LambdaFunction(lambda_id, _) => {
+            let lambda = program.get_function(lambda_id);
+            collector.process_lambda_args(*lambda_id, lambda.arg_count);
+            if let FunctionInfo::Lambda(info) = &lambda.info {
+                walker(program, &info.body, collector);
+            } else {
+                unreachable!()
             }
         }
         Expr::DynamicFunctionCall(id, args) => {
@@ -390,8 +412,7 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
         Expr::Bind(_, expr) => walker(program, expr, collector),
         Expr::ArgRef(_) => {}
         Expr::ExprValue(_) => {}
-        Expr::LambdaCapturedArg(_, _) => {}
-        Expr::LambdaCapturedExprValue(_, _) => {}
+        Expr::LambdaCapturedArgRef(_) => {}
     }
     collector.process(program, &expr, *id);
 }
@@ -428,7 +449,7 @@ impl Typechecker {
         }
         let body = function.info.body();
         let mut type_processor =
-            TypeProcessor::new(&mut self.type_store, &self.function_type_map, args);
+            TypeProcessor::new(&mut self.type_store, &self.function_type_map, id, args);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
         type_processor.dump_types(program);
