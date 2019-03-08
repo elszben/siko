@@ -111,6 +111,7 @@ impl<'a> TypeProcessor<'a> {
             for (index, arg) in args.iter().enumerate() {
                 let arg_var = self.get_type_var_for_expr(arg);
                 let type_var = types[index].get_inner_type_var();
+                println!("fncall arg_var: {:?} type var:{:?}", arg_var, type_var);
                 if !self.type_store.unify_vars(arg_var, type_var) {
                     mismatch = true;
                     break;
@@ -284,8 +285,8 @@ impl<'a> TypeProcessor<'a> {
     fn dump_types(&self, program: &Program) {
         for (id, var) in &self.type_vars {
             let expr = program.get_expr(id);
-            let ty = self.type_store.get_resolved_type(var);
-            println!("{} {} => {}", id, expr, ty);
+            let ty = self.type_store.get_type(var);
+            println!("{},{:?} {} => {}", id, var, expr, ty);
         }
     }
 }
@@ -351,10 +352,10 @@ impl<'a> Collector for TypeProcessor<'a> {
                 self.type_vars.insert(id, result_var);
             }
             Expr::ArgRef(index) => {
-                self.type_vars.insert(
-                    id,
-                    self.function_args.get(&index.id).expect("Missing arg set")[index.index],
-                );
+                let arg_var =
+                    self.function_args.get(&index.id).expect("Missing arg set")[index.index];
+                println!("Expr::ArgRef arg_var {:?}", arg_var);
+                self.type_vars.insert(id, arg_var);
             }
             Expr::LambdaFunction(lambda_id, captures) => {
                 let captured_vars: Vec<_> = captures
@@ -368,16 +369,17 @@ impl<'a> Collector for TypeProcessor<'a> {
                 let mut types = Vec::new();
                 for _ in 0..lambda_info.arg_count {
                     let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                    let var = self.type_store.add_var(ty);
+                    let ty = Type::TypeVar(var);
                     types.push(ty.clone());
                     let var = self.type_store.add_var(ty);
+                    println!("lambda arg {:?}", var);
                     args.push(var);
                 }
                 let lambda_result_type = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let lambda_result_type_var = self.type_store.add_var(lambda_result_type);
+                let lambda_result_type = Type::TypeVar(lambda_result_type_var);
                 types.push(lambda_result_type);
-                let types = types
-                    .into_iter()
-                    .map(|ty| Type::TypeVar(self.type_store.add_var(ty)))
-                    .collect();
                 self.function_args.insert(*lambda_id, args);
                 let lambda_function_type = FunctionType::new(types);
                 let ty = Type::Function(lambda_function_type);

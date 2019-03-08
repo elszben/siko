@@ -1,10 +1,3 @@
 module alma.korte where
 
-twoParams :: Int -> String -> Int
-twoParams a b = extern
-
-korte af  =  
- do
-    a <- 5
-    \x -> x + a
-    5
+korte af  = \x -> x + 5
