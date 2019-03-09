@@ -2,5 +2,5 @@ module alma.korte where
 
 korte af  = do
         a <- 6
-        b <- \x -> x + a
+        b <- \x -> x + a + af
         b a
