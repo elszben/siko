@@ -1,39 +1,44 @@
 use crate::typechecker::type_store::TypeStore;
-use crate::typechecker::types::Type;
+use crate::typechecker::type_variable::TypeVariable;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FunctionType {
-    pub types: Vec<Type>,
+    pub type_vars: Vec<TypeVariable>,
 }
 
 impl FunctionType {
-    pub fn new(types: Vec<Type>) -> FunctionType {
-        FunctionType { types: types }
+    pub fn new(type_vars: Vec<TypeVariable>) -> FunctionType {
+        FunctionType {
+            type_vars: type_vars,
+        }
     }
 
-    pub fn get_return_type(&self) -> Type {
-        self.types.last().expect("empty function!").clone()
+    pub fn get_return_type(&self) -> TypeVariable {
+        self.type_vars.last().expect("empty function!").clone()
     }
 
     pub fn get_arg_count(&self) -> usize {
-        self.types.len() - 1
+        self.type_vars.len() - 1
     }
 
-    pub fn get_arg_types(&self) -> Vec<Type> {
-        self.types[0..self.types.len() - 1].to_vec()
+    pub fn get_arg_types(&self) -> Vec<TypeVariable> {
+        self.type_vars[0..self.type_vars.len() - 1].to_vec()
     }
 
     pub fn as_string(&self, type_store: &TypeStore) -> String {
         if self.get_arg_count() != 0 {
             let ss: Vec<_> = self
-                .types
+                .type_vars
                 .iter()
-                .map(|t| format!("{}", t.as_string(type_store)))
+                .map(|var| {
+                    let ty = type_store.get_type(var);
+                    ty.as_string(type_store)
+                })
                 .collect();
             format!("{}", ss.join(" -> "))
         } else {
-            format!("{}", self.get_return_type().as_string(type_store))
+            format!("{:?}", self.get_return_type())
         }
     }
 }
@@ -41,10 +46,10 @@ impl FunctionType {
 impl fmt::Display for FunctionType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.get_arg_count() != 0 {
-            let ss: Vec<_> = self.types.iter().map(|t| format!("{}", t)).collect();
+            let ss: Vec<_> = self.type_vars.iter().map(|t| format!("{:?}", t)).collect();
             write!(f, "{}", ss.join(" -> "))
         } else {
-            write!(f, "{}", self.get_return_type())
+            write!(f, "{:?}", self.get_return_type())
         }
     }
 }

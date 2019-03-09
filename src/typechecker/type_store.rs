@@ -71,9 +71,9 @@ impl TypeStore {
             .clone()
     }
 
-    fn unify_variables(&mut self, from: TypeVariable, to: TypeVariable) {
-        let from_index = self.get_index(&from);
-        let to_index = self.get_index(&to);
+    fn unify_variables(&mut self, from: &TypeVariable, to: &TypeVariable) {
+        let from_index = self.get_index(from);
+        let to_index = self.get_index(to);
         for (_, value) in self.variables.iter_mut() {
             if *value == to_index {
                 *value = from_index;
@@ -81,9 +81,9 @@ impl TypeStore {
         }
     }
 
-    pub fn unify_vars(&mut self, var1: TypeVariable, var2: TypeVariable) -> bool {
-        let var_ty1 = self.get_type(&var1);
-        let var_ty2 = self.get_type(&var2);
+    pub fn unify_vars(&mut self, var1: &TypeVariable, var2: &TypeVariable) -> bool {
+        let var_ty1 = self.get_type(var1);
+        let var_ty2 = self.get_type(var2);
         println!(
             "Unify vars t1:{},{:?} t2:{},{:?}",
             var_ty1, var1, var_ty2, var2
@@ -107,23 +107,23 @@ impl TypeStore {
             (_, Type::TypeArgument(_)) => {
                 self.unify_variables(var1, var2);
             }
-            (Type::Tuple(subtypes1), Type::Tuple(subtypes2)) => {
-                if subtypes1.len() != subtypes2.len() {
+            (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
+                if type_vars1.len() != type_vars2.len() {
                     return false;
                 } else {
-                    for (v1, v2) in subtypes1.iter().zip(subtypes2.iter()) {
-                        if !self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var()) {
+                    for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
+                        if !self.unify_vars(v1, v2) {
                             return false;
                         }
                     }
                 }
             }
             (Type::Function(f1), Type::Function(f2)) => {
-                if f1.types.len() != f2.types.len() {
+                if f1.type_vars.len() != f2.type_vars.len() {
                     return false;
                 } else {
-                    for (v1, v2) in f1.types.iter().zip(f2.types.iter()) {
-                        if !self.unify_vars(v1.get_inner_type_var(), v2.get_inner_type_var()) {
+                    for (v1, v2) in f1.type_vars.iter().zip(f2.type_vars.iter()) {
+                        if !self.unify_vars(v1, v2) {
                             return false;
                         }
                     }
@@ -144,44 +144,50 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn get_resolved_type(&self, var: &TypeVariable) -> Type {
-        let index = self.get_index(var);
-        let t = self
-            .indices
-            .get(&index)
-            .expect("invalid type index")
-            .clone();
-        match t {
-            Type::Tuple(inners) => {
-                let resolved_types = inners
-                    .into_iter()
-                    .map(|v| match v {
-                        Type::TypeVar(v) => self.get_resolved_type(&v),
-                        _ => v,
-                    })
-                    .collect();
-                return Type::Tuple(resolved_types);
-            }
-            Type::TypeVar(inner) => {
-                return self.get_resolved_type(&inner);
-            }
-            Type::Function(inner) => {
-                let resolved_types = inner
-                    .types
-                    .into_iter()
-                    .map(|v| match v {
-                        Type::TypeVar(v) => self.get_resolved_type(&v),
-                        _ => v,
-                    })
-                    .collect();
-                return Type::Function(FunctionType::new(resolved_types));
-            }
-            _ => {
-                return t;
-            }
-        }
+    pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
+        let ty = self.get_type(var);
+        ty.as_string(self)
     }
 
+    /*
+        pub fn get_resolved_type(&self, var: &TypeVariable) -> Type {
+            let index = self.get_index(var);
+            let t = self
+                .indices
+                .get(&index)
+                .expect("invalid type index")
+                .clone();
+            match t {
+                Type::Tuple(inners) => {
+                    let resolved_types = inners
+                        .into_iter()
+                        .map(|v| match v {
+                            Type::TypeVar(v) => self.get_resolved_type(&v),
+                            _ => v,
+                        })
+                        .collect();
+                    return Type::Tuple(resolved_types);
+                }
+                Type::TypeVar(inner) => {
+                    return self.get_resolved_type(&inner);
+                }
+                Type::Function(inner) => {
+                    let resolved_types = inner
+                        .types
+                        .into_iter()
+                        .map(|v| match v {
+                            Type::TypeVar(v) => self.get_resolved_type(&v),
+                            _ => v,
+                        })
+                        .collect();
+                    return Type::Function(FunctionType::new(resolved_types));
+                }
+                _ => {
+                    return t;
+                }
+            }
+        }
+    */
     pub fn clone_type(&mut self, ty: &Type) -> Type {
         let mut vars = Vec::new();
         let mut args = Vec::new();
