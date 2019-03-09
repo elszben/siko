@@ -112,7 +112,6 @@ impl<'a> TypeProcessor<'a> {
             for (index, arg) in args.iter().enumerate() {
                 let arg_var = self.get_type_var_for_expr(arg);
                 let type_var = type_vars[index];
-                println!("fncall arg_var: {:?} type var:{:?}", arg_var, type_var);
                 if !self.type_store.unify_vars(&arg_var, &type_var) {
                     mismatch = true;
                     break;
@@ -349,7 +348,6 @@ impl<'a> Collector for TypeProcessor<'a> {
             Expr::ArgRef(index) => {
                 let arg_var =
                     self.function_args.get(&index.id).expect("Missing arg set")[index.index];
-                println!("Expr::ArgRef arg_var {:?}", arg_var);
                 self.type_vars.insert(id, arg_var);
             }
             Expr::LambdaFunction(lambda_id, captures) => {

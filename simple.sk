@@ -1,3 +1,6 @@
 module alma.korte where
 
-korte af  = \x -> x + 5
+korte af  = do
+        a <- 6
+        b <- \x -> x + a
+        b a
