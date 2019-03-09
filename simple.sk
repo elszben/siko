@@ -1,5 +1,6 @@
 module alma.korte where
 
+id a :: a -> a
 id a = a
 
 korte af  = do
