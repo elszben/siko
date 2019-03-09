@@ -1,6 +1,12 @@
 module alma.korte where
 
+id a = a
+
 korte af  = do
         a <- 6
         b <- \x -> x + a + af
         b a
+
+foo = do
+    a <- id 1
+    b <- id "a"
