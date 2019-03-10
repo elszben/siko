@@ -28,7 +28,7 @@ fn print_location_set(file_manager: &FileManager, location_set: &LocationSet) {
             first = false;
             println!(
                 "{}{}:{}",
-                "--".blue(),
+                "-- ".blue(),
                 location_set.file_path.path.green(),
                 format!("{}", line_index + 1).green()
             );

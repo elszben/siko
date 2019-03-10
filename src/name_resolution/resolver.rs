@@ -468,7 +468,7 @@ impl<'a> Resolver<'a> {
                         if *op == BuiltinOperator::PipeForward {
                             assert_eq!(ir_args.len(), 2);
                             let left = ir_args[0];
-                            let right = ir_args[0];
+                            let right = ir_args[1];
                             let ir_expr = IrExpr::DynamicFunctionCall(right, vec![left]);
                             return self.add_expr(ir_expr, id, ir_program);
                         } else {

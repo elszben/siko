@@ -59,6 +59,7 @@ struct TypeProcessor<'a> {
     type_vars: BTreeMap<ExprId, TypeVariable>,
     function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
     captured_function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
+    function_id: FunctionId,
 }
 
 impl<'a> TypeProcessor<'a> {
@@ -76,6 +77,7 @@ impl<'a> TypeProcessor<'a> {
             type_vars: BTreeMap::new(),
             function_args: function_args,
             captured_function_args: BTreeMap::new(),
+            function_id: function_id,
         }
     }
 
@@ -84,6 +86,24 @@ impl<'a> TypeProcessor<'a> {
             .get(id)
             .expect("Sub expr type var not found")
             .clone()
+    }
+
+    fn get_function_type(&mut self, body: &ExprId) -> TypeVariable {
+        let args = self
+            .function_args
+            .get(&self.function_id)
+            .expect("Function args not found");
+        let body_var = self.type_vars.get(body).expect("Body expr var not found");
+        if args.is_empty() {
+            *body_var
+        } else {
+            let mut type_vars = args.clone();
+            type_vars.push(*body_var);
+            let function_type = FunctionType::new(type_vars);
+            let function_type = Type::Function(function_type);
+            let function_type_var = self.type_store.add_var(function_type);
+            function_type_var
+        }
     }
 
     fn process_function_call(
@@ -481,6 +501,14 @@ impl Typechecker {
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
         type_processor.dump_types(program);
+        let function_type = type_processor.get_function_type(&body);
+        println!(
+            "Type of {},{} {}",
+            id,
+            function.info,
+            self.type_store.get_resolved_type_string(&function_type)
+        );
+        self.function_type_map.insert(id, function_type);
     }
 
     fn check_function_deps(

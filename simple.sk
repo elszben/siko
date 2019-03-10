@@ -1,13 +1,5 @@
 module alma.korte where
 
-id a :: a -> a
-id a = a
+plus_one x = x + 1
 
-korte af  = do
-        a <- 6
-        b <- \x -> x + a + af
-        b a
-
-foo = do
-    a <- id 1
-    b <- id "a"
+pipetest x = x |> plus_one
