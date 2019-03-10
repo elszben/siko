@@ -20,7 +20,7 @@ use std::collections::BTreeSet;
 
 fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
     let expr = program.get_expr(id);
-    println!("TC: {}: Processing expr {}", id, expr);
+    //println!("TC: {}: Processing expr {}", id, expr);
     match expr {
         Expr::StaticFunctionCall(_, args) => {
             for arg in args {
@@ -108,10 +108,10 @@ impl Typechecker {
             TypeProcessor::new(&mut self.type_store, &self.function_type_map, id, args);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
-        type_processor.dump_types(program);
+        //type_processor.dump_types(program);
         let function_type = type_processor.get_function_type(&body);
         println!(
-            "Type of {},{} {}",
+            "Type of {},{}: {}",
             id,
             function.info,
             self.type_store.get_resolved_type_string(&function_type)
@@ -235,6 +235,7 @@ impl Typechecker {
         let mut errors = Vec::new();
         let mut untyped_functions = BTreeSet::new();
         let mut typed_functions = BTreeSet::new();
+        let mut extern_count = 0;
         println!("All function count {}", program.functions.len());
         for (id, function) in &program.functions {
             let mut function_info = FunctionDependencyInfo::new();
@@ -258,6 +259,7 @@ impl Typechecker {
                             typed_functions.insert(*id);
                         }
                     } else {
+                        extern_count += 1;
                         if untyped {
                             let err = TypecheckError::UntypedExternFunction(
                                 i.name.clone(),
@@ -278,9 +280,10 @@ impl Typechecker {
         }
 
         println!(
-            "Typed {}, untyped {}",
+            "Typed: {}, untyped: {}, extern: {}",
             typed_functions.len(),
-            untyped_check_order.len()
+            untyped_check_order.len(),
+            extern_count
         );
 
         for function_id in typed_functions {
