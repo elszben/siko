@@ -138,7 +138,6 @@ impl Error {
                                 for id in ids.iter() {
                                     let location_set = location_info.get_module_location(id);
                                     print_location_set(file_manager, location_set);
-                                    //Error::report_location(file_manager, location);
                                 }
                             }
                         }
