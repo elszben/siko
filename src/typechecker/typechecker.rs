@@ -119,6 +119,42 @@ impl Typechecker {
         self.function_type_map.insert(id, function_type);
     }
 
+    fn check_typed_function(
+        &mut self,
+        id: FunctionId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let function = program.get_function(&id);
+        println!("Checking typed {},{}", id, function.info);
+        let function_type_var = self
+            .function_type_map
+            .get(&id)
+            .expect("Function type not found");
+        let mut args = Vec::new();
+        let function_type = self.type_store.get_type(&function_type_var);
+        let function_type = self.type_store.clone_type(&function_type);
+        match function_type {
+            Type::Function(function_type) => {
+                args.extend(function_type.type_vars);
+            }
+            _ => {}
+        }
+        let body = function.info.body();
+        let mut type_processor =
+            TypeProcessor::new(&mut self.type_store, &self.function_type_map, id, args);
+        walker(program, &body, &mut type_processor);
+        type_processor.check_constraints(program, errors);
+        //type_processor.dump_types(program);
+        let function_type = type_processor.get_function_type(&body);
+        println!(
+            "Type of {},{}: {}",
+            id,
+            function.info,
+            self.type_store.get_resolved_type_string(&function_type)
+        );
+    }
+
     fn check_function_deps(
         &self,
         mut untyped_functions: BTreeSet<FunctionId>,
@@ -287,7 +323,7 @@ impl Typechecker {
         );
 
         for function_id in typed_functions {
-            println!("Checking typed {}", function_id);
+            self.check_typed_function(function_id, program, &mut errors);
         }
 
         for function_id in untyped_check_order {
