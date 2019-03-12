@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 pub struct TypeProcessor<'a> {
     type_store: &'a mut TypeStore,
     function_type_map: &'a BTreeMap<FunctionId, TypeVariable>,
-    type_vars: BTreeMap<ExprId, TypeVariable>,
+    type_of_exprs: BTreeMap<ExprId, TypeVariable>,
     function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
     captured_function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
     function_id: FunctionId,
@@ -32,7 +32,7 @@ impl<'a> TypeProcessor<'a> {
         TypeProcessor {
             type_store: type_store,
             function_type_map: function_type_map,
-            type_vars: BTreeMap::new(),
+            type_of_exprs: BTreeMap::new(),
             function_args: function_args,
             captured_function_args: BTreeMap::new(),
             function_id: function_id,
@@ -40,7 +40,7 @@ impl<'a> TypeProcessor<'a> {
     }
 
     fn get_type_var_for_expr(&self, id: &ExprId) -> TypeVariable {
-        self.type_vars
+        self.type_of_exprs
             .get(id)
             .expect("Sub expr type var not found")
             .clone()
@@ -51,7 +51,10 @@ impl<'a> TypeProcessor<'a> {
             .function_args
             .get(&self.function_id)
             .expect("Function args not found");
-        let body_var = self.type_vars.get(body).expect("Body expr var not found");
+        let body_var = self
+            .type_of_exprs
+            .get(body)
+            .expect("Body expr var not found");
         if args.is_empty() {
             *body_var
         } else {
@@ -129,7 +132,7 @@ impl<'a> TypeProcessor<'a> {
     }
 
     pub fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        for (id, ty_var) in self.type_vars.clone() {
+        for (id, ty_var) in self.type_of_exprs.clone() {
             let expr = program.get_expr(&id);
             match expr {
                 Expr::IntegerLiteral(_) => {}
@@ -255,7 +258,7 @@ impl<'a> TypeProcessor<'a> {
     }
 
     pub fn dump_types(&self, program: &Program) {
-        for (id, var) in &self.type_vars {
+        for (id, var) in &self.type_of_exprs {
             let expr = program.get_expr(id);
             let ty = self.type_store.get_resolved_type_string(var);
             println!("{},{:?} {} => {}", id, var, expr, ty);
@@ -269,31 +272,31 @@ impl<'a> Collector for TypeProcessor<'a> {
             Expr::IntegerLiteral(_) => {
                 let ty = Type::Int;
                 let var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::FloatLiteral(_) => {
                 let ty = Type::Float;
                 let var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::BoolLiteral(_) => {
                 let ty = Type::Bool;
                 let var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::StringLiteral(_) => {
                 let ty = Type::String;
                 let var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::If(_, true_branch, _) => {
                 let true_var = self.get_type_var_for_expr(true_branch);
-                self.type_vars.insert(id, true_var);
+                self.type_of_exprs.insert(id, true_var);
             }
             Expr::StaticFunctionCall(_, _) => {
-                let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let ty = self.type_store.get_unique_type_arg_type();
                 let result_var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, result_var);
+                self.type_of_exprs.insert(id, result_var);
             }
             Expr::Tuple(items) => {
                 let items: Vec<_> = items
@@ -302,31 +305,31 @@ impl<'a> Collector for TypeProcessor<'a> {
                     .collect();
                 let ty = Type::Tuple(items);
                 let var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::Do(items) => {
                 let last = items.last().expect("Empty do");
                 let var = self.get_type_var_for_expr(last);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::Bind(_, _) => {
                 let ty = Type::Tuple(vec![]);
                 let var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::ExprValue(expr_id) => {
                 let var = self.get_type_var_for_expr(expr_id);
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
             Expr::DynamicFunctionCall(_, _) => {
-                let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let ty = self.type_store.get_unique_type_arg_type();
                 let result_var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, result_var);
+                self.type_of_exprs.insert(id, result_var);
             }
             Expr::ArgRef(index) => {
                 let arg_var =
                     self.function_args.get(&index.id).expect("Missing arg set")[index.index];
-                self.type_vars.insert(id, arg_var);
+                self.type_of_exprs.insert(id, arg_var);
             }
             Expr::LambdaFunction(lambda_id, captures) => {
                 let captured_vars: Vec<_> = captures
@@ -339,26 +342,26 @@ impl<'a> Collector for TypeProcessor<'a> {
                 let mut args = Vec::new();
                 let mut type_vars = Vec::new();
                 for _ in 0..lambda_info.arg_count {
-                    let ty = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                    let ty = self.type_store.get_unique_type_arg_type();
                     let var = self.type_store.add_var(ty);
                     type_vars.push(var);
                     args.push(var);
                 }
-                let lambda_result_type = Type::TypeArgument(self.type_store.get_unique_type_arg());
+                let lambda_result_type = self.type_store.get_unique_type_arg_type();
                 let lambda_result_type_var = self.type_store.add_var(lambda_result_type);
                 type_vars.push(lambda_result_type_var);
                 self.function_args.insert(*lambda_id, args);
                 let lambda_function_type = FunctionType::new(type_vars);
                 let ty = Type::Function(lambda_function_type);
                 let result_var = self.type_store.add_var(ty);
-                self.type_vars.insert(id, result_var);
+                self.type_of_exprs.insert(id, result_var);
             }
             Expr::LambdaCapturedArgRef(arg_ref) => {
                 let var = self
                     .captured_function_args
                     .get(&arg_ref.id)
                     .expect("Missing lambda arg set")[arg_ref.index];
-                self.type_vars.insert(id, var);
+                self.type_of_exprs.insert(id, var);
             }
         }
     }

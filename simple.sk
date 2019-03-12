@@ -1,5 +1,6 @@
 module alma.korte where
 
-plus_one x = x + 1
+plus_one  :: Int -> String
+plus_one x = x + plus_one 1 + 1
 
 pipetest x = x |> plus_one

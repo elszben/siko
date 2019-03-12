@@ -98,8 +98,7 @@ impl Typechecker {
         println!("Checking untyped {},{}", id, function.info);
         let mut args = Vec::new();
         for _ in 0..function.arg_count {
-            let ty_arg = self.type_store.get_unique_type_arg();
-            let ty = Type::TypeArgument(ty_arg);
+            let ty = self.type_store.get_unique_type_arg_type();
             let var = self.type_store.add_var(ty);
             args.push(var);
         }
@@ -132,11 +131,13 @@ impl Typechecker {
             .get(&id)
             .expect("Function type not found");
         let mut args = Vec::new();
-        let function_type = self.type_store.get_type(&function_type_var);
+        let function_type = self.type_store.get_type(function_type_var);
         let function_type = self.type_store.clone_type(&function_type);
+        let mut expected_result_var = *function_type_var;
         match function_type {
             Type::Function(function_type) => {
-                args.extend(function_type.type_vars);
+                expected_result_var = function_type.get_return_type();
+                args.extend(function_type.get_arg_types());
             }
             _ => {}
         }
@@ -146,13 +147,33 @@ impl Typechecker {
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
         //type_processor.dump_types(program);
-        let function_type = type_processor.get_function_type(&body);
+        let inferred_function_type_var = type_processor.get_function_type(&body);
         println!(
             "Type of {},{}: {}",
             id,
             function.info,
-            self.type_store.get_resolved_type_string(&function_type)
+            self.type_store
+                .get_resolved_type_string(&inferred_function_type_var)
         );
+        let inferred_function_type = self.type_store.get_type(&inferred_function_type_var);
+        let inferred_result_var: TypeVariable = match inferred_function_type {
+            Type::Function(inferred_function_type) => inferred_function_type.get_return_type(),
+            _ => inferred_function_type_var,
+        };
+        if !self
+            .type_store
+            .unify_vars(&expected_result_var, &inferred_result_var)
+        {
+            let ast_id = program.get_ast_expr_id(&body);
+            let body_type = self
+                .type_store
+                .get_resolved_type_string(&inferred_result_var);
+            let expected_result_type = self
+                .type_store
+                .get_resolved_type_string(&expected_result_var);
+            let err = TypecheckError::TypeMismatch(*ast_id, expected_result_type, body_type);
+            errors.push(err);
+        }
     }
 
     fn check_function_deps(
@@ -243,7 +264,10 @@ impl Typechecker {
             TypeSignature::TypeArgument(index) => {
                 let var = arg_map.entry(*index).or_insert_with(|| {
                     let arg = self.type_store.get_unique_type_arg();
-                    let ty = Type::TypeArgument(arg);
+                    let ty = Type::TypeArgument {
+                        index: arg,
+                        user_defined: true,
+                    };
                     self.type_store.add_var(ty)
                 });
                 *var

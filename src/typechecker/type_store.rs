@@ -40,6 +40,14 @@ impl TypeStore {
         self.arg_counter.next()
     }
 
+    pub fn get_unique_type_arg_type(&mut self) -> Type {
+        let ty = Type::TypeArgument {
+            index: self.arg_counter.next(),
+            user_defined: false,
+        };
+        ty
+    }
+
     fn allocate_var(&mut self) -> TypeVariable {
         let type_var = TypeVariable::new(self.var_counter.next());
         type_var
@@ -94,10 +102,22 @@ impl TypeStore {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
-            (Type::TypeArgument(_), _) => {
+            (
+                Type::TypeArgument {
+                    index: _,
+                    user_defined: false,
+                },
+                _,
+            ) => {
                 self.unify_variables(var2, var1);
             }
-            (_, Type::TypeArgument(_)) => {
+            (
+                _,
+                Type::TypeArgument {
+                    index: _,
+                    user_defined: false,
+                },
+            ) => {
                 self.unify_variables(var1, var2);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
