@@ -9,3 +9,12 @@ pipetest x = do
  x |> plus_one
  id 5
  id "a"
+
+somefunc :: (Int -> Int) -> Int
+somefunc a = a 5
+
+tricky :: (Int -> Int) -> Int
+tricky a = do
+    b <- a
+    b 4
+    somefunc b
