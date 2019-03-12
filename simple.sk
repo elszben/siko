@@ -1,6 +1,11 @@
 module alma.korte where
 
-plus_one  :: Int -> String
+plus_one  :: Int -> Int
 plus_one x = x + plus_one 1 + 1
 
-pipetest x = x |> plus_one
+id a = a
+
+pipetest x = do
+ x |> plus_one
+ id 5
+ id "a"
