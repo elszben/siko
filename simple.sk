@@ -13,7 +13,7 @@ pipetest x = do
 somefunc :: (Int -> Int) -> Int
 somefunc a = a 5
 
-tricky :: (Int -> Int) -> Int
+
 tricky a = do
     b <- a
     b 4

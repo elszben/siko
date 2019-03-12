@@ -89,15 +89,23 @@ impl TypeStore {
         }
     }
 
-    pub fn unify_vars(&mut self, var1: &TypeVariable, var2: &TypeVariable) -> bool {
+    pub fn unify_vars(
+        &mut self,
+        var1: &TypeVariable,
+        var2: &TypeVariable,
+        unified_variables: &mut bool,
+    ) -> bool {
         let var_ty1 = self.get_type(var1);
         let var_ty2 = self.get_type(var2);
-        /*
         println!(
             "Unify vars t1:{},{:?} t2:{},{:?}",
             var_ty1, var1, var_ty2, var2
         );
-        */
+        let index1 = self.get_index(var1);
+        let index2 = self.get_index(var2);
+        if index1 == index2 {
+            return true;
+        }
         match (&var_ty1, &var_ty2) {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
@@ -109,6 +117,8 @@ impl TypeStore {
                 },
                 _,
             ) => {
+                println!("unified!",);
+                *unified_variables = true;
                 self.unify_variables(var2, var1);
             }
             (
@@ -118,6 +128,8 @@ impl TypeStore {
                     user_defined: false,
                 },
             ) => {
+                println!("unified2!",);
+                *unified_variables = true;
                 self.unify_variables(var1, var2);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
@@ -125,7 +137,7 @@ impl TypeStore {
                     return false;
                 } else {
                     for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.unify_vars(v1, v2) {
+                        if !self.unify_vars(v1, v2, unified_variables) {
                             return false;
                         }
                     }
@@ -136,7 +148,7 @@ impl TypeStore {
                     return false;
                 } else {
                     for (v1, v2) in f1.type_vars.iter().zip(f2.type_vars.iter()) {
-                        if !self.unify_vars(v1, v2) {
+                        if !self.unify_vars(v1, v2, unified_variables) {
                             return false;
                         }
                     }

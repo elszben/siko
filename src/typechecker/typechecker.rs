@@ -160,10 +160,13 @@ impl Typechecker {
             Type::Function(inferred_function_type) => inferred_function_type.get_return_type(),
             _ => inferred_function_type_var,
         };
-        if !self
-            .type_store
-            .unify_vars(&expected_result_var, &inferred_result_var)
-        {
+        let mut unified_variables = false;
+
+        if !self.type_store.unify_vars(
+            &expected_result_var,
+            &inferred_result_var,
+            &mut unified_variables,
+        ) {
             let ast_id = program.get_ast_expr_id(&body);
             let body_type = self
                 .type_store

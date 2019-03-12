@@ -76,6 +76,7 @@ impl<'a> TypeProcessor<'a> {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
         name: String,
+        unified_variables: &mut bool,
     ) {
         let cloned_function_type = self.type_store.clone_type(&ty);
         let type_vars = if let Type::Function(ft) = cloned_function_type {
@@ -93,7 +94,10 @@ impl<'a> TypeProcessor<'a> {
             for (index, arg) in args.iter().enumerate() {
                 let arg_var = self.get_type_var_for_expr(arg);
                 let type_var = type_vars[index];
-                if !self.type_store.unify_vars(&arg_var, &type_var) {
+                if !self
+                    .type_store
+                    .unify_vars(&arg_var, &type_var, unified_variables)
+                {
                     mismatch = true;
                     break;
                 }
@@ -120,7 +124,10 @@ impl<'a> TypeProcessor<'a> {
                     let ty = Type::Function(closure_type);
                     self.type_store.add_var(ty)
                 };
-                if !self.type_store.unify_vars(&call_var, &result_var) {
+                if !self
+                    .type_store
+                    .unify_vars(&call_var, &result_var, unified_variables)
+                {
                     let ast_id = program.get_ast_expr_id(&id);
                     let call_type = self.type_store.get_resolved_type_string(&call_var);
                     let result_type = self.type_store.get_resolved_type_string(&result_var);
@@ -132,7 +139,24 @@ impl<'a> TypeProcessor<'a> {
     }
 
     pub fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        for (id, ty_var) in self.type_of_exprs.clone() {
+        let mut unified_variables = true;
+        while unified_variables {
+            unified_variables = false;
+            println!("before",);
+            self.check_constraints_inner(program, errors, &mut unified_variables, false);
+            println!("after",);
+        }
+        self.check_constraints_inner(program, errors, &mut unified_variables, true);
+    }
+
+    fn check_constraints_inner(
+        &mut self,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+        unified_variables: &mut bool,
+        final_round: bool,
+    ) {
+        for (id, _) in self.type_of_exprs.clone() {
             let expr = program.get_expr(&id);
             match expr {
                 Expr::IntegerLiteral(_) => {}
@@ -146,7 +170,10 @@ impl<'a> TypeProcessor<'a> {
                     let cond_ty = self.type_store.get_type(&cond_var);
                     if cond_ty != Type::Bool {
                         let var = self.type_store.add_var(Type::Bool);
-                        if !self.type_store.unify_vars(&var, &cond_var) {
+                        if !self
+                            .type_store
+                            .unify_vars(&var, &cond_var, unified_variables)
+                        {
                             let ast_id = program.get_ast_expr_id(cond);
                             let cond_ty = self.type_store.get_resolved_type_string(&cond_var);
                             let bool_ty = format!("{}", Type::Bool);
@@ -154,7 +181,10 @@ impl<'a> TypeProcessor<'a> {
                             errors.push(err);
                         }
                     }
-                    if !self.type_store.unify_vars(&true_var, &false_var) {
+                    if !self
+                        .type_store
+                        .unify_vars(&true_var, &false_var, unified_variables)
+                    {
                         let ast_id = program.get_ast_expr_id(&false_branch);
                         let true_type = self.type_store.get_resolved_type_string(&true_var);
                         let false_type = self.type_store.get_resolved_type_string(&false_var);
@@ -180,6 +210,7 @@ impl<'a> TypeProcessor<'a> {
                                 program,
                                 errors,
                                 name,
+                                unified_variables,
                             );
                         }
                         _ => {
@@ -192,7 +223,11 @@ impl<'a> TypeProcessor<'a> {
                                 errors.push(err);
                             } else {
                                 let call_var = self.get_type_var_for_expr(&id);
-                                if !self.type_store.unify_vars(&call_var, target_func_type_var) {
+                                if !self.type_store.unify_vars(
+                                    &call_var,
+                                    target_func_type_var,
+                                    unified_variables,
+                                ) {
                                     let ast_id = program.get_ast_expr_id(&id);
                                     let call_type =
                                         self.type_store.get_resolved_type_string(&call_var);
@@ -226,6 +261,7 @@ impl<'a> TypeProcessor<'a> {
                                 program,
                                 errors,
                                 name,
+                                unified_variables,
                             );
                         }
                         _ => {
@@ -247,7 +283,8 @@ impl<'a> TypeProcessor<'a> {
                         let lambda_info = program.get_function(lambda_id);
                         let body_id = lambda_info.info.body();
                         let body_var = self.get_type_var_for_expr(&body_id);
-                        self.type_store.unify_vars(&body_var, &return_type_var);
+                        self.type_store
+                            .unify_vars(&body_var, &return_type_var, unified_variables);
                     } else {
                         panic!("Type of lambda is not a function {}", ty);
                     }
