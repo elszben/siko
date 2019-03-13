@@ -1,4 +1,3 @@
-use crate::ir::program::Program;
 use crate::syntax::types::TypeSignatureId as AstTypeSignatureId;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

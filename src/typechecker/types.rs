@@ -100,7 +100,7 @@ impl Type {
                     ty.collect(vars, args, type_store);
                 }
             }
-            Type::TypeArgument { index: index, .. } => {
+            Type::TypeArgument { index, .. } => {
                 args.push(*index);
             }
         }

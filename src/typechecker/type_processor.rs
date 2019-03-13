@@ -17,6 +17,7 @@ pub struct TypeProcessor<'a> {
     type_of_exprs: BTreeMap<ExprId, TypeVariable>,
     function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
     captured_function_args: BTreeMap<FunctionId, Vec<TypeVariable>>,
+    function_call_copied_types: BTreeMap<ExprId, Type>,
     function_id: FunctionId,
 }
 
@@ -35,6 +36,7 @@ impl<'a> TypeProcessor<'a> {
             type_of_exprs: BTreeMap::new(),
             function_args: function_args,
             captured_function_args: BTreeMap::new(),
+            function_call_copied_types: BTreeMap::new(),
             function_id: function_id,
         }
     }
@@ -78,7 +80,15 @@ impl<'a> TypeProcessor<'a> {
         name: String,
         unified_variables: &mut bool,
     ) {
-        let cloned_function_type = self.type_store.clone_type(&ty);
+        let cloned_function_type: Type = match self.function_call_copied_types.get(&id) {
+            Some(c) => c.clone(),
+            None => {
+                let cloned_ty = self.type_store.clone_type(&ty);
+                self.function_call_copied_types
+                    .insert(id, cloned_ty.clone());
+                cloned_ty
+            }
+        };
         let type_vars = if let Type::Function(ft) = cloned_function_type {
             ft.type_vars
         } else {
@@ -140,13 +150,13 @@ impl<'a> TypeProcessor<'a> {
 
     pub fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         let mut unified_variables = true;
-        while unified_variables {
+        while unified_variables && errors.is_empty() {
             unified_variables = false;
-            println!("before",);
             self.check_constraints_inner(program, errors, &mut unified_variables, false);
-            println!("after",);
         }
-        self.check_constraints_inner(program, errors, &mut unified_variables, true);
+        if errors.is_empty() {
+            self.check_constraints_inner(program, errors, &mut unified_variables, true);
+        }
     }
 
     fn check_constraints_inner(
@@ -265,12 +275,14 @@ impl<'a> TypeProcessor<'a> {
                             );
                         }
                         _ => {
-                            let ast_id = program.get_ast_expr_id(&id);
-                            let err = TypecheckError::NotCallableType(
-                                *ast_id,
-                                format!("{}", resolved_type),
-                            );
-                            errors.push(err);
+                            if final_round {
+                                let ast_id = program.get_ast_expr_id(&id);
+                                let err = TypecheckError::NotCallableType(
+                                    *ast_id,
+                                    format!("{}", resolved_type),
+                                );
+                                errors.push(err);
+                            }
                         }
                     }
                 }

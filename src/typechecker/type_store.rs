@@ -1,6 +1,4 @@
 use super::type_variable::TypeVariable;
-use crate::typechecker::error::TypecheckError;
-use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::types::Type;
 use crate::util::Counter;
 use std::collections::BTreeMap;
@@ -97,10 +95,12 @@ impl TypeStore {
     ) -> bool {
         let var_ty1 = self.get_type(var1);
         let var_ty2 = self.get_type(var2);
+        /*
         println!(
             "Unify vars t1:{},{:?} t2:{},{:?}",
             var_ty1, var1, var_ty2, var2
         );
+        */
         let index1 = self.get_index(var1);
         let index2 = self.get_index(var2);
         if index1 == index2 {
@@ -117,7 +117,6 @@ impl TypeStore {
                 },
                 _,
             ) => {
-                println!("unified!",);
                 *unified_variables = true;
                 self.unify_variables(var2, var1);
             }
@@ -128,7 +127,6 @@ impl TypeStore {
                     user_defined: false,
                 },
             ) => {
-                println!("unified2!",);
                 *unified_variables = true;
                 self.unify_variables(var1, var2);
             }

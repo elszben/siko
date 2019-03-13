@@ -95,7 +95,7 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let function = program.get_function(&id);
-        println!("Checking untyped {},{}", id, function.info);
+        // println!("Checking untyped {},{}", id, function.info);
         let mut args = Vec::new();
         for _ in 0..function.arg_count {
             let ty = self.type_store.get_unique_type_arg_type();
@@ -107,14 +107,14 @@ impl Typechecker {
             TypeProcessor::new(&mut self.type_store, &self.function_type_map, id, args);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
-        //type_processor.dump_types(program);
+        // type_processor.dump_types(program);
         let function_type = type_processor.get_function_type(&body);
-        println!(
+        /*println!(
             "Type of {},{}: {}",
             id,
             function.info,
             self.type_store.get_resolved_type_string(&function_type)
-        );
+        );*/
         self.function_type_map.insert(id, function_type);
     }
 
@@ -125,7 +125,7 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let function = program.get_function(&id);
-        println!("Checking typed {},{}", id, function.info);
+        //println!("Checking typed {},{}", id, function.info);
         let function_type_var = self
             .function_type_map
             .get(&id)
@@ -148,13 +148,13 @@ impl Typechecker {
         type_processor.check_constraints(program, errors);
         //type_processor.dump_types(program);
         let inferred_function_type_var = type_processor.get_function_type(&body);
-        println!(
+        /* println!(
             "Type of {},{}: {}",
             id,
             function.info,
             self.type_store
                 .get_resolved_type_string(&inferred_function_type_var)
-        );
+        );*/
         let inferred_function_type = self.type_store.get_type(&inferred_function_type_var);
         let inferred_result_var: TypeVariable = match inferred_function_type {
             Type::Function(inferred_function_type) => inferred_function_type.get_return_type(),
@@ -299,7 +299,7 @@ impl Typechecker {
         let mut untyped_functions = BTreeSet::new();
         let mut typed_functions = BTreeSet::new();
         let mut extern_count = 0;
-        println!("All function count {}", program.functions.len());
+        //println!("All function count {}", program.functions.len());
         for (id, function) in &program.functions {
             let mut function_info = FunctionDependencyInfo::new();
             let mut function_info_collector = FunctionInfoCollector::new(&mut function_info);
@@ -341,14 +341,14 @@ impl Typechecker {
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
-
-        println!(
-            "Typed: {}, untyped: {}, extern: {}",
-            typed_functions.len(),
-            untyped_check_order.len(),
-            extern_count
-        );
-
+        /*
+                println!(
+                    "Typed: {}, untyped: {}, extern: {}",
+                    typed_functions.len(),
+                    untyped_check_order.len(),
+                    extern_count
+                );
+        */
         for function_id in typed_functions {
             self.check_typed_function(function_id, program, &mut errors);
         }

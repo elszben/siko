@@ -97,10 +97,6 @@ impl<'a> Parser<'a> {
         Ok(r)
     }
 
-    pub fn prev(&self) -> TokenInfo {
-        self.tokens[self.index - 1].clone()
-    }
-
     pub fn peek(&self) -> Option<TokenInfo> {
         if self.is_done() {
             None
@@ -367,7 +363,7 @@ impl<'a> Parser<'a> {
         Ok(Some(function))
     }
 
-    pub fn parse_item_path(&mut self, msg: &str) -> Result<ItemPath, Error> {
+    pub fn parse_item_path(&mut self) -> Result<ItemPath, Error> {
         let name_parts = self.parse_list1(TokenKind::Identifier, TokenKind::Dot)?;
         let name_parts: Vec<_> = to_string_list(name_parts);
         let path = ItemPath { path: name_parts };
@@ -377,7 +373,7 @@ impl<'a> Parser<'a> {
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordImport)?;
-        let name = self.parse_item_path("Expected import path")?;
+        let name = self.parse_item_path()?;
         let mut alternative_name = None;
         let mut symbols = None;
         if let Some(token) = self.peek() {
@@ -412,7 +408,7 @@ impl<'a> Parser<'a> {
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
-        let name = self.parse_item_path("Expected module name")?;
+        let name = self.parse_item_path()?;
         let end_index = self.get_index();
         let location_set = self.get_location_set(start_index, end_index);
         let li_module = LIModule::new(location_set);

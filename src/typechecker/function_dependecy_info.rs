@@ -30,7 +30,7 @@ impl<'a> FunctionInfoCollector<'a> {
 }
 
 impl<'a> Collector for FunctionInfoCollector<'a> {
-    fn process(&mut self, program: &Program, expr: &Expr, id: ExprId) {
+    fn process(&mut self, _: &Program, expr: &Expr, _: ExprId) {
         match expr {
             Expr::StaticFunctionCall(func_id, _) => {
                 self.function_type_info.function_deps.insert(*func_id);

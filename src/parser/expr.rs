@@ -13,7 +13,7 @@ use crate::token::TokenKind;
 
 fn parse_path(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
-    let path = parser.parse_item_path("Expected identifer")?;
+    let path = parser.parse_item_path()?;
     let expr = Expr::Path(path);
     let id = parser.add_expr(expr, start_index);
     Ok(id)
@@ -36,10 +36,10 @@ fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
 
 fn parse_lambda(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
-    let lambda_token = parser.expect(TokenKind::Lambda)?;
+    parser.expect(TokenKind::Lambda)?;
     let args = parser.parse_list1(TokenKind::Identifier, TokenKind::Comma)?;
     let args: Vec<_> = to_string_list(args);
-    let arrow_token = parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
+    parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
     let expr_id = parser.parse_expr()?;
     let lambda_expr = Expr::Lambda(args, expr_id);
     let id = parser.add_expr(lambda_expr, start_index);
@@ -48,7 +48,7 @@ fn parse_lambda(parser: &mut Parser) -> Result<ExprId, Error> {
 
 fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
-    let do_token = parser.expect(TokenKind::KeywordDo)?;
+    parser.expect(TokenKind::KeywordDo)?;
     let mut exprs = Vec::new();
     loop {
         let mut bind_var = None;
@@ -88,11 +88,11 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
 
 fn parse_if(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
-    let if_token = parser.expect(TokenKind::KeywordIf)?;
+    parser.expect(TokenKind::KeywordIf)?;
     let cond = parser.parse_expr()?;
-    let then_token = parser.expect(TokenKind::KeywordThen)?;
+    parser.expect(TokenKind::KeywordThen)?;
     let true_branch = parser.parse_expr()?;
-    let else_token = parser.expect(TokenKind::KeywordElse)?;
+    parser.expect(TokenKind::KeywordElse)?;
     let false_branch = parser.parse_expr()?;
     let expr = Expr::If(cond, true_branch, false_branch);
     let id = parser.add_expr(expr, start_index);
@@ -196,7 +196,7 @@ fn parse_unary(parser: &mut Parser, is_arg: bool) -> Result<ExprId, Error> {
     } else {
         &[BuiltinOperator::Not, BuiltinOperator::Sub]
     };
-    if let Some((op, op_token)) = parser.consume_op(ops) {
+    if let Some((op, _)) = parser.consume_op(ops) {
         let function_id_expr = Expr::Builtin(op);
         let function_id_expr_id = parser.add_expr(function_id_expr, start_index);
         let right = parse_unary(parser, is_arg)?;
@@ -234,7 +234,7 @@ fn parse_binary_op(
     let start_index = parser.get_index();
     let mut left = next(parser)?;
     loop {
-        if let Some((op, op_token)) = parser.consume_op(ops) {
+        if let Some((op, _)) = parser.consume_op(ops) {
             let function_id_expr = Expr::Builtin(op);
             let function_id_expr_id = parser.add_expr(function_id_expr, start_index);
             let right = next(parser)?;
