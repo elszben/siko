@@ -1,4 +1,4 @@
-pub mod adt;
+pub mod data;
 pub mod expr;
 pub mod function;
 pub mod import;

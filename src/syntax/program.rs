@@ -1,5 +1,7 @@
-use crate::syntax::adt::AdtId;
-use crate::syntax::adt::VariantId;
+use crate::syntax::data::AdtId;
+use crate::syntax::data::RecordId;
+use crate::syntax::data::RecordItemId;
+use crate::syntax::data::VariantId;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::FunctionId;
@@ -23,6 +25,8 @@ pub struct Program {
     type_signature_id: Counter,
     adt_id: Counter,
     variant_id: Counter,
+    record_id: Counter,
+    record_item_id: Counter,
 }
 
 impl Program {
@@ -38,6 +42,8 @@ impl Program {
             type_signature_id: Counter::new(),
             adt_id: Counter::new(),
             variant_id: Counter::new(),
+            record_id: Counter::new(),
+            record_item_id: Counter::new(),
         }
     }
 
@@ -74,6 +80,18 @@ impl Program {
     pub fn get_variant_id(&mut self) -> VariantId {
         VariantId {
             id: self.variant_id.next(),
+        }
+    }
+
+    pub fn get_record_id(&mut self) -> RecordId {
+        RecordId {
+            id: self.record_id.next(),
+        }
+    }
+
+    pub fn get_record_item_id(&mut self) -> RecordItemId {
+        RecordItemId {
+            id: self.record_item_id.next(),
         }
     }
 
