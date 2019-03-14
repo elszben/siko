@@ -1,3 +1,5 @@
+use crate::syntax::adt::AdtId;
+use crate::syntax::adt::VariantId;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::FunctionId;
@@ -19,6 +21,8 @@ pub struct Program {
     import_id: Counter,
     expr_id: Counter,
     type_signature_id: Counter,
+    adt_id: Counter,
+    variant_id: Counter,
 }
 
 impl Program {
@@ -32,6 +36,8 @@ impl Program {
             import_id: Counter::new(),
             expr_id: Counter::new(),
             type_signature_id: Counter::new(),
+            adt_id: Counter::new(),
+            variant_id: Counter::new(),
         }
     }
 
@@ -56,6 +62,18 @@ impl Program {
     pub fn get_expr_id(&mut self) -> ExprId {
         ExprId {
             id: self.expr_id.next(),
+        }
+    }
+
+    pub fn get_adt_id(&mut self) -> AdtId {
+        AdtId {
+            id: self.adt_id.next(),
+        }
+    }
+
+    pub fn get_variant_id(&mut self) -> VariantId {
+        VariantId {
+            id: self.variant_id.next(),
         }
     }
 

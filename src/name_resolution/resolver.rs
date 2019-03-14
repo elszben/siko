@@ -173,7 +173,7 @@ impl<'a> Resolver<'a> {
         let type_signature = program.get_type_signature(type_signature_id);
         let ir_type_signature = match type_signature {
             AstTypeSignature::Nothing => IrTypeSignature::Nothing,
-            AstTypeSignature::Named(n) => match n.as_ref() {
+            AstTypeSignature::Named(n, _) => match n.as_ref() {
                 "Int" => IrTypeSignature::Int,
                 "Bool" => IrTypeSignature::Bool,
                 "String" => IrTypeSignature::String,
@@ -231,6 +231,7 @@ impl<'a> Resolver<'a> {
                 }
                 IrTypeSignature::Function(item_ids)
             }
+            AstTypeSignature::TypeArgument(_) => unimplemented!(),
         };
         let id = ir_program.get_type_signature_id();
         let type_info = TypeInfo::new(ir_type_signature, type_signature_id.clone());

@@ -289,7 +289,25 @@ impl<'a> Parser<'a> {
                 }
                 Token::Identifier(i) => {
                     self.advance()?;
-                    let id = self.add_type_signature(TypeSignature::Named(i), start_index);
+                    let mut args = Vec::new();
+                    loop {
+                        match self.current_kind() {
+                            TokenKind::Identifier => {
+                                let arg_start_index = self.get_index();
+                                let arg =
+                                    self.identifier("Expected identifier as type argument")?;
+                                let arg = self.add_type_signature(
+                                    TypeSignature::TypeArgument(arg),
+                                    arg_start_index,
+                                );
+                                args.push(arg);
+                            }
+                            _ => {
+                                break;
+                            }
+                        }
+                    }
+                    let id = self.add_type_signature(TypeSignature::Named(i, args), start_index);
                     return Ok(id);
                 }
                 _ => {
@@ -405,6 +423,71 @@ impl<'a> Parser<'a> {
         Ok(import)
     }
 
+    fn parse_record_item(&mut self) -> Result<(), Error> {
+        let name = self.identifier("Expected identifier as record item name")?;
+        println!("name {}", name);
+        self.expect(TokenKind::KeywordDoubleColon)?;
+        self.parse_function_type()?;
+        Ok(())
+    }
+
+    fn parse_record(&mut self) -> Result<(), Error> {
+        loop {
+            let record_item = self.parse_record_item()?;
+            if self.current(TokenKind::Comma) {
+                self.expect(TokenKind::Comma)?;
+            }
+            if self.current(TokenKind::RCurly) {
+                self.expect(TokenKind::RCurly)?;
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_variant(&mut self) -> Result<(), Error> {
+        let variant = self.identifier("Expected identifier as variant")?;
+        println!("Variant {}", variant);
+        if self.current(TokenKind::LCurly) {
+            self.expect(TokenKind::LCurly)?;
+            let record = self.parse_record()?;
+        } else {
+            loop {
+                match self.current_kind() {
+                    TokenKind::LParen | TokenKind::Identifier => {
+                        let variant_item = self.parse_function_type()?;
+                    }
+                    _ => {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_data(&mut self) -> Result<(), Error> {
+        self.expect(TokenKind::KeywordData)?;
+        let mut start_index = self.get_index();
+        let name = self.identifier("Expected identifier as data name")?;
+        let mut name = name;
+        let args = self.parse_seq0(TokenKind::Identifier)?;
+        let mut end_index = self.get_index();
+        let mut args: Vec<_> = to_string_list(args);
+        println!("data name {} args {:?}", name, args);
+        self.expect(TokenKind::Equal)?;
+        loop {
+            let variant = self.parse_variant()?;
+            if self.current(TokenKind::Pipe) {
+                self.expect(TokenKind::Pipe)?;
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::EndOfItem)?;
+        Ok(())
+    }
+
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
@@ -422,6 +505,9 @@ impl<'a> Parser<'a> {
                         let import_id = self.program.get_import_id();
                         let import = self.parse_import(import_id)?;
                         module.add_import(import_id, import);
+                    }
+                    TokenKind::KeywordData => {
+                        self.parse_data()?;
                     }
                     TokenKind::EndOfBlock => {
                         break;

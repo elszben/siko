@@ -6,7 +6,8 @@ pub struct TypeSignatureId {
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum TypeSignature {
     Nothing,
-    Named(String),
+    Named(String, Vec<TypeSignatureId>),
     Tuple(Vec<TypeSignatureId>),
     Function(Vec<TypeSignatureId>),
+    TypeArgument(String),
 }

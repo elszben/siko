@@ -18,3 +18,10 @@ tricky a = do
     b <- a
     b 4
     somefunc b
+
+
+data alma f d = alma Int (String a) | korte | szilva
+
+data record a b = record { alma :: Int,
+                       korte :: String a Int,
+                       complex_type :: Int -> a -> (Int -> Int) }
