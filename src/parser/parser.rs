@@ -8,7 +8,6 @@ use crate::error::Error;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::item::Item;
 use crate::location_info::location_info::LocationInfo;
-use crate::location_info::location_info::TypeSignature as LITypeSignature;
 use crate::location_info::location_set::LocationSet;
 use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
@@ -233,10 +232,12 @@ impl<'a> Parser<'a> {
     ) -> TypeSignatureId {
         let end_index = self.get_index();
         let location_set = self.get_location_set(start_index, end_index);
-        let li_type_signature = LITypeSignature::new(location_set);
+        let li_item = Item::new(location_set);
+        let location_id = self.location_info.add_item(li_item);
         let id = self.program.get_type_signature_id();
-        self.program.add_type_signature(id, type_signature);
-        self.location_info.add_type_signature(id, li_type_signature);
+        self.program
+            .add_type_signature(id, type_signature, location_id);
+
         id
     }
 
@@ -343,14 +344,14 @@ impl<'a> Parser<'a> {
                 let type_signature_id = self.parse_function_type()?;
                 let full_type_signature_id = self.program.get_type_signature_id();
                 let location = self.get_location_set(start_index, self.get_index());
-                let li_full_type_signature = LITypeSignature::new(location);
-                self.location_info
-                    .add_type_signature(full_type_signature_id, li_full_type_signature);
+                let li_item = Item::new(location);
+                let location_id = self.location_info.add_item(li_item);
                 function_type = Some(FunctionType {
                     name: name,
                     type_args: args,
                     full_type_signature_id: full_type_signature_id,
                     type_signature_id: type_signature_id,
+                    location_id: location_id,
                 });
                 self.expect(TokenKind::EndOfItem)?;
                 start_index = self.get_index();

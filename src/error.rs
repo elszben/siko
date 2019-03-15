@@ -163,7 +163,7 @@ impl Error {
                         }
                         ResolverError::UnknownTypeName(var_name, id) => {
                             println!("Unknown type name {}", var_name.yellow());
-                            let location_set = location_info.get_type_signature_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::TypeArgumentConflict(args, id) => {
@@ -171,7 +171,7 @@ impl Error {
                                 "Type argument(s) {} are not unique",
                                 format_list(args).yellow()
                             );
-                            let location_set = location_info.get_type_signature_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ArgumentConflict(args, id) => {
@@ -203,12 +203,12 @@ impl Error {
                                 n1.yellow(),
                                 n2.yellow()
                             );
-                            let location_set = location_info.get_type_signature_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnusedTypeArgument(args, id) => {
                             println!("Unused type argument(s): {}", format_list(args).yellow());
-                            let location_set = location_info.get_type_signature_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                     }

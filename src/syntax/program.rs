@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 pub struct Program {
     pub modules: BTreeMap<ModuleId, Module>,
     pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
-    pub type_signatures: BTreeMap<TypeSignatureId, TypeSignature>,
+    pub type_signatures: BTreeMap<TypeSignatureId, (TypeSignature, LocationId)>,
     module_id: Counter,
     function_id: Counter,
     import_id: Counter,
@@ -110,8 +110,14 @@ impl Program {
         self.exprs.insert(id, (expr, location_id));
     }
 
-    pub fn add_type_signature(&mut self, id: TypeSignatureId, type_signature: TypeSignature) {
-        self.type_signatures.insert(id, type_signature);
+    pub fn add_type_signature(
+        &mut self,
+        id: TypeSignatureId,
+        type_signature: TypeSignature,
+        location_id: LocationId,
+    ) {
+        self.type_signatures
+            .insert(id, (type_signature, location_id));
     }
 
     pub fn get_expr(&self, id: &ExprId) -> &Expr {
@@ -127,5 +133,13 @@ impl Program {
             .type_signatures
             .get(id)
             .expect("TypeSignature not found")
+            .0
+    }
+
+    pub fn get_type_signature_location(&self, id: &TypeSignatureId) -> LocationId {
+        self.type_signatures
+            .get(id)
+            .expect("TypeSignature not found")
+            .1
     }
 }

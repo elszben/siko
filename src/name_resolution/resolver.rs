@@ -186,6 +186,7 @@ impl<'a> Resolver<'a> {
         used_type_args: &mut BTreeSet<String>,
     ) -> Option<IrTypeSignatureId> {
         let type_signature = program.get_type_signature(type_signature_id);
+        let location_id = program.get_type_signature_location(type_signature_id);
         let ir_type_signature = match type_signature {
             AstTypeSignature::Nothing => IrTypeSignature::Nothing,
             AstTypeSignature::Named(n, _) => match n.as_ref() {
@@ -197,8 +198,7 @@ impl<'a> Resolver<'a> {
                         used_type_args.insert(n.clone());
                         IrTypeSignature::TypeArgument(*index)
                     } else {
-                        let error =
-                            ResolverError::UnknownTypeName(n.clone(), type_signature_id.clone());
+                        let error = ResolverError::UnknownTypeName(n.clone(), location_id);
                         errors.push(error);
                         return None;
                     }
@@ -263,6 +263,7 @@ impl<'a> Resolver<'a> {
     ) -> Option<IrTypeSignatureId> {
         let mut type_args = BTreeMap::new();
         let mut conflicting_names = BTreeSet::new();
+        let location_id = func_type.location_id;
         for (index, type_arg) in func_type.type_args.iter().enumerate() {
             if type_args.insert(type_arg.clone(), index).is_some() {
                 conflicting_names.insert(type_arg.clone());
@@ -271,7 +272,7 @@ impl<'a> Resolver<'a> {
         if !conflicting_names.is_empty() {
             let error = ResolverError::TypeArgumentConflict(
                 conflicting_names.iter().cloned().collect(),
-                func_type.full_type_signature_id.clone(),
+                location_id,
             );
             errors.push(error);
         }
@@ -295,7 +296,7 @@ impl<'a> Resolver<'a> {
         }
 
         if !unused.is_empty() {
-            let err = ResolverError::UnusedTypeArgument(unused, func_type.full_type_signature_id);
+            let err = ResolverError::UnusedTypeArgument(unused, location_id);
             errors.push(err);
         }
 
@@ -740,7 +741,7 @@ impl<'a> Resolver<'a> {
                         let err = ResolverError::FunctionTypeNameMismatch(
                             ty.name.clone(),
                             function.name.clone(),
-                            ty.full_type_signature_id,
+                            ty.location_id,
                         );
                         errors.push(err);
                     }

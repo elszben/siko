@@ -14,6 +14,7 @@ pub struct FunctionType {
     pub type_args: Vec<String>,
     pub full_type_signature_id: TypeSignatureId,
     pub type_signature_id: TypeSignatureId,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
