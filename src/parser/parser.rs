@@ -6,11 +6,12 @@ use super::util::ParenParseResult;
 use crate::constants::BuiltinOperator;
 use crate::error::Error;
 use crate::location_info::filepath::FilePath;
+use crate::location_info::item::Item;
+use crate::location_info::item::LocationId;
 use crate::location_info::location_info::Expr as LIExpr;
 use crate::location_info::location_info::Function as LIFunction;
 use crate::location_info::location_info::Import as LIImport;
 use crate::location_info::location_info::LocationInfo;
-use crate::location_info::location_info::Module as LIModule;
 use crate::location_info::location_info::TypeSignature as LITypeSignature;
 use crate::location_info::location_set::LocationSet;
 use crate::syntax::data::Adt;
@@ -25,12 +26,14 @@ use crate::syntax::function::Function;
 use crate::syntax::function::FunctionBody;
 use crate::syntax::function::FunctionId;
 use crate::syntax::function::FunctionType;
+use crate::syntax::import::DataConstructor;
 use crate::syntax::import::HiddenItem;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
 use crate::syntax::import::ImportedItem;
+use crate::syntax::import::TypeConstructor;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
@@ -398,11 +401,43 @@ impl<'a> Parser<'a> {
         Ok(path)
     }
 
+    fn parse_imported_item(&mut self) -> Result<ImportedItem, Error> {
+        let name = self.identifier("Expected identifier as imported item")?;
+        if self.current(TokenKind::LParen) {
+            let mut type_ctor = TypeConstructor {
+                name: name,
+                data_constructors: Vec::new(),
+            };
+            self.expect(TokenKind::LParen)?;
+            if self.current(TokenKind::Dot) {
+                self.expect(TokenKind::Dot)?;
+                self.expect(TokenKind::Dot)?;
+            } else {
+                loop {
+                    if self.current(TokenKind::RParen) {
+                        break;
+                    }
+                    let name = self.identifier("Expected identifier as data constructor")?;
+                    let data_constructor = DataConstructor { name: name };
+                    type_ctor.data_constructors.push(data_constructor);
+                    if self.current(TokenKind::Comma) {
+                        self.expect(TokenKind::Comma)?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            self.expect(TokenKind::RParen)?;
+            Ok(ImportedItem::TypeConstructor(type_ctor))
+        } else {
+            Ok(ImportedItem::FunctionOrRecord(name))
+        }
+    }
+
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordImport)?;
         let name = self.parse_item_path()?;
-        let mut alternative_name = None;
         let import_kind = if self.current(TokenKind::KeywordHiding) {
             self.expect(TokenKind::LParen)?;
             let symbol_names = self.parse_seq0(TokenKind::Identifier)?;
@@ -565,9 +600,9 @@ impl<'a> Parser<'a> {
         let name = self.parse_item_path()?;
         let end_index = self.get_index();
         let location_set = self.get_location_set(start_index, end_index);
-        let li_module = LIModule::new(location_set);
-        self.location_info.add_module(id, li_module);
-        let mut module = Module::new(name, id);
+        let li_item = Item::new(location_set);
+        let location_id = self.location_info.add_item(li_item);
+        let mut module = Module::new(name, id, location_id);
         self.expect(TokenKind::KeywordWhere)?;
         loop {
             if let Some(token) = self.peek() {

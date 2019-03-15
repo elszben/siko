@@ -7,9 +7,14 @@ pub enum ImportedItem {
 }
 
 #[derive(Debug, Clone)]
+pub struct DataConstructor {
+    pub name: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct TypeConstructor {
     pub name: String,
-    pub data_constructors: Vec<String>,
+    pub data_constructors: Vec<DataConstructor>,
 }
 
 #[derive(Debug, Clone)]

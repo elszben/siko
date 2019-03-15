@@ -1,3 +1,4 @@
+use crate::location_info::item::LocationId;
 use crate::syntax::function::Function;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::Import;
@@ -16,15 +17,17 @@ pub struct Module {
     pub id: ModuleId,
     pub functions: BTreeMap<FunctionId, Function>,
     pub imports: BTreeMap<ImportId, Import>,
+    pub location_id: LocationId,
 }
 
 impl Module {
-    pub fn new(name: ItemPath, id: ModuleId) -> Module {
+    pub fn new(name: ItemPath, id: ModuleId, location_id: LocationId) -> Module {
         Module {
             name: name,
             id: id,
             functions: BTreeMap::new(),
             imports: BTreeMap::new(),
+            location_id: location_id,
         }
     }
 

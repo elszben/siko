@@ -63,7 +63,11 @@ impl<'a> Resolver<'a> {
         modules: &mut BTreeMap<String, Vec<Module<'b>>>,
         ir_program: &mut IrProgram,
     ) {
-        let mut module = Module::new(ast_module.id, ast_module.name.clone());
+        let mut module = Module::new(
+            ast_module.id,
+            ast_module.name.clone(),
+            ast_module.location_id,
+        );
 
         for function in ast_module.functions.values() {
             let functions = module
@@ -96,7 +100,7 @@ impl<'a> Resolver<'a> {
 
         for (name, modules) in modules.iter() {
             if modules.len() > 1 {
-                let ids = modules.iter().map(|m| m.id).collect();
+                let ids = modules.iter().map(|m| m.location_id).collect();
                 module_conflicts.insert(name.clone(), ids);
             }
         }
@@ -125,6 +129,7 @@ impl<'a> Resolver<'a> {
     ) -> (ImportStore, Vec<ResolverError>) {
         let mut import_store = ImportStore::new();
         let mut errors = Vec::new();
+        /*
         let (namespace, kind) = match &ast_import.alternative_name {
             Some(n) => (n.clone(), ImportKind::NamespaceOnly),
             None => (ast_import.module_path.get(), ImportKind::NameAndNamespace),
@@ -166,6 +171,7 @@ impl<'a> Resolver<'a> {
             }
             AstImportKind::Hiding(_) => unimplemented!(),
         }
+        */
         (import_store, errors)
     }
 

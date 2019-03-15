@@ -1,20 +1,12 @@
+use crate::location_info::item::Item;
+use crate::location_info::item::LocationId;
 use crate::location_info::location_set::LocationSet;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::ImportId;
-use crate::syntax::module::ModuleId;
 use crate::syntax::types::TypeSignatureId;
+use crate::util::Counter;
 use std::collections::BTreeMap;
-
-pub struct Module {
-    pub location: LocationSet,
-}
-
-impl Module {
-    pub fn new(location: LocationSet) -> Module {
-        Module { location: location }
-    }
-}
 
 pub struct Function {
     pub location: LocationSet,
@@ -57,26 +49,31 @@ impl TypeSignature {
 }
 
 pub struct LocationInfo {
-    modules: BTreeMap<ModuleId, Module>,
+    items: BTreeMap<LocationId, Item>,
     functions: BTreeMap<FunctionId, Function>,
     imports: BTreeMap<ImportId, Import>,
     exprs: BTreeMap<ExprId, Expr>,
     type_signatures: BTreeMap<TypeSignatureId, TypeSignature>,
+    id: Counter,
 }
 
 impl LocationInfo {
     pub fn new() -> LocationInfo {
         LocationInfo {
-            modules: BTreeMap::new(),
+            items: BTreeMap::new(),
             functions: BTreeMap::new(),
             imports: BTreeMap::new(),
             exprs: BTreeMap::new(),
             type_signatures: BTreeMap::new(),
+            id: Counter::new(),
         }
     }
 
-    pub fn add_module(&mut self, id: ModuleId, module: Module) {
-        self.modules.insert(id, module);
+    pub fn add_item(&mut self, item: Item) -> LocationId {
+        let id = self.id.next();
+        let id = LocationId { id: id };
+        self.items.insert(id, item);
+        id
     }
 
     pub fn add_function(&mut self, id: FunctionId, function: Function) {
@@ -95,8 +92,8 @@ impl LocationInfo {
         self.type_signatures.insert(id, ts);
     }
 
-    pub fn get_module_location(&self, id: &ModuleId) -> &LocationSet {
-        &self.modules.get(id).expect("Module not found").location
+    pub fn get_item_location(&self, id: &LocationId) -> &LocationSet {
+        &self.items.get(id).expect("Item not found").location
     }
 
     pub fn get_import_location(&self, id: &ImportId) -> &LocationSet {

@@ -136,7 +136,7 @@ impl Error {
                                     name.yellow()
                                 );
                                 for id in ids.iter() {
-                                    let location_set = location_info.get_module_location(id);
+                                    let location_set = location_info.get_item_location(id);
                                     print_location_set(file_manager, location_set);
                                 }
                             }
