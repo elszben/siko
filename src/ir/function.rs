@@ -1,5 +1,6 @@
 use crate::ir::expr::ExprId;
 use crate::ir::types::TypeSignatureId;
+use crate::location_info::item::LocationId;
 use crate::syntax::function::FunctionId as AstFunctionId;
 use std::fmt;
 
@@ -21,6 +22,7 @@ pub struct NamedFunctionInfo {
     pub name: String,
     pub type_signature: Option<TypeSignatureId>,
     pub ast_function_id: AstFunctionId,
+    pub location_id: LocationId,
 }
 
 impl fmt::Display for NamedFunctionInfo {

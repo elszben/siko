@@ -7,10 +7,6 @@ use crate::constants::BuiltinOperator;
 use crate::error::Error;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::item::Item;
-use crate::location_info::item::LocationId;
-use crate::location_info::location_info::Expr as LIExpr;
-use crate::location_info::location_info::Function as LIFunction;
-use crate::location_info::location_info::Import as LIImport;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_info::TypeSignature as LITypeSignature;
 use crate::location_info::location_set::LocationSet;
@@ -223,10 +219,10 @@ impl<'a> Parser<'a> {
     pub fn add_expr(&mut self, expr: Expr, start_index: usize) -> ExprId {
         let end_index = self.get_index();
         let location_set = self.get_location_set(start_index, end_index);
-        let li_expr = LIExpr::new(location_set);
+        let li_item = Item::new(location_set);
         let id = self.program.get_expr_id();
-        self.program.add_expr(id, expr);
-        self.location_info.add_expr(id, li_expr);
+        let location_id = self.location_info.add_item(li_item);
+        self.program.add_expr(id, expr, location_id);
         id
     }
 
@@ -365,8 +361,8 @@ impl<'a> Parser<'a> {
             }
         }
         let location_set = self.get_location_set(start_index, end_index);
-        let li_function = LIFunction::new(location_set);
-        self.location_info.add_function(id, li_function);
+        let li_item = Item::new(location_set);
+        let location_id = self.location_info.add_item(li_item);
         let equal = self.expect(TokenKind::Equal)?;
         let body = if let Some(token) = self.peek() {
             if token.token.kind() == TokenKind::KeywordExtern {
@@ -390,6 +386,7 @@ impl<'a> Parser<'a> {
             args: args,
             body: body,
             func_type: function_type,
+            location_id: location_id,
         };
         Ok(Some(function))
     }
@@ -475,16 +472,17 @@ impl<'a> Parser<'a> {
                 alternative_name: alternative_name,
             }
         };
+        let end_index = self.get_index();
+        let location_set = self.get_location_set(start_index, end_index);
+        let li_item = Item::new(location_set);
+        let location_id = self.location_info.add_item(li_item);
+        self.expect(TokenKind::EndOfItem)?;
         let import = Import {
             id: id.clone(),
             module_path: name,
             kind: import_kind,
+            location_id: location_id,
         };
-        let end_index = self.get_index();
-        let location_set = self.get_location_set(start_index, end_index);
-        let li_import = LIImport::new(location_set);
-        self.location_info.add_import(id, li_import);
-        self.expect(TokenKind::EndOfItem)?;
         Ok(import)
     }
 

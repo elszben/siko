@@ -1,4 +1,5 @@
 use crate::ir::function::FunctionId;
+use crate::location_info::item::LocationId;
 use crate::syntax::expr::ExprId as AstExprId;
 use crate::util::format_list;
 use std::fmt;
@@ -86,13 +87,15 @@ impl fmt::Display for Expr {
 pub struct ExprInfo {
     pub expr: Expr,
     pub ast_expr_id: AstExprId,
+    pub location_id: LocationId,
 }
 
 impl ExprInfo {
-    pub fn new(expr: Expr, ast_expr_id: AstExprId) -> ExprInfo {
+    pub fn new(expr: Expr, ast_expr_id: AstExprId, location_id: LocationId) -> ExprInfo {
         ExprInfo {
             expr: expr,
             ast_expr_id: ast_expr_id,
+            location_id: location_id,
         }
     }
 }

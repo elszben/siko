@@ -1,3 +1,4 @@
+use crate::location_info::item::LocationId;
 use crate::syntax::item_path::ItemPath;
 
 #[derive(Debug, Clone)]
@@ -42,6 +43,7 @@ pub struct Import {
     pub id: ImportId,
     pub module_path: ItemPath,
     pub kind: ImportKind,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

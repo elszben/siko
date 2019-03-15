@@ -167,14 +167,14 @@ impl Typechecker {
             &inferred_result_var,
             &mut unified_variables,
         ) {
-            let ast_id = program.get_ast_expr_id(&body);
+            let location_id = program.get_expr_location(&body);
             let body_type = self
                 .type_store
                 .get_resolved_type_string(&inferred_result_var);
             let expected_result_type = self
                 .type_store
                 .get_resolved_type_string(&expected_result_var);
-            let err = TypecheckError::TypeMismatch(*ast_id, expected_result_type, body_type);
+            let err = TypecheckError::TypeMismatch(location_id, expected_result_type, body_type);
             errors.push(err);
         }
     }
@@ -326,7 +326,7 @@ impl Typechecker {
                         if untyped {
                             let err = TypecheckError::UntypedExternFunction(
                                 i.name.clone(),
-                                i.ast_function_id,
+                                i.location_id,
                             );
                             errors.push(err)
                         }

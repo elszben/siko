@@ -1,3 +1,4 @@
+use crate::location_info::item::LocationId;
 use crate::syntax::expr::ExprId;
 use crate::syntax::types::TypeSignatureId;
 
@@ -22,6 +23,7 @@ pub struct Function {
     pub args: Vec<String>,
     pub body: FunctionBody,
     pub func_type: Option<FunctionType>,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

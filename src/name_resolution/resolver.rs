@@ -13,6 +13,7 @@ use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
+use crate::location_info::item::LocationId;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
@@ -301,9 +302,16 @@ impl<'a> Resolver<'a> {
         id
     }
 
-    fn add_expr(&self, ir_expr: IrExpr, ast_id: ExprId, ir_program: &mut IrProgram) -> IrExprId {
+    fn add_expr(
+        &self,
+        ir_expr: IrExpr,
+        ast_id: ExprId,
+        ir_program: &mut IrProgram,
+        program: &Program,
+    ) -> IrExprId {
         let expr_id = ir_program.get_expr_id();
-        let expr_info = IrExprInfo::new(ir_expr, ast_id);
+        let location_id = program.get_expr_location(&ast_id);
+        let expr_info = IrExprInfo::new(ir_expr, ast_id, location_id);
         ir_program.add_expr(expr_id, expr_info);
         expr_id
     }
@@ -356,6 +364,7 @@ impl<'a> Resolver<'a> {
         named_ref: NamedRef,
         id: ExprId,
         ir_program: &mut IrProgram,
+        program: &Program,
     ) -> IrExprId {
         let ir_expr = match named_ref {
             NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
@@ -365,7 +374,7 @@ impl<'a> Resolver<'a> {
                 IrExpr::LambdaCapturedArgRef(arg_ref)
             }
         };
-        self.add_expr(ir_expr, id, ir_program)
+        self.add_expr(ir_expr, id, ir_program, program)
     }
 
     fn process_expr(
@@ -379,6 +388,7 @@ impl<'a> Resolver<'a> {
         lambda_helper: &mut LambdaHelper,
     ) -> IrExprId {
         let expr = program.get_expr(&id);
+        let location_id = program.get_expr_location(&id);
         //println!("Processing expr {}", expr);
         match expr {
             Expr::Lambda(args, lambda_body) => {
@@ -395,7 +405,7 @@ impl<'a> Resolver<'a> {
                 if !conflicting_names.is_empty() {
                     let err = ResolverError::LambdaArgumentConflict(
                         conflicting_names.into_iter().collect(),
-                        id.clone(),
+                        location_id.clone(),
                     );
                     errors.push(err);
                 }
@@ -432,10 +442,10 @@ impl<'a> Resolver<'a> {
                 let captured_lambda_args: Vec<_> = local_lambda_helper
                     .captures()
                     .into_iter()
-                    .map(|named_ref| self.process_named_ref(named_ref, id, ir_program))
+                    .map(|named_ref| self.process_named_ref(named_ref, id, ir_program, program))
                     .collect();
                 let ir_expr = IrExpr::LambdaFunction(ir_lambda_id, captured_lambda_args);
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::FunctionCall(id_expr_id, args) => {
                 let ir_args: Vec<IrExprId> = args
@@ -457,25 +467,25 @@ impl<'a> Resolver<'a> {
                     match self.resolve_item_path(path, module, environment, lambda_helper) {
                         PathResolveResult::FunctionRef(n) => {
                             let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
-                            return self.add_expr(ir_expr, id, ir_program);
+                            return self.add_expr(ir_expr, id, ir_program, program);
                         }
                         PathResolveResult::VariableRef(named_ref) => {
                             let ir_id_expr_id =
-                                self.process_named_ref(named_ref, *id_expr_id, ir_program);
+                                self.process_named_ref(named_ref, *id_expr_id, ir_program, program);
                             let ir_expr = IrExpr::DynamicFunctionCall(ir_id_expr_id, ir_args);
-                            return self.add_expr(ir_expr, id, ir_program);
+                            return self.add_expr(ir_expr, id, ir_program, program);
                         }
                         PathResolveResult::Unknown(n) => {
-                            let err = ResolverError::UnknownFunction(n, id);
+                            let err = ResolverError::UnknownFunction(n, location_id);
                             errors.push(err);
                             let ir_expr = IrExpr::Tuple(vec![]);
-                            return self.add_expr(ir_expr, id, ir_program);
+                            return self.add_expr(ir_expr, id, ir_program, program);
                         }
                         PathResolveResult::Ambiguous => {
-                            let err = ResolverError::AmbiguousName(path.get(), id);
+                            let err = ResolverError::AmbiguousName(path.get(), location_id);
                             errors.push(err);
                             let ir_expr = IrExpr::Tuple(vec![]);
-                            return self.add_expr(ir_expr, id, ir_program);
+                            return self.add_expr(ir_expr, id, ir_program, program);
                         }
                     }
                 } else {
@@ -485,7 +495,7 @@ impl<'a> Resolver<'a> {
                             let left = ir_args[0];
                             let right = ir_args[1];
                             let ir_expr = IrExpr::DynamicFunctionCall(right, vec![left]);
-                            return self.add_expr(ir_expr, id, ir_program);
+                            return self.add_expr(ir_expr, id, ir_program, program);
                         } else {
                             let path = ItemPath {
                                 path: vec![format!(
@@ -498,7 +508,7 @@ impl<'a> Resolver<'a> {
                             {
                                 PathResolveResult::FunctionRef(n) => {
                                     let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
-                                    return self.add_expr(ir_expr, id, ir_program);
+                                    return self.add_expr(ir_expr, id, ir_program, program);
                                 }
                                 _ => panic!(
                                     "Couldn't handle builtin function {}, missing {}?",
@@ -518,7 +528,7 @@ impl<'a> Resolver<'a> {
                             lambda_helper,
                         );
                         let ir_expr = IrExpr::DynamicFunctionCall(id_expr, ir_args);
-                        return self.add_expr(ir_expr, id, ir_program);
+                        return self.add_expr(ir_expr, id, ir_program, program);
                     }
                 }
             }
@@ -552,7 +562,7 @@ impl<'a> Resolver<'a> {
                     lambda_helper,
                 );
                 let ir_expr = IrExpr::If(ir_cond, ir_true_branch, ir_false_branch);
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::Tuple(items) => {
                 let ir_items: Vec<IrExprId> = items
@@ -570,46 +580,46 @@ impl<'a> Resolver<'a> {
                     })
                     .collect();
                 let ir_expr = IrExpr::Tuple(ir_items);
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::Path(path) => {
                 match self.resolve_item_path(path, module, environment, lambda_helper) {
                     PathResolveResult::FunctionRef(n) => {
                         let ir_expr = IrExpr::StaticFunctionCall(n, vec![]);
-                        return self.add_expr(ir_expr, id, ir_program);
+                        return self.add_expr(ir_expr, id, ir_program, program);
                     }
                     PathResolveResult::VariableRef(named_ref) => {
-                        return self.process_named_ref(named_ref, id, ir_program);
+                        return self.process_named_ref(named_ref, id, ir_program, program);
                     }
                     PathResolveResult::Unknown(n) => {
-                        let err = ResolverError::UnknownFunction(n, id);
+                        let err = ResolverError::UnknownFunction(n, location_id);
                         errors.push(err);
                         let ir_expr = IrExpr::Tuple(vec![]);
-                        return self.add_expr(ir_expr, id, ir_program);
+                        return self.add_expr(ir_expr, id, ir_program, program);
                     }
                     PathResolveResult::Ambiguous => {
-                        let err = ResolverError::AmbiguousName(path.get(), id);
+                        let err = ResolverError::AmbiguousName(path.get(), location_id);
                         errors.push(err);
                         let ir_expr = IrExpr::Tuple(vec![]);
-                        return self.add_expr(ir_expr, id, ir_program);
+                        return self.add_expr(ir_expr, id, ir_program, program);
                     }
                 }
             }
             Expr::IntegerLiteral(v) => {
                 let ir_expr = IrExpr::IntegerLiteral(v.clone());
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::FloatLiteral(v) => {
                 let ir_expr = IrExpr::FloatLiteral(v.clone());
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::BoolLiteral(v) => {
                 let ir_expr = IrExpr::BoolLiteral(v.clone());
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::StringLiteral(v) => {
                 let ir_expr = IrExpr::StringLiteral(v.clone());
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::Do(items) => {
                 let ir_items: Vec<IrExprId> = items
@@ -627,7 +637,7 @@ impl<'a> Resolver<'a> {
                     })
                     .collect();
                 let ir_expr = IrExpr::Do(ir_items);
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
             Expr::Bind(name, expr_id) => {
                 let ir_expr_id = self.process_expr(
@@ -641,7 +651,7 @@ impl<'a> Resolver<'a> {
                 );
                 environment.add_expr_value(name.clone(), ir_expr_id);
                 let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id);
-                return self.add_expr(ir_expr, id, ir_program);
+                return self.add_expr(ir_expr, id, ir_program, program);
             }
         }
     }
@@ -673,7 +683,8 @@ impl<'a> Resolver<'a> {
                 let source_module = match self.modules.get(&imported_module_path) {
                     Some(module) => module,
                     None => {
-                        imported_not_found_modules.push((imported_module_path, import_id.clone()));
+                        imported_not_found_modules
+                            .push((imported_module_path, import.location_id.clone()));
                         continue;
                     }
                 };
@@ -749,7 +760,7 @@ impl<'a> Resolver<'a> {
                     if !conflicting_names.is_empty() {
                         let err = ResolverError::ArgumentConflict(
                             conflicting_names.into_iter().collect(),
-                            function.id.clone(),
+                            function.location_id.clone(),
                         );
                         errors.push(err);
                     }
@@ -778,6 +789,7 @@ impl<'a> Resolver<'a> {
                     module: module.name.get(),
                     type_signature: type_signature_id,
                     ast_function_id: function.id,
+                    location_id: function.location_id,
                 };
 
                 let ir_function = IrFunction {

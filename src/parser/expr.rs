@@ -206,15 +206,17 @@ fn parse_unary(parser: &mut Parser, is_arg: bool) -> Result<ExprId, Error> {
             op
         };
         if op == BuiltinOperator::Minus {
+            let location_id = parser.get_program().get_expr_location(&right);
             let right_expr = parser.get_program().get_expr(&right);
+            // FIXME: fix location of these literals
             if let Expr::IntegerLiteral(n) = right_expr {
                 let expr = Expr::IntegerLiteral(-n);
-                parser.get_program().add_expr(right, expr);
+                parser.get_program().add_expr(right, expr, location_id);
                 return Ok(right);
             }
             if let Expr::FloatLiteral(n) = right_expr {
                 let expr = Expr::FloatLiteral(-n);
-                parser.get_program().add_expr(right, expr);
+                parser.get_program().add_expr(right, expr, location_id);
                 return Ok(right);
             }
         }

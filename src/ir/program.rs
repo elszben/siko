@@ -6,7 +6,7 @@ use crate::ir::function::FunctionId;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature;
 use crate::ir::types::TypeSignatureId;
-use crate::syntax::expr::ExprId as AstExprId;
+use crate::location_info::item::LocationId;
 
 use crate::util::Counter;
 use std::collections::BTreeMap;
@@ -71,8 +71,8 @@ impl Program {
         &self.exprs.get(id).expect("Expr not found").expr
     }
 
-    pub fn get_ast_expr_id(&self, id: &ExprId) -> &AstExprId {
-        &self.exprs.get(id).expect("Expr not found").ast_expr_id
+    pub fn get_expr_location(&self, id: &ExprId) -> LocationId {
+        self.exprs.get(id).expect("Expr not found").location_id
     }
 
     pub fn add_function(&mut self, id: FunctionId, function: Function) {

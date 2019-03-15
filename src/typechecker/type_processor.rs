@@ -95,9 +95,13 @@ impl<'a> TypeProcessor<'a> {
             unreachable!();
         };
         if args.len() > type_vars.len() - 1 {
-            let ast_id = program.get_ast_expr_id(&id);
-            let err =
-                TypecheckError::TooManyArguments(*ast_id, name, type_vars.len() - 1, args.len());
+            let location_id = program.get_expr_location(&id);
+            let err = TypecheckError::TooManyArguments(
+                location_id,
+                name,
+                type_vars.len() - 1,
+                args.len(),
+            );
             errors.push(err);
         } else {
             let mut mismatch = false;
@@ -113,7 +117,7 @@ impl<'a> TypeProcessor<'a> {
                 }
             }
             if mismatch {
-                let ast_id = program.get_ast_expr_id(&id);
+                let location_id = program.get_expr_location(&id);
                 let mut arg_types = Vec::new();
                 for arg in args {
                     let arg_var = self.get_type_var_for_expr(arg);
@@ -122,7 +126,8 @@ impl<'a> TypeProcessor<'a> {
                 }
                 let arg_types = format_list_simple(&arg_types[..]);
                 let func_type = function_type.as_string(self.type_store);
-                let err = TypecheckError::FunctionArgumentMismatch(*ast_id, arg_types, func_type);
+                let err =
+                    TypecheckError::FunctionArgumentMismatch(location_id, arg_types, func_type);
                 errors.push(err);
             } else {
                 let call_var = self.get_type_var_for_expr(&id);
@@ -138,10 +143,10 @@ impl<'a> TypeProcessor<'a> {
                     .type_store
                     .unify_vars(&call_var, &result_var, unified_variables)
                 {
-                    let ast_id = program.get_ast_expr_id(&id);
+                    let location_id = program.get_expr_location(&id);
                     let call_type = self.type_store.get_resolved_type_string(&call_var);
                     let result_type = self.type_store.get_resolved_type_string(&result_var);
-                    let err = TypecheckError::TypeMismatch(*ast_id, call_type, result_type);
+                    let err = TypecheckError::TypeMismatch(location_id, call_type, result_type);
                     errors.push(err);
                 }
             }
@@ -184,10 +189,10 @@ impl<'a> TypeProcessor<'a> {
                             .type_store
                             .unify_vars(&var, &cond_var, unified_variables)
                         {
-                            let ast_id = program.get_ast_expr_id(cond);
+                            let location_id = program.get_expr_location(cond);
                             let cond_ty = self.type_store.get_resolved_type_string(&cond_var);
                             let bool_ty = format!("{}", Type::Bool);
-                            let err = TypecheckError::TypeMismatch(*ast_id, bool_ty, cond_ty);
+                            let err = TypecheckError::TypeMismatch(location_id, bool_ty, cond_ty);
                             errors.push(err);
                         }
                     }
@@ -195,10 +200,10 @@ impl<'a> TypeProcessor<'a> {
                         .type_store
                         .unify_vars(&true_var, &false_var, unified_variables)
                     {
-                        let ast_id = program.get_ast_expr_id(&false_branch);
+                        let location_id = program.get_expr_location(&false_branch);
                         let true_type = self.type_store.get_resolved_type_string(&true_var);
                         let false_type = self.type_store.get_resolved_type_string(&false_var);
-                        let err = TypecheckError::TypeMismatch(*ast_id, true_type, false_type);
+                        let err = TypecheckError::TypeMismatch(location_id, true_type, false_type);
                         errors.push(err);
                     }
                 }
@@ -227,9 +232,13 @@ impl<'a> TypeProcessor<'a> {
                             if !args.is_empty() {
                                 let f = program.get_function(function_id);
                                 let name = format!("{}", f.info);
-                                let ast_id = program.get_ast_expr_id(&id);
-                                let err =
-                                    TypecheckError::TooManyArguments(*ast_id, name, 0, args.len());
+                                let location_id = program.get_expr_location(&id);
+                                let err = TypecheckError::TooManyArguments(
+                                    location_id,
+                                    name,
+                                    0,
+                                    args.len(),
+                                );
                                 errors.push(err);
                             } else {
                                 let call_var = self.get_type_var_for_expr(&id);
@@ -238,14 +247,17 @@ impl<'a> TypeProcessor<'a> {
                                     target_func_type_var,
                                     unified_variables,
                                 ) {
-                                    let ast_id = program.get_ast_expr_id(&id);
+                                    let location_id = program.get_expr_location(&id);
                                     let call_type =
                                         self.type_store.get_resolved_type_string(&call_var);
                                     let func_type = self
                                         .type_store
                                         .get_resolved_type_string(target_func_type_var);
-                                    let err =
-                                        TypecheckError::TypeMismatch(*ast_id, call_type, func_type);
+                                    let err = TypecheckError::TypeMismatch(
+                                        location_id,
+                                        call_type,
+                                        func_type,
+                                    );
                                     errors.push(err);
                                 }
                             }
@@ -276,9 +288,9 @@ impl<'a> TypeProcessor<'a> {
                         }
                         _ => {
                             if final_round {
-                                let ast_id = program.get_ast_expr_id(&id);
+                                let location_id = program.get_expr_location(&id);
                                 let err = TypecheckError::NotCallableType(
-                                    *ast_id,
+                                    location_id,
                                     format!("{}", resolved_type),
                                 );
                                 errors.push(err);

@@ -148,7 +148,7 @@ impl Error {
                                     error.red(),
                                     name.yellow()
                                 );
-                                let location_set = location_info.get_import_location(id);
+                                let location_set = location_info.get_item_location(id);
                                 print_location_set(file_manager, location_set);
                             }
                         }
@@ -158,7 +158,7 @@ impl Error {
                                 error.red(),
                                 name.yellow()
                             );
-                            let location_set = location_info.get_import_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownTypeName(var_name, id) => {
@@ -176,7 +176,7 @@ impl Error {
                         }
                         ResolverError::ArgumentConflict(args, id) => {
                             println!("Argument(s) {} are not unique", format_list(args).yellow());
-                            let location_set = location_info.get_function_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::LambdaArgumentConflict(args, id) => {
@@ -184,17 +184,17 @@ impl Error {
                                 "Lambda argument(s) {} are not unique",
                                 format_list(args).yellow()
                             );
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownFunction(var_name, id) => {
                             println!("Unknown function {}", var_name.yellow());
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::AmbiguousName(var_name, id) => {
                             println!("Ambiguous name {}", var_name.yellow());
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::FunctionTypeNameMismatch(n1, n2, id) => {
@@ -226,7 +226,7 @@ impl Error {
                                 error.red(),
                                 name.yellow()
                             );
-                            let location_set = location_info.get_function_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::FunctionTypeDependencyLoop => {
@@ -238,21 +238,21 @@ impl Error {
                                 error.red(),
                                 name.yellow()
                             );
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                             println!("Expected: {}", format!("{}", expected).yellow());
                             println!("Found: {}", format!("{}", found).yellow());
                         }
                         TypecheckError::TypeMismatch(id, expected, found) => {
                             println!("{} type mismatch in expression", error.red());
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                             println!("Expected: {}", expected.yellow());
                             println!("Found:    {}", found.yellow());
                         }
                         TypecheckError::FunctionArgumentMismatch(id, args, func) => {
                             println!("{} invalid argument(s)", error.red());
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                             println!("Argument(s):      {}", args.yellow());
                             println!("Function type:    {}", func.yellow());
@@ -263,7 +263,7 @@ impl Error {
                                 error.red(),
                                 ty.yellow()
                             );
-                            let location_set = location_info.get_expr_location(id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                     }

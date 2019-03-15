@@ -1,12 +1,11 @@
-use crate::syntax::expr::ExprId;
-use crate::syntax::function::FunctionId;
+use crate::location_info::item::LocationId;
 
 #[derive(Debug)]
 pub enum TypecheckError {
-    UntypedExternFunction(String, FunctionId),
+    UntypedExternFunction(String, LocationId),
     FunctionTypeDependencyLoop,
-    TooManyArguments(ExprId, String, usize, usize),
-    TypeMismatch(ExprId, String, String),
-    FunctionArgumentMismatch(ExprId, String, String),
-    NotCallableType(ExprId, String),
+    TooManyArguments(LocationId, String, usize, usize),
+    TypeMismatch(LocationId, String, String),
+    FunctionArgumentMismatch(LocationId, String, String),
+    NotCallableType(LocationId, String),
 }

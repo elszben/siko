@@ -1,3 +1,4 @@
+use crate::location_info::item::LocationId;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::data::RecordItemId;
@@ -16,7 +17,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone)]
 pub struct Program {
     pub modules: BTreeMap<ModuleId, Module>,
-    pub exprs: BTreeMap<ExprId, Expr>,
+    pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
     pub type_signatures: BTreeMap<TypeSignatureId, TypeSignature>,
     module_id: Counter,
     function_id: Counter,
@@ -105,8 +106,8 @@ impl Program {
         self.modules.insert(id, module);
     }
 
-    pub fn add_expr(&mut self, id: ExprId, expr: Expr) {
-        self.exprs.insert(id, expr);
+    pub fn add_expr(&mut self, id: ExprId, expr: Expr, location_id: LocationId) {
+        self.exprs.insert(id, (expr, location_id));
     }
 
     pub fn add_type_signature(&mut self, id: TypeSignatureId, type_signature: TypeSignature) {
@@ -114,7 +115,11 @@ impl Program {
     }
 
     pub fn get_expr(&self, id: &ExprId) -> &Expr {
-        &self.exprs.get(id).expect("Expr not found")
+        &self.exprs.get(id).expect("Expr not found").0
+    }
+
+    pub fn get_expr_location(&self, id: &ExprId) -> LocationId {
+        self.exprs.get(id).expect("Expr not found").1
     }
 
     pub fn get_type_signature(&self, id: &TypeSignatureId) -> &TypeSignature {
