@@ -25,8 +25,12 @@ use crate::syntax::function::Function;
 use crate::syntax::function::FunctionBody;
 use crate::syntax::function::FunctionId;
 use crate::syntax::function::FunctionType;
+use crate::syntax::import::HiddenItem;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
+use crate::syntax::import::ImportKind;
+use crate::syntax::import::ImportList;
+use crate::syntax::import::ImportedItem;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
@@ -399,27 +403,47 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::KeywordImport)?;
         let name = self.parse_item_path()?;
         let mut alternative_name = None;
-        let mut symbols = None;
-        if let Some(token) = self.peek() {
-            if let Token::LParen = token.token {
+        let import_kind = if self.current(TokenKind::KeywordHiding) {
+            self.expect(TokenKind::LParen)?;
+            let symbol_names = self.parse_seq0(TokenKind::Identifier)?;
+            let symbols = to_string_list(symbol_names);
+            let items: Vec<_> = symbols
+                .into_iter()
+                .map(|s| HiddenItem { name: s })
+                .collect();
+            self.expect(TokenKind::RParen)?;
+            ImportKind::Hiding(items)
+        } else {
+            let import_list = if self.current(TokenKind::LParen) {
                 self.advance()?;
                 let symbol_names = self.parse_seq0(TokenKind::Identifier)?;
-                symbols = Some(to_string_list(symbol_names));
+                let symbols = to_string_list(symbol_names);
+                let symbols: Vec<_> = symbols
+                    .into_iter()
+                    .map(|s| ImportedItem::FunctionOrRecord(s))
+                    .collect();
                 self.expect(TokenKind::RParen)?;
+                ImportList::Explicit(symbols)
+            } else {
+                ImportList::ImplicitAll
+            };
+            let mut alternative_name = None;
+            if let Some(as_token) = self.peek() {
+                if let Token::KeywordAs = as_token.token {
+                    self.advance()?;
+                    let name = self.identifier("Expected identifier after as in import")?;
+                    alternative_name = Some(name);
+                }
             }
-        }
-        if let Some(as_token) = self.peek() {
-            if let Token::KeywordAs = as_token.token {
-                self.advance()?;
-                let name = self.identifier("Expected identifier after as in import")?;
-                alternative_name = Some(name);
+            ImportKind::ImportList {
+                items: import_list,
+                alternative_name: alternative_name,
             }
-        }
+        };
         let import = Import {
             id: id.clone(),
             module_path: name,
-            alternative_name: alternative_name,
-            symbols: symbols,
+            kind: import_kind,
         };
         let end_index = self.get_index();
         let location_set = self.get_location_set(start_index, end_index);

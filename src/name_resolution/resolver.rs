@@ -26,6 +26,8 @@ use crate::syntax::function::FunctionBody as AstFunctionBody;
 use crate::syntax::function::FunctionId as AstFunctionId;
 use crate::syntax::function::FunctionType as AstFunctionType;
 use crate::syntax::import::Import as AstImport;
+use crate::syntax::import::ImportKind as AstImportKind;
+use crate::syntax::import::ImportedItem as AstImportedItem;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
@@ -127,19 +129,24 @@ impl<'a> Resolver<'a> {
             Some(n) => (n.clone(), ImportKind::NamespaceOnly),
             None => (ast_import.module_path.get(), ImportKind::NameAndNamespace),
         };
-        match &ast_import.symbols {
-            Some(symbols) => {
-                for symbol in symbols {
-                    match source_module.exported_functions.get(symbol) {
+        match &ast_import.kind {
+            AstImportKind::Explicit(imported_items) => {
+                for imported_item in imported_items {
+                    let item_name = if let AstImportedItem::FunctionOrRecord(name) = imported_item {
+                        name.clone()
+                    } else {
+                        unimplemented!()
+                    };
+                    match source_module.exported_functions.get(&item_name) {
                         Some(_) => import_store.add_imported_function(
-                            symbol.clone(),
+                            item_name.clone(),
                             source_module.name.clone(),
                             namespace.clone(),
                             kind,
                         ),
                         None => {
                             let e = ResolverError::SymbolNotFoundInModule(
-                                symbol.clone(),
+                                item_name.clone(),
                                 ast_import.id.clone(),
                             );
                             errors.push(e);
@@ -147,7 +154,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            None => {
+            AstImportKind::ImplicitAll => {
                 for func in source_module.exported_functions.keys() {
                     import_store.add_imported_function(
                         func.clone(),
@@ -157,6 +164,7 @@ impl<'a> Resolver<'a> {
                     );
                 }
             }
+            AstImportKind::Hiding(_) => unimplemented!(),
         }
         (import_store, errors)
     }

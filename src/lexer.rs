@@ -117,6 +117,7 @@ impl Lexer {
             "False" => Token::BoolLiteral(false),
             "as" => Token::KeywordAs,
             "extern" => Token::KeywordExtern,
+            "hiding" => Token::KeywordHiding,
             _ => match identifier.parse::<i64>() {
                 Ok(_) => Token::NumericLiteral(identifier),
                 Err(_) => Token::Identifier(identifier),
