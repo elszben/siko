@@ -3,13 +3,14 @@ use crate::syntax::item_path::ItemPath;
 
 #[derive(Debug, Clone)]
 pub enum ImportedItem {
-    FunctionOrRecord(String),
+    NamedItem(String),
     TypeConstructor(TypeConstructor),
 }
 
 #[derive(Debug, Clone)]
-pub struct DataConstructor {
-    pub name: String,
+pub enum DataConstructor {
+    Specific(String),
+    All,
 }
 
 #[derive(Debug, Clone)]

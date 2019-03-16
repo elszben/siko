@@ -1,27 +1,7 @@
 module alma.korte where
 
-plus_one  :: Int -> Int
-plus_one x = x + plus_one 1 + 1
+import Alma hiding (alm, a)
+ 
+import korte (szilva, kd(a,a))
 
-id a = a
-
-pipetest x = do
- x |> plus_one
- id 5
- id "a"
-
-somefunc :: (Int -> Int) -> Int
-somefunc a = a 5
-
-
-tricky a = do
-    b <- a
-    b 4
-    somefunc b
-
-
-data alma f d = alma Int (String a) | korte | szilva 
-
-data record a b = record { alma :: Int,
-                       korte :: String a Int,
-                       complex_type :: Int -> a -> (Int -> Int) }
+main = 5

@@ -183,6 +183,55 @@ impl<'a> Parser<'a> {
         Ok(items)
     }
 
+    fn parse_list1_in_parens<T>(
+        &mut self,
+        parse_fn: fn(&mut Parser) -> Result<T, Error>,
+    ) -> Result<Vec<T>, Error> {
+        self.expect(TokenKind::LParen)?;
+        let mut items = Vec::new();
+        loop {
+            let item = parse_fn(self)?;
+            items.push(item);
+            let comma = if self.current(TokenKind::Comma) {
+                self.expect(TokenKind::Comma)?;
+                true
+            } else {
+                false
+            };
+            if self.current(TokenKind::RParen) {
+                break;
+            } else {
+                if !comma {
+                    return report_unexpected_token(self, &format!("Expected comma"));
+                }
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(items)
+    }
+
+    fn parse_list0_in_parens<T>(
+        &mut self,
+        parse_fn: fn(&mut Parser) -> Result<T, Error>,
+    ) -> Result<Vec<T>, Error> {
+        self.expect(TokenKind::LParen)?;
+        let mut items = Vec::new();
+        loop {
+            if self.current(TokenKind::RParen) {
+                break;
+            }
+            let item = parse_fn(self)?;
+            items.push(item);
+            if self.current(TokenKind::Comma) {
+                self.expect(TokenKind::Comma)?;
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(items)
+    }
+
     fn parse_seq0(&mut self, item_kind: TokenKind) -> Result<Vec<TokenInfo>, Error> {
         let mut items = Vec::new();
         while !self.is_done() {
@@ -399,37 +448,34 @@ impl<'a> Parser<'a> {
         Ok(path)
     }
 
-    fn parse_imported_item(&mut self) -> Result<ImportedItem, Error> {
-        let name = self.identifier("Expected identifier as imported item")?;
-        if self.current(TokenKind::LParen) {
-            let mut type_ctor = TypeConstructor {
+    fn parse_data_constructor(parser: &mut Parser) -> Result<DataConstructor, Error> {
+        if parser.current(TokenKind::Dot) {
+            parser.expect(TokenKind::Dot)?;
+            parser.expect(TokenKind::Dot)?;
+            Ok(DataConstructor::All)
+        } else {
+            let name = parser.identifier("Expected identifier as data constructor")?;
+            Ok(DataConstructor::Specific(name))
+        }
+    }
+
+    fn parse_imported_item(parser: &mut Parser) -> Result<ImportedItem, Error> {
+        let name = parser.identifier("Expected identifier as imported item")?;
+        if parser.current(TokenKind::LParen) {
+            let items = parser.parse_list0_in_parens(Parser::parse_data_constructor)?;
+            let type_ctor = TypeConstructor {
                 name: name,
-                data_constructors: Vec::new(),
+                data_constructors: items,
             };
-            self.expect(TokenKind::LParen)?;
-            if self.current(TokenKind::Dot) {
-                self.expect(TokenKind::Dot)?;
-                self.expect(TokenKind::Dot)?;
-            } else {
-                loop {
-                    if self.current(TokenKind::RParen) {
-                        break;
-                    }
-                    let name = self.identifier("Expected identifier as data constructor")?;
-                    let data_constructor = DataConstructor { name: name };
-                    type_ctor.data_constructors.push(data_constructor);
-                    if self.current(TokenKind::Comma) {
-                        self.expect(TokenKind::Comma)?;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            self.expect(TokenKind::RParen)?;
             Ok(ImportedItem::TypeConstructor(type_ctor))
         } else {
-            Ok(ImportedItem::FunctionOrRecord(name))
+            Ok(ImportedItem::NamedItem(name))
         }
+    }
+
+    fn parse_hidden_item(parser: &mut Parser) -> Result<HiddenItem, Error> {
+        let name = parser.identifier("Expected identifier as hidden item")?;
+        Ok(HiddenItem { name: name })
     }
 
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
@@ -437,26 +483,13 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::KeywordImport)?;
         let name = self.parse_item_path()?;
         let import_kind = if self.current(TokenKind::KeywordHiding) {
-            self.expect(TokenKind::LParen)?;
-            let symbol_names = self.parse_seq0(TokenKind::Identifier)?;
-            let symbols = to_string_list(symbol_names);
-            let items: Vec<_> = symbols
-                .into_iter()
-                .map(|s| HiddenItem { name: s })
-                .collect();
-            self.expect(TokenKind::RParen)?;
+            self.expect(TokenKind::KeywordHiding)?;
+            let items = self.parse_list1_in_parens(Parser::parse_hidden_item)?;
             ImportKind::Hiding(items)
         } else {
             let import_list = if self.current(TokenKind::LParen) {
-                self.advance()?;
-                let symbol_names = self.parse_seq0(TokenKind::Identifier)?;
-                let symbols = to_string_list(symbol_names);
-                let symbols: Vec<_> = symbols
-                    .into_iter()
-                    .map(|s| ImportedItem::FunctionOrRecord(s))
-                    .collect();
-                self.expect(TokenKind::RParen)?;
-                ImportList::Explicit(symbols)
+                let items = self.parse_list1_in_parens(Parser::parse_imported_item)?;
+                ImportList::Explicit(items)
             } else {
                 ImportList::ImplicitAll
             };
