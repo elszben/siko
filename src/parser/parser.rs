@@ -15,20 +15,24 @@ use crate::syntax::data::Record;
 use crate::syntax::data::RecordItem;
 use crate::syntax::data::RecordOrVariant;
 use crate::syntax::data::Variant;
+use crate::syntax::export::ExportList;
+use crate::syntax::export::ExportedDataConstructor;
+use crate::syntax::export::ExportedItem;
+use crate::syntax::export::ExportedTypeConstructor;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
 use crate::syntax::function::FunctionBody;
 use crate::syntax::function::FunctionId;
 use crate::syntax::function::FunctionType;
-use crate::syntax::import::DataConstructor;
 use crate::syntax::import::HiddenItem;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
+use crate::syntax::import::ImportedDataConstructor;
 use crate::syntax::import::ImportedItem;
-use crate::syntax::import::TypeConstructor;
+use crate::syntax::import::ImportedTypeConstructor;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
@@ -448,28 +452,57 @@ impl<'a> Parser<'a> {
         Ok(path)
     }
 
-    fn parse_data_constructor(parser: &mut Parser) -> Result<DataConstructor, Error> {
+    fn parse_imported_data_constructor(
+        parser: &mut Parser,
+    ) -> Result<ImportedDataConstructor, Error> {
         if parser.current(TokenKind::Dot) {
             parser.expect(TokenKind::Dot)?;
             parser.expect(TokenKind::Dot)?;
-            Ok(DataConstructor::All)
+            Ok(ImportedDataConstructor::All)
         } else {
             let name = parser.identifier("Expected identifier as data constructor")?;
-            Ok(DataConstructor::Specific(name))
+            Ok(ImportedDataConstructor::Specific(name))
+        }
+    }
+
+    fn parse_exported_data_constructor(
+        parser: &mut Parser,
+    ) -> Result<ExportedDataConstructor, Error> {
+        if parser.current(TokenKind::Dot) {
+            parser.expect(TokenKind::Dot)?;
+            parser.expect(TokenKind::Dot)?;
+            Ok(ExportedDataConstructor::All)
+        } else {
+            let name = parser.identifier("Expected identifier as data constructor")?;
+            Ok(ExportedDataConstructor::Specific(name))
         }
     }
 
     fn parse_imported_item(parser: &mut Parser) -> Result<ImportedItem, Error> {
         let name = parser.identifier("Expected identifier as imported item")?;
         if parser.current(TokenKind::LParen) {
-            let items = parser.parse_list0_in_parens(Parser::parse_data_constructor)?;
-            let type_ctor = TypeConstructor {
+            let items = parser.parse_list0_in_parens(Parser::parse_imported_data_constructor)?;
+            let type_ctor = ImportedTypeConstructor {
                 name: name,
                 data_constructors: items,
             };
             Ok(ImportedItem::TypeConstructor(type_ctor))
         } else {
             Ok(ImportedItem::NamedItem(name))
+        }
+    }
+
+    fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItem, Error> {
+        let name = parser.identifier("Expected identifier as exported item")?;
+        if parser.current(TokenKind::LParen) {
+            let items = parser.parse_list0_in_parens(Parser::parse_exported_data_constructor)?;
+            let type_ctor = ExportedTypeConstructor {
+                name: name,
+                data_constructors: items,
+            };
+            Ok(ExportedItem::TypeConstructor(type_ctor))
+        } else {
+            Ok(ExportedItem::NamedItem(name))
         }
     }
 
@@ -634,7 +667,13 @@ impl<'a> Parser<'a> {
         let location_set = self.get_location_set(start_index, end_index);
         let li_item = Item::new(location_set);
         let location_id = self.location_info.add_item(li_item);
-        let mut module = Module::new(name, id, location_id);
+        let export_list = if self.current(TokenKind::LParen) {
+            let exported_items = self.parse_list0_in_parens(Parser::parse_exported_item)?;
+            ExportList::Explicit(exported_items)
+        } else {
+            ExportList::ImplicitAll
+        };
+        let mut module = Module::new(name, id, location_id, export_list);
         self.expect(TokenKind::KeywordWhere)?;
         loop {
             if let Some(token) = self.peek() {

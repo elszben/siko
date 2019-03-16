@@ -4,19 +4,19 @@ use crate::syntax::item_path::ItemPath;
 #[derive(Debug, Clone)]
 pub enum ImportedItem {
     NamedItem(String),
-    TypeConstructor(TypeConstructor),
+    TypeConstructor(ImportedTypeConstructor),
 }
 
 #[derive(Debug, Clone)]
-pub enum DataConstructor {
+pub enum ImportedDataConstructor {
     Specific(String),
     All,
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeConstructor {
+pub struct ImportedTypeConstructor {
     pub name: String,
-    pub data_constructors: Vec<DataConstructor>,
+    pub data_constructors: Vec<ImportedDataConstructor>,
 }
 
 #[derive(Debug, Clone)]

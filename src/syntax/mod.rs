@@ -5,4 +5,5 @@ pub mod import;
 pub mod item_path;
 pub mod module;
 pub mod program;
+pub mod export;
 pub mod types;
