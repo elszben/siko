@@ -672,7 +672,8 @@ impl Resolver {
         for (name, module) in &mut self.modules {
             println!("Processing items for {}", name);
             let ast_module = program.modules.get(&module.id).expect("Module not found");
-            for (record_id, record) in &ast_module.records {
+            for record_id in &ast_module.records {
+                let record = program.records.get(record_id).expect("Record not found");
                 let items = module
                     .items
                     .entry(record.name.clone())
@@ -685,15 +686,52 @@ impl Resolver {
                 types.push(Type::Record(*record_id));
                 println!("Added record {}", record.name);
             }
-            for (adt_id, adt) in &ast_module.adts {
+            for adt_id in &ast_module.adts {
+                let adt = program.adts.get(adt_id).expect("Adt not found");
                 let types = module
                     .types
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
                 types.push(Type::TypeConstructor(*adt_id));
                 println!("Added adt {}", adt.name);
+                for variant_id in &adt.variants {
+                    let variant = program.variants.get(variant_id).expect("Variant not found");
+                    let items = module
+                        .items
+                        .entry(variant.name.clone())
+                        .or_insert_with(|| Vec::new());
+                    items.push(Item::DataConstructor(variant.id));
+                    println!("Added data ctor {}", variant.name);
+                }
+            }
+            for function_id in &ast_module.functions {
+                let function = program
+                    .functions
+                    .get(function_id)
+                    .expect("Function not found");
+                let items = module
+                    .items
+                    .entry(function.name.clone())
+                    .or_insert_with(|| Vec::new());
+                items.push(Item::Function(function.id));
+                println!("Added function {}", function.name);
             }
         }
+        /*
+        for (_, module) in &self.modules {
+            let mut item_conflicts = BTreeMap::new();
+            for (name, items) in &module.items {
+                if items.len() > 1 {
+                    let locations = item_conflicts
+                        .entry(name.clone())
+                        .or_insert_with(|| BTreeSet::new());
+                    /*for item in items {
+                        program.
+                    }*/
+        }
+        }
+        }
+         */
     }
 
     fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
@@ -788,7 +826,11 @@ impl Resolver {
             }
         */
         for (_, module) in &program.modules {
-            for (_, function) in &module.functions {
+            for function_id in &module.functions {
+                let function = program
+                    .functions
+                    .get(function_id)
+                    .expect("Function not found");
                 let resolver_module = self
                     .modules
                     .get(&module.name.get())

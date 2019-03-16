@@ -10,7 +10,7 @@ pub struct Adt {
     pub name: String,
     pub id: AdtId,
     pub type_args: Vec<String>,
-    pub variants: Vec<Variant>,
+    pub variants: Vec<VariantId>,
 }
 
 #[derive(Debug, Clone)]
@@ -56,5 +56,5 @@ pub struct RecordItem {
 
 pub enum RecordOrVariant {
     Record(Record),
-    Variant(Variant),
+    Variant(VariantId),
 }

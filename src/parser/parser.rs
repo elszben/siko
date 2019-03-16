@@ -605,12 +605,15 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
+            let id = self.program.get_variant_id();
             let variant = Variant {
-                id: self.program.get_variant_id(),
+                id: id,
                 name: name,
                 items: items,
             };
-            Ok(RecordOrVariant::Variant(variant))
+
+            self.program.variants.insert(id, variant);
+            Ok(RecordOrVariant::Variant(id))
         }
     }
 
@@ -687,10 +690,12 @@ impl<'a> Parser<'a> {
                         let data = self.parse_data()?;
                         match data {
                             Data::Record(record) => {
-                                module.records.insert(record.id, record);
+                                module.records.push(record.id);
+                                self.program.records.insert(record.id, record);
                             }
                             Data::Adt(adt) => {
-                                module.adts.insert(adt.id, adt);
+                                module.adts.push(adt.id);
+                                self.program.adts.insert(adt.id, adt);
                             }
                         }
                     }
@@ -700,7 +705,8 @@ impl<'a> Parser<'a> {
                     _ => {
                         let function_id = self.program.get_function_id();
                         if let Some(function) = self.parse_fn(function_id)? {
-                            module.functions.insert(function_id, function);
+                            module.functions.push(function_id);
+                            self.program.functions.insert(function_id, function);
                         } else {
                             return report_unexpected_token(self, "Expected function");
                         }

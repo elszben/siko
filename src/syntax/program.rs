@@ -1,10 +1,14 @@
 use crate::location_info::item::LocationId;
+use crate::syntax::data::Adt;
 use crate::syntax::data::AdtId;
+use crate::syntax::data::Record;
 use crate::syntax::data::RecordId;
 use crate::syntax::data::RecordItemId;
+use crate::syntax::data::Variant;
 use crate::syntax::data::VariantId;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
+use crate::syntax::function::Function;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::ImportId;
 use crate::syntax::module::Module;
@@ -17,6 +21,10 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone)]
 pub struct Program {
     pub modules: BTreeMap<ModuleId, Module>,
+    pub functions: BTreeMap<FunctionId, Function>,
+    pub records: BTreeMap<RecordId, Record>,
+    pub adts: BTreeMap<AdtId, Adt>,
+    pub variants: BTreeMap<VariantId, Variant>,
     pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
     pub type_signatures: BTreeMap<TypeSignatureId, (TypeSignature, LocationId)>,
     module_id: Counter,
@@ -34,6 +42,10 @@ impl Program {
     pub fn new() -> Program {
         Program {
             modules: BTreeMap::new(),
+            functions: BTreeMap::new(),
+            records: BTreeMap::new(),
+            adts: BTreeMap::new(),
+            variants: BTreeMap::new(),
             exprs: BTreeMap::new(),
             type_signatures: BTreeMap::new(),
             module_id: Counter::new(),
