@@ -1,4 +1,8 @@
 use crate::location_info::item::LocationId;
+use crate::syntax::data::Adt;
+use crate::syntax::data::AdtId;
+use crate::syntax::data::Record;
+use crate::syntax::data::RecordId;
 use crate::syntax::export::ExportList;
 use crate::syntax::function::Function;
 use crate::syntax::function::FunctionId;
@@ -20,6 +24,8 @@ pub struct Module {
     pub imports: BTreeMap<ImportId, Import>,
     pub location_id: LocationId,
     pub export_list: ExportList,
+    pub records: BTreeMap<RecordId, Record>,
+    pub adts: BTreeMap<AdtId, Adt>,
 }
 
 impl Module {
@@ -36,14 +42,8 @@ impl Module {
             imports: BTreeMap::new(),
             location_id: location_id,
             export_list: export_list,
+            records: BTreeMap::new(),
+            adts: BTreeMap::new(),
         }
-    }
-
-    pub fn add_function(&mut self, function_id: FunctionId, function: Function) {
-        self.functions.insert(function_id, function);
-    }
-
-    pub fn add_import(&mut self, import_id: ImportId, import: Import) {
-        self.imports.insert(import_id, import);
     }
 }

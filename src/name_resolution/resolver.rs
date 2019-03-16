@@ -17,10 +17,11 @@ use crate::location_info::item::LocationId;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
-use crate::name_resolution::import::ImportKind;
-use crate::name_resolution::import::ImportStore;
+use crate::name_resolution::item::Item;
+use crate::name_resolution::item::Type;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
+use crate::syntax::export::ExportList;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
@@ -45,23 +46,23 @@ enum PathResolveResult {
 }
 
 #[derive(Debug)]
-pub struct Resolver<'a> {
-    modules: BTreeMap<String, Module<'a>>,
+pub struct Resolver {
+    modules: BTreeMap<String, Module>,
     function_map: BTreeMap<AstFunctionId, IrFunctionId>,
 }
 
-impl<'a> Resolver<'a> {
-    pub fn new() -> Resolver<'a> {
+impl Resolver {
+    pub fn new() -> Resolver {
         Resolver {
             modules: BTreeMap::new(),
             function_map: BTreeMap::new(),
         }
     }
 
-    fn register_module<'b>(
+    fn register_module(
         &mut self,
-        ast_module: &'b AstModule,
-        modules: &mut BTreeMap<String, Vec<Module<'b>>>,
+        ast_module: &AstModule,
+        modules: &mut BTreeMap<String, Vec<Module>>,
         ir_program: &mut IrProgram,
     ) {
         let mut module = Module::new(
@@ -70,6 +71,7 @@ impl<'a> Resolver<'a> {
             ast_module.location_id,
         );
 
+        /*
         for function in ast_module.functions.values() {
             let functions = module
                 .exported_functions
@@ -85,6 +87,7 @@ impl<'a> Resolver<'a> {
             self.function_map
                 .insert(function.id.clone(), ir_program.get_function_id());
         }
+        */
 
         let mods = modules
             .entry(ast_module.name.get())
@@ -92,9 +95,9 @@ impl<'a> Resolver<'a> {
         mods.push(module);
     }
 
-    fn process_module_and_export_conflicts(
+    fn process_module_conflicts(
         &mut self,
-        modules: BTreeMap<String, Vec<Module<'a>>>,
+        modules: BTreeMap<String, Vec<Module>>,
     ) -> Result<(), Error> {
         let mut errors = Vec::new();
         let mut module_conflicts = BTreeMap::new();
@@ -113,7 +116,7 @@ impl<'a> Resolver<'a> {
 
         if errors.is_empty() {
             for (name, mods) in modules {
-                let modules: Vec<Module<'a>> = mods;
+                let modules: Vec<Module> = mods;
                 self.modules
                     .insert(name, modules.into_iter().next().expect("Empty module set"));
             }
@@ -123,6 +126,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /*
     fn collect_imported_symbols(
         &self,
         ast_import: &AstImport,
@@ -173,8 +177,9 @@ impl<'a> Resolver<'a> {
             AstImportKind::Hiding(_) => unimplemented!(),
         }
         */
-        (import_store, errors)
+    (import_store, errors)
     }
+     */
 
     fn process_type_signature(
         &self,
@@ -318,6 +323,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_named_function_id(&self, named_id: &(String, String)) -> IrFunctionId {
+        /*
         let m = self.modules.get(&named_id.0).expect("Module not found");
         let f = m
             .exported_functions
@@ -329,12 +335,14 @@ impl<'a> Resolver<'a> {
             .get(&ast_id)
             .expect("Ir function not found");
         ir_function_id.clone()
+        */
+        unreachable!()
     }
 
     fn resolve_item_path(
         &self,
         path: &ItemPath,
-        module: &Module<'a>,
+        module: &Module,
         environment: &Environment,
         lambda_helper: &mut LambdaHelper,
     ) -> PathResolveResult {
@@ -345,6 +353,7 @@ impl<'a> Resolver<'a> {
                 return PathResolveResult::VariableRef(named_ref);
             }
         }
+        /*
         let function_ids = module.imported_functions.get_function_id(&name);
         match function_ids.len() {
             0 => {
@@ -358,6 +367,8 @@ impl<'a> Resolver<'a> {
                 return PathResolveResult::Ambiguous;
             }
         }
+        */
+        unreachable!()
     }
 
     fn process_named_ref(
@@ -382,7 +393,7 @@ impl<'a> Resolver<'a> {
         &self,
         id: ExprId,
         program: &Program,
-        module: &Module<'a>,
+        module: &Module,
         environment: &mut Environment,
         ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
@@ -657,7 +668,46 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn resolve(&mut self, program: &'a Program) -> Result<IrProgram, Error> {
+    fn process_items(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
+        for (name, module) in &mut self.modules {
+            println!("Processing items for {}", name);
+            let ast_module = program.modules.get(&module.id).expect("Module not found");
+            for (record_id, record) in &ast_module.records {
+                let items = module
+                    .items
+                    .entry(record.name.clone())
+                    .or_insert_with(|| Vec::new());
+                items.push(Item::Record(*record_id));
+                let types = module
+                    .types
+                    .entry(record.name.clone())
+                    .or_insert_with(|| Vec::new());
+                types.push(Type::Record(*record_id));
+                println!("Added record {}", record.name);
+            }
+            for (adt_id, adt) in &ast_module.adts {
+                let types = module
+                    .types
+                    .entry(adt.name.clone())
+                    .or_insert_with(|| Vec::new());
+                types.push(Type::TypeConstructor(*adt_id));
+                println!("Added adt {}", adt.name);
+            }
+        }
+    }
+
+    fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
+        for (name, module) in &mut self.modules {
+            println!("Processing export for {}", name);
+            let ast_module = program.modules.get(&module.id).expect("Module not found");
+            match &ast_module.export_list {
+                ExportList::ImplicitAll => {}
+                ExportList::Explicit(items) => {}
+            }
+        }
+    }
+
+    pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
         let mut errors = Vec::new();
 
         let mut modules = BTreeMap::new();
@@ -668,61 +718,75 @@ impl<'a> Resolver<'a> {
             self.register_module(ast_module, &mut modules, &mut ir_program);
         }
 
-        self.process_module_and_export_conflicts(modules)?;
-        let mut imported_not_found_modules = Vec::new();
+        self.process_module_conflicts(modules)?;
 
-        for (_, ast_module) in &program.modules {
-            let mut imported_symbols = ImportStore::new();
+        self.process_items(program, &mut errors);
 
-            let mut explicit_prelude_import = false;
-
-            for (import_id, import) in &ast_module.imports {
-                let imported_module_path = import.module_path.get();
-                if imported_module_path == PRELUDE_NAME {
-                    explicit_prelude_import = true;
-                }
-                let source_module = match self.modules.get(&imported_module_path) {
-                    Some(module) => module,
-                    None => {
-                        imported_not_found_modules
-                            .push((imported_module_path, import.location_id.clone()));
-                        continue;
-                    }
-                };
-                let (imported_syms, errs) = self.collect_imported_symbols(import, source_module);
-                imported_symbols.extend(imported_syms);
-                errors.extend(errs);
-            }
-
-            if ast_module.name.get() != PRELUDE_NAME && !explicit_prelude_import {
-                let source_module = match self.modules.get(PRELUDE_NAME) {
-                    Some(module) => module,
-                    None => {
-                        panic!("Prelude not found");
-                    }
-                };
-                for func in source_module.exported_functions.keys() {
-                    imported_symbols.add_imported_function(
-                        func.clone(),
-                        source_module.name.clone(),
-                        PRELUDE_NAME.to_string(),
-                        ImportKind::NamespaceOnly,
-                    );
-                }
-            }
-
-            let module = self
-                .modules
-                .get_mut(&ast_module.name.get())
-                .expect("Module not found");
-            module.imported_functions.extend(imported_symbols);
+        if !errors.is_empty() {
+            return Err(Error::resolve_err(errors));
         }
 
-        if !imported_not_found_modules.is_empty() {
-            let e = ResolverError::ImportedModuleNotFound(imported_not_found_modules);
-            errors.push(e);
+        self.process_exports(program, &mut errors);
+
+        if !errors.is_empty() {
+            return Err(Error::resolve_err(errors));
         }
 
+        /*
+            let mut imported_not_found_modules = Vec::new();
+
+            for (_, ast_module) in &program.modules {
+                let mut imported_symbols = ImportStore::new();
+
+                let mut explicit_prelude_import = false;
+
+                for (import_id, import) in &ast_module.imports {
+                    let imported_module_path = import.module_path.get();
+                    if imported_module_path == PRELUDE_NAME {
+                        explicit_prelude_import = true;
+                    }
+                    let source_module = match self.modules.get(&imported_module_path) {
+                        Some(module) => module,
+                        None => {
+                            imported_not_found_modules
+                                .push((imported_module_path, import.location_id.clone()));
+                            continue;
+                        }
+                    };
+                    let (imported_syms, errs) = self.collect_imported_symbols(import, source_module);
+                    imported_symbols.extend(imported_syms);
+                    errors.extend(errs);
+                }
+
+                if ast_module.name.get() != PRELUDE_NAME && !explicit_prelude_import {
+                    let source_module = match self.modules.get(PRELUDE_NAME) {
+                        Some(module) => module,
+                        None => {
+                            panic!("Prelude not found");
+                        }
+                    };
+                    for func in source_module.exported_functions.keys() {
+                        imported_symbols.add_imported_function(
+                            func.clone(),
+                            source_module.name.clone(),
+                            PRELUDE_NAME.to_string(),
+                            ImportKind::NamespaceOnly,
+                        );
+                    }
+                }
+
+                let module = self
+                    .modules
+                    .get_mut(&ast_module.name.get())
+                    .expect("Module not found");
+                module.imported_functions.extend(imported_symbols);
+            }
+
+            if !imported_not_found_modules.is_empty() {
+                let e = ResolverError::ImportedModuleNotFound(imported_not_found_modules);
+                errors.push(e);
+            }
+        */
         for (_, module) in &program.modules {
             for (_, function) in &module.functions {
                 let resolver_module = self

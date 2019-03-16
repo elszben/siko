@@ -681,10 +681,18 @@ impl<'a> Parser<'a> {
                     TokenKind::KeywordImport => {
                         let import_id = self.program.get_import_id();
                         let import = self.parse_import(import_id)?;
-                        module.add_import(import_id, import);
+                        module.imports.insert(import_id, import);
                     }
                     TokenKind::KeywordData => {
-                        self.parse_data()?;
+                        let data = self.parse_data()?;
+                        match data {
+                            Data::Record(record) => {
+                                module.records.insert(record.id, record);
+                            }
+                            Data::Adt(adt) => {
+                                module.adts.insert(adt.id, adt);
+                            }
+                        }
                     }
                     TokenKind::EndOfBlock => {
                         break;
@@ -692,7 +700,7 @@ impl<'a> Parser<'a> {
                     _ => {
                         let function_id = self.program.get_function_id();
                         if let Some(function) = self.parse_fn(function_id)? {
-                            module.add_function(function_id, function);
+                            module.functions.insert(function_id, function);
                         } else {
                             return report_unexpected_token(self, "Expected function");
                         }

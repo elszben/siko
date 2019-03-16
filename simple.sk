@@ -1,7 +1,11 @@
-module alma.korte where
+module alma.korte (a,a(..)) where
 
 import Alma hiding (alm, a)
  
 import korte (szilva, kd(a,a))
+
+data Option a = Some a | None
+
+data Person = Person { name :: String, address :: Option String }
 
 main = 5
