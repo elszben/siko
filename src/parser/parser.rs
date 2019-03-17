@@ -562,7 +562,12 @@ impl<'a> Parser<'a> {
         Ok(item)
     }
 
-    fn parse_record(&mut self, name: String, start_index: usize) -> Result<Record, Error> {
+    fn parse_record(
+        &mut self,
+        name: String,
+        data_name: String,
+        start_index: usize,
+    ) -> Result<Record, Error> {
         let mut items = Vec::new();
         loop {
             let record_item = self.parse_record_item()?;
@@ -578,6 +583,7 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let record = Record {
+            data_name: data_name,
             name: name,
             id: self.program.get_record_id(),
             items: items,
@@ -586,12 +592,16 @@ impl<'a> Parser<'a> {
         Ok(record)
     }
 
-    fn parse_variant(&mut self, start_index: usize) -> Result<RecordOrVariant, Error> {
+    fn parse_variant(
+        &mut self,
+        start_index: usize,
+        data_name: String,
+    ) -> Result<RecordOrVariant, Error> {
         let variant_start_index = self.get_index();
         let name = self.identifier("Expected identifier as variant")?;
         if self.current(TokenKind::LCurly) {
             self.expect(TokenKind::LCurly)?;
-            let record = self.parse_record(name, start_index)?;
+            let record = self.parse_record(name, data_name, start_index)?;
             Ok(RecordOrVariant::Record(record))
         } else {
             let mut items = Vec::new();
@@ -626,14 +636,13 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::KeywordData)?;
         let name = self.identifier("Expected identifier as data name")?;
         let args = self.parse_seq0(TokenKind::Identifier)?;
-        let mut end_index = self.get_index();
         let args: Vec<_> = to_string_list(args);
         self.expect(TokenKind::Equal)?;
         let mut variants = Vec::new();
         loop {
             let variant_token = self.peek().expect("Variant location error");
             let variant_location = variant_token.location;
-            let record_or_variant = self.parse_variant(start_index)?;
+            let record_or_variant = self.parse_variant(start_index, name.clone())?;
             match record_or_variant {
                 RecordOrVariant::Record(record) => {
                     if !variants.is_empty() {

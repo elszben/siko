@@ -35,6 +35,7 @@ pub struct VariantId {
 
 #[derive(Debug, Clone)]
 pub struct Record {
+    pub data_name: String,
     pub name: String,
     pub id: RecordId,
     pub items: Vec<RecordItem>,
