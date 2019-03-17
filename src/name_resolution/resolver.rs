@@ -819,6 +819,7 @@ impl Resolver {
     fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
         for (module_name, module) in &mut self.modules {
             let mut exported_items = BTreeMap::new();
+            let mut exported_types = BTreeMap::new();
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             match &ast_module.export_list {
                 ExportList::ImplicitAll => {
@@ -878,6 +879,22 @@ impl Resolver {
                                 match module.types.get(entity_name) {
                                     Some(items) => {
                                         found = true;
+                                        assert_eq!(items.len(), 1);
+                                        let item = &items[0];
+                                        match item {
+                                            Type::Record(record_id) => {
+                                                exported_types.insert(
+                                                    entity_name.clone(),
+                                                    ExportedType::Record(*record_id),
+                                                );
+                                            }
+                                            Type::TypeConstructor(adt_id) => {
+                                                exported_types.insert(
+                                                    entity_name.clone(),
+                                                    ExportedType::TypeConstructor(*adt_id),
+                                                );
+                                            }
+                                        }
                                     }
                                     None => {}
                                 }
@@ -896,12 +913,16 @@ impl Resolver {
                 }
             }
             println!(
-                "Module {} has {} exports",
+                "Module {} has {} exported items, {} exported types",
                 module_name,
-                exported_items.len()
+                exported_items.len(),
+                exported_types.len()
             );
             for (name, export) in &exported_items {
-                println!("{} => {:?}", name, export);
+                println!("Item {} => {:?}", name, export);
+            }
+            for (name, export) in &exported_types {
+                println!("Type {} => {:?}", name, export);
             }
         }
     }
