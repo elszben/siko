@@ -1,4 +1,4 @@
-module alma.korte (a,a(..)) where
+module alma.korte where
 
 import Alma hiding (alm, a)
  

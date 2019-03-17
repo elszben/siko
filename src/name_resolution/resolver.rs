@@ -18,6 +18,8 @@ use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::InternalModuleConflict;
 use crate::name_resolution::error::ResolverError;
+use crate::name_resolution::export::ExportedItem;
+use crate::name_resolution::export::ExportedType;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::item::Type;
 use crate::name_resolution::lambda_helper::LambdaHelper;
@@ -815,10 +817,36 @@ impl Resolver {
 
     fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
         for (name, module) in &mut self.modules {
-            println!("Processing export for {}", name);
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             match &ast_module.export_list {
-                ExportList::ImplicitAll => {}
+                ExportList::ImplicitAll => {
+                    let mut exported_items = BTreeMap::new();
+                    for (name, items) in &module.items {
+                        assert_eq!(items.len(), 1);
+                        let item = &items[0];
+                        match item {
+                            Item::Function(function_id) => {
+                                println!("exporting function {}", name);
+                                exported_items.insert(
+                                    name.clone(),
+                                    vec![ExportedItem::Function(*function_id)],
+                                );
+                            }
+                            Item::Record(record_id) => {
+                                println!("exporting record {}", name);
+                                exported_items
+                                    .insert(name.clone(), vec![ExportedItem::Record(*record_id)]);
+                            }
+                            Item::DataConstructor(data_ctor_id) => {
+                                println!("exporting data ctor {}", name);
+                                exported_items.insert(
+                                    name.clone(),
+                                    vec![ExportedItem::DataConstructor(*data_ctor_id)],
+                                );
+                            }
+                        }
+                    }
+                }
                 ExportList::Explicit(items) => {}
             }
         }
