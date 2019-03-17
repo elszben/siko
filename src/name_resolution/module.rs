@@ -13,8 +13,8 @@ use std::collections::BTreeMap;
 pub struct Module {
     pub id: ModuleId,
     pub name: ItemPath,
-    pub exported_items: BTreeMap<String, Vec<ExportedItem>>,
-    pub exported_types: BTreeMap<String, Vec<ExportedType>>,
+    pub exported_items: BTreeMap<String, ExportedItem>,
+    pub exported_types: BTreeMap<String, ExportedType>,
     pub imported_items: BTreeMap<String, Vec<ImportItemInfo>>,
     pub imported_types: BTreeMap<String, Vec<ImportTypeInfo>>,
     pub items: BTreeMap<String, Vec<Item>>,

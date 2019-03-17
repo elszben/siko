@@ -496,7 +496,7 @@ impl<'a> Parser<'a> {
             };
             Ok(ExportedItem::TypeConstructor(type_ctor))
         } else {
-            Ok(ExportedItem::NamedItem(name))
+            Ok(ExportedItem::Named(name))
         }
     }
 

@@ -3,7 +3,7 @@ use crate::syntax::item_path::ItemPath;
 
 #[derive(Debug, Clone)]
 pub enum ExportedItem {
-    NamedItem(String),
+    Named(String),
     TypeConstructor(ExportedTypeConstructor),
 }
 

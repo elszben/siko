@@ -276,6 +276,16 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ExportedEntityDoesNotExist(module_name, entity_name, id) => {
+                            println!(
+                                "{} exported entity {} does not exist in module {}",
+                                error.red(),
+                                entity_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

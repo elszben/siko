@@ -25,4 +25,5 @@ pub enum ResolverError {
     RecordTypeNameMismatch(String, String, LocationId),
     RecordItemNotUnique(String, String, LocationId),
     VariantNotUnique(String, String, LocationId),
+    ExportedEntityDoesNotExist(String, String, LocationId),
 }
