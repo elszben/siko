@@ -669,9 +669,8 @@ impl Resolver {
         }
     }
 
-    fn process_items(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
+    fn process_items_and_types(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
         for (name, module) in &mut self.modules {
-            println!("Processing items for {}", name);
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id).expect("Record not found");
@@ -685,7 +684,6 @@ impl Resolver {
                     .entry(record.name.clone())
                     .or_insert_with(|| Vec::new());
                 types.push(Type::Record(*record_id));
-                println!("Added record {}", record.name);
             }
             for adt_id in &ast_module.adts {
                 let adt = program.adts.get(adt_id).expect("Adt not found");
@@ -694,7 +692,6 @@ impl Resolver {
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
                 types.push(Type::TypeConstructor(*adt_id));
-                println!("Added adt {}", adt.name);
                 for variant_id in &adt.variants {
                     let variant = program.variants.get(variant_id).expect("Variant not found");
                     let items = module
@@ -702,7 +699,6 @@ impl Resolver {
                         .entry(variant.name.clone())
                         .or_insert_with(|| Vec::new());
                     items.push(Item::DataConstructor(variant.id));
-                    println!("Added data ctor {}", variant.name);
                 }
             }
             for function_id in &ast_module.functions {
@@ -715,14 +711,13 @@ impl Resolver {
                     .entry(function.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Function(function.id));
-                println!("Added function {}", function.name);
             }
         }
 
-        let mut module_item_conflicts = BTreeMap::new();
+        let mut all_module_conflicts = BTreeMap::new();
 
         for (_, module) in &self.modules {
-            let mut item_conflicts = Vec::new();
+            let mut module_conflicts = Vec::new();
             for (name, items) in &module.items {
                 if items.len() > 1 {
                     let mut locations = Vec::new();
@@ -743,19 +738,40 @@ impl Resolver {
                             }
                         }
                     }
-                    item_conflicts.push(InternalModuleConflict::ItemConflict(
+                    module_conflicts.push(InternalModuleConflict::ItemConflict(
                         name.clone(),
                         locations,
                     ));
                 }
             }
-            if !item_conflicts.is_empty() {
-                module_item_conflicts.insert(module.name.get(), item_conflicts);
+            for (name, types) in &module.types {
+                if types.len() > 1 {
+                    let mut locations = Vec::new();
+                    for ty in types {
+                        match ty {
+                            Type::TypeConstructor(id) => {
+                                let adt = program.adts.get(id).expect("Adt not found");
+                                locations.push(adt.location_id);
+                            }
+                            Type::Record(id) => {
+                                let record = program.records.get(id).expect("Record not found");
+                                locations.push(record.location_id);
+                            }
+                        }
+                    }
+                    module_conflicts.push(InternalModuleConflict::TypeConflict(
+                        name.clone(),
+                        locations,
+                    ));
+                }
+            }
+            if !module_conflicts.is_empty() {
+                all_module_conflicts.insert(module.name.get(), module_conflicts);
             }
         }
 
-        if !module_item_conflicts.is_empty() {
-            let err = ResolverError::InternalModuleConflicts(module_item_conflicts);
+        if !all_module_conflicts.is_empty() {
+            let err = ResolverError::InternalModuleConflicts(all_module_conflicts);
             errors.push(err);
         }
     }
@@ -784,7 +800,7 @@ impl Resolver {
 
         self.process_module_conflicts(modules)?;
 
-        self.process_items(program, &mut errors);
+        self.process_items_and_types(program, &mut errors);
 
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));

@@ -8,9 +8,11 @@ data Option a = Some a | None a
 
 data Person = Person { name :: String, address :: Option String }
 
-data Option = None { name :: String, address :: Option String }
+data Option = Option { name :: String, address :: Option String }
 
 
-main = 6
+
+
+main a s  = 6
 
 main = 5
