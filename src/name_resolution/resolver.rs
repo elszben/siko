@@ -16,6 +16,7 @@ use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
+use crate::name_resolution::error::InternalModuleConflict;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::item::Type;
@@ -717,21 +718,46 @@ impl Resolver {
                 println!("Added function {}", function.name);
             }
         }
-        /*
+
+        let mut module_item_conflicts = BTreeMap::new();
+
         for (_, module) in &self.modules {
-            let mut item_conflicts = BTreeMap::new();
+            let mut item_conflicts = Vec::new();
             for (name, items) in &module.items {
                 if items.len() > 1 {
-                    let locations = item_conflicts
-                        .entry(name.clone())
-                        .or_insert_with(|| BTreeSet::new());
-                    /*for item in items {
-                        program.
-                    }*/
+                    let mut locations = Vec::new();
+                    for item in items {
+                        match item {
+                            Item::DataConstructor(id) => {
+                                let variant = program.variants.get(id).expect("Variant not found");
+                                locations.push(variant.location_id);
+                            }
+                            Item::Function(id) => {
+                                let function =
+                                    program.functions.get(id).expect("Function not found");
+                                locations.push(function.location_id);
+                            }
+                            Item::Record(id) => {
+                                let record = program.records.get(id).expect("Record not found");
+                                locations.push(record.location_id);
+                            }
+                        }
+                    }
+                    item_conflicts.push(InternalModuleConflict::ItemConflict(
+                        name.clone(),
+                        locations,
+                    ));
+                }
+            }
+            if !item_conflicts.is_empty() {
+                module_item_conflicts.insert(module.name.get(), item_conflicts);
+            }
         }
+
+        if !module_item_conflicts.is_empty() {
+            let err = ResolverError::InternalModuleConflicts(module_item_conflicts);
+            errors.push(err);
         }
-        }
-         */
     }
 
     fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {

@@ -4,8 +4,8 @@ use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub enum InternalModuleConflict {
-    TypeConflict(String, BTreeSet<LocationId>),
-    ItemConflict(String, BTreeSet<LocationId>)
+    TypeConflict(String, Vec<LocationId>),
+    ItemConflict(String, Vec<LocationId>)
 }
 
 #[derive(Debug)]

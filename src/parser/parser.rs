@@ -7,6 +7,7 @@ use crate::constants::BuiltinOperator;
 use crate::error::Error;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::item::Item;
+use crate::location_info::item::LocationId;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_set::LocationSet;
 use crate::syntax::data::Adt;
@@ -79,12 +80,14 @@ impl<'a> Parser<'a> {
         self.index
     }
 
-    pub fn get_location_set(&self, start: usize, end: usize) -> LocationSet {
+    pub fn get_location_id(&mut self, start: usize, end: usize) -> LocationId {
         let mut set = LocationSet::new(self.file_path.clone());
         for token in &self.tokens[start..end] {
             set.add(token.location.clone());
         }
-        set
+        let li_item = Item::new(set);
+        let location_id = self.location_info.add_item(li_item);
+        location_id
     }
 
     pub fn is_done(&self) -> bool {
@@ -270,10 +273,8 @@ impl<'a> Parser<'a> {
 
     pub fn add_expr(&mut self, expr: Expr, start_index: usize) -> ExprId {
         let end_index = self.get_index();
-        let location_set = self.get_location_set(start_index, end_index);
-        let li_item = Item::new(location_set);
+        let location_id = self.get_location_id(start_index, end_index);
         let id = self.program.get_expr_id();
-        let location_id = self.location_info.add_item(li_item);
         self.program.add_expr(id, expr, location_id);
         id
     }
@@ -284,9 +285,7 @@ impl<'a> Parser<'a> {
         start_index: usize,
     ) -> TypeSignatureId {
         let end_index = self.get_index();
-        let location_set = self.get_location_set(start_index, end_index);
-        let li_item = Item::new(location_set);
-        let location_id = self.location_info.add_item(li_item);
+        let location_id = self.get_location_id(start_index, end_index);
         let id = self.program.get_type_signature_id();
         self.program
             .add_type_signature(id, type_signature, location_id);
@@ -388,7 +387,6 @@ impl<'a> Parser<'a> {
         let name = self.identifier("Expected identifier as function name")?;
         let mut name = name;
         let args = self.parse_seq0(TokenKind::Identifier)?;
-        let mut end_index = self.get_index();
         let mut args: Vec<_> = to_string_list(args);
         let mut function_type = None;
         if let Some(next) = self.peek() {
@@ -396,9 +394,8 @@ impl<'a> Parser<'a> {
                 self.advance()?;
                 let type_signature_id = self.parse_function_type()?;
                 let full_type_signature_id = self.program.get_type_signature_id();
-                let location = self.get_location_set(start_index, self.get_index());
-                let li_item = Item::new(location);
-                let location_id = self.location_info.add_item(li_item);
+                let end_index = self.get_index();
+                let location_id = self.get_location_id(start_index, end_index);
                 function_type = Some(FunctionType {
                     name: name,
                     type_args: args,
@@ -410,13 +407,11 @@ impl<'a> Parser<'a> {
                 start_index = self.get_index();
                 name = self.identifier("Expected identifier as function name")?;
                 let func_args = self.parse_seq0(TokenKind::Identifier)?;
-                end_index = self.get_index();
                 args = to_string_list(func_args);
             }
         }
-        let location_set = self.get_location_set(start_index, end_index);
-        let li_item = Item::new(location_set);
-        let location_id = self.location_info.add_item(li_item);
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
         let equal = self.expect(TokenKind::Equal)?;
         let body = if let Some(token) = self.peek() {
             if token.token.kind() == TokenKind::KeywordExtern {
@@ -540,9 +535,7 @@ impl<'a> Parser<'a> {
             }
         };
         let end_index = self.get_index();
-        let location_set = self.get_location_set(start_index, end_index);
-        let li_item = Item::new(location_set);
-        let location_id = self.location_info.add_item(li_item);
+        let location_id = self.get_location_id(start_index, end_index);
         self.expect(TokenKind::EndOfItem)?;
         let import = Import {
             id: id.clone(),
@@ -554,18 +547,22 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_record_item(&mut self) -> Result<RecordItem, Error> {
+        let start_index = self.get_index();
         let name = self.identifier("Expected identifier as record item name")?;
         self.expect(TokenKind::KeywordDoubleColon)?;
         let type_signature_id = self.parse_function_type()?;
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
         let item = RecordItem {
             name: name,
             id: self.program.get_record_item_id(),
             type_signature_id: type_signature_id,
+            location_id: location_id,
         };
         Ok(item)
     }
 
-    fn parse_record(&mut self, name: String) -> Result<Record, Error> {
+    fn parse_record(&mut self, name: String, start_index: usize) -> Result<Record, Error> {
         let mut items = Vec::new();
         loop {
             let record_item = self.parse_record_item()?;
@@ -578,19 +575,23 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
         let record = Record {
             name: name,
             id: self.program.get_record_id(),
             items: items,
+            location_id: location_id,
         };
         Ok(record)
     }
 
-    fn parse_variant(&mut self) -> Result<RecordOrVariant, Error> {
+    fn parse_variant(&mut self, start_index: usize) -> Result<RecordOrVariant, Error> {
+        let variant_start_index = self.get_index();
         let name = self.identifier("Expected identifier as variant")?;
         if self.current(TokenKind::LCurly) {
             self.expect(TokenKind::LCurly)?;
-            let record = self.parse_record(name)?;
+            let record = self.parse_record(name, start_index)?;
             Ok(RecordOrVariant::Record(record))
         } else {
             let mut items = Vec::new();
@@ -605,11 +606,14 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
+            let end_index = self.get_index();
+            let location_id = self.get_location_id(variant_start_index, end_index);
             let id = self.program.get_variant_id();
             let variant = Variant {
                 id: id,
                 name: name,
                 items: items,
+                location_id: location_id,
             };
 
             self.program.variants.insert(id, variant);
@@ -618,7 +622,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_data(&mut self) -> Result<Data, Error> {
-        let mut start_index = self.get_index();
+        let start_index = self.get_index();
         self.expect(TokenKind::KeywordData)?;
         let name = self.identifier("Expected identifier as data name")?;
         let args = self.parse_seq0(TokenKind::Identifier)?;
@@ -629,7 +633,7 @@ impl<'a> Parser<'a> {
         loop {
             let variant_token = self.peek().expect("Variant location error");
             let variant_location = variant_token.location;
-            let record_or_variant = self.parse_variant()?;
+            let record_or_variant = self.parse_variant(start_index)?;
             match record_or_variant {
                 RecordOrVariant::Record(record) => {
                     if !variants.is_empty() {
@@ -652,12 +656,15 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
         self.expect(TokenKind::EndOfItem)?;
         let adt = Adt {
             name: name,
             id: self.program.get_adt_id(),
             type_args: args,
             variants: variants,
+            location_id: location_id,
         };
         Ok(Data::Adt(adt))
     }
@@ -667,9 +674,7 @@ impl<'a> Parser<'a> {
         let start_index = self.get_index();
         let name = self.parse_item_path()?;
         let end_index = self.get_index();
-        let location_set = self.get_location_set(start_index, end_index);
-        let li_item = Item::new(location_set);
-        let location_id = self.location_info.add_item(li_item);
+        let location_id = self.get_location_id(start_index, end_index);
         let export_list = if self.current(TokenKind::LParen) {
             let exported_items = self.parse_list0_in_parens(Parser::parse_exported_item)?;
             ExportList::Explicit(exported_items)
