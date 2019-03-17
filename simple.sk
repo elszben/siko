@@ -8,12 +8,5 @@ data Option a = Some a | None a korte.szilva
 
 data Person = Person { name :: Alma.String, address :: Option String }
 
-data Option = Option { name :: String, address :: Option String }
-
-
-
-
-main a s  = 6
-
 main :: korte.szilva
 main = 5

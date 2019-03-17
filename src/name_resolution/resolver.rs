@@ -774,6 +774,43 @@ impl Resolver {
             let err = ResolverError::InternalModuleConflicts(all_module_conflicts);
             errors.push(err);
         }
+
+        for (_, record) in &program.records {
+            if record.name != record.data_name {
+                let err = ResolverError::RecordTypeNameMismatch(
+                    record.name.clone(),
+                    record.data_name.clone(),
+                    record.location_id,
+                );
+                errors.push(err);
+            }
+            let mut item_names = BTreeSet::new();
+            for item in &record.items {
+                if !item_names.insert(item.name.clone()) {
+                    let err = ResolverError::RecordItemNotUnique(
+                        record.name.clone(),
+                        item.name.clone(),
+                        record.location_id,
+                    );
+                    errors.push(err);
+                }
+            }
+        }
+
+        for (_, adt) in &program.adts {
+            let mut variant_names = BTreeSet::new();
+            for variant_id in &adt.variants {
+                let variant = program.variants.get(variant_id).expect("Variant not found");
+                if !variant_names.insert(variant.name.clone()) {
+                    let err = ResolverError::VariantNotUnique(
+                        adt.name.clone(),
+                        variant.name.clone(),
+                        adt.location_id,
+                    );
+                    errors.push(err);
+                }
+            }
+        }
     }
 
     fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {

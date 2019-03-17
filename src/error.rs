@@ -242,12 +242,40 @@ impl Error {
                                                 print_location_set(file_manager, location_set);
                                             }
                                         }
-                                        _ => unimplemented!(),
                                     }
                                 }
                             }
                         }
-                        _ => unimplemented!(),
+                        ResolverError::RecordTypeNameMismatch(record_name, type_name, id) => {
+                            println!(
+                                "{} type name {} does not match record name {}",
+                                error.red(),
+                                type_name.yellow(),
+                                record_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::RecordItemNotUnique(record_name, item_name, id) => {
+                            println!(
+                                "{} item name {} is not unique in record {}",
+                                error.red(),
+                                item_name.yellow(),
+                                record_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::VariantNotUnique(adt_name, variant_name, id) => {
+                            println!(
+                                "{} variant name {} is not unique in type {}",
+                                error.red(),
+                                variant_name.yellow(),
+                                adt_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

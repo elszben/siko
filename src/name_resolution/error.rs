@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 #[derive(Debug)]
 pub enum InternalModuleConflict {
     TypeConflict(String, Vec<LocationId>),
-    ItemConflict(String, Vec<LocationId>)
+    ItemConflict(String, Vec<LocationId>),
 }
 
 #[derive(Debug)]
@@ -22,4 +22,7 @@ pub enum ResolverError {
     AmbiguousName(String, LocationId),
     FunctionTypeNameMismatch(String, String, LocationId),
     UnusedTypeArgument(Vec<String>, LocationId),
+    RecordTypeNameMismatch(String, String, LocationId),
+    RecordItemNotUnique(String, String, LocationId),
+    VariantNotUnique(String, String, LocationId),
 }
