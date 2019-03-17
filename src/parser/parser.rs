@@ -350,14 +350,13 @@ impl<'a> Parser<'a> {
                     return Ok(id);
                 }
                 Token::Identifier(i) => {
-                    self.advance()?;
+                    let name = self.parse_item_path()?;
                     let mut args = Vec::new();
                     loop {
                         match self.current_kind() {
                             TokenKind::Identifier => {
                                 let arg_start_index = self.get_index();
-                                let arg =
-                                    self.identifier("Expected identifier as type argument")?;
+                                let arg = self.parse_item_path()?;
                                 let arg = self.add_type_signature(
                                     TypeSignature::TypeArgument(arg),
                                     arg_start_index,
@@ -369,7 +368,7 @@ impl<'a> Parser<'a> {
                             }
                         }
                     }
-                    let id = self.add_type_signature(TypeSignature::Named(i, args), start_index);
+                    let id = self.add_type_signature(TypeSignature::Named(name, args), start_index);
                     return Ok(id);
                 }
                 _ => {

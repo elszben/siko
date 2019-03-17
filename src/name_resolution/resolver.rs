@@ -195,16 +195,16 @@ impl Resolver {
         let location_id = program.get_type_signature_location(type_signature_id);
         let ir_type_signature = match type_signature {
             AstTypeSignature::Nothing => IrTypeSignature::Nothing,
-            AstTypeSignature::Named(n, _) => match n.as_ref() {
+            AstTypeSignature::Named(n, _) => match n.get().as_ref() {
                 "Int" => IrTypeSignature::Int,
                 "Bool" => IrTypeSignature::Bool,
                 "String" => IrTypeSignature::String,
                 _ => {
-                    if let Some(index) = type_args.get(n) {
-                        used_type_args.insert(n.clone());
+                    if let Some(index) = type_args.get(&n.get()) {
+                        used_type_args.insert(n.get().clone());
                         IrTypeSignature::TypeArgument(*index)
                     } else {
-                        let error = ResolverError::UnknownTypeName(n.clone(), location_id);
+                        let error = ResolverError::UnknownTypeName(n.get().clone(), location_id);
                         errors.push(error);
                         return None;
                     }
