@@ -25,6 +25,7 @@ use crate::name_resolution::item::Type;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::syntax::export::ExportList;
+use crate::syntax::export::ExportedDataConstructor;
 use crate::syntax::export::ExportedItem as AstExportedItem;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
@@ -787,12 +788,12 @@ impl Resolver {
                 );
                 errors.push(err);
             }
-            let mut item_names = BTreeSet::new();
-            for item in &record.items {
-                if !item_names.insert(item.name.clone()) {
-                    let err = ResolverError::RecordItemNotUnique(
+            let mut field_names = BTreeSet::new();
+            for field in &record.fields {
+                if !field_names.insert(field.name.clone()) {
+                    let err = ResolverError::RecordFieldNotUnique(
                         record.name.clone(),
-                        item.name.clone(),
+                        field.name.clone(),
                         record.location_id,
                     );
                     errors.push(err);
@@ -907,7 +908,52 @@ impl Resolver {
                                     errors.push(err);
                                 }
                             }
-                            AstExportedItem::TypeConstructor(type_ctor) => {}
+                            AstExportedItem::TypeConstructor(type_ctor) => {
+                                match module.types.get(&type_ctor.name) {
+                                    Some(types) => {
+                                        assert_eq!(types.len(), 1);
+                                        let ty = &types[0];
+                                        match ty {
+                                            Type::Record(record_id) => {
+                                                let record = program
+                                                    .records
+                                                    .get(record_id)
+                                                    .expect("Record not found");
+                                                for data_ctor in &type_ctor.data_constructors {
+                                                    match data_ctor {
+                                                        ExportedDataConstructor::All => {}
+                                                        ExportedDataConstructor::Specific(
+                                                            field_name,
+                                                        ) => {
+                                                            let mut found = false;
+                                                            for field in &record.fields {
+                                                                if &field.name == field_name {
+                                                                    found = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if !found {
+                                                                let err = ResolverError::ExportedRecordFieldDoesNotExist(record.name.clone(), field_name.clone(), module.location_id);
+                                                                errors.push(err);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            Type::TypeConstructor(adt_id) => {}
+                                        }
+                                    }
+                                    None => {
+                                        let err =
+                                            ResolverError::IncorrectNameInExportedTypeConstructor(
+                                                module_name.clone(),
+                                                type_ctor.name.clone(),
+                                                module.location_id,
+                                            );
+                                        errors.push(err);
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -23,7 +23,9 @@ pub enum ResolverError {
     FunctionTypeNameMismatch(String, String, LocationId),
     UnusedTypeArgument(Vec<String>, LocationId),
     RecordTypeNameMismatch(String, String, LocationId),
-    RecordItemNotUnique(String, String, LocationId),
+    RecordFieldNotUnique(String, String, LocationId),
     VariantNotUnique(String, String, LocationId),
     ExportedEntityDoesNotExist(String, String, LocationId),
+    IncorrectNameInExportedTypeConstructor(String, String, LocationId),
+    ExportedRecordFieldDoesNotExist(String, String, LocationId),
 }

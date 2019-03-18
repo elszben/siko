@@ -38,7 +38,7 @@ pub struct Record {
     pub data_name: String,
     pub name: String,
     pub id: RecordId,
-    pub items: Vec<RecordItem>,
+    pub fields: Vec<RecordField>,
     pub location_id: LocationId,
 }
 
@@ -48,14 +48,14 @@ pub struct RecordId {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub struct RecordItemId {
+pub struct RecordFieldId {
     pub id: usize,
 }
 
 #[derive(Debug, Clone)]
-pub struct RecordItem {
+pub struct RecordField {
     pub name: String,
-    pub id: RecordItemId,
+    pub id: RecordFieldId,
     pub type_signature_id: TypeSignatureId,
     pub location_id: LocationId,
 }

@@ -13,7 +13,7 @@ use crate::location_info::location_set::LocationSet;
 use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
 use crate::syntax::data::Record;
-use crate::syntax::data::RecordItem;
+use crate::syntax::data::RecordField;
 use crate::syntax::data::RecordOrVariant;
 use crate::syntax::data::Variant;
 use crate::syntax::export::ExportList;
@@ -545,16 +545,16 @@ impl<'a> Parser<'a> {
         Ok(import)
     }
 
-    fn parse_record_item(&mut self) -> Result<RecordItem, Error> {
+    fn parse_record_field(&mut self) -> Result<RecordField, Error> {
         let start_index = self.get_index();
         let name = self.identifier("Expected identifier as record item name")?;
         self.expect(TokenKind::KeywordDoubleColon)?;
         let type_signature_id = self.parse_function_type()?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
-        let item = RecordItem {
+        let item = RecordField {
             name: name,
-            id: self.program.get_record_item_id(),
+            id: self.program.get_record_field_id(),
             type_signature_id: type_signature_id,
             location_id: location_id,
         };
@@ -567,10 +567,10 @@ impl<'a> Parser<'a> {
         data_name: String,
         start_index: usize,
     ) -> Result<Record, Error> {
-        let mut items = Vec::new();
+        let mut fields = Vec::new();
         loop {
-            let record_item = self.parse_record_item()?;
-            items.push(record_item);
+            let record_field = self.parse_record_field()?;
+            fields.push(record_field);
             if self.current(TokenKind::Comma) {
                 self.expect(TokenKind::Comma)?;
             }
@@ -585,7 +585,7 @@ impl<'a> Parser<'a> {
             data_name: data_name,
             name: name,
             id: self.program.get_record_id(),
-            items: items,
+            fields: fields,
             location_id: location_id,
         };
         Ok(record)

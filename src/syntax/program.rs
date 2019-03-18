@@ -2,8 +2,8 @@ use crate::location_info::item::LocationId;
 use crate::syntax::data::Adt;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::Record;
+use crate::syntax::data::RecordFieldId;
 use crate::syntax::data::RecordId;
-use crate::syntax::data::RecordItemId;
 use crate::syntax::data::Variant;
 use crate::syntax::data::VariantId;
 use crate::syntax::expr::Expr;
@@ -35,7 +35,7 @@ pub struct Program {
     adt_id: Counter,
     variant_id: Counter,
     record_id: Counter,
-    record_item_id: Counter,
+    record_field_id: Counter,
 }
 
 impl Program {
@@ -56,7 +56,7 @@ impl Program {
             adt_id: Counter::new(),
             variant_id: Counter::new(),
             record_id: Counter::new(),
-            record_item_id: Counter::new(),
+            record_field_id: Counter::new(),
         }
     }
 
@@ -102,9 +102,9 @@ impl Program {
         }
     }
 
-    pub fn get_record_item_id(&mut self) -> RecordItemId {
-        RecordItemId {
-            id: self.record_item_id.next(),
+    pub fn get_record_field_id(&mut self) -> RecordFieldId {
+        RecordFieldId {
+            id: self.record_field_id.next(),
         }
     }
 

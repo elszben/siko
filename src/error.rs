@@ -256,7 +256,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::RecordItemNotUnique(record_name, item_name, id) => {
+                        ResolverError::RecordFieldNotUnique(record_name, item_name, id) => {
                             println!(
                                 "{} item name {} is not unique in record {}",
                                 error.red(),
@@ -282,6 +282,34 @@ impl Error {
                                 error.red(),
                                 entity_name.yellow(),
                                 module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::IncorrectNameInExportedTypeConstructor(
+                            module_name,
+                            type_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} exported type {} does not exist in module {}",
+                                error.red(),
+                                type_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ExportedRecordFieldDoesNotExist(
+                            record_name,
+                            field_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} exported record field name {} does not exist in record {}",
+                                error.red(),
+                                field_name.yellow(),
+                                record_name.yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
