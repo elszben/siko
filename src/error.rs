@@ -314,6 +314,20 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ExportedAdtVariantDoesNotExist(
+                            adt_name,
+                            variant_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} exported type variant name {} does not exist in type {}",
+                                error.red(),
+                                variant_name.yellow(),
+                                adt_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

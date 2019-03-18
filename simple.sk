@@ -1,4 +1,4 @@
-module alma.korte (main, Person, Person(.., Alma)) where
+module alma.korte (main, Person, Person(.., name), Option(None)) where
 
 import Alma hiding (alm, a)
  

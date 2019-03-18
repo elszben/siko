@@ -1,6 +1,8 @@
 use crate::location_info::item::LocationId;
+use crate::name_resolution::export::ExportedField;
 use crate::name_resolution::export::ExportedItem;
 use crate::name_resolution::export::ExportedType;
+use crate::name_resolution::export::ExportedVariant;
 use crate::name_resolution::import::ImportItemInfo;
 use crate::name_resolution::import::ImportTypeInfo;
 use crate::name_resolution::item::Item;
@@ -15,6 +17,8 @@ pub struct Module {
     pub name: ItemPath,
     pub exported_items: BTreeMap<String, ExportedItem>,
     pub exported_types: BTreeMap<String, ExportedType>,
+    pub exported_fields: BTreeMap<String, Vec<ExportedField>>,
+    pub exported_variants: BTreeMap<String, Vec<ExportedVariant>>,
     pub imported_items: BTreeMap<String, Vec<ImportItemInfo>>,
     pub imported_types: BTreeMap<String, Vec<ImportTypeInfo>>,
     pub items: BTreeMap<String, Vec<Item>>,
@@ -29,6 +33,8 @@ impl Module {
             name: name,
             exported_items: BTreeMap::new(),
             exported_types: BTreeMap::new(),
+            exported_fields: BTreeMap::new(),
+            exported_variants: BTreeMap::new(),
             imported_items: BTreeMap::new(),
             imported_types: BTreeMap::new(),
             items: BTreeMap::new(),

@@ -8,7 +8,6 @@ use crate::syntax::function::FunctionId;
 pub enum ExportedItem {
     Function(FunctionId),
     Record(RecordId),
-    DataConstructor(VariantId),
     RecordField(RecordFieldId),
 }
 
@@ -16,4 +15,16 @@ pub enum ExportedItem {
 pub enum ExportedType {
     Record(RecordId),
     TypeConstructor(AdtId),
+}
+
+#[derive(Debug)]
+pub struct ExportedField {
+    pub field_id: RecordFieldId,
+    pub record_id: RecordId,
+}
+
+#[derive(Debug)]
+pub struct ExportedVariant {
+    pub variant_id: VariantId,
+    pub adt_id: AdtId,
 }

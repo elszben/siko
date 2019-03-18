@@ -18,12 +18,16 @@ use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::InternalModuleConflict;
 use crate::name_resolution::error::ResolverError;
+use crate::name_resolution::export::ExportedField;
 use crate::name_resolution::export::ExportedItem;
 use crate::name_resolution::export::ExportedType;
+use crate::name_resolution::export::ExportedVariant;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::item::Type;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
+use crate::syntax::data::AdtId;
+use crate::syntax::data::RecordId;
 use crate::syntax::export::ExportList;
 use crate::syntax::export::ExportedDataConstructor;
 use crate::syntax::export::ExportedItem as AstExportedItem;
@@ -817,10 +821,49 @@ impl Resolver {
         }
     }
 
+    fn export_all_fields(
+        record_id: &RecordId,
+        program: &Program,
+        exported_fields: &mut BTreeMap<String, Vec<ExportedField>>,
+    ) {
+        let record = program.records.get(record_id).expect("Record not found");
+        for field in &record.fields {
+            let fields = exported_fields
+                .entry(field.name.clone())
+                .or_insert_with(|| Vec::new());
+            let exported_field = ExportedField {
+                field_id: field.id,
+                record_id: record.id,
+            };
+            fields.push(exported_field);
+        }
+    }
+
+    fn export_all_variants(
+        adt_id: &AdtId,
+        program: &Program,
+        exported_variants: &mut BTreeMap<String, Vec<ExportedVariant>>,
+    ) {
+        let adt = program.adts.get(adt_id).expect("Adt not found");
+        for variant_id in &adt.variants {
+            let variant = program.variants.get(variant_id).expect("Variant not found");
+            let variants = exported_variants
+                .entry(variant.name.clone())
+                .or_insert_with(|| Vec::new());
+            let exported_variant = ExportedVariant {
+                variant_id: variant.id,
+                adt_id: adt.id,
+            };
+            variants.push(exported_variant);
+        }
+    }
+
     fn process_exports(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
         for (module_name, module) in &mut self.modules {
             let mut exported_items = BTreeMap::new();
             let mut exported_types = BTreeMap::new();
+            let mut exported_fields = BTreeMap::new();
+            let mut exported_variants = BTreeMap::new();
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             match &ast_module.export_list {
                 ExportList::ImplicitAll => {
@@ -835,11 +878,25 @@ impl Resolver {
                             Item::Record(record_id) => {
                                 exported_items
                                     .insert(name.clone(), ExportedItem::Record(*record_id));
+                                Resolver::export_all_fields(
+                                    record_id,
+                                    program,
+                                    &mut exported_fields,
+                                );
                             }
-                            Item::DataConstructor(data_ctor_id) => {
-                                exported_items.insert(
-                                    name.clone(),
-                                    ExportedItem::DataConstructor(*data_ctor_id),
+                            Item::DataConstructor(_) => {}
+                        }
+                    }
+                    for (name, types) in &module.types {
+                        assert_eq!(types.len(), 1);
+                        let ty = &types[0];
+                        match ty {
+                            Type::Record(_) => {}
+                            Type::TypeConstructor(adt_id) => {
+                                Resolver::export_all_variants(
+                                    adt_id,
+                                    program,
+                                    &mut exported_variants,
                                 );
                             }
                         }
@@ -915,20 +972,37 @@ impl Resolver {
                                         let ty = &types[0];
                                         match ty {
                                             Type::Record(record_id) => {
-                                                let record = program
-                                                    .records
-                                                    .get(record_id)
-                                                    .expect("Record not found");
                                                 for data_ctor in &type_ctor.data_constructors {
                                                     match data_ctor {
-                                                        ExportedDataConstructor::All => {}
+                                                        ExportedDataConstructor::All => {
+                                                            Resolver::export_all_fields(
+                                                                record_id,
+                                                                program,
+                                                                &mut exported_fields,
+                                                            );
+                                                        }
                                                         ExportedDataConstructor::Specific(
                                                             field_name,
                                                         ) => {
+                                                            let record = program
+                                                                .records
+                                                                .get(record_id)
+                                                                .expect("Record not found");
                                                             let mut found = false;
                                                             for field in &record.fields {
                                                                 if &field.name == field_name {
                                                                     found = true;
+                                                                    let fields = exported_fields
+                                                                        .entry(field.name.clone())
+                                                                        .or_insert_with(|| {
+                                                                            Vec::new()
+                                                                        });
+                                                                    let exported_field =
+                                                                        ExportedField {
+                                                                            field_id: field.id,
+                                                                            record_id: record.id,
+                                                                        };
+                                                                    fields.push(exported_field);
                                                                     break;
                                                                 }
                                                             }
@@ -940,7 +1014,58 @@ impl Resolver {
                                                     }
                                                 }
                                             }
-                                            Type::TypeConstructor(adt_id) => {}
+                                            Type::TypeConstructor(adt_id) => {
+                                                for data_ctor in &type_ctor.data_constructors {
+                                                    match data_ctor {
+                                                        ExportedDataConstructor::All => {
+                                                            Resolver::export_all_variants(
+                                                                adt_id,
+                                                                program,
+                                                                &mut exported_variants,
+                                                            );
+                                                        }
+                                                        ExportedDataConstructor::Specific(
+                                                            variant_name,
+                                                        ) => {
+                                                            let adt = program
+                                                                .adts
+                                                                .get(adt_id)
+                                                                .expect("Adt not found");
+                                                            let mut found = false;
+                                                            for variant_id in &adt.variants {
+                                                                let variant = program
+                                                                    .variants
+                                                                    .get(variant_id)
+                                                                    .expect("Variant not found");
+                                                                if &variant.name == variant_name {
+                                                                    found = true;
+                                                                    let variants =
+                                                                        exported_variants
+                                                                            .entry(
+                                                                                variant
+                                                                                    .name
+                                                                                    .clone(),
+                                                                            )
+                                                                            .or_insert_with(|| {
+                                                                                Vec::new()
+                                                                            });
+                                                                    let exported_variant =
+                                                                        ExportedVariant {
+                                                                            variant_id: variant.id,
+                                                                            adt_id: adt.id,
+                                                                        };
+                                                                    variants.push(exported_variant);
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if !found {
+                                                                let err = ResolverError::ExportedAdtVariantDoesNotExist(adt.name.clone(), variant_name.clone(), module.location_id);
+                                                                errors.push(err);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                     None => {
@@ -958,17 +1083,25 @@ impl Resolver {
                     }
                 }
             }
+            println!("Module {} exports:", module_name);
             println!(
-                "Module {} has {} exported items, {} exported types",
-                module_name,
+                "{} exported items {} exported types, {} exported fields, {} exported variants ",
                 exported_items.len(),
-                exported_types.len()
+                exported_types.len(),
+                exported_fields.len(),
+                exported_variants.len(),
             );
             for (name, export) in &exported_items {
-                println!("Item {} => {:?}", name, export);
+                println!("Item: {} => {:?}", name, export);
             }
             for (name, export) in &exported_types {
-                println!("Type {} => {:?}", name, export);
+                println!("Type: {} => {:?}", name, export);
+            }
+            for (name, export) in &exported_fields {
+                println!("Field: {} => {:?}", name, export);
+            }
+            for (name, export) in &exported_variants {
+                println!("Variant: {} => {:?}", name, export);
             }
         }
     }
