@@ -4,7 +4,7 @@ use crate::syntax::item_path::ItemPath;
 #[derive(Debug, Clone)]
 pub enum ImportedItem {
     NamedItem(String),
-    TypeConstructor(ImportedTypeConstructor),
+    Adt(ImportedAdt),
 }
 
 #[derive(Debug, Clone)]
@@ -14,7 +14,7 @@ pub enum ImportedDataConstructor {
 }
 
 #[derive(Debug, Clone)]
-pub struct ImportedTypeConstructor {
+pub struct ImportedAdt {
     pub name: String,
     pub data_constructors: Vec<ImportedDataConstructor>,
 }

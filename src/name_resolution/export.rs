@@ -14,7 +14,7 @@ pub enum ExportedItem {
 #[derive(Debug)]
 pub enum ExportedType {
     Record(RecordId),
-    TypeConstructor(AdtId),
+    Adt(AdtId),
 }
 
 #[derive(Debug)]

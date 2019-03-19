@@ -12,6 +12,7 @@ use crate::name_resolution::error::InternalModuleConflict;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export_processor::process_exports;
 use crate::name_resolution::expr_processor::process_expr;
+use crate::name_resolution::import_processor::process_imports;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::item::Type;
 use crate::name_resolution::lambda_helper::LambdaHelper;
@@ -328,7 +329,7 @@ impl Resolver {
                     .types
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
-                types.push(Type::TypeConstructor(*adt_id));
+                types.push(Type::Adt(*adt_id));
                 for variant_id in &adt.variants {
                     let variant = program.variants.get(variant_id).expect("Variant not found");
                     let items = module
@@ -386,7 +387,7 @@ impl Resolver {
                     let mut locations = Vec::new();
                     for ty in types {
                         match ty {
-                            Type::TypeConstructor(id) => {
+                            Type::Adt(id) => {
                                 let adt = program.adts.get(id).expect("Adt not found");
                                 locations.push(adt.location_id);
                             }
@@ -469,7 +470,13 @@ impl Resolver {
             return Err(Error::resolve_err(errors));
         }
 
-        process_exports(&self.modules, program, &mut errors);
+        process_exports(&mut self.modules, program, &mut errors);
+
+        if !errors.is_empty() {
+            return Err(Error::resolve_err(errors));
+        }
+
+        process_imports(&mut self.modules, program, &mut errors);
 
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));

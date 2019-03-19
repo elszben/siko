@@ -15,11 +15,11 @@ use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 
 pub fn process_exports(
-    modules: &BTreeMap<String, Module>,
+    modules: &mut BTreeMap<String, Module>,
     program: &Program,
     errors: &mut Vec<ResolverError>,
 ) {
-    for (module_name, module) in modules {
+    for (module_name, module) in modules.iter_mut() {
         let mut exported_items = BTreeMap::new();
         let mut exported_types = BTreeMap::new();
         let mut exported_fields = BTreeMap::new();
@@ -46,8 +46,11 @@ pub fn process_exports(
                     assert_eq!(types.len(), 1);
                     let ty = &types[0];
                     match ty {
-                        Type::Record(_) => {}
-                        Type::TypeConstructor(adt_id) => {
+                        Type::Record(record_id) => {
+                            exported_types.insert(name.clone(), ExportedType::Record(*record_id));
+                        }
+                        Type::Adt(adt_id) => {
+                            exported_types.insert(name.clone(), ExportedType::Adt(*adt_id));
                             export_all_variants(adt_id, program, &mut exported_variants);
                         }
                     }
@@ -97,10 +100,10 @@ pub fn process_exports(
                                                 ExportedType::Record(*record_id),
                                             );
                                         }
-                                        Type::TypeConstructor(adt_id) => {
+                                        Type::Adt(adt_id) => {
                                             exported_types.insert(
                                                 entity_name.clone(),
-                                                ExportedType::TypeConstructor(*adt_id),
+                                                ExportedType::Adt(*adt_id),
                                             );
                                         }
                                     }
@@ -116,7 +119,7 @@ pub fn process_exports(
                                 errors.push(err);
                             }
                         }
-                        AstExportedItem::TypeConstructor(type_ctor) => {
+                        AstExportedItem::Adt(type_ctor) => {
                             match module.types.get(&type_ctor.name) {
                                 Some(types) => {
                                     assert_eq!(types.len(), 1);
@@ -163,7 +166,7 @@ pub fn process_exports(
                                                 }
                                             }
                                         }
-                                        Type::TypeConstructor(adt_id) => {
+                                        Type::Adt(adt_id) => {
                                             for data_ctor in &type_ctor.data_constructors {
                                                 match data_ctor {
                                                     ExportedDataConstructor::All => {
@@ -224,26 +227,34 @@ pub fn process_exports(
                 }
             }
         }
+
+        module.exported_items = exported_items;
+        module.exported_types = exported_types;
+        module.exported_fields = exported_fields;
+        module.exported_variants = exported_variants;
+
+        /*
         println!("Module {} exports:", module_name);
         println!(
             "{} exported items {} exported types, {} exported fields, {} exported variants ",
-            exported_items.len(),
-            exported_types.len(),
-            exported_fields.len(),
-            exported_variants.len(),
+            module.exported_items.len(),
+            module.exported_types.len(),
+            module.exported_fields.len(),
+            module.exported_variants.len(),
         );
-        for (name, export) in &exported_items {
+        for (name, export) in &module.exported_items {
             println!("Item: {} => {:?}", name, export);
         }
-        for (name, export) in &exported_types {
+        for (name, export) in &module.exported_types {
             println!("Type: {} => {:?}", name, export);
         }
-        for (name, export) in &exported_fields {
+        for (name, export) in &module.exported_fields {
             println!("Field: {} => {:?}", name, export);
         }
-        for (name, export) in &exported_variants {
+        for (name, export) in &module.exported_variants {
             println!("Variant: {} => {:?}", name, export);
         }
+        */
     }
 }
 

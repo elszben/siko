@@ -17,9 +17,9 @@ use crate::syntax::data::RecordField;
 use crate::syntax::data::RecordOrVariant;
 use crate::syntax::data::Variant;
 use crate::syntax::export::ExportList;
+use crate::syntax::export::ExportedAdt;
 use crate::syntax::export::ExportedDataConstructor;
 use crate::syntax::export::ExportedItem;
-use crate::syntax::export::ExportedTypeConstructor;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
@@ -31,9 +31,9 @@ use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
+use crate::syntax::import::ImportedAdt;
 use crate::syntax::import::ImportedDataConstructor;
 use crate::syntax::import::ImportedItem;
-use crate::syntax::import::ImportedTypeConstructor;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
@@ -476,11 +476,11 @@ impl<'a> Parser<'a> {
         let name = parser.identifier("Expected identifier as imported item")?;
         if parser.current(TokenKind::LParen) {
             let items = parser.parse_list0_in_parens(Parser::parse_imported_data_constructor)?;
-            let type_ctor = ImportedTypeConstructor {
+            let type_ctor = ImportedAdt {
                 name: name,
                 data_constructors: items,
             };
-            Ok(ImportedItem::TypeConstructor(type_ctor))
+            Ok(ImportedItem::Adt(type_ctor))
         } else {
             Ok(ImportedItem::NamedItem(name))
         }
@@ -490,11 +490,11 @@ impl<'a> Parser<'a> {
         let name = parser.identifier("Expected identifier as exported item")?;
         if parser.current(TokenKind::LParen) {
             let items = parser.parse_list0_in_parens(Parser::parse_exported_data_constructor)?;
-            let type_ctor = ExportedTypeConstructor {
+            let type_ctor = ExportedAdt {
                 name: name,
                 data_constructors: items,
             };
-            Ok(ExportedItem::TypeConstructor(type_ctor))
+            Ok(ExportedItem::Adt(type_ctor))
         } else {
             Ok(ExportedItem::Named(name))
         }

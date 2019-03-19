@@ -13,5 +13,5 @@ pub enum Item {
 #[derive(Debug)]
 pub enum Type {
     Record(RecordId),
-    TypeConstructor(AdtId),
+    Adt(AdtId),
 }
