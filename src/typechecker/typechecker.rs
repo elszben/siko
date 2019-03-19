@@ -162,7 +162,7 @@ impl Typechecker {
         };
         let mut unified_variables = false;
 
-        if !self.type_store.unify_vars(
+        if !self.type_store.unify(
             &expected_result_var,
             &inferred_result_var,
             &mut unified_variables,

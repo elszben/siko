@@ -77,7 +77,7 @@ impl TypeStore {
             .clone()
     }
 
-    fn unify_variables(&mut self, from: &TypeVariable, to: &TypeVariable) {
+    fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
         let from_index = self.get_index(from);
         let to_index = self.get_index(to);
         for (_, value) in self.variables.iter_mut() {
@@ -87,7 +87,7 @@ impl TypeStore {
         }
     }
 
-    pub fn unify_vars(
+    pub fn unify(
         &mut self,
         var1: &TypeVariable,
         var2: &TypeVariable,
@@ -118,7 +118,7 @@ impl TypeStore {
                 _,
             ) => {
                 *unified_variables = true;
-                self.unify_variables(var2, var1);
+                self.merge(var2, var1);
             }
             (
                 _,
@@ -128,14 +128,14 @@ impl TypeStore {
                 },
             ) => {
                 *unified_variables = true;
-                self.unify_variables(var1, var2);
+                self.merge(var1, var2);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
                 if type_vars1.len() != type_vars2.len() {
                     return false;
                 } else {
                     for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.unify_vars(v1, v2, unified_variables) {
+                        if !self.unify(v1, v2, unified_variables) {
                             return false;
                         }
                     }
@@ -146,7 +146,7 @@ impl TypeStore {
                     return false;
                 } else {
                     for (v1, v2) in f1.type_vars.iter().zip(f2.type_vars.iter()) {
-                        if !self.unify_vars(v1, v2, unified_variables) {
+                        if !self.unify(v1, v2, unified_variables) {
                             return false;
                         }
                     }
