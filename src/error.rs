@@ -229,19 +229,6 @@ impl Error {
                                                 print_location_set(file_manager, location_set);
                                             }
                                         }
-                                        InternalModuleConflict::TypeConflict(name, locations) => {
-                                            println!(
-                                                "{} conflicting types named {} in module {}",
-                                                error.red(),
-                                                name.yellow(),
-                                                module.yellow()
-                                            );
-                                            for id in locations {
-                                                let location_set =
-                                                    location_info.get_item_location(id);
-                                                print_location_set(file_manager, location_set);
-                                            }
-                                        }
                                     }
                                 }
                             }

@@ -14,7 +14,6 @@ use crate::name_resolution::export_processor::process_exports;
 use crate::name_resolution::expr_processor::process_expr;
 use crate::name_resolution::import_processor::process_imports;
 use crate::name_resolution::item::Item;
-use crate::name_resolution::item::Type;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
@@ -317,19 +316,14 @@ impl Resolver {
                     .entry(record.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Record(*record_id));
-                let types = module
-                    .types
-                    .entry(record.name.clone())
-                    .or_insert_with(|| Vec::new());
-                types.push(Type::Record(*record_id));
             }
             for adt_id in &ast_module.adts {
                 let adt = program.adts.get(adt_id).expect("Adt not found");
-                let types = module
-                    .types
+                let items = module
+                    .items
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
-                types.push(Type::Adt(*adt_id));
+                items.push(Item::Adt(*adt_id));
                 for variant_id in &adt.variants {
                     let variant = program.variants.get(variant_id).expect("Variant not found");
                     let items = module
@@ -374,6 +368,10 @@ impl Resolver {
                                 let record = program.records.get(id).expect("Record not found");
                                 locations.push(record.location_id);
                             }
+                            Item::Adt(id) => {
+                                let adt = program.adts.get(id).expect("Adt not found");
+                                locations.push(adt.location_id);
+                            }
                         }
                     }
                     module_conflicts.push(InternalModuleConflict::ItemConflict(
@@ -382,27 +380,7 @@ impl Resolver {
                     ));
                 }
             }
-            for (name, types) in &module.types {
-                if types.len() > 1 {
-                    let mut locations = Vec::new();
-                    for ty in types {
-                        match ty {
-                            Type::Adt(id) => {
-                                let adt = program.adts.get(id).expect("Adt not found");
-                                locations.push(adt.location_id);
-                            }
-                            Type::Record(id) => {
-                                let record = program.records.get(id).expect("Record not found");
-                                locations.push(record.location_id);
-                            }
-                        }
-                    }
-                    module_conflicts.push(InternalModuleConflict::TypeConflict(
-                        name.clone(),
-                        locations,
-                    ));
-                }
-            }
+
             if !module_conflicts.is_empty() {
                 all_module_conflicts.insert(module.name.get(), module_conflicts);
             }

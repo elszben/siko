@@ -17,9 +17,9 @@ use crate::syntax::data::RecordField;
 use crate::syntax::data::RecordOrVariant;
 use crate::syntax::data::Variant;
 use crate::syntax::export::ExportList;
-use crate::syntax::export::ExportedAdt;
-use crate::syntax::export::ExportedDataConstructor;
+use crate::syntax::export::ExportedGroup;
 use crate::syntax::export::ExportedItem;
+use crate::syntax::export::ExportedMember;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
@@ -454,21 +454,19 @@ impl<'a> Parser<'a> {
             parser.expect(TokenKind::Dot)?;
             Ok(ImportedDataConstructor::All)
         } else {
-            let name = parser.identifier("Expected identifier as data constructor")?;
+            let name = parser.identifier("Expected identifier as data member")?;
             Ok(ImportedDataConstructor::Specific(name))
         }
     }
 
-    fn parse_exported_data_constructor(
-        parser: &mut Parser,
-    ) -> Result<ExportedDataConstructor, Error> {
+    fn parse_exported_data_member(parser: &mut Parser) -> Result<ExportedMember, Error> {
         if parser.current(TokenKind::Dot) {
             parser.expect(TokenKind::Dot)?;
             parser.expect(TokenKind::Dot)?;
-            Ok(ExportedDataConstructor::All)
+            Ok(ExportedMember::All)
         } else {
-            let name = parser.identifier("Expected identifier as data constructor")?;
-            Ok(ExportedDataConstructor::Specific(name))
+            let name = parser.identifier("Expected identifier as data member")?;
+            Ok(ExportedMember::Specific(name))
         }
     }
 
@@ -489,12 +487,12 @@ impl<'a> Parser<'a> {
     fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItem, Error> {
         let name = parser.identifier("Expected identifier as exported item")?;
         if parser.current(TokenKind::LParen) {
-            let items = parser.parse_list0_in_parens(Parser::parse_exported_data_constructor)?;
-            let type_ctor = ExportedAdt {
+            let items = parser.parse_list0_in_parens(Parser::parse_exported_data_member)?;
+            let group = ExportedGroup {
                 name: name,
-                data_constructors: items,
+                members: items,
             };
-            Ok(ExportedItem::Adt(type_ctor))
+            Ok(ExportedItem::Group(group))
         } else {
             Ok(ExportedItem::Named(name))
         }

@@ -8,10 +8,5 @@ pub enum Item {
     Function(FunctionId),
     Record(RecordId),
     DataConstructor(VariantId),
-}
-
-#[derive(Debug)]
-pub enum Type {
-    Record(RecordId),
     Adt(AdtId),
 }

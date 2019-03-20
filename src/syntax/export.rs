@@ -4,19 +4,19 @@ use crate::syntax::item_path::ItemPath;
 #[derive(Debug, Clone)]
 pub enum ExportedItem {
     Named(String),
-    Adt(ExportedAdt),
+    Group(ExportedGroup),
 }
 
 #[derive(Debug, Clone)]
-pub enum ExportedDataConstructor {
+pub enum ExportedMember {
     Specific(String),
     All,
 }
 
 #[derive(Debug, Clone)]
-pub struct ExportedAdt {
+pub struct ExportedGroup {
     pub name: String,
-    pub data_constructors: Vec<ExportedDataConstructor>,
+    pub members: Vec<ExportedMember>,
 }
 
 #[derive(Debug, Clone)]

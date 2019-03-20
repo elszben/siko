@@ -8,13 +8,13 @@ use crate::syntax::function::FunctionId;
 pub enum ExportedItem {
     Function(FunctionId),
     Record(RecordId),
-    RecordField(RecordFieldId),
+    Adt(AdtId),
 }
 
 #[derive(Debug)]
-pub enum ExportedType {
-    Record(RecordId),
-    Adt(AdtId),
+pub enum ExportedDataMember {
+    RecordField(ExportedField),
+    Variant(ExportedVariant),
 }
 
 #[derive(Debug)]
