@@ -11,7 +11,7 @@ pub enum InternalModuleConflict {
 pub enum ResolverError {
     ModuleConflict(BTreeMap<String, BTreeSet<LocationId>>),
     InternalModuleConflicts(BTreeMap<String, Vec<InternalModuleConflict>>),
-    ImportedModuleNotFound(Vec<(String, LocationId)>),
+    ImportedModuleNotFound(String, LocationId),
     SymbolNotFoundInModule(String, LocationId),
     UnknownTypeName(String, LocationId),
     TypeArgumentConflict(Vec<String>, LocationId),

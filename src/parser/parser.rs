@@ -31,9 +31,9 @@ use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
-use crate::syntax::import::ImportedAdt;
-use crate::syntax::import::ImportedDataConstructor;
+use crate::syntax::import::ImportedGroup;
 use crate::syntax::import::ImportedItem;
+use crate::syntax::import::ImportedMember;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
@@ -446,16 +446,14 @@ impl<'a> Parser<'a> {
         Ok(path)
     }
 
-    fn parse_imported_data_constructor(
-        parser: &mut Parser,
-    ) -> Result<ImportedDataConstructor, Error> {
+    fn parse_imported_member(parser: &mut Parser) -> Result<ImportedMember, Error> {
         if parser.current(TokenKind::Dot) {
             parser.expect(TokenKind::Dot)?;
             parser.expect(TokenKind::Dot)?;
-            Ok(ImportedDataConstructor::All)
+            Ok(ImportedMember::All)
         } else {
             let name = parser.identifier("Expected identifier as data member")?;
-            Ok(ImportedDataConstructor::Specific(name))
+            Ok(ImportedMember::Specific(name))
         }
     }
 
@@ -473,12 +471,12 @@ impl<'a> Parser<'a> {
     fn parse_imported_item(parser: &mut Parser) -> Result<ImportedItem, Error> {
         let name = parser.identifier("Expected identifier as imported item")?;
         if parser.current(TokenKind::LParen) {
-            let items = parser.parse_list0_in_parens(Parser::parse_imported_data_constructor)?;
-            let type_ctor = ImportedAdt {
+            let members = parser.parse_list0_in_parens(Parser::parse_imported_member)?;
+            let group = ImportedGroup {
                 name: name,
-                data_constructors: items,
+                members: members,
             };
-            Ok(ImportedItem::Adt(type_ctor))
+            Ok(ImportedItem::Group(group))
         } else {
             Ok(ImportedItem::NamedItem(name))
         }
@@ -487,10 +485,10 @@ impl<'a> Parser<'a> {
     fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItem, Error> {
         let name = parser.identifier("Expected identifier as exported item")?;
         if parser.current(TokenKind::LParen) {
-            let items = parser.parse_list0_in_parens(Parser::parse_exported_data_member)?;
+            let members = parser.parse_list0_in_parens(Parser::parse_exported_data_member)?;
             let group = ExportedGroup {
                 name: name,
-                members: items,
+                members: members,
             };
             Ok(ExportedItem::Group(group))
         } else {

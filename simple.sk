@@ -1,12 +1,12 @@
-module alma.korte (main, Person(.., name), main(None)) where
-
-import Alma hiding (alm, a)
- 
-import korte (szilva, kd(a,a))
+module Data where
 
 data Option a = Some a | None a korte.szilva
 
 data Person = Person { name :: Alma.String, address :: Option String }
 
+module alma.korte where
+
+import Data hiding (alm, a)
+ 
 main :: korte.szilva
 main = 5

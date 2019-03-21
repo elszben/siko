@@ -142,16 +142,14 @@ impl Error {
                                 }
                             }
                         }
-                        ResolverError::ImportedModuleNotFound(errors) => {
-                            for (name, id) in errors.iter() {
-                                println!(
-                                    "{} imported module {} does not exist",
-                                    error.red(),
-                                    name.yellow()
-                                );
-                                let location_set = location_info.get_item_location(id);
-                                print_location_set(file_manager, location_set);
-                            }
+                        ResolverError::ImportedModuleNotFound(name, id) => {
+                            println!(
+                                "{} imported module {} does not exist",
+                                error.red(),
+                                name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
                         }
                         ResolverError::SymbolNotFoundInModule(name, id) => {
                             println!(

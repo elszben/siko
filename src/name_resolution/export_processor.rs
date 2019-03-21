@@ -219,7 +219,7 @@ pub fn process_exports(
 
         module.exported_items = exported_items;
         module.exported_members = exported_members;
-
+        /*
         println!("Module {} exports:", module_name);
         println!(
             "{} exported items {} exported members",
@@ -232,6 +232,7 @@ pub fn process_exports(
         for (name, export) in &module.exported_members {
             println!("Member: {} => {:?}", name, export);
         }
+        */
     }
 }
 
