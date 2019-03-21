@@ -98,6 +98,10 @@ pub fn process_exports(
                                 let item = &items[0];
                                 match item {
                                     Item::Record(record_id) => {
+                                        exported_items.insert(
+                                            group.name.clone(),
+                                            ExportedItem::Record(*record_id),
+                                        );
                                         for member in &group.members {
                                             match member {
                                                 ExportedMember::All => {
@@ -140,6 +144,8 @@ pub fn process_exports(
                                         }
                                     }
                                     Item::Adt(adt_id) => {
+                                        exported_items
+                                            .insert(group.name.clone(), ExportedItem::Adt(*adt_id));
                                         for member in &group.members {
                                             match member {
                                                 ExportedMember::All => {
@@ -186,7 +192,15 @@ pub fn process_exports(
                                             }
                                         }
                                     }
-                                    _ => panic!("WTF"),
+                                    _ => {
+                                        let err =
+                                            ResolverError::IncorrectNameInExportedTypeConstructor(
+                                                module_name.clone(),
+                                                group.name.clone(),
+                                                module.location_id,
+                                            );
+                                        errors.push(err);
+                                    }
                                 }
                             }
                             None => {
