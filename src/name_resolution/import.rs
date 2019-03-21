@@ -8,23 +8,12 @@ use crate::syntax::item_path::ItemPath;
 pub enum ImportedItem {
     Function(FunctionId),
     Record(RecordId),
-    DataConstructor(VariantId),
-}
-
-#[derive(Debug)]
-pub enum ImportedType {
-    Record(RecordId),
-    TypeConstructor(AdtId),
+    Variant(VariantId),
+    Adt(AdtId),
 }
 
 #[derive(Debug)]
 pub struct ImportItemInfo {
     pub item: ImportedItem,
-    pub source_module: ItemPath,
-}
-
-#[derive(Debug)]
-pub struct ImportTypeInfo {
-    pub item: ImportedType,
     pub source_module: ItemPath,
 }
