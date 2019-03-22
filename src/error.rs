@@ -151,11 +151,12 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::SymbolNotFoundInModule(name, id) => {
+                        ResolverError::ImportedSymbolNotExportedByModule(name, module_name, id) => {
                             println!(
-                                "{} imported symbol {} not found in module",
+                                "{} imported symbol {} not exported by module {}",
                                 error.red(),
-                                name.yellow()
+                                name.yellow(),
+                                module_name.yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);

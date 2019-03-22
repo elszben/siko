@@ -12,7 +12,7 @@ pub enum ResolverError {
     ModuleConflict(BTreeMap<String, BTreeSet<LocationId>>),
     InternalModuleConflicts(BTreeMap<String, Vec<InternalModuleConflict>>),
     ImportedModuleNotFound(String, LocationId),
-    SymbolNotFoundInModule(String, LocationId),
+    ImportedSymbolNotExportedByModule(String, String, LocationId),
     UnknownTypeName(String, LocationId),
     TypeArgumentConflict(Vec<String>, LocationId),
     ArgumentConflict(Vec<String>, LocationId),

@@ -3,8 +3,15 @@ use crate::name_resolution::import::ImportItemInfo;
 use crate::name_resolution::import::ImportMemberInfo;
 use crate::name_resolution::module::Module;
 use crate::syntax::import::ImportKind;
+use crate::syntax::import::ImportList;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum ImportMode {
+    NameAndNamespace,
+    NamespaceOnly,
+}
 
 pub fn process_imports(
     modules: &mut BTreeMap<String, Module>,
@@ -35,24 +42,49 @@ pub fn process_imports(
             match &import.kind {
                 ImportKind::Hiding(hidden_items) => {
                     for item in hidden_items {
-                        println!("{} is hidden from {}", item.name, import.module_path.get());
-                        let hs = all_hidden_items
-                            .entry(item.name.clone())
-                            .or_insert_with(|| Vec::new());
-                        hs.push(import.module_path.get());
+                        let mut found = false;
+                        if source_module.exported_items.get(&item.name).is_some() {
+                            found = true;
+                        }
+                        if source_module.exported_members.get(&item.name).is_some() {
+                            found = true;
+                        }
+                        if !found {
+                            let err = ResolverError::ImportedSymbolNotExportedByModule(
+                                item.name.clone(),
+                                import.module_path.get(),
+                                import.location_id,
+                            );
+                            errors.push(err);
+                        } else {
+                            let hs = all_hidden_items
+                                .entry(item.name.clone())
+                                .or_insert_with(|| Vec::new());
+                            hs.push(import.module_path.get());
+                        }
                     }
                 }
-                _ => {}
+                ImportKind::ImportList { .. } => {}
             }
         }
 
         for (import_id, import) in &ast_module.imports {
             match &import.kind {
-                ImportKind::Hiding(hidden_items) => {}
+                ImportKind::Hiding(..) => {}
                 ImportKind::ImportList {
                     items,
                     alternative_name,
-                } => {}
+                } => {
+                    let (namespace, mode) = match &alternative_name {
+                        Some(n) => (n.clone(), ImportMode::NamespaceOnly),
+                        None => (import.module_path.get(), ImportMode::NameAndNamespace),
+                    };
+                    println!("Namespace settings {} {:?}", namespace, mode);
+                    match items {
+                        ImportList::ImplicitAll => {}
+                        ImportList::Explicit(imported_items) => {}
+                    }
+                }
             }
         }
 

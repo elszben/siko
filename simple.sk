@@ -1,4 +1,4 @@
-module Data where
+module Data (Option(..), Person(..)) where
 
 data Option a = Some a | None a korte.szilva
 
@@ -6,7 +6,9 @@ data Person = Person { name :: Alma.String, address :: Option String }
 
 module alma.korte where
 
-import Data hiding (alm, a)
- 
+import Data hiding (Option, Some, name)
+
+import Data as Foo
+
 main :: korte.szilva
 main = 5
