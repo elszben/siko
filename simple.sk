@@ -1,14 +1,16 @@
-module Data (Option(..), Person(..)) where
+module Data (Option(..), Person(..), some_func) where
 
 data Option a = Some a | None a korte.szilva
 
 data Person = Person { name :: Alma.String, address :: Option String }
 
+some_func = 7
+
 module alma.korte where
 
 import Data hiding ( Some, name)
 
-import Data (Person, Option)
+import Data (Person, Option, some_func())
 
 main :: korte.szilva
 main = 5

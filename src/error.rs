@@ -324,6 +324,20 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::IncorrectNameInImportedTypeConstructor(
+                            module_name,
+                            type_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} imported type {} is not exported by module {}",
+                                error.red(),
+                                type_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

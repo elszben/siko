@@ -29,4 +29,5 @@ pub enum ResolverError {
     ExportedRecordFieldDoesNotExist(String, String, LocationId),
     ExportedAdtVariantDoesNotExist(String, String, LocationId),
     ExplicitlyImportedItemHidden(String, String, LocationId),
+    IncorrectNameInImportedTypeConstructor(String, String, LocationId),
 }

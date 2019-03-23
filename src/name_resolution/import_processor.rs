@@ -12,6 +12,7 @@ use crate::name_resolution::import::ImportedVariant;
 use crate::name_resolution::module::Module;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
+use crate::syntax::import::ImportedGroup;
 use crate::syntax::import::ImportedItem as AstImportedItem;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::program::Program;
@@ -213,7 +214,26 @@ pub fn process_imports(
                         ImportList::Explicit(imported_list_items) => {
                             for imported_list_item in imported_list_items {
                                 match imported_list_item {
-                                    AstImportedItem::Group(group) => {}
+                                    AstImportedItem::Group(group) => {
+                                        match source_module.exported_items.get(&group.name) {
+                                            Some(item) => match item {
+                                                ExportedItem::Record(record_id) => {}
+                                                ExportedItem::Adt(adt_id) => {}
+                                                ExportedItem::Function(function_id) => {
+                                                    let err = ResolverError::IncorrectNameInImportedTypeConstructor(import.module_path.get(),
+                                                                                                                    group.name.clone(),
+                                                                                                                    import.location_id);
+                                                    errors.push(err);
+                                                }
+                                            },
+                                            None => {
+                                                let err = ResolverError::IncorrectNameInImportedTypeConstructor(import.module_path.get(),
+                                                                                                                group.name.clone(),
+                                                                                                                import.location_id);
+                                                errors.push(err);
+                                            }
+                                        }
+                                    }
                                     AstImportedItem::NamedItem(item_name) => {
                                         if is_hidden(
                                             item_name,
