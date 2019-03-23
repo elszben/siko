@@ -12,6 +12,7 @@ use crate::name_resolution::import::ImportedVariant;
 use crate::name_resolution::module::Module;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
+use crate::syntax::import::ImportedItem as AstImportedItem;
 use crate::syntax::item_path::ItemPath;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
@@ -209,7 +210,53 @@ pub fn process_imports(
                                 }
                             }
                         }
-                        ImportList::Explicit(imported_items) => {}
+                        ImportList::Explicit(imported_list_items) => {
+                            for imported_list_item in imported_list_items {
+                                match imported_list_item {
+                                    AstImportedItem::Group(group) => {}
+                                    AstImportedItem::NamedItem(item_name) => {
+                                        if is_hidden(
+                                            item_name,
+                                            &source_module_name,
+                                            &all_hidden_items,
+                                        ) {
+                                            let err = ResolverError::ExplicitlyImportedItemHidden(
+                                                item_name.clone(),
+                                                module.name.get(),
+                                                import.location_id,
+                                            );
+                                            errors.push(err);
+                                            continue;
+                                        }
+
+                                        match source_module.exported_items.get(item_name) {
+                                            Some(exported_item) => {
+                                                let imported_item =
+                                                    get_imported_item(exported_item);
+                                                let imported_item_info = get_imported_item_info(
+                                                    imported_item,
+                                                    &source_module.name,
+                                                );
+                                                let names = get_names(&namespace, item_name, mode);
+                                                for name in names {
+                                                    let imported_item_infos = imported_items
+                                                        .entry(name.clone())
+                                                        .or_insert_with(|| Vec::new());
+                                                    imported_item_infos
+                                                        .push(imported_item_info.clone());
+                                                }
+                                            }
+                                            None => {
+                                                let err = ResolverError::ImportedSymbolNotExportedByModule(item_name.clone(),
+                                                                                                           import.module_path.get(),
+                                                                                                           import.location_id,);
+                                                errors.push(err);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

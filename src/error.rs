@@ -314,6 +314,16 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ExplicitlyImportedItemHidden(item_name, module_name, id) => {
+                            println!(
+                                "{} explicitly imported item {} is also hidden in module {}",
+                                error.red(),
+                                item_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

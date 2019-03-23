@@ -6,9 +6,9 @@ data Person = Person { name :: Alma.String, address :: Option String }
 
 module alma.korte where
 
-import Data hiding (Option, Some, name)
+import Data hiding ( Some, name)
 
-import Data as Foo
+import Data (Person, Option)
 
 main :: korte.szilva
 main = 5

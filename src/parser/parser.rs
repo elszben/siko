@@ -511,7 +511,7 @@ impl<'a> Parser<'a> {
             ImportKind::Hiding(items)
         } else {
             let import_list = if self.current(TokenKind::LParen) {
-                let items = self.parse_list1_in_parens(Parser::parse_imported_item)?;
+                let items = self.parse_list0_in_parens(Parser::parse_imported_item)?;
                 ImportList::Explicit(items)
             } else {
                 ImportList::ImplicitAll
