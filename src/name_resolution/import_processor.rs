@@ -9,6 +9,7 @@ use crate::name_resolution::import::ImportedItem;
 use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::import::ImportedMemberInfo;
 use crate::name_resolution::import::ImportedVariant;
+use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
@@ -42,7 +43,7 @@ fn get_imported_item_info(
 ) -> ImportedItemInfo {
     ImportedItemInfo {
         item: imported_item,
-        source_module: source_module.clone(),
+        source_module: source_module.get(),
     }
 }
 
@@ -74,7 +75,7 @@ fn get_imported_member_info(
 ) -> ImportedMemberInfo {
     ImportedMemberInfo {
         member: imported_member,
-        source_module: source_module.clone(),
+        source_module: source_module.get(),
     }
 }
 
@@ -499,6 +500,64 @@ pub fn process_imports(
         let mut all_hidden_items = BTreeMap::new();
         let mut imported_items = BTreeMap::new();
         let mut imported_members = BTreeMap::new();
+
+        for (name, items) in &module.items {
+            let names = get_names(module_name, name, ImportMode::NameAndNamespace);
+            let item = &items[0];
+            let imported_item = match item {
+                Item::Adt(adt_id) => {
+                    let adt = program.adts.get(adt_id).expect("Adt not found");
+                    for variant_id in &adt.variants {
+                        let imported_member = ImportedDataMember::Variant(ImportedVariant {
+                            adt_id: *adt_id,
+                            variant_id: *variant_id,
+                        });
+                        for name in &names {
+                            let ims = imported_members
+                                .entry(name.clone())
+                                .or_insert_with(|| Vec::new());
+                            ims.push(ImportedMemberInfo {
+                                member: imported_member.clone(),
+                                source_module: module_name.clone(),
+                            })
+                        }
+                    }
+                    ImportedItem::Adt(*adt_id)
+                }
+                Item::DataConstructor(_) => continue,
+                Item::Function(function_id) => ImportedItem::Function(*function_id),
+                Item::Record(record_id) => {
+                    let record = program.records.get(record_id).expect("Record not found");
+                    for field in &record.fields {
+                        let imported_member = ImportedDataMember::RecordField(ImportedField {
+                            record_id: *record_id,
+                            field_id: field.id,
+                        });
+                        for name in &names {
+                            let ims = imported_members
+                                .entry(name.clone())
+                                .or_insert_with(|| Vec::new());
+                            ims.push(ImportedMemberInfo {
+                                member: imported_member.clone(),
+                                source_module: module_name.clone(),
+                            })
+                        }
+                    }
+                    ImportedItem::Record(*record_id)
+                }
+            };
+
+            for name in &names {
+                let iis = imported_items
+                    .entry(name.clone())
+                    .or_insert_with(|| Vec::new());
+                iis.push(ImportedItemInfo {
+                    item: imported_item.clone(),
+                    source_module: module_name.clone(),
+                })
+            }
+        }
+
         let ast_module = program.modules.get(&module.id).expect("Module not found");
         for (_, import) in &ast_module.imports {
             let source_module = match modules.get(&import.module_path.get()) {

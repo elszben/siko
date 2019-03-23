@@ -34,11 +34,11 @@ pub struct ImportedVariant {
 #[derive(Debug, Clone)]
 pub struct ImportedItemInfo {
     pub item: ImportedItem,
-    pub source_module: ItemPath,
+    pub source_module: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct ImportedMemberInfo {
     pub member: ImportedDataMember,
-    pub source_module: ItemPath,
+    pub source_module: String,
 }

@@ -750,6 +750,9 @@ impl<'a> Parser<'a> {
             let mut modules_without_prelude = Vec::new();
             for (module_id, module) in &self.program.modules {
                 let mut prelude_imported = false;
+                if module.name.get() == PRELUDE_NAME {
+                    continue;
+                }
                 for (_, import) in &module.imports {
                     if import.module_path.get() == PRELUDE_NAME {
                         prelude_imported = true;
