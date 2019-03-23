@@ -6,11 +6,21 @@ data Person = Person { name :: Alma.String, address :: Option String }
 
 some_func = 7
 
+module DataBoo (Option(..), Person(..), some_func) where
+
+data Option a = Some a | None a korte.szilva
+
+data Person = Person { name :: Alma.String, address :: Option String }
+
+some_func = 7
+
+
 module alma.korte where
 
-import Data hiding ( Some, name)
+import Data hiding ( Some, Person)
+import DataBoo hiding ( Some, name)
 
-import Data (Person, Option, some_func())
+import Data (Person(name), Option(Some, a)) as Foo
 
 main :: korte.szilva
 main = 5

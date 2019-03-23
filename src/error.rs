@@ -338,6 +338,44 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ImportedRecordFieldNotExported(
+                            record_name,
+                            field_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} imported field {} is not exported for record {}",
+                                error.red(),
+                                field_name.yellow(),
+                                record_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ExplicitlyImportedRecordFieldHidden(
+                            field_name,
+                            module_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} explicitly imported record field {} is also hidden in module {}",
+                                error.red(),
+                                field_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ExplicitlyImportedTypeHidden(type_name, module_name, id) => {
+                            println!(
+                                "{} explicitly imported type {} is also hidden in module {}",
+                                error.red(),
+                                type_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
