@@ -5,7 +5,7 @@ use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
 use crate::syntax::item_path::ItemPath;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ImportedItem {
     Function(FunctionId),
     Record(RecordId),
@@ -13,33 +13,32 @@ pub enum ImportedItem {
     Adt(AdtId),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ImportedDataMember {
     RecordField(ImportedField),
     Variant(ImportedVariant),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedField {
     pub field_id: RecordFieldId,
     pub record_id: RecordId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedVariant {
     pub variant_id: VariantId,
     pub adt_id: AdtId,
 }
 
-#[derive(Debug)]
-pub struct ImportItemInfo {
+#[derive(Debug, Clone)]
+pub struct ImportedItemInfo {
     pub item: ImportedItem,
     pub source_module: ItemPath,
 }
 
-#[derive(Debug)]
-pub struct ImportMemberInfo {
+#[derive(Debug, Clone)]
+pub struct ImportedMemberInfo {
     pub member: ImportedDataMember,
     pub source_module: ItemPath,
-    pub hidden: bool,
 }

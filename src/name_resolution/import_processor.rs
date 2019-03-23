@@ -1,8 +1,14 @@
 use crate::name_resolution::error::ResolverError;
+use crate::name_resolution::export::ExportedDataMember;
+use crate::name_resolution::export::ExportedField;
 use crate::name_resolution::export::ExportedItem;
-use crate::name_resolution::import::ImportItemInfo;
-use crate::name_resolution::import::ImportMemberInfo;
+use crate::name_resolution::export::ExportedVariant;
+use crate::name_resolution::import::ImportedDataMember;
+use crate::name_resolution::import::ImportedField;
 use crate::name_resolution::import::ImportedItem;
+use crate::name_resolution::import::ImportedItemInfo;
+use crate::name_resolution::import::ImportedMemberInfo;
+use crate::name_resolution::import::ImportedVariant;
 use crate::name_resolution::module::Module;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
@@ -24,9 +30,44 @@ fn get_imported_item(exported_item: &ExportedItem) -> ImportedItem {
     }
 }
 
-fn get_imported_item_info(imported_item: ImportedItem, source_module: &ItemPath) -> ImportItemInfo {
-    ImportItemInfo {
+fn get_imported_item_info(
+    imported_item: ImportedItem,
+    source_module: &ItemPath,
+) -> ImportedItemInfo {
+    ImportedItemInfo {
         item: imported_item,
+        source_module: source_module.clone(),
+    }
+}
+
+fn get_imported_member(exported_member: &ExportedDataMember) -> (ImportedDataMember, bool) {
+    match exported_member {
+        ExportedDataMember::RecordField(ExportedField {
+            field_id,
+            record_id,
+        }) => (
+            ImportedDataMember::RecordField(ImportedField {
+                field_id: *field_id,
+                record_id: *record_id,
+            }),
+            true,
+        ),
+        ExportedDataMember::Variant(ExportedVariant { variant_id, adt_id }) => (
+            ImportedDataMember::Variant(ImportedVariant {
+                variant_id: *variant_id,
+                adt_id: *adt_id,
+            }),
+            false,
+        ),
+    }
+}
+
+fn get_imported_member_info(
+    imported_member: ImportedDataMember,
+    source_module: &ItemPath,
+) -> ImportedMemberInfo {
+    ImportedMemberInfo {
+        member: imported_member,
         source_module: source_module.clone(),
     }
 }
@@ -63,8 +104,8 @@ pub fn process_imports(
     for (module_name, module) in modules.iter() {
         println!("Processing imports for module {}", module_name);
         let mut all_hidden_items = BTreeMap::new();
-        let mut imported_items: BTreeMap<String, Vec<ImportItemInfo>> = BTreeMap::new();
-        let mut imported_members: BTreeMap<String, Vec<ImportMemberInfo>> = BTreeMap::new();
+        let mut imported_items = BTreeMap::new();
+        let mut imported_members = BTreeMap::new();
         let ast_module = program.modules.get(&module.id).expect("Module not found");
         for (import_id, import) in &ast_module.imports {
             let source_module = match modules.get(&import.module_path.get()) {
@@ -137,7 +178,34 @@ pub fn process_imports(
                                     get_imported_item_info(imported_item, &source_module.name);
                                 let names = get_names(&namespace, item_name, mode);
                                 for name in names {
-                                    println!("Importing {}", name);
+                                    let imported_item_infos = imported_items
+                                        .entry(name.clone())
+                                        .or_insert_with(|| Vec::new());
+                                    imported_item_infos.push(imported_item_info.clone());
+                                }
+                            }
+                            for (member_name, exported_members) in &source_module.exported_members {
+                                if is_hidden(member_name, &source_module_name, &all_hidden_items) {
+                                    continue;
+                                }
+                                for exported_member in exported_members {
+                                    let (imported_member, is_record) =
+                                        get_imported_member(exported_member);
+                                    let imported_member_info = get_imported_member_info(
+                                        imported_member,
+                                        &source_module.name,
+                                    );
+                                    let names = if is_record {
+                                        vec![member_name.clone()]
+                                    } else {
+                                        get_names(&namespace, member_name, mode)
+                                    };
+                                    for name in names {
+                                        let imported_member_infos = imported_members
+                                            .entry(name.clone())
+                                            .or_insert_with(|| Vec::new());
+                                        imported_member_infos.push(imported_member_info.clone());
+                                    }
                                 }
                             }
                         }
