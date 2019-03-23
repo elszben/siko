@@ -10,9 +10,12 @@ use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::import::ImportedMemberInfo;
 use crate::name_resolution::import::ImportedVariant;
 use crate::name_resolution::module::Module;
+use crate::syntax::data::AdtId;
+use crate::syntax::data::RecordId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
+use crate::syntax::import::ImportedGroup;
 use crate::syntax::import::ImportedItem as AstImportedItem;
 use crate::syntax::import::ImportedMember;
 use crate::syntax::item_path::ItemPath;
@@ -96,6 +99,186 @@ fn is_hidden(
     }
 }
 
+fn process_record_field_import_list(
+    record_id: RecordId,
+    group: &ImportedGroup,
+    source_module: &Module,
+    import: &Import,
+    module: &Module,
+    errors: &mut Vec<ResolverError>,
+    all_hidden_items: &BTreeMap<String, Vec<String>>,
+    imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
+    imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
+    namespace: &str,
+    mode: ImportMode,
+) {
+    let source_module_name = source_module.name.get();
+    for member in &group.members {
+        match member {
+            ImportedMember::All => {
+                for (exported_member_name, source_items) in &source_module.exported_members {
+                    if is_hidden(exported_member_name, &source_module_name, &all_hidden_items) {
+                        continue;
+                    }
+                    for source_item in source_items {
+                        if let ExportedDataMember::RecordField(exported_field) = source_item {
+                            if exported_field.record_id == record_id {
+                                import_exported_member(
+                                    exported_member_name,
+                                    source_item,
+                                    source_module,
+                                    imported_members,
+                                    namespace,
+                                    mode,
+                                );
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            ImportedMember::Specific(member_name) => {
+                if is_hidden(member_name, &source_module_name, &all_hidden_items) {
+                    let err = ResolverError::ExplicitlyImportedRecordFieldHidden(
+                        member_name.clone(),
+                        module.name.get(),
+                        import.location_id,
+                    );
+                    errors.push(err);
+                    continue;
+                }
+                match source_module.exported_members.get(member_name) {
+                    Some(source_items) => {
+                        let mut found = false;
+                        for source_item in source_items {
+                            if let ExportedDataMember::RecordField(exported_field) = source_item {
+                                if exported_field.record_id == record_id {
+                                    found = true;
+                                    import_exported_member(
+                                        member_name,
+                                        source_item,
+                                        source_module,
+                                        imported_members,
+                                        namespace,
+                                        mode,
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                        if !found {
+                            let err = ResolverError::ImportedRecordFieldNotExported(
+                                group.name.clone(),
+                                member_name.clone(),
+                                import.location_id,
+                            );
+                            errors.push(err);
+                        }
+                    }
+                    None => {
+                        let err = ResolverError::ImportedRecordFieldNotExported(
+                            group.name.clone(),
+                            member_name.clone(),
+                            import.location_id,
+                        );
+                        errors.push(err);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn process_adt_variant_import_list(
+    adt_id: AdtId,
+    group: &ImportedGroup,
+    source_module: &Module,
+    import: &Import,
+    module: &Module,
+    errors: &mut Vec<ResolverError>,
+    all_hidden_items: &BTreeMap<String, Vec<String>>,
+    imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
+    imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
+    namespace: &str,
+    mode: ImportMode,
+) {
+    let source_module_name = source_module.name.get();
+    for member in &group.members {
+        match member {
+            ImportedMember::All => {
+                for (exported_member_name, source_items) in &source_module.exported_members {
+                    if is_hidden(exported_member_name, &source_module_name, &all_hidden_items) {
+                        continue;
+                    }
+                    for source_item in source_items {
+                        if let ExportedDataMember::Variant(exported_variant) = source_item {
+                            if exported_variant.adt_id == adt_id {
+                                import_exported_member(
+                                    exported_member_name,
+                                    source_item,
+                                    source_module,
+                                    imported_members,
+                                    namespace,
+                                    mode,
+                                );
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            ImportedMember::Specific(member_name) => {
+                if is_hidden(member_name, &source_module_name, &all_hidden_items) {
+                    let err = ResolverError::ExplicitlyImportedAdtVariantdHidden(
+                        member_name.clone(),
+                        module.name.get(),
+                        import.location_id,
+                    );
+                    errors.push(err);
+                    continue;
+                }
+                match source_module.exported_members.get(member_name) {
+                    Some(source_items) => {
+                        let mut found = false;
+                        for source_item in source_items {
+                            if let ExportedDataMember::Variant(exported_variant) = source_item {
+                                if exported_variant.adt_id == adt_id {
+                                    found = true;
+                                    import_exported_member(
+                                        member_name,
+                                        source_item,
+                                        source_module,
+                                        imported_members,
+                                        namespace,
+                                        mode,
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                        if !found {
+                            let err = ResolverError::ImportedAdtVariantNotExported(
+                                group.name.clone(),
+                                member_name.clone(),
+                                import.location_id,
+                            );
+                            errors.push(err);
+                        }
+                    }
+                    None => {
+                        let err = ResolverError::ImportedAdtVariantNotExported(
+                            group.name.clone(),
+                            member_name.clone(),
+                            import.location_id,
+                        );
+                        errors.push(err);
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn process_explicit_import_list(
     import: &Import,
     imported_list_items: &Vec<AstImportedItem>,
@@ -132,99 +315,19 @@ fn process_explicit_import_list(
                                 namespace,
                                 mode,
                             );
-                            for member in &group.members {
-                                match member {
-                                    ImportedMember::All => {
-                                        for (exported_member_name, source_items) in
-                                            &source_module.exported_members
-                                        {
-                                            if is_hidden(
-                                                exported_member_name,
-                                                &source_module_name,
-                                                &all_hidden_items,
-                                            ) {
-                                                continue;
-                                            }
-                                            for source_item in source_items {
-                                                if let ExportedDataMember::RecordField(
-                                                    exported_field,
-                                                ) = source_item
-                                                {
-                                                    if exported_field.record_id == *record_id {
-                                                        import_exported_member(
-                                                            exported_member_name,
-                                                            source_item,
-                                                            source_module,
-                                                            imported_members,
-                                                            namespace,
-                                                            mode,
-                                                        );
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    ImportedMember::Specific(member_name) => {
-                                        if is_hidden(
-                                            member_name,
-                                            &source_module_name,
-                                            &all_hidden_items,
-                                        ) {
-                                            let err =
-                                                ResolverError::ExplicitlyImportedRecordFieldHidden(
-                                                    member_name.clone(),
-                                                    module.name.get(),
-                                                    import.location_id,
-                                                );
-                                            errors.push(err);
-                                            continue;
-                                        }
-                                        match source_module.exported_members.get(member_name) {
-                                            Some(source_items) => {
-                                                let mut found = false;
-                                                for source_item in source_items {
-                                                    if let ExportedDataMember::RecordField(
-                                                        exported_field,
-                                                    ) = source_item
-                                                    {
-                                                        if exported_field.record_id == *record_id {
-                                                            found = true;
-                                                            import_exported_member(
-                                                                member_name,
-                                                                source_item,
-                                                                source_module,
-                                                                imported_members,
-                                                                namespace,
-                                                                mode,
-                                                            );
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                                if !found {
-                                                    let err =
-                                                    ResolverError::ImportedRecordFieldNotExported(
-                                                        group.name.clone(),
-                                                        member_name.clone(),
-                                                        import.location_id,
-                                                    );
-                                                    errors.push(err);
-                                                }
-                                            }
-                                            None => {
-                                                let err =
-                                                    ResolverError::ImportedRecordFieldNotExported(
-                                                        group.name.clone(),
-                                                        member_name.clone(),
-                                                        import.location_id,
-                                                    );
-                                                errors.push(err);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            process_record_field_import_list(
+                                *record_id,
+                                group,
+                                source_module,
+                                import,
+                                module,
+                                errors,
+                                all_hidden_items,
+                                imported_items,
+                                imported_members,
+                                namespace,
+                                mode,
+                            );
                         }
                         ExportedItem::Adt(adt_id) => {
                             import_exported_item(
@@ -232,6 +335,19 @@ fn process_explicit_import_list(
                                 item,
                                 source_module,
                                 imported_items,
+                                namespace,
+                                mode,
+                            );
+                            process_adt_variant_import_list(
+                                *adt_id,
+                                group,
+                                source_module,
+                                import,
+                                module,
+                                errors,
+                                all_hidden_items,
+                                imported_items,
+                                imported_members,
                                 namespace,
                                 mode,
                             );

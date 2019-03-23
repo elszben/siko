@@ -376,6 +376,34 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ExplicitlyImportedAdtVariantdHidden(
+                            variant_name,
+                            module_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} explicitly imported variant {} is also hidden in module {}",
+                                error.red(),
+                                variant_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ImportedAdtVariantNotExported(
+                            type_name,
+                            variant_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} imported variant {} is not exported for type {}",
+                                error.red(),
+                                variant_name.yellow(),
+                                type_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

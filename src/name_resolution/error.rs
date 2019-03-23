@@ -33,4 +33,6 @@ pub enum ResolverError {
     ExplicitlyImportedTypeHidden(String, String, LocationId),
     IncorrectNameInImportedTypeConstructor(String, String, LocationId),
     ImportedRecordFieldNotExported(String, String, LocationId),
+    ExplicitlyImportedAdtVariantdHidden(String, String, LocationId),
+    ImportedAdtVariantNotExported(String, String, LocationId),
 }
