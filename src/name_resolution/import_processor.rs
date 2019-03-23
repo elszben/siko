@@ -524,7 +524,6 @@ pub fn process_imports(
                     }
                     ImportedItem::Adt(*adt_id)
                 }
-                Item::DataConstructor(_) => continue,
                 Item::Function(function_id) => ImportedItem::Function(*function_id),
                 Item::Record(record_id) => {
                     let record = program.records.get(record_id).expect("Record not found");

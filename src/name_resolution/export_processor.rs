@@ -40,7 +40,6 @@ pub fn process_exports(
                             exported_items.insert(name.clone(), ExportedItem::Adt(*adt_id));
                             export_all_variants(adt_id, program, &mut exported_members);
                         }
-                        Item::DataConstructor(_) => {}
                     }
                 }
             }
@@ -60,10 +59,6 @@ pub fn process_exports(
                                                 entity_name.clone(),
                                                 ExportedItem::Function(*function_id),
                                             );
-                                        }
-                                        Item::DataConstructor(_) => {
-                                            // cannot export a data constructor as a stand alone export list item,
-                                            // let it generate an error as a non existent entity ref
                                         }
                                         Item::Record(record_id) => {
                                             found = true;

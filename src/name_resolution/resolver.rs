@@ -324,14 +324,6 @@ impl Resolver {
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Adt(*adt_id));
-                for variant_id in &adt.variants {
-                    let variant = program.variants.get(variant_id).expect("Variant not found");
-                    let items = module
-                        .items
-                        .entry(variant.name.clone())
-                        .or_insert_with(|| Vec::new());
-                    items.push(Item::DataConstructor(variant.id));
-                }
             }
             for function_id in &ast_module.functions {
                 let function = program
@@ -355,10 +347,6 @@ impl Resolver {
                     let mut locations = Vec::new();
                     for item in items {
                         match item {
-                            Item::DataConstructor(id) => {
-                                let variant = program.variants.get(id).expect("Variant not found");
-                                locations.push(variant.location_id);
-                            }
                             Item::Function(id) => {
                                 let function =
                                     program.functions.get(id).expect("Function not found");

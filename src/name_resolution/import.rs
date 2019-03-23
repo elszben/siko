@@ -3,13 +3,11 @@ use crate::syntax::data::RecordFieldId;
 use crate::syntax::data::RecordId;
 use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
-use crate::syntax::item_path::ItemPath;
 
 #[derive(Debug, Clone)]
 pub enum ImportedItem {
     Function(FunctionId),
     Record(RecordId),
-    Variant(VariantId),
     Adt(AdtId),
 }
 
