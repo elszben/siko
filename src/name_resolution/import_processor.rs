@@ -512,6 +512,9 @@ pub fn process_imports(
                             adt_id: *adt_id,
                             variant_id: *variant_id,
                         });
+                        let variant = program.variants.get(variant_id).expect("Variant not found");
+                        let names =
+                            get_names(module_name, &variant.name, ImportMode::NameAndNamespace);
                         for name in &names {
                             let ims = imported_members
                                 .entry(name.clone())
@@ -532,6 +535,8 @@ pub fn process_imports(
                             record_id: *record_id,
                             field_id: field.id,
                         });
+                        let names =
+                            get_names(module_name, &field.name, ImportMode::NameAndNamespace);
                         for name in &names {
                             let ims = imported_members
                                 .entry(name.clone())
