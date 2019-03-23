@@ -8,7 +8,7 @@ module alma.korte where
 
 import Data hiding (Option, Some, name)
 
-import Data as Foo
+import Data 
 
 main :: korte.szilva
 main = 5

@@ -1,9 +1,12 @@
 use crate::name_resolution::error::ResolverError;
+use crate::name_resolution::export::ExportedItem;
 use crate::name_resolution::import::ImportItemInfo;
 use crate::name_resolution::import::ImportMemberInfo;
+use crate::name_resolution::import::ImportedItem;
 use crate::name_resolution::module::Module;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
+use crate::syntax::item_path::ItemPath;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 
@@ -11,6 +14,42 @@ use std::collections::BTreeMap;
 enum ImportMode {
     NameAndNamespace,
     NamespaceOnly,
+}
+
+fn get_imported_item(exported_item: &ExportedItem) -> ImportedItem {
+    match exported_item {
+        ExportedItem::Adt(adt_id) => ImportedItem::Adt(*adt_id),
+        ExportedItem::Function(function_id) => ImportedItem::Function(*function_id),
+        ExportedItem::Record(record_id) => ImportedItem::Record(*record_id),
+    }
+}
+
+fn get_imported_item_info(imported_item: ImportedItem, source_module: &ItemPath) -> ImportItemInfo {
+    ImportItemInfo {
+        item: imported_item,
+        source_module: source_module.clone(),
+    }
+}
+
+fn get_names(namespace: &str, item_name: &str, mode: ImportMode) -> Vec<String> {
+    match mode {
+        ImportMode::NamespaceOnly => vec![format!("{}.{}", namespace, item_name)],
+        ImportMode::NameAndNamespace => vec![
+            item_name.to_string(),
+            format!("{}.{}", namespace, item_name),
+        ],
+    }
+}
+
+fn is_hidden(
+    item_name: &str,
+    source_module: &String,
+    all_hidden_items: &BTreeMap<String, Vec<String>>,
+) -> bool {
+    match all_hidden_items.get(item_name) {
+        Some(items) => items.contains(source_module),
+        None => false,
+    }
 }
 
 pub fn process_imports(
@@ -69,6 +108,13 @@ pub fn process_imports(
         }
 
         for (import_id, import) in &ast_module.imports {
+            let source_module = match modules.get(&import.module_path.get()) {
+                Some(source_module) => source_module,
+                None => {
+                    continue;
+                }
+            };
+            let source_module_name = source_module.name.get();
             match &import.kind {
                 ImportKind::Hiding(..) => {}
                 ImportKind::ImportList {
@@ -81,7 +127,20 @@ pub fn process_imports(
                     };
                     println!("Namespace settings {} {:?}", namespace, mode);
                     match items {
-                        ImportList::ImplicitAll => {}
+                        ImportList::ImplicitAll => {
+                            for (item_name, exported_item) in &source_module.exported_items {
+                                if is_hidden(item_name, &source_module_name, &all_hidden_items) {
+                                    continue;
+                                }
+                                let imported_item = get_imported_item(exported_item);
+                                let imported_item_info =
+                                    get_imported_item_info(imported_item, &source_module.name);
+                                let names = get_names(&namespace, item_name, mode);
+                                for name in names {
+                                    println!("Importing {}", name);
+                                }
+                            }
+                        }
                         ImportList::Explicit(imported_items) => {}
                     }
                 }

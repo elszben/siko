@@ -35,7 +35,6 @@ pub struct ImportedVariant {
 pub struct ImportItemInfo {
     pub item: ImportedItem,
     pub source_module: ItemPath,
-    pub hidden: bool,
 }
 
 #[derive(Debug)]
