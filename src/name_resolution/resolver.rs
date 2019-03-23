@@ -448,61 +448,6 @@ impl Resolver {
             return Err(Error::resolve_err(errors));
         }
 
-        /*
-            let mut imported_not_found_modules = Vec::new();
-
-            for (_, ast_module) in &program.modules {
-                let mut imported_symbols = ImportStore::new();
-
-                let mut explicit_prelude_import = false;
-
-                for (import_id, import) in &ast_module.imports {
-                    let imported_module_path = import.module_path.get();
-                    if imported_module_path == PRELUDE_NAME {
-                        explicit_prelude_import = true;
-                    }
-                    let source_module = match self.modules.get(&imported_module_path) {
-                        Some(module) => module,
-                        None => {
-                            imported_not_found_modules
-                                .push((imported_module_path, import.location_id.clone()));
-                            continue;
-                        }
-                    };
-                    let (imported_syms, errs) = self.collect_imported_symbols(import, source_module);
-                    imported_symbols.extend(imported_syms);
-                    errors.extend(errs);
-                }
-
-                if ast_module.name.get() != PRELUDE_NAME && !explicit_prelude_import {
-                    let source_module = match self.modules.get(PRELUDE_NAME) {
-                        Some(module) => module,
-                        None => {
-                            panic!("Prelude not found");
-                        }
-                    };
-                    for func in source_module.exported_functions.keys() {
-                        imported_symbols.add_imported_function(
-                            func.clone(),
-                            source_module.name.clone(),
-                            PRELUDE_NAME.to_string(),
-                            ImportKind::NamespaceOnly,
-                        );
-                    }
-                }
-
-                let module = self
-                    .modules
-                    .get_mut(&ast_module.name.get())
-                    .expect("Module not found");
-                module.imported_functions.extend(imported_symbols);
-            }
-
-            if !imported_not_found_modules.is_empty() {
-                let e = ResolverError::ImportedModuleNotFound(imported_not_found_modules);
-                errors.push(e);
-            }
-        */
         for (_, module) in &program.modules {
             for function_id in &module.functions {
                 let function = program
