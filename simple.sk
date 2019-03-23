@@ -17,7 +17,7 @@ some_func = 7
 
 module alma.korte where
 
-import Data hiding ( Some, Person)
+import Data hiding ( Some)
 import DataBoo hiding ( Some, name)
 
 import Data (Person(name), Option(Some, a)) as Foo
