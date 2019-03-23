@@ -107,7 +107,6 @@ fn process_record_field_import_list(
     module: &Module,
     errors: &mut Vec<ResolverError>,
     all_hidden_items: &BTreeMap<String, Vec<String>>,
-    imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
     imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
     namespace: &str,
     mode: ImportMode,
@@ -142,7 +141,7 @@ fn process_record_field_import_list(
                     let err = ResolverError::ExplicitlyImportedRecordFieldHidden(
                         member_name.clone(),
                         module.name.get(),
-                        import.location_id,
+                        import.get_location(),
                     );
                     errors.push(err);
                     continue;
@@ -170,7 +169,7 @@ fn process_record_field_import_list(
                             let err = ResolverError::ImportedRecordFieldNotExported(
                                 group.name.clone(),
                                 member_name.clone(),
-                                import.location_id,
+                                import.get_location(),
                             );
                             errors.push(err);
                         }
@@ -179,7 +178,7 @@ fn process_record_field_import_list(
                         let err = ResolverError::ImportedRecordFieldNotExported(
                             group.name.clone(),
                             member_name.clone(),
-                            import.location_id,
+                            import.get_location(),
                         );
                         errors.push(err);
                     }
@@ -197,7 +196,6 @@ fn process_adt_variant_import_list(
     module: &Module,
     errors: &mut Vec<ResolverError>,
     all_hidden_items: &BTreeMap<String, Vec<String>>,
-    imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
     imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
     namespace: &str,
     mode: ImportMode,
@@ -232,7 +230,7 @@ fn process_adt_variant_import_list(
                     let err = ResolverError::ExplicitlyImportedAdtVariantdHidden(
                         member_name.clone(),
                         module.name.get(),
-                        import.location_id,
+                        import.get_location(),
                     );
                     errors.push(err);
                     continue;
@@ -260,7 +258,7 @@ fn process_adt_variant_import_list(
                             let err = ResolverError::ImportedAdtVariantNotExported(
                                 group.name.clone(),
                                 member_name.clone(),
-                                import.location_id,
+                                import.get_location(),
                             );
                             errors.push(err);
                         }
@@ -269,7 +267,7 @@ fn process_adt_variant_import_list(
                         let err = ResolverError::ImportedAdtVariantNotExported(
                             group.name.clone(),
                             member_name.clone(),
-                            import.location_id,
+                            import.get_location(),
                         );
                         errors.push(err);
                     }
@@ -299,7 +297,7 @@ fn process_explicit_import_list(
                     let err = ResolverError::ExplicitlyImportedTypeHidden(
                         group.name.clone(),
                         module.name.get(),
-                        import.location_id,
+                        import.get_location(),
                     );
                     errors.push(err);
                     continue;
@@ -323,7 +321,6 @@ fn process_explicit_import_list(
                                 module,
                                 errors,
                                 all_hidden_items,
-                                imported_items,
                                 imported_members,
                                 namespace,
                                 mode,
@@ -346,7 +343,6 @@ fn process_explicit_import_list(
                                 module,
                                 errors,
                                 all_hidden_items,
-                                imported_items,
                                 imported_members,
                                 namespace,
                                 mode,
@@ -356,7 +352,7 @@ fn process_explicit_import_list(
                             let err = ResolverError::IncorrectNameInImportedTypeConstructor(
                                 import.module_path.get(),
                                 group.name.clone(),
-                                import.location_id,
+                                import.get_location(),
                             );
                             errors.push(err);
                         }
@@ -365,7 +361,7 @@ fn process_explicit_import_list(
                         let err = ResolverError::IncorrectNameInImportedTypeConstructor(
                             import.module_path.get(),
                             group.name.clone(),
-                            import.location_id,
+                            import.get_location(),
                         );
                         errors.push(err);
                     }
@@ -376,7 +372,7 @@ fn process_explicit_import_list(
                     let err = ResolverError::ExplicitlyImportedItemHidden(
                         item_name.clone(),
                         module.name.get(),
-                        import.location_id,
+                        import.get_location(),
                     );
                     errors.push(err);
                     continue;
@@ -399,7 +395,7 @@ fn process_explicit_import_list(
                         let err = ResolverError::ImportedSymbolNotExportedByModule(
                             item_name.clone(),
                             import.module_path.get(),
-                            import.location_id,
+                            import.get_location(),
                         );
                         errors.push(err);
                     }
@@ -510,7 +506,7 @@ pub fn process_imports(
                 None => {
                     let err = ResolverError::ImportedModuleNotFound(
                         import.module_path.get(),
-                        import.location_id,
+                        import.get_location(),
                     );
                     errors.push(err);
                     continue;
@@ -530,7 +526,7 @@ pub fn process_imports(
                             let err = ResolverError::ImportedSymbolNotExportedByModule(
                                 item.name.clone(),
                                 import.module_path.get(),
-                                import.location_id,
+                                import.get_location(),
                             );
                             errors.push(err);
                         } else {

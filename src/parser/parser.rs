@@ -4,6 +4,7 @@ use super::util::report_unexpected_token;
 use super::util::to_string_list;
 use super::util::ParenParseResult;
 use crate::constants::BuiltinOperator;
+use crate::constants::PRELUDE_NAME;
 use crate::error::Error;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::item::Item;
@@ -536,7 +537,7 @@ impl<'a> Parser<'a> {
             id: id.clone(),
             module_path: name,
             kind: import_kind,
-            location_id: location_id,
+            location_id: Some(location_id),
         };
         Ok(import)
     }
@@ -735,6 +736,50 @@ impl<'a> Parser<'a> {
             let m_id = self.program.get_module_id();
             let module = self.parse_module(m_id)?;
             self.program.add_module(m_id, module);
+        }
+
+        let mut prelude_exists = false;
+        for (_, module) in self.program.modules.iter_mut() {
+            if module.name.get() == PRELUDE_NAME {
+                prelude_exists = true;
+                break;
+            }
+        }
+
+        if prelude_exists {
+            let mut modules_without_prelude = Vec::new();
+            for (module_id, module) in &self.program.modules {
+                let mut prelude_imported = false;
+                for (_, import) in &module.imports {
+                    if import.module_path.get() == PRELUDE_NAME {
+                        prelude_imported = true;
+                        break;
+                    }
+                }
+                if !prelude_imported {
+                    modules_without_prelude.push(*module_id);
+                }
+            }
+            for module_id in modules_without_prelude {
+                let import_id = self.program.get_import_id();
+                let import = Import {
+                    id: import_id,
+                    module_path: ItemPath {
+                        path: vec![PRELUDE_NAME.to_string()],
+                    },
+                    kind: ImportKind::ImportList {
+                        items: ImportList::ImplicitAll,
+                        alternative_name: None,
+                    },
+                    location_id: None,
+                };
+                let module = self
+                    .program
+                    .modules
+                    .get_mut(&module_id)
+                    .expect("Module not found");
+                module.imports.insert(import_id, import);
+            }
         }
 
         Ok(())

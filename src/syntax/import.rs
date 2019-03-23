@@ -44,7 +44,14 @@ pub struct Import {
     pub id: ImportId,
     pub module_path: ItemPath,
     pub kind: ImportKind,
-    pub location_id: LocationId,
+    pub location_id: Option<LocationId>,
+}
+
+impl Import {
+    pub fn get_location(&self) -> LocationId {
+        self.location_id
+            .expect("Trying to get the location of an internal import")
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
