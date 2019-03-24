@@ -90,61 +90,6 @@ impl Resolver {
         }
     }
 
-    /*
-    fn collect_imported_symbols(
-        &self,
-        ast_import: &AstImport,
-        source_module: &Module,
-    ) -> (ImportStore, Vec<ResolverError>) {
-        let mut import_store = ImportStore::new();
-        let mut errors = Vec::new();
-        /*
-        let (namespace, kind) = match &ast_import.alternative_name {
-            Some(n) => (n.clone(), ImportKind::NamespaceOnly),
-            None => (ast_import.module_path.get(), ImportKind::NameAndNamespace),
-        };
-        match &ast_import.kind {
-            AstImportKind::Explicit(imported_items) => {
-                for imported_item in imported_items {
-                    let item_name = if let AstImportedItem::FunctionOrRecord(name) = imported_item {
-                        name.clone()
-                    } else {
-                        unimplemented!()
-                    };
-                    match source_module.exported_functions.get(&item_name) {
-                        Some(_) => import_store.add_imported_function(
-                            item_name.clone(),
-                            source_module.name.clone(),
-                            namespace.clone(),
-                            kind,
-                        ),
-                        None => {
-                            let e = ResolverError::SymbolNotFoundInModule(
-                                item_name.clone(),
-                                ast_import.id.clone(),
-                            );
-                            errors.push(e);
-                        }
-                    }
-                }
-            }
-            AstImportKind::ImplicitAll => {
-                for func in source_module.exported_functions.keys() {
-                    import_store.add_imported_function(
-                        func.clone(),
-                        source_module.name.clone(),
-                        namespace.clone(),
-                        kind,
-                    );
-                }
-            }
-            AstImportKind::Hiding(_) => unimplemented!(),
-        }
-        */
-    (import_store, errors)
-    }
-     */
-
     fn process_type_signature(
         &self,
         type_signature_id: &TypeSignatureId,
