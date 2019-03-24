@@ -1,3 +1,5 @@
+use crate::syntax::data::AdtId as AstAdtId;
+use crate::syntax::data::RecordId as AstRecordId;
 use crate::syntax::types::TypeSignatureId as AstTypeSignatureId;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -29,4 +31,29 @@ impl TypeInfo {
             ast_type_id: ast_type_id,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Record {
+    pub name: String,
+    pub ast_record_id: AstRecordId,
+    pub id: TypeDefId,
+}
+
+#[derive(Debug, Clone)]
+pub struct Adt {
+    pub name: String,
+    pub ast_adt_id: AstAdtId,
+    pub id: TypeDefId,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeDef {
+    Record(Record),
+    Adt(Adt),
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TypeDefId {
+    pub id: usize,
 }

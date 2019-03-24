@@ -3,7 +3,6 @@ use crate::location_info::filepath::FilePath;
 use crate::location_info::location::Location;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_set::LocationSet;
-use crate::name_resolution::error::InternalModuleConflict;
 use crate::name_resolution::error::ResolverError;
 use crate::typechecker::error::TypecheckError;
 use crate::util::format_list;
@@ -211,25 +210,16 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::InternalModuleConflicts(module_conflicts) => {
-                            for (module, conflicts) in module_conflicts {
-                                for conflict in conflicts {
-                                    match conflict {
-                                        InternalModuleConflict::ItemConflict(name, locations) => {
-                                            println!(
-                                                "{} conflicting items named {} in module {}",
-                                                error.red(),
-                                                name.yellow(),
-                                                module.yellow()
-                                            );
-                                            for id in locations {
-                                                let location_set =
-                                                    location_info.get_item_location(id);
-                                                print_location_set(file_manager, location_set);
-                                            }
-                                        }
-                                    }
-                                }
+                        ResolverError::InternalModuleConflicts(module_name, name, locations) => {
+                            println!(
+                                "{} conflicting items named {} in module {}",
+                                error.red(),
+                                name.yellow(),
+                                module_name.yellow()
+                            );
+                            for id in locations {
+                                let location_set = location_info.get_item_location(id);
+                                print_location_set(file_manager, location_set);
                             }
                         }
                         ResolverError::RecordTypeNameMismatch(record_name, type_name, id) => {

@@ -3,14 +3,9 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
-pub enum InternalModuleConflict {
-    ItemConflict(String, Vec<LocationId>),
-}
-
-#[derive(Debug)]
 pub enum ResolverError {
     ModuleConflict(BTreeMap<String, BTreeSet<LocationId>>),
-    InternalModuleConflicts(BTreeMap<String, Vec<InternalModuleConflict>>),
+    InternalModuleConflicts(String, String, Vec<LocationId>),
     ImportedModuleNotFound(String, LocationId),
     ImportedSymbolNotExportedByModule(String, String, LocationId),
     UnknownTypeName(String, LocationId),

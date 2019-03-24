@@ -4,11 +4,13 @@ use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program as IrProgram;
+use crate::ir::types::Adt;
+use crate::ir::types::Record;
+use crate::ir::types::TypeDef;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::name_resolution::environment::Environment;
-use crate::name_resolution::error::InternalModuleConflict;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export_processor::process_exports;
 use crate::name_resolution::expr_processor::process_expr;
@@ -44,31 +46,12 @@ impl Resolver {
         &mut self,
         ast_module: &AstModule,
         modules: &mut BTreeMap<String, Vec<Module>>,
-        ir_program: &mut IrProgram,
     ) {
         let mut module = Module::new(
             ast_module.id,
             ast_module.name.clone(),
             ast_module.location_id,
         );
-
-        /*
-        for function in ast_module.functions.values() {
-            let functions = module
-                .exported_functions
-                .entry(function.name.clone())
-                .or_insert_with(Vec::new);
-            functions.push(function);
-            module.imported_functions.add_imported_function(
-                function.name.clone(),
-                ast_module.name.clone(),
-                String::new(),
-                ImportKind::NameOnly,
-            );
-            self.function_map
-                .insert(function.id.clone(), ir_program.get_function_id());
-        }
-        */
 
         let mods = modules
             .entry(ast_module.name.get())
@@ -306,7 +289,12 @@ impl Resolver {
         unreachable!()
     }
 
-    fn process_items_and_types(&mut self, program: &Program, errors: &mut Vec<ResolverError>) {
+    fn process_items_and_types(
+        &mut self,
+        program: &Program,
+        errors: &mut Vec<ResolverError>,
+        ir_program: &mut IrProgram,
+    ) {
         for (name, module) in &mut self.modules {
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             for record_id in &ast_module.records {
@@ -316,6 +304,14 @@ impl Resolver {
                     .entry(record.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Record(*record_id));
+                let ir_typedef_id = ir_program.get_typedef_id();
+                let ir_record = Record {
+                    name: record.name.clone(),
+                    ast_record_id: *record_id,
+                    id: ir_typedef_id,
+                };
+                let typedef = TypeDef::Record(ir_record);
+                ir_program.add_typedef(ir_typedef_id, typedef);
             }
             for adt_id in &ast_module.adts {
                 let adt = program.adts.get(adt_id).expect("Adt not found");
@@ -324,6 +320,14 @@ impl Resolver {
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Adt(*adt_id));
+                let ir_typedef_id = ir_program.get_typedef_id();
+                let ir_adt = Adt {
+                    name: adt.name.clone(),
+                    ast_adt_id: *adt_id,
+                    id: ir_typedef_id,
+                };
+                let typedef = TypeDef::Adt(ir_adt);
+                ir_program.add_typedef(ir_typedef_id, typedef);
             }
             for function_id in &ast_module.functions {
                 let function = program
@@ -335,13 +339,12 @@ impl Resolver {
                     .entry(function.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Function(function.id));
+                let ir_function_id = ir_program.get_function_id();
+                self.function_map.insert(*function_id, ir_function_id);
             }
         }
 
-        let mut all_module_conflicts = BTreeMap::new();
-
         for (_, module) in &self.modules {
-            let mut module_conflicts = Vec::new();
             for (name, items) in &module.items {
                 if items.len() > 1 {
                     let mut locations = Vec::new();
@@ -362,21 +365,14 @@ impl Resolver {
                             }
                         }
                     }
-                    module_conflicts.push(InternalModuleConflict::ItemConflict(
+                    let err = ResolverError::InternalModuleConflicts(
+                        module.name.get(),
                         name.clone(),
                         locations,
-                    ));
+                    );
+                    errors.push(err);
                 }
             }
-
-            if !module_conflicts.is_empty() {
-                all_module_conflicts.insert(module.name.get(), module_conflicts);
-            }
-        }
-
-        if !all_module_conflicts.is_empty() {
-            let err = ResolverError::InternalModuleConflicts(all_module_conflicts);
-            errors.push(err);
         }
 
         for (_, record) in &program.records {
@@ -422,15 +418,15 @@ impl Resolver {
 
         let mut modules = BTreeMap::new();
 
-        let mut ir_program = IrProgram::new();
-
         for ast_module in program.modules.values() {
-            self.register_module(ast_module, &mut modules, &mut ir_program);
+            self.register_module(ast_module, &mut modules);
         }
 
         self.process_module_conflicts(modules)?;
 
-        self.process_items_and_types(program, &mut errors);
+        let mut ir_program = IrProgram::new();
+
+        self.process_items_and_types(program, &mut errors, &mut ir_program);
 
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));

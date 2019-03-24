@@ -3,6 +3,8 @@ use crate::ir::expr::ExprId;
 use crate::ir::expr::ExprInfo;
 use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
+use crate::ir::types::TypeDef;
+use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature;
 use crate::ir::types::TypeSignatureId;
@@ -16,9 +18,11 @@ pub struct Program {
     pub type_signatures: BTreeMap<TypeSignatureId, TypeInfo>,
     pub exprs: BTreeMap<ExprId, ExprInfo>,
     pub functions: BTreeMap<FunctionId, Function>,
+    pub typedefs: BTreeMap<TypeDefId, TypeDef>,
     type_signature_id: Counter,
     expr_id: Counter,
     function_id: Counter,
+    typedef_id: Counter,
 }
 
 impl Program {
@@ -27,9 +31,11 @@ impl Program {
             type_signatures: BTreeMap::new(),
             exprs: BTreeMap::new(),
             functions: BTreeMap::new(),
+            typedefs: BTreeMap::new(),
             type_signature_id: Counter::new(),
             expr_id: Counter::new(),
             function_id: Counter::new(),
+            typedef_id: Counter::new(),
         }
     }
 
@@ -48,6 +54,12 @@ impl Program {
     pub fn get_function_id(&mut self) -> FunctionId {
         FunctionId {
             id: self.function_id.next(),
+        }
+    }
+
+    pub fn get_typedef_id(&mut self) -> TypeDefId {
+        TypeDefId {
+            id: self.typedef_id.next(),
         }
     }
 
@@ -81,5 +93,9 @@ impl Program {
 
     pub fn get_function(&self, id: &FunctionId) -> &Function {
         &self.functions.get(id).expect("Function not found")
+    }
+
+    pub fn add_typedef(&mut self, id: TypeDefId, typedef: TypeDef) {
+        self.typedefs.insert(id, typedef);
     }
 }

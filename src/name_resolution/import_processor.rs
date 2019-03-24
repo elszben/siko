@@ -496,7 +496,7 @@ pub fn process_imports(
     let mut all_imported_members = Vec::new();
 
     for (module_name, module) in modules.iter() {
-        println!("Processing imports for module {}", module_name);
+        // println!("Processing imports for module {}", module_name);
         let mut all_hidden_items = BTreeMap::new();
         let mut imported_items = BTreeMap::new();
         let mut imported_members = BTreeMap::new();
@@ -651,21 +651,31 @@ pub fn process_imports(
                 }
             }
         }
+        /*
+                println!("Module {} imports:", module_name);
+                println!(
+                    "{} imported items {} imported members",
+                    imported_items.len(),
+                    imported_members.len(),
+                );
+                for (name, import) in &imported_items {
+                    println!("Item: {} => {:?}", name, import);
+                }
+                for (name, import) in &imported_members {
+                    println!("Member: {} => {:?}", name, import);
+                }
+        */
+        all_imported_items.push((module_name.clone(), imported_items));
+        all_imported_members.push((module_name.clone(), imported_members));
+    }
 
-        println!("Module {} imports:", module_name);
-        println!(
-            "{} imported items {} imported members",
-            imported_items.len(),
-            imported_members.len(),
-        );
-        for (name, import) in &imported_items {
-            println!("Item: {} => {:?}", name, import);
-        }
-        for (name, import) in &imported_members {
-            println!("Member: {} => {:?}", name, import);
-        }
+    for (module_name, items) in all_imported_items {
+        let module = modules.get_mut(&module_name).expect("Module not found");
+        module.imported_items = items;
+    }
 
-        all_imported_items.push((module_name, imported_items));
-        all_imported_members.push((module_name, imported_members));
+    for (module_name, members) in all_imported_members {
+        let module = modules.get_mut(&module_name).expect("Module not found");
+        module.imported_members = members;
     }
 }
