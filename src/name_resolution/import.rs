@@ -1,16 +1,10 @@
 use crate::ir::types::TypeDefId;
+use crate::name_resolution::item::Item;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordFieldId;
 use crate::syntax::data::RecordId;
 use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
-
-#[derive(Debug, Clone)]
-pub enum ImportedItem {
-    Function(FunctionId),
-    Record(RecordId, TypeDefId),
-    Adt(AdtId, TypeDefId),
-}
 
 #[derive(Debug, Clone)]
 pub enum ImportedDataMember {
@@ -32,7 +26,7 @@ pub struct ImportedVariant {
 
 #[derive(Debug, Clone)]
 pub struct ImportedItemInfo {
-    pub item: ImportedItem,
+    pub item: Item,
     pub source_module: String,
 }
 

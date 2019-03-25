@@ -1,7 +1,6 @@
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export::ExportedDataMember;
 use crate::name_resolution::export::ExportedField;
-use crate::name_resolution::export::ExportedItem;
 use crate::name_resolution::export::ExportedVariant;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
@@ -27,21 +26,13 @@ pub fn process_exports(
                 for (name, items) in &module.items {
                     assert_eq!(items.len(), 1);
                     let item = &items[0];
+                    exported_items.insert(name.clone(), item.clone());
                     match item {
-                        Item::Function(function_id) => {
-                            exported_items
-                                .insert(name.clone(), ExportedItem::Function(*function_id));
-                        }
+                        Item::Function(..) => {}
                         Item::Record(record_id, ir_typedef_id) => {
-                            exported_items.insert(
-                                name.clone(),
-                                ExportedItem::Record(*record_id, *ir_typedef_id),
-                            );
                             export_all_fields(record_id, program, &mut exported_members);
                         }
                         Item::Adt(adt_id, ir_typedef_id) => {
-                            exported_items
-                                .insert(name.clone(), ExportedItem::Adt(*adt_id, *ir_typedef_id));
                             export_all_variants(adt_id, program, &mut exported_members);
                         }
                     }
@@ -56,39 +47,16 @@ pub fn process_exports(
                                 Some(items) => {
                                     assert_eq!(items.len(), 1);
                                     let item = &items[0];
-                                    match item {
-                                        Item::Function(function_id) => {
-                                            found = true;
-                                            exported_items.insert(
-                                                entity_name.clone(),
-                                                ExportedItem::Function(*function_id),
-                                            );
-                                        }
-                                        Item::Record(record_id, ir_typedef_id) => {
-                                            found = true;
-                                            exported_items.insert(
-                                                entity_name.clone(),
-                                                ExportedItem::Record(*record_id, *ir_typedef_id),
-                                            );
-                                        }
-                                        Item::Adt(adt_id, ir_typedef_id) => {
-                                            found = true;
-                                            exported_items.insert(
-                                                entity_name.clone(),
-                                                ExportedItem::Adt(*adt_id, *ir_typedef_id),
-                                            );
-                                        }
-                                    }
+                                    exported_items.insert(entity_name.clone(), item.clone());
                                 }
-                                None => {}
-                            }
-                            if !found {
-                                let err = ResolverError::ExportedEntityDoesNotExist(
-                                    module_name.clone(),
-                                    entity_name.clone(),
-                                    ast_module.location_id,
-                                );
-                                errors.push(err);
+                                None => {
+                                    let err = ResolverError::ExportedEntityDoesNotExist(
+                                        module_name.clone(),
+                                        entity_name.clone(),
+                                        ast_module.location_id,
+                                    );
+                                    errors.push(err);
+                                }
                             }
                         }
                         AstExportedItem::Group(group) => match module.items.get(&group.name) {
@@ -97,10 +65,7 @@ pub fn process_exports(
                                 let item = &items[0];
                                 match item {
                                     Item::Record(record_id, ir_typedef_id) => {
-                                        exported_items.insert(
-                                            group.name.clone(),
-                                            ExportedItem::Record(*record_id, *ir_typedef_id),
-                                        );
+                                        exported_items.insert(group.name.clone(), item.clone());
                                         for member in &group.members {
                                             match member {
                                                 ExportedMember::All => {
@@ -143,10 +108,7 @@ pub fn process_exports(
                                         }
                                     }
                                     Item::Adt(adt_id, ir_typedef_id) => {
-                                        exported_items.insert(
-                                            group.name.clone(),
-                                            ExportedItem::Adt(*adt_id, *ir_typedef_id),
-                                        );
+                                        exported_items.insert(group.name.clone(), item.clone());
                                         for member in &group.members {
                                             match member {
                                                 ExportedMember::All => {

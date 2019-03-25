@@ -1,12 +1,9 @@
-use crate::ir::types::TypeDefId;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export::ExportedDataMember;
 use crate::name_resolution::export::ExportedField;
-use crate::name_resolution::export::ExportedItem;
 use crate::name_resolution::export::ExportedVariant;
 use crate::name_resolution::import::ImportedDataMember;
 use crate::name_resolution::import::ImportedField;
-use crate::name_resolution::import::ImportedItem;
 use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::import::ImportedMemberInfo;
 use crate::name_resolution::import::ImportedVariant;
@@ -30,20 +27,7 @@ enum ImportMode {
     NamespaceOnly,
 }
 
-fn get_imported_item(exported_item: &ExportedItem) -> ImportedItem {
-    match exported_item {
-        ExportedItem::Adt(adt_id, ir_typedef_id) => ImportedItem::Adt(*adt_id, *ir_typedef_id),
-        ExportedItem::Function(function_id) => ImportedItem::Function(*function_id),
-        ExportedItem::Record(record_id, ir_typedef_id) => {
-            ImportedItem::Record(*record_id, *ir_typedef_id)
-        }
-    }
-}
-
-fn get_imported_item_info(
-    imported_item: ImportedItem,
-    source_module: &ItemPath,
-) -> ImportedItemInfo {
+fn get_imported_item_info(imported_item: Item, source_module: &ItemPath) -> ImportedItemInfo {
     ImportedItemInfo {
         item: imported_item,
         source_module: source_module.get(),
@@ -308,10 +292,10 @@ fn process_explicit_import_list(
                 }
                 match source_module.exported_items.get(&group.name) {
                     Some(item) => match item {
-                        ExportedItem::Record(record_id, ir_typedef_id) => {
+                        Item::Record(record_id, _) => {
                             import_exported_item(
                                 &group.name,
-                                item,
+                                &item,
                                 source_module,
                                 imported_items,
                                 namespace,
@@ -330,10 +314,10 @@ fn process_explicit_import_list(
                                 mode,
                             );
                         }
-                        ExportedItem::Adt(adt_id, ir_typedef_id) => {
+                        Item::Adt(adt_id, _) => {
                             import_exported_item(
                                 &group.name,
-                                item,
+                                &item,
                                 source_module,
                                 imported_items,
                                 namespace,
@@ -352,7 +336,7 @@ fn process_explicit_import_list(
                                 mode,
                             );
                         }
-                        ExportedItem::Function(_) => {
+                        Item::Function(..) => {
                             let err = ResolverError::IncorrectNameInImportedTypeConstructor(
                                 import.module_path.get(),
                                 group.name.clone(),
@@ -384,9 +368,8 @@ fn process_explicit_import_list(
 
                 match source_module.exported_items.get(item_name) {
                     Some(exported_item) => {
-                        let imported_item = get_imported_item(exported_item);
                         let imported_item_info =
-                            get_imported_item_info(imported_item, &source_module.name);
+                            get_imported_item_info(exported_item.clone(), &source_module.name);
                         let names = get_names(&namespace, item_name, mode);
                         for name in names {
                             let imported_item_infos = imported_items
@@ -434,14 +417,13 @@ fn import_exported_member(
 
 fn import_exported_item(
     item_name: &str,
-    exported_item: &ExportedItem,
+    exported_item: &Item,
     source_module: &Module,
     imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
     namespace: &str,
     mode: ImportMode,
 ) {
-    let imported_item = get_imported_item(exported_item);
-    let imported_item_info = get_imported_item_info(imported_item, &source_module.name);
+    let imported_item_info = get_imported_item_info(exported_item.clone(), &source_module.name);
     let names = get_names(&namespace, item_name, mode);
     for name in names {
         let imported_item_infos = imported_items
@@ -507,8 +489,8 @@ pub fn process_imports(
         for (name, items) in &module.items {
             let names = get_names(module_name, name, ImportMode::NameAndNamespace);
             let item = &items[0];
-            let imported_item = match item {
-                Item::Adt(adt_id, ir_typedef_id) => {
+            match item {
+                Item::Adt(adt_id, _) => {
                     let adt = program.adts.get(adt_id).expect("Adt not found");
                     for variant_id in &adt.variants {
                         let imported_member = ImportedDataMember::Variant(ImportedVariant {
@@ -528,10 +510,9 @@ pub fn process_imports(
                             })
                         }
                     }
-                    ImportedItem::Adt(*adt_id, *ir_typedef_id)
                 }
-                Item::Function(function_id) => ImportedItem::Function(*function_id),
-                Item::Record(record_id, ir_typedef_id) => {
+                Item::Function(..) => {}
+                Item::Record(record_id, _) => {
                     let record = program.records.get(record_id).expect("Record not found");
                     for field in &record.fields {
                         let imported_member = ImportedDataMember::RecordField(ImportedField {
@@ -550,16 +531,15 @@ pub fn process_imports(
                             })
                         }
                     }
-                    ImportedItem::Record(*record_id, *ir_typedef_id)
                 }
-            };
+            }
 
             for name in &names {
                 let iis = imported_items
                     .entry(name.clone())
                     .or_insert_with(|| Vec::new());
                 iis.push(ImportedItemInfo {
-                    item: imported_item.clone(),
+                    item: item.clone(),
                     source_module: module_name.clone(),
                 })
             }

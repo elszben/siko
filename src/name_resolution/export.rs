@@ -6,13 +6,6 @@ use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
 
 #[derive(Debug)]
-pub enum ExportedItem {
-    Function(FunctionId),
-    Record(RecordId, TypeDefId),
-    Adt(AdtId, TypeDefId),
-}
-
-#[derive(Debug)]
 pub enum ExportedDataMember {
     RecordField(ExportedField),
     Variant(ExportedVariant),

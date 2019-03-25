@@ -3,8 +3,8 @@ use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::name_resolution::error::ResolverError;
-use crate::name_resolution::import::ImportedItem;
 use crate::name_resolution::import::ImportedItemInfo;
+use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
 use crate::syntax::function::FunctionType as AstFunctionType;
 use crate::syntax::program::Program;
@@ -41,13 +41,13 @@ fn process_type_signature(
                             Some(items) => {
                                 let item = &items[0];
                                 match item.item {
-                                    ImportedItem::Adt(_, ir_typedef_id) => {
+                                    Item::Adt(_, ir_typedef_id) => {
                                         IrTypeSignature::Named(ir_typedef_id, vec![])
                                     }
-                                    ImportedItem::Record(_, ir_typedef_id) => {
+                                    Item::Record(_, ir_typedef_id) => {
                                         IrTypeSignature::Named(ir_typedef_id, vec![])
                                     }
-                                    ImportedItem::Function(..) => unimplemented!(),
+                                    Item::Function(..) => unimplemented!(),
                                 }
                             }
                             None => {

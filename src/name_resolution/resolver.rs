@@ -26,14 +26,12 @@ use std::collections::BTreeSet;
 #[derive(Debug)]
 pub struct Resolver {
     modules: BTreeMap<String, Module>,
-    function_map: BTreeMap<AstFunctionId, IrFunctionId>,
 }
 
 impl Resolver {
     pub fn new() -> Resolver {
         Resolver {
             modules: BTreeMap::new(),
-            function_map: BTreeMap::new(),
         }
     }
 
@@ -147,13 +145,12 @@ impl Resolver {
                     .functions
                     .get(function_id)
                     .expect("Function not found");
+                let ir_function_id = ir_program.get_function_id();
                 let items = module
                     .items
                     .entry(function.name.clone())
                     .or_insert_with(|| Vec::new());
-                items.push(Item::Function(function.id));
-                let ir_function_id = ir_program.get_function_id();
-                self.function_map.insert(*function_id, ir_function_id);
+                items.push(Item::Function(function.id, ir_function_id));
             }
         }
 
@@ -163,7 +160,7 @@ impl Resolver {
                     let mut locations = Vec::new();
                     for item in items {
                         match item {
-                            Item::Function(id) => {
+                            Item::Function(id, _) => {
                                 let function =
                                     program.functions.get(id).expect("Function not found");
                                 locations.push(function.location_id);
@@ -226,6 +223,85 @@ impl Resolver {
         }
     }
 
+    fn process_function(
+        &self,
+        program: &Program,
+        ir_program: &mut IrProgram,
+        function_id: &AstFunctionId,
+        ir_function_id: IrFunctionId,
+        module: &Module,
+        errors: &mut Vec<ResolverError>,
+    ) {
+        let function = program
+            .functions
+            .get(function_id)
+            .expect("Function not found");
+        let mut type_signature_id = None;
+        let mut body = None;
+        if let Some(ty) = &function.func_type {
+            if ty.name != function.name {
+                let err = ResolverError::FunctionTypeNameMismatch(
+                    ty.name.clone(),
+                    function.name.clone(),
+                    ty.location_id,
+                );
+                errors.push(err);
+            }
+            type_signature_id = process_func_type(ty, program, ir_program, module, errors);
+        }
+        if let AstFunctionBody::Expr(id) = function.body {
+            let mut environment = Environment::new();
+            let mut arg_names = BTreeSet::new();
+            let mut conflicting_names = BTreeSet::new();
+            for (index, arg) in function.args.iter().enumerate() {
+                if !arg_names.insert(arg.clone()) {
+                    conflicting_names.insert(arg.clone());
+                }
+                environment.add_arg(arg.clone(), ir_function_id, index);
+            }
+            if !conflicting_names.is_empty() {
+                let err = ResolverError::ArgumentConflict(
+                    conflicting_names.into_iter().collect(),
+                    function.location_id.clone(),
+                );
+                errors.push(err);
+            }
+            let host_function = format!("{}/{}", module.name.get(), function.name);
+            let mut lambda_helper = LambdaHelper::new(
+                0,
+                host_function,
+                LambdaHelper::new_counter(),
+                ir_function_id,
+            );
+            let body_id = process_expr(
+                id,
+                program,
+                module,
+                &mut environment,
+                ir_program,
+                errors,
+                &mut lambda_helper,
+            );
+            body = Some(body_id);
+        }
+
+        let named_info = NamedFunctionInfo {
+            body: body,
+            name: function.name.clone(),
+            module: module.name.get(),
+            type_signature: type_signature_id,
+            ast_function_id: function.id,
+            location_id: function.location_id,
+        };
+
+        let ir_function = IrFunction {
+            id: ir_function_id,
+            arg_count: function.args.len(),
+            info: FunctionInfo::NamedFunction(named_info),
+        };
+        ir_program.add_function(ir_function_id, ir_function);
+    }
+
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
         let mut errors = Vec::new();
 
@@ -257,91 +333,21 @@ impl Resolver {
             return Err(Error::resolve_err(errors));
         }
 
-        for (_, module) in &program.modules {
-            for function_id in &module.functions {
-                let function = program
-                    .functions
-                    .get(function_id)
-                    .expect("Function not found");
-                let resolver_module = self
-                    .modules
-                    .get(&module.name.get())
-                    .expect("Resolver module not found");
-                let ir_function_id = self
-                    .function_map
-                    .get(&function.id)
-                    .expect("Function not found")
-                    .clone();
-                let mut type_signature_id = None;
-                let mut body = None;
-                if let Some(ty) = &function.func_type {
-                    if ty.name != function.name {
-                        let err = ResolverError::FunctionTypeNameMismatch(
-                            ty.name.clone(),
-                            function.name.clone(),
-                            ty.location_id,
-                        );
-                        errors.push(err);
+        for (_, module) in &self.modules {
+            for (_, items) in &module.items {
+                for item in items {
+                    match item {
+                        Item::Function(ast_function_id, ir_function_id) => self.process_function(
+                            program,
+                            &mut ir_program,
+                            ast_function_id,
+                            *ir_function_id,
+                            module,
+                            &mut errors,
+                        ),
+                        _ => {}
                     }
-                    type_signature_id = process_func_type(
-                        ty,
-                        program,
-                        &mut ir_program,
-                        resolver_module,
-                        &mut errors,
-                    );
                 }
-                if let AstFunctionBody::Expr(id) = function.body {
-                    let mut environment = Environment::new();
-                    let mut arg_names = BTreeSet::new();
-                    let mut conflicting_names = BTreeSet::new();
-                    for (index, arg) in function.args.iter().enumerate() {
-                        if !arg_names.insert(arg.clone()) {
-                            conflicting_names.insert(arg.clone());
-                        }
-                        environment.add_arg(arg.clone(), ir_function_id, index);
-                    }
-                    if !conflicting_names.is_empty() {
-                        let err = ResolverError::ArgumentConflict(
-                            conflicting_names.into_iter().collect(),
-                            function.location_id.clone(),
-                        );
-                        errors.push(err);
-                    }
-                    let host_function = format!("{}/{}", module.name.get(), function.name);
-                    let mut lambda_helper = LambdaHelper::new(
-                        0,
-                        host_function,
-                        LambdaHelper::new_counter(),
-                        ir_function_id,
-                    );
-                    let body_id = process_expr(
-                        id,
-                        program,
-                        resolver_module,
-                        &mut environment,
-                        &mut ir_program,
-                        &mut errors,
-                        &mut lambda_helper,
-                    );
-                    body = Some(body_id);
-                }
-
-                let named_info = NamedFunctionInfo {
-                    body: body,
-                    name: function.name.clone(),
-                    module: module.name.get(),
-                    type_signature: type_signature_id,
-                    ast_function_id: function.id,
-                    location_id: function.location_id,
-                };
-
-                let ir_function = IrFunction {
-                    id: ir_function_id,
-                    arg_count: function.args.len(),
-                    info: FunctionInfo::NamedFunction(named_info),
-                };
-                ir_program.add_function(ir_function_id, ir_function);
             }
         }
 
