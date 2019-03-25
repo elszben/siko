@@ -32,12 +32,16 @@ pub fn process_exports(
                             exported_items
                                 .insert(name.clone(), ExportedItem::Function(*function_id));
                         }
-                        Item::Record(record_id) => {
-                            exported_items.insert(name.clone(), ExportedItem::Record(*record_id));
+                        Item::Record(record_id, ir_typedef_id) => {
+                            exported_items.insert(
+                                name.clone(),
+                                ExportedItem::Record(*record_id, *ir_typedef_id),
+                            );
                             export_all_fields(record_id, program, &mut exported_members);
                         }
-                        Item::Adt(adt_id) => {
-                            exported_items.insert(name.clone(), ExportedItem::Adt(*adt_id));
+                        Item::Adt(adt_id, ir_typedef_id) => {
+                            exported_items
+                                .insert(name.clone(), ExportedItem::Adt(*adt_id, *ir_typedef_id));
                             export_all_variants(adt_id, program, &mut exported_members);
                         }
                     }
@@ -60,18 +64,18 @@ pub fn process_exports(
                                                 ExportedItem::Function(*function_id),
                                             );
                                         }
-                                        Item::Record(record_id) => {
+                                        Item::Record(record_id, ir_typedef_id) => {
                                             found = true;
                                             exported_items.insert(
                                                 entity_name.clone(),
-                                                ExportedItem::Record(*record_id),
+                                                ExportedItem::Record(*record_id, *ir_typedef_id),
                                             );
                                         }
-                                        Item::Adt(adt_id) => {
+                                        Item::Adt(adt_id, ir_typedef_id) => {
                                             found = true;
                                             exported_items.insert(
                                                 entity_name.clone(),
-                                                ExportedItem::Adt(*adt_id),
+                                                ExportedItem::Adt(*adt_id, *ir_typedef_id),
                                             );
                                         }
                                     }
@@ -92,10 +96,10 @@ pub fn process_exports(
                                 assert_eq!(items.len(), 1);
                                 let item = &items[0];
                                 match item {
-                                    Item::Record(record_id) => {
+                                    Item::Record(record_id, ir_typedef_id) => {
                                         exported_items.insert(
                                             group.name.clone(),
-                                            ExportedItem::Record(*record_id),
+                                            ExportedItem::Record(*record_id, *ir_typedef_id),
                                         );
                                         for member in &group.members {
                                             match member {
@@ -138,9 +142,11 @@ pub fn process_exports(
                                             }
                                         }
                                     }
-                                    Item::Adt(adt_id) => {
-                                        exported_items
-                                            .insert(group.name.clone(), ExportedItem::Adt(*adt_id));
+                                    Item::Adt(adt_id, ir_typedef_id) => {
+                                        exported_items.insert(
+                                            group.name.clone(),
+                                            ExportedItem::Adt(*adt_id, *ir_typedef_id),
+                                        );
                                         for member in &group.members {
                                             match member {
                                                 ExportedMember::All => {

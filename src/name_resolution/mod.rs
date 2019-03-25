@@ -9,3 +9,4 @@ pub mod item;
 pub mod lambda_helper;
 pub mod module;
 pub mod resolver;
+pub mod type_processor;

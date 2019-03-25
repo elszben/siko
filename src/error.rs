@@ -161,7 +161,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownTypeName(var_name, id) => {
-                            println!("Unknown type name {}", var_name.yellow());
+                            println!("{} unknown type name {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }

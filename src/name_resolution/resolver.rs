@@ -7,9 +7,6 @@ use crate::ir::program::Program as IrProgram;
 use crate::ir::types::Adt;
 use crate::ir::types::Record;
 use crate::ir::types::TypeDef;
-use crate::ir::types::TypeInfo;
-use crate::ir::types::TypeSignature as IrTypeSignature;
-use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export_processor::process_exports;
@@ -18,13 +15,11 @@ use crate::name_resolution::import_processor::process_imports;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
+use crate::name_resolution::type_processor::process_func_type;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
 use crate::syntax::function::FunctionId as AstFunctionId;
-use crate::syntax::function::FunctionType as AstFunctionType;
 use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
-use crate::syntax::types::TypeSignature as AstTypeSignature;
-use crate::syntax::types::TypeSignatureId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -90,133 +85,6 @@ impl Resolver {
         }
     }
 
-    fn process_type_signature(
-        &self,
-        type_signature_id: &TypeSignatureId,
-        program: &Program,
-        ir_program: &mut IrProgram,
-        type_args: &BTreeMap<String, usize>,
-        errors: &mut Vec<ResolverError>,
-        used_type_args: &mut BTreeSet<String>,
-    ) -> Option<IrTypeSignatureId> {
-        let type_signature = program.get_type_signature(type_signature_id);
-        let location_id = program.get_type_signature_location(type_signature_id);
-        let ir_type_signature = match type_signature {
-            AstTypeSignature::Nothing => IrTypeSignature::Nothing,
-            AstTypeSignature::Named(n, _) => match n.get().as_ref() {
-                "Int" => IrTypeSignature::Int,
-                "Bool" => IrTypeSignature::Bool,
-                "String" => IrTypeSignature::String,
-                _ => {
-                    if let Some(index) = type_args.get(&n.get()) {
-                        used_type_args.insert(n.get().clone());
-                        IrTypeSignature::TypeArgument(*index)
-                    } else {
-                        let error = ResolverError::UnknownTypeName(n.get().clone(), location_id);
-                        errors.push(error);
-                        return None;
-                    }
-                }
-            },
-            AstTypeSignature::Tuple(items) => {
-                let mut item_ids = Vec::new();
-                for item in items {
-                    match self.process_type_signature(
-                        item,
-                        program,
-                        ir_program,
-                        type_args,
-                        errors,
-                        used_type_args,
-                    ) {
-                        Some(id) => {
-                            item_ids.push(id);
-                        }
-                        None => {
-                            return None;
-                        }
-                    }
-                }
-                IrTypeSignature::Tuple(item_ids)
-            }
-            AstTypeSignature::Function(items) => {
-                let mut item_ids = Vec::new();
-                for item in items {
-                    match self.process_type_signature(
-                        item,
-                        program,
-                        ir_program,
-                        type_args,
-                        errors,
-                        used_type_args,
-                    ) {
-                        Some(id) => {
-                            item_ids.push(id);
-                        }
-                        None => {
-                            return None;
-                        }
-                    }
-                }
-                IrTypeSignature::Function(item_ids)
-            }
-            AstTypeSignature::TypeArgument(_) => unimplemented!(),
-        };
-        let id = ir_program.get_type_signature_id();
-        let type_info = TypeInfo::new(ir_type_signature, type_signature_id.clone());
-        ir_program.add_type_signature(id, type_info);
-        return Some(id);
-    }
-
-    fn process_func_type(
-        &self,
-        func_type: &AstFunctionType,
-        program: &Program,
-        ir_program: &mut IrProgram,
-        errors: &mut Vec<ResolverError>,
-    ) -> Option<IrTypeSignatureId> {
-        let mut type_args = BTreeMap::new();
-        let mut conflicting_names = BTreeSet::new();
-        let location_id = func_type.location_id;
-        for (index, type_arg) in func_type.type_args.iter().enumerate() {
-            if type_args.insert(type_arg.clone(), index).is_some() {
-                conflicting_names.insert(type_arg.clone());
-            }
-        }
-        if !conflicting_names.is_empty() {
-            let error = ResolverError::TypeArgumentConflict(
-                conflicting_names.iter().cloned().collect(),
-                location_id,
-            );
-            errors.push(error);
-        }
-
-        let mut used_type_args = BTreeSet::new();
-
-        let id = self.process_type_signature(
-            &func_type.type_signature_id,
-            program,
-            ir_program,
-            &type_args,
-            errors,
-            &mut used_type_args,
-        );
-
-        let mut unused = Vec::new();
-        for type_arg in type_args.keys() {
-            if !used_type_args.contains(type_arg) {
-                unused.push(type_arg.clone());
-            }
-        }
-
-        if !unused.is_empty() {
-            let err = ResolverError::UnusedTypeArgument(unused, location_id);
-            errors.push(err);
-        }
-
-        id
-    }
-
     fn resolve_named_function_id(&self, named_id: &(String, String)) -> IrFunctionId {
         /*
         let m = self.modules.get(&named_id.0).expect("Module not found");
@@ -244,11 +112,6 @@ impl Resolver {
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id).expect("Record not found");
-                let items = module
-                    .items
-                    .entry(record.name.clone())
-                    .or_insert_with(|| Vec::new());
-                items.push(Item::Record(*record_id));
                 let ir_typedef_id = ir_program.get_typedef_id();
                 let ir_record = Record {
                     name: record.name.clone(),
@@ -257,14 +120,14 @@ impl Resolver {
                 };
                 let typedef = TypeDef::Record(ir_record);
                 ir_program.add_typedef(ir_typedef_id, typedef);
+                let items = module
+                    .items
+                    .entry(record.name.clone())
+                    .or_insert_with(|| Vec::new());
+                items.push(Item::Record(*record_id, ir_typedef_id));
             }
             for adt_id in &ast_module.adts {
                 let adt = program.adts.get(adt_id).expect("Adt not found");
-                let items = module
-                    .items
-                    .entry(adt.name.clone())
-                    .or_insert_with(|| Vec::new());
-                items.push(Item::Adt(*adt_id));
                 let ir_typedef_id = ir_program.get_typedef_id();
                 let ir_adt = Adt {
                     name: adt.name.clone(),
@@ -273,6 +136,11 @@ impl Resolver {
                 };
                 let typedef = TypeDef::Adt(ir_adt);
                 ir_program.add_typedef(ir_typedef_id, typedef);
+                let items = module
+                    .items
+                    .entry(adt.name.clone())
+                    .or_insert_with(|| Vec::new());
+                items.push(Item::Adt(*adt_id, ir_typedef_id));
             }
             for function_id in &ast_module.functions {
                 let function = program
@@ -300,11 +168,11 @@ impl Resolver {
                                     program.functions.get(id).expect("Function not found");
                                 locations.push(function.location_id);
                             }
-                            Item::Record(id) => {
+                            Item::Record(id, _) => {
                                 let record = program.records.get(id).expect("Record not found");
                                 locations.push(record.location_id);
                             }
-                            Item::Adt(id) => {
+                            Item::Adt(id, _) => {
                                 let adt = program.adts.get(id).expect("Adt not found");
                                 locations.push(adt.location_id);
                             }
@@ -415,8 +283,13 @@ impl Resolver {
                         );
                         errors.push(err);
                     }
-                    type_signature_id =
-                        self.process_func_type(ty, program, &mut ir_program, &mut errors);
+                    type_signature_id = process_func_type(
+                        ty,
+                        program,
+                        &mut ir_program,
+                        resolver_module,
+                        &mut errors,
+                    );
                 }
                 if let AstFunctionBody::Expr(id) = function.body {
                     let mut environment = Environment::new();

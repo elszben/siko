@@ -1,3 +1,4 @@
+use crate::ir::types::TypeDefId;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export::ExportedDataMember;
 use crate::name_resolution::export::ExportedField;
@@ -31,9 +32,11 @@ enum ImportMode {
 
 fn get_imported_item(exported_item: &ExportedItem) -> ImportedItem {
     match exported_item {
-        ExportedItem::Adt(adt_id) => ImportedItem::Adt(*adt_id),
+        ExportedItem::Adt(adt_id, ir_typedef_id) => ImportedItem::Adt(*adt_id, *ir_typedef_id),
         ExportedItem::Function(function_id) => ImportedItem::Function(*function_id),
-        ExportedItem::Record(record_id) => ImportedItem::Record(*record_id),
+        ExportedItem::Record(record_id, ir_typedef_id) => {
+            ImportedItem::Record(*record_id, *ir_typedef_id)
+        }
     }
 }
 
@@ -305,7 +308,7 @@ fn process_explicit_import_list(
                 }
                 match source_module.exported_items.get(&group.name) {
                     Some(item) => match item {
-                        ExportedItem::Record(record_id) => {
+                        ExportedItem::Record(record_id, ir_typedef_id) => {
                             import_exported_item(
                                 &group.name,
                                 item,
@@ -327,7 +330,7 @@ fn process_explicit_import_list(
                                 mode,
                             );
                         }
-                        ExportedItem::Adt(adt_id) => {
+                        ExportedItem::Adt(adt_id, ir_typedef_id) => {
                             import_exported_item(
                                 &group.name,
                                 item,
@@ -505,7 +508,7 @@ pub fn process_imports(
             let names = get_names(module_name, name, ImportMode::NameAndNamespace);
             let item = &items[0];
             let imported_item = match item {
-                Item::Adt(adt_id) => {
+                Item::Adt(adt_id, ir_typedef_id) => {
                     let adt = program.adts.get(adt_id).expect("Adt not found");
                     for variant_id in &adt.variants {
                         let imported_member = ImportedDataMember::Variant(ImportedVariant {
@@ -525,10 +528,10 @@ pub fn process_imports(
                             })
                         }
                     }
-                    ImportedItem::Adt(*adt_id)
+                    ImportedItem::Adt(*adt_id, *ir_typedef_id)
                 }
                 Item::Function(function_id) => ImportedItem::Function(*function_id),
-                Item::Record(record_id) => {
+                Item::Record(record_id, ir_typedef_id) => {
                     let record = program.records.get(record_id).expect("Record not found");
                     for field in &record.fields {
                         let imported_member = ImportedDataMember::RecordField(ImportedField {
@@ -547,7 +550,7 @@ pub fn process_imports(
                             })
                         }
                     }
-                    ImportedItem::Record(*record_id)
+                    ImportedItem::Record(*record_id, *ir_typedef_id)
                 }
             };
 

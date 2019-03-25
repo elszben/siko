@@ -10,5 +10,5 @@ module alma.korte where
 
 import Data (Person(..), Option(..)) as Foo
 
-main :: korte.szilva
+main :: Foo.Person
 main = 5

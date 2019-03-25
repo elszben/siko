@@ -275,6 +275,7 @@ impl Typechecker {
                 });
                 *var
             }
+            TypeSignature::Named(..) => unimplemented!(),
         }
     }
 

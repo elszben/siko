@@ -1,3 +1,4 @@
+use crate::ir::types::TypeDefId;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::function::FunctionId;
@@ -5,6 +6,6 @@ use crate::syntax::function::FunctionId;
 #[derive(Debug)]
 pub enum Item {
     Function(FunctionId),
-    Record(RecordId),
-    Adt(AdtId),
+    Record(RecordId, TypeDefId),
+    Adt(AdtId, TypeDefId),
 }
