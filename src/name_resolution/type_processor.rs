@@ -27,7 +27,7 @@ fn process_type_signature(
     let location_id = program.get_type_signature_location(type_signature_id);
     let ir_type_signature = match type_signature {
         AstTypeSignature::Nothing => IrTypeSignature::Nothing,
-        AstTypeSignature::Named(n, _) => {
+        AstTypeSignature::Named(n, items) => {
             let name = n.get();
             match name.as_ref() {
                 "Int" => IrTypeSignature::Int,

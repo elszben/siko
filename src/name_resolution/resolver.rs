@@ -109,7 +109,7 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
         ir_program: &mut IrProgram,
     ) {
-        for (name, module) in &mut self.modules {
+        for (_, module) in &mut self.modules {
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id).expect("Record not found");
@@ -118,6 +118,8 @@ impl Resolver {
                     name: record.name.clone(),
                     ast_record_id: *record_id,
                     id: ir_typedef_id,
+                    type_arg_count: record.type_args.len(),
+                    fields: Vec::new(),
                 };
                 let typedef = TypeDef::Record(ir_record);
                 ir_program.add_typedef(ir_typedef_id, typedef);
@@ -134,6 +136,8 @@ impl Resolver {
                     name: adt.name.clone(),
                     ast_adt_id: *adt_id,
                     id: ir_typedef_id,
+                    type_arg_count: adt.type_args.len(),
+                    variants: Vec::new(),
                 };
                 let typedef = TypeDef::Adt(ir_adt);
                 ir_program.add_typedef(ir_typedef_id, typedef);
@@ -326,6 +330,7 @@ impl Resolver {
                 .variants
                 .get(&variant_id)
                 .expect("Variant not found");
+            println!("Variant {} has {} items", variant.name, variant.items.len());
             for item in &variant.items {
                 type_signature_ids.push(*item);
             }
@@ -421,6 +426,10 @@ impl Resolver {
                     }
                 }
             }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::resolve_err(errors));
         }
 
         for (_, module) in &self.modules {

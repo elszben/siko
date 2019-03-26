@@ -2,7 +2,7 @@ module Data (Option(..), Person(..), some_func) where
 
 data Option a  = Some a | None a korte.szilva
 
-data Person a = { name :: Alma.String, address :: Option String }
+data Person = { name :: String, address :: Option String }
 
 some_func = 7
 

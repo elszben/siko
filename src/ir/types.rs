@@ -35,10 +35,30 @@ impl TypeInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordField {
+    pub name: String,
+    pub type_signature_id: TypeSignatureId,
+}
+
+#[derive(Debug, Clone)]
 pub struct Record {
     pub name: String,
     pub ast_record_id: AstRecordId,
     pub id: TypeDefId,
+    pub type_arg_count: usize,
+    pub fields: Vec<RecordField>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VariantItem {
+    pub type_signature_id: TypeSignatureId,
+}
+
+#[derive(Debug, Clone)]
+pub struct Variant {
+    pub name: String,
+    pub type_signature_id: TypeSignatureId,
+    pub items: Vec<VariantItem>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +66,8 @@ pub struct Adt {
     pub name: String,
     pub ast_adt_id: AstAdtId,
     pub id: TypeDefId,
+    pub type_arg_count: usize,
+    pub variants: Vec<Variant>,
 }
 
 #[derive(Debug, Clone)]

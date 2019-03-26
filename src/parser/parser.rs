@@ -588,7 +588,7 @@ impl<'a> Parser<'a> {
         Ok(record)
     }
 
-    fn parse_variant(&mut self, start_index: usize, data_name: String) -> Result<VariantId, Error> {
+    fn parse_variant(&mut self) -> Result<VariantId, Error> {
         let variant_start_index = self.get_index();
         let name = self.identifier("Expected identifier as variant")?;
         let mut items = Vec::new();
@@ -599,10 +599,12 @@ impl<'a> Parser<'a> {
                     items.push(variant_item);
                 }
                 _ => {
+                    println!("Woot {:?}", self.current_kind());
                     break;
                 }
             }
         }
+        println!("Variant {} has {} items", name, items.len());
         let end_index = self.get_index();
         let location_id = self.get_location_id(variant_start_index, end_index);
         let id = self.program.get_variant_id();
@@ -630,7 +632,7 @@ impl<'a> Parser<'a> {
         } else {
             let mut variants = Vec::new();
             loop {
-                let variant = self.parse_variant(start_index, name.clone())?;
+                let variant = self.parse_variant()?;
                 variants.push(variant);
                 if self.current(TokenKind::Pipe) {
                     self.expect(TokenKind::Pipe)?;
