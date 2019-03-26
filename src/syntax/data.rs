@@ -19,7 +19,7 @@ pub struct Adt {
 pub struct Variant {
     pub name: String,
     pub id: VariantId,
-    pub items: Vec<TypeSignatureId>,
+    pub type_signature_id: TypeSignatureId,
     pub location_id: LocationId,
 }
 

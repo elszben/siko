@@ -113,6 +113,10 @@ impl<'a> Parser<'a> {
         Ok(r)
     }
 
+    fn restore(&mut self, index: usize) {
+        self.index = index;
+    }
+
     pub fn peek(&self) -> Option<TokenInfo> {
         if self.is_done() {
             None
@@ -296,7 +300,7 @@ impl<'a> Parser<'a> {
 
     fn parse_tuple_type(&mut self) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
-        let res = parse_parens(self, |p| p.parse_function_type(), "<type>")?;
+        let res = parse_parens(self, |p| p.parse_function_type(false), "<type>")?;
         match res {
             ParenParseResult::Single(t) => {
                 return Ok(t);
@@ -309,11 +313,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_function_type(&mut self) -> Result<TypeSignatureId, Error> {
+    fn parse_function_type(&mut self, parsing_variant: bool) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
         let mut parts = Vec::new();
         loop {
-            let part = self.parse_type_part()?;
+            let part = self.parse_type_part(parsing_variant)?;
             parts.push(part);
             if let Some(next) = self.peek() {
                 match next.token {
@@ -338,7 +342,7 @@ impl<'a> Parser<'a> {
         Ok(id)
     }
 
-    fn parse_type_part(&mut self) -> Result<TypeSignatureId, Error> {
+    fn parse_type_part(&mut self, parsing_variant: bool) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
         match self.peek() {
             Some(token_info) => match token_info.token {
@@ -369,7 +373,12 @@ impl<'a> Parser<'a> {
                             }
                         }
                     }
-                    let id = self.add_type_signature(TypeSignature::Named(name, args), start_index);
+                    let ty = if parsing_variant {
+                        TypeSignature::Variant(name, args)
+                    } else {
+                        TypeSignature::Named(name, args)
+                    };
+                    let id = self.add_type_signature(ty, start_index);
                     return Ok(id);
                 }
                 _ => {
@@ -392,7 +401,7 @@ impl<'a> Parser<'a> {
         if let Some(next) = self.peek() {
             if next.token.kind() == TokenKind::KeywordDoubleColon {
                 self.advance()?;
-                let type_signature_id = self.parse_function_type()?;
+                let type_signature_id = self.parse_function_type(false)?;
                 let full_type_signature_id = self.program.get_type_signature_id();
                 let end_index = self.get_index();
                 let location_id = self.get_location_id(start_index, end_index);
@@ -546,7 +555,7 @@ impl<'a> Parser<'a> {
         let start_index = self.get_index();
         let name = self.identifier("Expected identifier as record item name")?;
         self.expect(TokenKind::KeywordDoubleColon)?;
-        let type_signature_id = self.parse_function_type()?;
+        let type_signature_id = self.parse_function_type(false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let item = RecordField {
@@ -591,27 +600,15 @@ impl<'a> Parser<'a> {
     fn parse_variant(&mut self) -> Result<VariantId, Error> {
         let variant_start_index = self.get_index();
         let name = self.identifier("Expected identifier as variant")?;
-        let mut items = Vec::new();
-        loop {
-            match self.current_kind() {
-                TokenKind::LParen | TokenKind::Identifier => {
-                    let variant_item = self.parse_function_type()?;
-                    items.push(variant_item);
-                }
-                _ => {
-                    println!("Woot {:?}", self.current_kind());
-                    break;
-                }
-            }
-        }
-        println!("Variant {} has {} items", name, items.len());
+        self.restore(variant_start_index);
+        let type_signature_id = self.parse_function_type(true)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(variant_start_index, end_index);
         let id = self.program.get_variant_id();
         let variant = Variant {
             id: id,
             name: name,
-            items: items,
+            type_signature_id: type_signature_id,
             location_id: location_id,
         };
         self.program.variants.insert(id, variant);

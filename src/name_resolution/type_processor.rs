@@ -27,6 +27,29 @@ fn process_type_signature(
     let location_id = program.get_type_signature_location(type_signature_id);
     let ir_type_signature = match type_signature {
         AstTypeSignature::Nothing => IrTypeSignature::Nothing,
+        AstTypeSignature::Variant(name, items) => {
+            println!("processing {} {}", name.get(), items.len());
+            let mut item_ids = Vec::new();
+            for item in items {
+                match process_type_signature(
+                    item,
+                    program,
+                    ir_program,
+                    module,
+                    type_args,
+                    errors,
+                    used_type_args,
+                ) {
+                    Some(id) => {
+                        item_ids.push(id);
+                    }
+                    None => {
+                        return None;
+                    }
+                }
+            }
+            IrTypeSignature::Variant(name.get(), item_ids)
+        }
         AstTypeSignature::Named(n, items) => {
             let name = n.get();
             match name.as_ref() {

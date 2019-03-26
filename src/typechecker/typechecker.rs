@@ -276,6 +276,7 @@ impl Typechecker {
                 *var
             }
             TypeSignature::Named(..) => unimplemented!(),
+            TypeSignature::Variant(..) => unimplemented!(),
         }
     }
 

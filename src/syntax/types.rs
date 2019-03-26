@@ -9,6 +9,7 @@ pub struct TypeSignatureId {
 pub enum TypeSignature {
     Nothing,
     Named(ItemPath, Vec<TypeSignatureId>),
+    Variant(ItemPath, Vec<TypeSignatureId>),
     Tuple(Vec<TypeSignatureId>),
     Function(Vec<TypeSignatureId>),
     TypeArgument(ItemPath),

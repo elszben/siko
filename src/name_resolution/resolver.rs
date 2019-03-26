@@ -330,10 +330,7 @@ impl Resolver {
                 .variants
                 .get(&variant_id)
                 .expect("Variant not found");
-            println!("Variant {} has {} items", variant.name, variant.items.len());
-            for item in &variant.items {
-                type_signature_ids.push(*item);
-            }
+            type_signature_ids.push(variant.type_signature_id);
         }
         let result = process_type_signatures(
             &adt.type_args[..],
