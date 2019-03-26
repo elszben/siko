@@ -35,9 +35,9 @@ pub struct VariantId {
 
 #[derive(Debug, Clone)]
 pub struct Record {
-    pub data_name: String,
     pub name: String,
     pub id: RecordId,
+    pub type_args: Vec<String>,
     pub fields: Vec<RecordField>,
     pub location_id: LocationId,
 }
@@ -58,9 +58,4 @@ pub struct RecordField {
     pub id: RecordFieldId,
     pub type_signature_id: TypeSignatureId,
     pub location_id: LocationId,
-}
-
-pub enum RecordOrVariant {
-    Record(Record),
-    Variant(VariantId),
 }

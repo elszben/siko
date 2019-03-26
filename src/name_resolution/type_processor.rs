@@ -2,6 +2,7 @@ use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeInfo;
 use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
+use crate::location_info::item::LocationId;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::item::Item;
@@ -113,17 +114,19 @@ fn process_type_signature(
     return Some(id);
 }
 
-pub fn process_func_type(
-    func_type: &AstFunctionType,
+pub fn process_type_signatures(
+    original_type_args: &[String],
+    type_signature_ids: &[TypeSignatureId],
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
+    location_id: LocationId,
     errors: &mut Vec<ResolverError>,
-) -> Option<IrTypeSignatureId> {
+) -> Vec<Option<IrTypeSignatureId>> {
+    let mut result = Vec::new();
     let mut type_args = BTreeMap::new();
     let mut conflicting_names = BTreeSet::new();
-    let location_id = func_type.location_id;
-    for (index, type_arg) in func_type.type_args.iter().enumerate() {
+    for (index, type_arg) in original_type_args.iter().enumerate() {
         if type_args.insert(type_arg.clone(), index).is_some() {
             conflicting_names.insert(type_arg.clone());
         }
@@ -138,15 +141,18 @@ pub fn process_func_type(
 
     let mut used_type_args = BTreeSet::new();
 
-    let id = process_type_signature(
-        &func_type.type_signature_id,
-        program,
-        ir_program,
-        module,
-        &type_args,
-        errors,
-        &mut used_type_args,
-    );
+    for type_signature_id in type_signature_ids {
+        let id = process_type_signature(
+            &type_signature_id,
+            program,
+            ir_program,
+            module,
+            &type_args,
+            errors,
+            &mut used_type_args,
+        );
+        result.push(id);
+    }
 
     let mut unused = Vec::new();
     for type_arg in type_args.keys() {
@@ -160,5 +166,5 @@ pub fn process_func_type(
         errors.push(err);
     }
 
-    id
+    result
 }

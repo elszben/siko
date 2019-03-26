@@ -16,7 +16,6 @@ pub enum ResolverError {
     AmbiguousName(String, LocationId),
     FunctionTypeNameMismatch(String, String, LocationId),
     UnusedTypeArgument(Vec<String>, LocationId),
-    RecordTypeNameMismatch(String, String, LocationId),
     RecordFieldNotUnique(String, String, LocationId),
     VariantNotUnique(String, String, LocationId),
     ExportedEntityDoesNotExist(String, String, LocationId),

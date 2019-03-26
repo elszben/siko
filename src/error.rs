@@ -167,7 +167,8 @@ impl Error {
                         }
                         ResolverError::TypeArgumentConflict(args, id) => {
                             println!(
-                                "Type argument(s) {} are not unique",
+                                "{} type argument(s) {} are not unique",
+                                error.red(),
                                 format_list(args).yellow()
                             );
                             let location_set = location_info.get_item_location(id);
@@ -206,7 +207,11 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnusedTypeArgument(args, id) => {
-                            println!("Unused type argument(s): {}", format_list(args).yellow());
+                            println!(
+                                "{} unused type argument(s): {}",
+                                error.red(),
+                                format_list(args).yellow()
+                            );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
@@ -221,16 +226,6 @@ impl Error {
                                 let location_set = location_info.get_item_location(id);
                                 print_location_set(file_manager, location_set);
                             }
-                        }
-                        ResolverError::RecordTypeNameMismatch(record_name, type_name, id) => {
-                            println!(
-                                "{} type name {} does not match record name {}",
-                                error.red(),
-                                type_name.yellow(),
-                                record_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
                         }
                         ResolverError::RecordFieldNotUnique(record_name, item_name, id) => {
                             println!(

@@ -15,8 +15,8 @@ use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
 use crate::syntax::data::Record;
 use crate::syntax::data::RecordField;
-use crate::syntax::data::RecordOrVariant;
 use crate::syntax::data::Variant;
+use crate::syntax::data::VariantId;
 use crate::syntax::export::ExportList;
 use crate::syntax::export::ExportedGroup;
 use crate::syntax::export::ExportedItem;
@@ -561,7 +561,7 @@ impl<'a> Parser<'a> {
     fn parse_record(
         &mut self,
         name: String,
-        data_name: String,
+        type_args: Vec<String>,
         start_index: usize,
     ) -> Result<Record, Error> {
         let mut fields = Vec::new();
@@ -579,52 +579,41 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let record = Record {
-            data_name: data_name,
             name: name,
             id: self.program.get_record_id(),
+            type_args: type_args,
             fields: fields,
             location_id: location_id,
         };
         Ok(record)
     }
 
-    fn parse_variant(
-        &mut self,
-        start_index: usize,
-        data_name: String,
-    ) -> Result<RecordOrVariant, Error> {
+    fn parse_variant(&mut self, start_index: usize, data_name: String) -> Result<VariantId, Error> {
         let variant_start_index = self.get_index();
         let name = self.identifier("Expected identifier as variant")?;
-        if self.current(TokenKind::LCurly) {
-            self.expect(TokenKind::LCurly)?;
-            let record = self.parse_record(name, data_name, start_index)?;
-            Ok(RecordOrVariant::Record(record))
-        } else {
-            let mut items = Vec::new();
-            loop {
-                match self.current_kind() {
-                    TokenKind::LParen | TokenKind::Identifier => {
-                        let variant_item = self.parse_function_type()?;
-                        items.push(variant_item);
-                    }
-                    _ => {
-                        break;
-                    }
+        let mut items = Vec::new();
+        loop {
+            match self.current_kind() {
+                TokenKind::LParen | TokenKind::Identifier => {
+                    let variant_item = self.parse_function_type()?;
+                    items.push(variant_item);
+                }
+                _ => {
+                    break;
                 }
             }
-            let end_index = self.get_index();
-            let location_id = self.get_location_id(variant_start_index, end_index);
-            let id = self.program.get_variant_id();
-            let variant = Variant {
-                id: id,
-                name: name,
-                items: items,
-                location_id: location_id,
-            };
-
-            self.program.variants.insert(id, variant);
-            Ok(RecordOrVariant::Variant(id))
         }
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(variant_start_index, end_index);
+        let id = self.program.get_variant_id();
+        let variant = Variant {
+            id: id,
+            name: name,
+            items: items,
+            location_id: location_id,
+        };
+        self.program.variants.insert(id, variant);
+        Ok(id)
     }
 
     fn parse_data(&mut self) -> Result<Data, Error> {
@@ -634,44 +623,32 @@ impl<'a> Parser<'a> {
         let args = self.parse_seq0(TokenKind::Identifier)?;
         let args: Vec<_> = to_string_list(args);
         self.expect(TokenKind::Equal)?;
-        let mut variants = Vec::new();
-        loop {
-            let variant_token = self.peek().expect("Variant location error");
-            let variant_location = variant_token.location;
-            let record_or_variant = self.parse_variant(start_index, name.clone())?;
-            match record_or_variant {
-                RecordOrVariant::Record(record) => {
-                    if !variants.is_empty() {
-                        return Err(Error::parse_err(
-                            format!("Record cannot appear as a variant in data definition"),
-                            self.get_file_path(),
-                            variant_location,
-                        ));
-                    }
-                    self.expect(TokenKind::EndOfItem)?;
-                    return Ok(Data::Record(record));
-                }
-                RecordOrVariant::Variant(variant) => {
-                    variants.push(variant);
+        if self.current(TokenKind::LCurly) {
+            self.expect(TokenKind::LCurly)?;
+            let record = self.parse_record(name, args, start_index)?;
+            Ok(Data::Record(record))
+        } else {
+            let mut variants = Vec::new();
+            loop {
+                let variant = self.parse_variant(start_index, name.clone())?;
+                variants.push(variant);
+                if self.current(TokenKind::Pipe) {
+                    self.expect(TokenKind::Pipe)?;
+                } else {
+                    break;
                 }
             }
-            if self.current(TokenKind::Pipe) {
-                self.expect(TokenKind::Pipe)?;
-            } else {
-                break;
-            }
+            let end_index = self.get_index();
+            let location_id = self.get_location_id(start_index, end_index);
+            let adt = Adt {
+                name: name,
+                id: self.program.get_adt_id(),
+                type_args: args,
+                variants: variants,
+                location_id: location_id,
+            };
+            Ok(Data::Adt(adt))
         }
-        let end_index = self.get_index();
-        let location_id = self.get_location_id(start_index, end_index);
-        self.expect(TokenKind::EndOfItem)?;
-        let adt = Adt {
-            name: name,
-            id: self.program.get_adt_id(),
-            type_args: args,
-            variants: variants,
-            location_id: location_id,
-        };
-        Ok(Data::Adt(adt))
     }
 
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
@@ -698,6 +675,7 @@ impl<'a> Parser<'a> {
                     }
                     TokenKind::KeywordData => {
                         let data = self.parse_data()?;
+                        self.expect(TokenKind::EndOfItem)?;
                         match data {
                             Data::Record(record) => {
                                 module.records.push(record.id);

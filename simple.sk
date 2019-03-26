@@ -1,8 +1,8 @@
 module Data (Option(..), Person(..), some_func) where
 
-data Option a = Some a | None a korte.szilva
+data Option a  = Some a | None a korte.szilva
 
-data Person = Person { name :: Alma.String, address :: Option String }
+data Person a = { name :: Alma.String, address :: Option String }
 
 some_func = 7
 
@@ -10,5 +10,5 @@ module alma.korte where
 
 import Data (Person(..), Option(..)) as Foo
 
-main :: Foo.Person
+main  :: Foo.Person
 main = 5

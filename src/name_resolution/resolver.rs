@@ -7,6 +7,7 @@ use crate::ir::program::Program as IrProgram;
 use crate::ir::types::Adt;
 use crate::ir::types::Record;
 use crate::ir::types::TypeDef;
+use crate::ir::types::TypeDefId;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export_processor::process_exports;
@@ -15,7 +16,9 @@ use crate::name_resolution::import_processor::process_imports;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
-use crate::name_resolution::type_processor::process_func_type;
+use crate::name_resolution::type_processor::process_type_signatures;
+use crate::syntax::data::AdtId;
+use crate::syntax::data::RecordId;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
 use crate::syntax::function::FunctionId as AstFunctionId;
 use crate::syntax::module::Module as AstModule;
@@ -186,14 +189,6 @@ impl Resolver {
         }
 
         for (_, record) in &program.records {
-            if record.name != record.data_name {
-                let err = ResolverError::RecordTypeNameMismatch(
-                    record.name.clone(),
-                    record.data_name.clone(),
-                    record.location_id,
-                );
-                errors.push(err);
-            }
             let mut field_names = BTreeSet::new();
             for field in &record.fields {
                 if !field_names.insert(field.name.clone()) {
@@ -247,7 +242,20 @@ impl Resolver {
                 );
                 errors.push(err);
             }
-            type_signature_id = process_func_type(ty, program, ir_program, module, errors);
+
+            let result = process_type_signatures(
+                &ty.type_args[..],
+                &[ty.type_signature_id],
+                program,
+                ir_program,
+                module,
+                ty.location_id,
+                errors,
+            );
+
+            if !result.is_empty() {
+                type_signature_id = result[0];
+            }
         }
         if let AstFunctionBody::Expr(id) = function.body {
             let mut environment = Environment::new();
@@ -302,6 +310,62 @@ impl Resolver {
         ir_program.add_function(ir_function_id, ir_function);
     }
 
+    fn process_adt(
+        &self,
+        program: &Program,
+        ir_program: &mut IrProgram,
+        adt_id: &AdtId,
+        ir_typedef_id: TypeDefId,
+        module: &Module,
+        errors: &mut Vec<ResolverError>,
+    ) {
+        let adt = program.adts.get(adt_id).expect("Adt not found");
+        let mut type_signature_ids = Vec::new();
+        for variant_id in &adt.variants {
+            let variant = program
+                .variants
+                .get(&variant_id)
+                .expect("Variant not found");
+            for item in &variant.items {
+                type_signature_ids.push(*item);
+            }
+        }
+        let result = process_type_signatures(
+            &adt.type_args[..],
+            &type_signature_ids[..],
+            program,
+            ir_program,
+            module,
+            adt.location_id,
+            errors,
+        );
+    }
+
+    fn process_record(
+        &self,
+        program: &Program,
+        ir_program: &mut IrProgram,
+        record_id: &RecordId,
+        ir_typedef_id: TypeDefId,
+        module: &Module,
+        errors: &mut Vec<ResolverError>,
+    ) {
+        let record = program.records.get(record_id).expect("Record not found");
+        let mut type_signature_ids = Vec::new();
+        for field in &record.fields {
+            type_signature_ids.push(field.type_signature_id);
+        }
+        let result = process_type_signatures(
+            &record.type_args[..],
+            &type_signature_ids[..],
+            program,
+            ir_program,
+            module,
+            record.location_id,
+            errors,
+        );
+    }
+
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
         let mut errors = Vec::new();
 
@@ -331,6 +395,32 @@ impl Resolver {
 
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));
+        }
+
+        for (_, module) in &self.modules {
+            for (_, items) in &module.items {
+                for item in items {
+                    match item {
+                        Item::Adt(ast_adt_id, ir_adt_id) => self.process_adt(
+                            program,
+                            &mut ir_program,
+                            ast_adt_id,
+                            *ir_adt_id,
+                            module,
+                            &mut errors,
+                        ),
+                        Item::Record(ast_record_id, ir_record_id) => self.process_record(
+                            program,
+                            &mut ir_program,
+                            ast_record_id,
+                            *ir_record_id,
+                            module,
+                            &mut errors,
+                        ),
+                        _ => {}
+                    }
+                }
+            }
         }
 
         for (_, module) in &self.modules {
