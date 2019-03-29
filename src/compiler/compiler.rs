@@ -1,5 +1,5 @@
+use crate::compiler::file_manager::FileManager;
 use crate::error::Error;
-use crate::file_manager::FileManager;
 //use crate::interpreter::Interpreter;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location_info::LocationInfo;
@@ -29,7 +29,20 @@ fn parse(
 ) -> Result<(), Error> {
     //println!("Compiling {}", file_path.path);
     let mut lexer = Lexer::new(content, file_path.clone());
-    let tokens = lexer.process()?;
+    let mut errors = Vec::new();
+    let tokens = match lexer.process(&mut errors) {
+        Ok(tokens) => {
+            if errors.is_empty() {
+                tokens
+            } else {
+                return Err(Error::LexerError(errors));
+            }
+        }
+        Err(e) => {
+            errors.push(e);
+            return Err(Error::LexerError(errors));
+        }
+    };
     let token_kinds: Vec<_> = tokens
         .iter()
         .map(|t| format!("{:?}", t.token.kind()))

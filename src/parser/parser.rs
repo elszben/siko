@@ -41,9 +41,9 @@ use crate::syntax::module::ModuleId;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
-use crate::token::Token;
-use crate::token::TokenInfo;
-use crate::token::TokenKind;
+use crate::parser::token::Token;
+use crate::parser::token::TokenInfo;
+use crate::parser::token::TokenKind;
 
 pub struct Parser<'a> {
     file_path: FilePath,

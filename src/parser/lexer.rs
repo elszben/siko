@@ -3,9 +3,11 @@ use crate::error::Error;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location::Location;
 use crate::location_info::span::Span;
-use crate::token::Token;
-use crate::token::TokenInfo;
-use crate::token::TokenKind;
+use crate::parser::error::LexerError;
+use crate::parser::error::LocationInfo;
+use crate::parser::token::Token;
+use crate::parser::token::TokenInfo;
+use crate::parser::token::TokenKind;
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -33,7 +35,7 @@ impl Lexer {
         self.index >= self.input.len()
     }
 
-    fn advance(&mut self) -> Result<char, Error> {
+    fn advance(&mut self) -> Result<char, LexerError> {
         if self.is_done() {
             return Err(Error::lexer_err(
                 format!("unexpected end of file"),
@@ -53,7 +55,7 @@ impl Lexer {
         }
     }
 
-    fn peek(&mut self) -> Result<char, Error> {
+    fn peek(&mut self) -> Result<char, LexerError> {
         if self.is_done() {
             return Err(Error::lexer_err(
                 format!("unexpected end of file"),
@@ -96,7 +98,7 @@ impl Lexer {
         });
     }
 
-    fn collect(&mut self, filter_fn: fn(char) -> bool) -> Result<(String, Span), Error> {
+    fn collect(&mut self, filter_fn: fn(char) -> bool) -> Result<(String, Span), LexerError> {
         let start = self.line_offset;
         let mut token = String::new();
         while !self.is_done() {
@@ -115,7 +117,7 @@ impl Lexer {
         Ok((token, span))
     }
 
-    fn collect_identifier(&mut self) -> Result<(), Error> {
+    fn collect_identifier(&mut self) -> Result<(), LexerError> {
         let (identifier, span) = self.collect(Lexer::is_identifier)?;
 
         let t = match identifier.as_ref() {
@@ -141,7 +143,7 @@ impl Lexer {
         Ok(())
     }
 
-    fn collect_operator(&mut self) -> Result<(), Error> {
+    fn collect_operator(&mut self) -> Result<(), LexerError> {
         let (operator, span) = self.collect(Lexer::is_operator)?;
         let t = match operator.as_ref() {
             "+" => Token::Op(BuiltinOperator::Add),
@@ -176,7 +178,7 @@ impl Lexer {
         Ok(())
     }
 
-    fn collect_string_literal(&mut self) -> Result<(), Error> {
+    fn collect_string_literal(&mut self) -> Result<(), LexerError> {
         let start = self.line_offset;
         let mut prev_backslash = false;
         let mut literal = String::new();
@@ -239,7 +241,7 @@ impl Lexer {
         Ok(())
     }
 
-    fn process_line_comment(&mut self) -> Result<(), Error> {
+    fn process_line_comment(&mut self) -> Result<(), LexerError> {
         while !self.is_done() {
             let c = self.peek()?;
             if c == '\n' {
@@ -251,7 +253,7 @@ impl Lexer {
         Ok(())
     }
 
-    fn process_block_comment(&mut self, end: (char, char)) -> Result<(), Error> {
+    fn process_block_comment(&mut self, end: (char, char)) -> Result<(), LexerError> {
         let start_span = Span::new(self.line_offset, self.line_offset + 2);
         let start_line = self.line_index;
         let mut level = 1;
@@ -289,7 +291,7 @@ impl Lexer {
         Ok(())
     }
 
-    pub fn process(&mut self) -> Result<Vec<TokenInfo>, Error> {
+    pub fn process(&mut self, errors: &mut Vec<LexerError>) -> Result<Vec<TokenInfo>, LexerError> {
         loop {
             if self.is_done() {
                 break;
@@ -343,11 +345,16 @@ impl Lexer {
                     ')' => Token::RParen,
                     ';' => Token::Semicolon,
                     _ => {
-                        return Err(Error::lexer_err(
-                            format!("Unsupported character: {}", c),
-                            self.file_path.clone(),
-                            Location::new(self.line_index, span),
-                        ));
+                        let err = LexerError::UnsupportedCharacter(
+                            c,
+                            LocationInfo {
+                                file_path: self.file_path.clone(),
+                                location: Location::new(self.line_index, span),
+                            },
+                        );
+                        errors.push(err);
+                        self.advance()?;
+                        continue;
                     }
                 };
                 self.add_token(t, span);
@@ -401,7 +408,7 @@ fn process_block(
     block_token: TokenInfo,
     module: bool,
     file_path: &FilePath,
-) -> Result<(), Error> {
+) -> Result<(), LexerError> {
     if iterator.is_done() {
         return Err(Error::lexer_err(
             format!("Empty block"),
@@ -422,7 +429,7 @@ fn process_block(
     Ok(())
 }
 
-fn process_program(iterator: &mut TokenIterator, file_path: &FilePath) -> Result<(), Error> {
+fn process_program(iterator: &mut TokenIterator, file_path: &FilePath) -> Result<(), LexerError> {
     while !iterator.is_done() {
         let module_token = iterator.peek();
         if module_token.token.kind() != TokenKind::KeywordModule {
@@ -448,7 +455,7 @@ fn process_item(
     start: Location,
     module: bool,
     file_path: &FilePath,
-) -> Result<bool, Error> {
+) -> Result<bool, LexerError> {
     let mut first = true;
     let mut paren_level = 0;
     while !iterator.is_done() {

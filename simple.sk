@@ -1,6 +1,6 @@
-module Data (Option(..), Person(..), some_func) where
+module @@Data (Option(..), Person(..), some_func) where
 
-data Option a  = Some a | None a korte.szilva
+data Option a  = Some a | None a (Option a)
 
 data Person = { name :: String, address :: Option String }
 

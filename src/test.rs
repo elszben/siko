@@ -1,7 +1,7 @@
 #[cfg(test)]
-use crate::compiler::Compiler;
+use crate::compiler::compiler::Compiler;
 #[cfg(test)]
-use crate::compiler::CompilerInput;
+use crate::compiler::compiler::CompilerInput;
 
 #[cfg(test)]
 fn create_source(name: &str, source: &str) -> CompilerInput {

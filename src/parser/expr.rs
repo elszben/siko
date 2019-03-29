@@ -8,8 +8,8 @@ use crate::error::Error;
 use crate::parser::parser::Parser;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
-use crate::token::Token;
-use crate::token::TokenKind;
+use crate::parser::token::Token;
+use crate::parser::token::TokenKind;
 
 fn parse_path(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();

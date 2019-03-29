@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::parser::parser::Parser;
-use crate::token::TokenInfo;
-use crate::token::TokenKind;
+use crate::parser::token::TokenInfo;
+use crate::parser::token::TokenKind;
 
 pub fn report_unexpected_token<T>(parser: &mut Parser, msg: &str) -> Result<T, Error> {
     if parser.is_done() {

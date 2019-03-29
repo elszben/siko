@@ -1,9 +1,10 @@
-use crate::file_manager::FileManager;
+use crate::compiler::file_manager::FileManager;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location::Location;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_set::LocationSet;
 use crate::name_resolution::error::ResolverError;
+use crate::parser::error::LexerError;
 use crate::typechecker::error::TypecheckError;
 use crate::util::format_list;
 use colored::*;
@@ -61,7 +62,7 @@ fn print_location_set(file_manager: &FileManager, location_set: &LocationSet) {
 #[derive(Debug)]
 pub enum Error {
     IoError(IoError),
-    LexerError(String, FilePath, Location),
+    LexerError(Vec<LexerError>),
     ParseError(String, FilePath, Location),
     ResolverError(Vec<ResolverError>),
     TypecheckError(Vec<TypecheckError>),
@@ -69,8 +70,8 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn lexer_err(s: String, file_path: FilePath, location: Location) -> Error {
-        Error::LexerError(s, file_path, location)
+    pub fn lexer_err(s: String, file_path: FilePath, location: Location) -> LexerError {
+        LexerError::General(s, file_path, location)
     }
 
     pub fn parse_err(s: String, file_path: FilePath, location: Location) -> Error {
@@ -94,7 +95,7 @@ impl Error {
         println!(
             "--{}:{}",
             file_path.path.green(),
-            format!("{}", location.line).green()
+            format!("{}", location.line + 1).green()
         );
         let line = &lines[location.line];
         let chars: Vec<_> = line.chars().collect();
@@ -119,8 +120,26 @@ impl Error {
     pub fn report_error(&self, file_manager: &FileManager, location_info: &LocationInfo) {
         let error = "ERROR:";
         match self {
-            Error::LexerError(msg, file_path, location) => {
-                Error::report_error_base(msg, file_manager, file_path, location);
+            Error::LexerError(errors) => {
+                for err in errors {
+                    match err {
+                        LexerError::General(msg, file_path, location) => {
+                            Error::report_error_base(msg, file_manager, file_path, location);
+                        }
+                        LexerError::UnsupportedCharacter(c, location) => {
+                            Error::report_error_base(
+                                &format!(
+                                    "{} unsupported character {}",
+                                    error.red(),
+                                    format!("{}", c).yellow()
+                                ),
+                                file_manager,
+                                &location.file_path,
+                                &location.location,
+                            );
+                        }
+                    }
+                }
             }
             Error::ParseError(msg, file_path, location) => {
                 Error::report_error_base(msg, file_manager, file_path, location);

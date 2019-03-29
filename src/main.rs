@@ -1,6 +1,5 @@
 mod constants;
 mod error;
-mod file_manager;
 //mod interpreter;
 mod compiler;
 mod ir;
@@ -9,14 +8,13 @@ mod name_resolution;
 mod parser;
 mod syntax;
 mod test;
-mod token;
 mod typechecker;
 mod util;
 
 use std::env;
 
-use crate::compiler::Compiler;
-use crate::compiler::CompilerInput;
+use crate::compiler::compiler::Compiler;
+use crate::compiler::compiler::CompilerInput;
 
 fn main() {
     let args: Vec<_> = env::args().skip(1).collect();
