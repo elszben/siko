@@ -634,20 +634,22 @@ pub fn process_imports(
                 }
             }
         }
+
         /*
-                println!("Module {} imports:", module_name);
-                println!(
-                    "{} imported items {} imported members",
-                    imported_items.len(),
-                    imported_members.len(),
-                );
-                for (name, import) in &imported_items {
-                    println!("Item: {} => {:?}", name, import);
-                }
-                for (name, import) in &imported_members {
-                    println!("Member: {} => {:?}", name, import);
-                }
+        println!("Module {} imports:", module_name);
+        println!(
+            "{} imported items {} imported members",
+            imported_items.len(),
+            imported_members.len(),
+        );
+        for (name, import) in &imported_items {
+            println!("Item: {} => {:?}", name, import);
+        }
+        for (name, import) in &imported_members {
+            println!("Member: {} => {:?}", name, import);
+        }
         */
+
         all_imported_items.push((module_name.clone(), imported_items));
         all_imported_members.push((module_name.clone(), imported_members));
     }

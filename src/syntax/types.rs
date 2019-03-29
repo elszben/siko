@@ -12,5 +12,4 @@ pub enum TypeSignature {
     Variant(ItemPath, Vec<TypeSignatureId>),
     Tuple(Vec<TypeSignatureId>),
     Function(Vec<TypeSignatureId>),
-    TypeArgument(ItemPath),
 }

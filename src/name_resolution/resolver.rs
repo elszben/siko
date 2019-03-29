@@ -43,7 +43,7 @@ impl Resolver {
         ast_module: &AstModule,
         modules: &mut BTreeMap<String, Vec<Module>>,
     ) {
-        let mut module = Module::new(
+        let module = Module::new(
             ast_module.id,
             ast_module.name.clone(),
             ast_module.location_id,

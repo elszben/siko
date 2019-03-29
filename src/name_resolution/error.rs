@@ -29,4 +29,6 @@ pub enum ResolverError {
     ImportedRecordFieldNotExported(String, String, LocationId),
     ExplicitlyImportedAdtVariantdHidden(String, String, LocationId),
     ImportedAdtVariantNotExported(String, String, LocationId),
+    IncorrectTypeArgumentCount(String, usize, usize, LocationId),
+    NameNotType(String, LocationId),
 }

@@ -363,9 +363,13 @@ impl<'a> Parser<'a> {
                                 let arg_start_index = self.get_index();
                                 let arg = self.parse_item_path()?;
                                 let arg = self.add_type_signature(
-                                    TypeSignature::TypeArgument(arg),
+                                    TypeSignature::Named(arg, Vec::new()),
                                     arg_start_index,
                                 );
+                                args.push(arg);
+                            }
+                            TokenKind::LParen => {
+                                let arg = self.parse_tuple_type()?;
                                 args.push(arg);
                             }
                             _ => {

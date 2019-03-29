@@ -42,7 +42,6 @@ pub fn process_exports(
                 for item in items {
                     match item {
                         AstExportedItem::Named(entity_name) => {
-                            let mut found = false;
                             match module.items.get(entity_name) {
                                 Some(items) => {
                                     assert_eq!(items.len(), 1);

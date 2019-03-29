@@ -175,31 +175,37 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ArgumentConflict(args, id) => {
-                            println!("Argument(s) {} are not unique", format_list(args).yellow());
+                            println!(
+                                "{} argument(s) {} are not unique",
+                                error.red(),
+                                format_list(args).yellow()
+                            );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::LambdaArgumentConflict(args, id) => {
                             println!(
-                                "Lambda argument(s) {} are not unique",
+                                "{} lambda argument(s) {} are not unique",
+                                error.red(),
                                 format_list(args).yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownFunction(var_name, id) => {
-                            println!("Unknown function {}", var_name.yellow());
+                            println!("{} unknown function {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::AmbiguousName(var_name, id) => {
-                            println!("Ambiguous name {}", var_name.yellow());
+                            println!("{} ambiguous name {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::FunctionTypeNameMismatch(n1, n2, id) => {
                             println!(
-                                "Name mismatch in function type signature, {} != {}",
+                                "{} name mismatch in function type signature, {} != {}",
+                                error.red(),
                                 n1.yellow(),
                                 n2.yellow()
                             );
@@ -386,6 +392,29 @@ impl Error {
                                 variant_name.yellow(),
                                 type_name.yellow()
                             );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::IncorrectTypeArgumentCount(
+                            type_name,
+                            expected,
+                            found,
+                            id,
+                        ) => {
+                            println!(
+                                "{} incorrect type argument count for type {}",
+                                error.red(),
+                                type_name.yellow(),
+                            );
+                            let expected = format!("{}", expected);
+                            let found = format!("{}", found);
+                            println!("Expected: {}", expected.yellow());
+                            println!("Found:    {}", found.yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::NameNotType(name, id) => {
+                            println!("{} name is not a type {}", error.red(), name.yellow(),);
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }

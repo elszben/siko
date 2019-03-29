@@ -24,4 +24,8 @@ impl FileManager {
         self.files.insert(file_path, content);
         Ok(())
     }
+
+    pub fn add_from_memory(&mut self, file_path: FilePath, content: String) {
+        self.files.insert(file_path, content);
+    }
 }
