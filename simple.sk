@@ -11,4 +11,4 @@ module alma.korte where
 import Data (Person(..), Option(..), some_func) as Foo
 
 main  :: Foo.Person
-main a.s =Foo.Option a
+main a = a. a

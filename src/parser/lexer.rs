@@ -119,7 +119,7 @@ impl Lexer {
     }
 
     fn collect_identifier(&mut self) -> Result<(), LexerError> {
-        let (identifier, span) = self.collect(|c| Lexer::is_identifier(c, false))?;
+        let (mut identifier, mut span) = self.collect(|c| Lexer::is_identifier(c, false))?;
 
         let t = match identifier.as_ref() {
             "where" => Token::KeywordWhere,
@@ -140,7 +140,7 @@ impl Lexer {
                 Err(_) => match identifier.parse::<f64>() {
                     Ok(f) => Token::FloatLiteral(f),
                     Err(_) => {
-                        if identifier.contains("..") || identifier.ends_with(".") {
+                        if identifier.contains("..") {
                             let err = LexerError::InvalidIdentifier(
                                 identifier.clone(),
                                 LocationInfo {
@@ -149,6 +149,12 @@ impl Lexer {
                                 },
                             );
                             return Err(err);
+                        }
+                        if identifier.ends_with(".") {
+                            identifier.pop();
+                            span.end -= 1;
+                            self.index -= 1;
+                            self.line_offset -= 1;
                         }
                         Token::Identifier(identifier)
                     }
