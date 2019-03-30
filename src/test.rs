@@ -53,3 +53,13 @@ fn invalid_identifier_double_dot() {
         unreachable!()
     }
 }
+
+#[test]
+fn invalid_identifier_ends_with_dot() {
+    let source = "module Data. ";
+    if let LexerError::InvalidIdentifier(id, _) = compile_err(source).get_single_lexer() {
+        assert_eq!(id, "Data.");
+    } else {
+        unreachable!()
+    }
+}

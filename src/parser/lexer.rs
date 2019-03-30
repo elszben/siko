@@ -140,7 +140,7 @@ impl Lexer {
                 Err(_) => match identifier.parse::<f64>() {
                     Ok(f) => Token::FloatLiteral(f),
                     Err(_) => {
-                        if identifier.contains("..") {
+                        if identifier.contains("..") || identifier.ends_with(".") {
                             let err = LexerError::InvalidIdentifier(
                                 identifier.clone(),
                                 LocationInfo {
