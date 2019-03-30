@@ -10,5 +10,6 @@ pub struct LocationInfo {
 #[derive(Debug)]
 pub enum LexerError {
     UnsupportedCharacter(char, LocationInfo),
+    InvalidIdentifier(String, LocationInfo),
     General(String, FilePath, Location),
 }

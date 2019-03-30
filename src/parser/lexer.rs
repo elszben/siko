@@ -139,7 +139,19 @@ impl Lexer {
                 Ok(i) => Token::IntegerLiteral(i),
                 Err(_) => match identifier.parse::<f64>() {
                     Ok(f) => Token::FloatLiteral(f),
-                    Err(_) => Token::Identifier(identifier),
+                    Err(_) => {
+                        if identifier.contains("..") {
+                            let err = LexerError::InvalidIdentifier(
+                                identifier.clone(),
+                                LocationInfo {
+                                    file_path: self.file_path.clone(),
+                                    location: Location::new(self.line_index, span),
+                                },
+                            );
+                            return Err(err);
+                        }
+                        Token::Identifier(identifier)
+                    }
                 },
             },
         };

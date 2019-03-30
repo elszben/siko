@@ -70,6 +70,15 @@ pub enum Error {
 }
 
 impl Error {
+    pub fn get_single_lexer(self) -> LexerError {
+        if let Error::LexerError(mut errs) = self {
+            assert_eq!(errs.len(), 1);
+            errs.pop().expect("err was empty")
+        } else {
+            unreachable!()
+        }
+    }
+
     pub fn lexer_err(s: String, file_path: FilePath, location: Location) -> LexerError {
         LexerError::General(s, file_path, location)
     }
@@ -132,6 +141,18 @@ impl Error {
                                     "{} unsupported character {}",
                                     error.red(),
                                     format!("{}", c).yellow()
+                                ),
+                                file_manager,
+                                &location.file_path,
+                                &location.location,
+                            );
+                        }
+                        LexerError::InvalidIdentifier(identifier, location) => {
+                            Error::report_error_base(
+                                &format!(
+                                    "{} invalid identifier {}",
+                                    error.red(),
+                                    identifier.yellow()
                                 ),
                                 file_manager,
                                 &location.file_path,
