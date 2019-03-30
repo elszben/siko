@@ -1,6 +1,5 @@
 use super::util::parse_parens;
 use super::util::report_unexpected_token;
-use super::util::to_string_list;
 use super::util::ParenParseResult;
 use crate::constants::BuiltinOperator;
 use crate::error::Error;
@@ -10,14 +9,6 @@ use crate::parser::token::Token;
 use crate::parser::token::TokenKind;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
-
-fn parse_path(parser: &mut Parser) -> Result<ExprId, Error> {
-    let start_index = parser.get_index();
-    let path = parser.identifier("Expected identifier")?;
-    let expr = Expr::Path(path);
-    let id = parser.add_expr(expr, start_index);
-    Ok(id)
-}
 
 fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
@@ -37,8 +28,7 @@ fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
 fn parse_lambda(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     parser.expect(TokenKind::Lambda)?;
-    let args = parser.parse_list1(TokenKind::Identifier, TokenKind::Comma)?;
-    let args: Vec<_> = to_string_list(args);
+    let args = parser.parse_lambda_args()?;
     parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
     let expr_id = parser.parse_expr()?;
     let lambda_expr = Expr::Lambda(args, expr_id);
@@ -104,7 +94,10 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
     let token_info = parser.peek().expect("Ran out of tokens");
     let id = match token_info.token {
         Token::Identifier(..) => {
-            return parse_path(parser);
+            let path = parser.identifier("identifier", false)?;
+            let expr = Expr::Path(path);
+            let id = parser.add_expr(expr, start_index);
+            id
         }
         Token::IntegerLiteral(n) => {
             parser.advance()?;
@@ -143,7 +136,7 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
             return parse_lambda(parser);
         }
         _ => {
-            return report_unexpected_token(parser, "Expected expression");
+            return report_unexpected_token(parser, format!("expression"));
         }
     };
     Ok(id)
@@ -301,7 +294,7 @@ fn parse_composition(parser: &mut Parser) -> Result<ExprId, Error> {
             if let Some(next) = parser.peek() {
                 match next.token {
                     Token::Identifier(_) => {
-                        let field_name = parser.identifier("Expected field name")?;
+                        let field_name = parser.identifier("field name", false)?;
                         let subs: Vec<_> = field_name.split(".").collect();
                         for sub in subs {
                             let expr = match sub.parse::<usize>() {
@@ -331,7 +324,7 @@ fn parse_composition(parser: &mut Parser) -> Result<ExprId, Error> {
                     }
                 }
             } else {
-                return report_unexpected_token(parser, "Expected expression");
+                return report_unexpected_token(parser, format!("expression"));
             }
         } else {
             break;

@@ -4,11 +4,11 @@ data Option a  = Some a | None a (Option a)
 
 data Person = { name :: String, address :: Option String }
 
-some_func = 7
+some_func a = 7 + a
 
 module alma.korte where
 
 import Data (Person(..), Option(..), some_func) as Foo
 
 main  :: Foo.Person
-main a = Foo.some_func 
+main a.s =Foo.Option a

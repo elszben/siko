@@ -125,6 +125,15 @@ pub enum TokenKind {
     EndOfModule,
 }
 
+impl TokenKind {
+    pub fn nice_name(&self) -> String {
+        let name = format!("{:?}", self);
+        let name = name.to_lowercase();
+        let name = name.replace("keyword", "keyword ");
+        name
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
     pub token: Token,

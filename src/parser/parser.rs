@@ -1,8 +1,9 @@
 use super::expr::parse_ops;
 use super::util::parse_parens;
+use super::util::report_parser_error;
 use super::util::report_unexpected_token;
-use super::util::to_string_list;
 use super::util::ParenParseResult;
+use super::util::ParserErrorReason;
 use crate::constants::BuiltinOperator;
 use crate::constants::PRELUDE_NAME;
 use crate::error::Error;
@@ -134,13 +135,19 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn identifier(&mut self, msg: &str) -> Result<String, Error> {
+    pub fn identifier(&mut self, item: &str, simple: bool) -> Result<String, Error> {
         let token_info = self.peek().expect("Ran out of tokens");
         if let Token::Identifier(i) = token_info.token {
+            if simple && i.contains(".") {
+                let reason = ParserErrorReason::Custom {
+                    msg: format!("invalid identifier as {}", item),
+                };
+                return report_parser_error(self, reason)?;
+            }
             self.advance()?;
             return Ok(i);
         } else {
-            return report_unexpected_token(self, msg);
+            return report_unexpected_token(self, item.to_string());
         }
     }
 
@@ -160,38 +167,36 @@ impl<'a> Parser<'a> {
         if t.token.kind() == token {
             return Ok(t);
         } else {
-            let found = t;
-            return Err(Error::parse_err(
-                format!("Expected {:?}, found {:?}", token, found.token.kind()),
-                self.file_path.clone(),
-                found.location,
-            ));
+            if token == TokenKind::EndOfItem {
+                let reason = ParserErrorReason::Custom {
+                    msg: format!("unexpected {}", t.token.kind().nice_name()),
+                };
+                return report_parser_error(self, reason);
+            }
+            return report_unexpected_token(self, token.nice_name());
         }
     }
 
-    pub fn parse_list1(
-        &mut self,
-        item_kind: TokenKind,
-        sep: TokenKind,
-    ) -> Result<Vec<TokenInfo>, Error> {
-        let mut items = Vec::new();
+    pub fn parse_lambda_args(&mut self) -> Result<Vec<String>, Error> {
+        let mut args = Vec::new();
         loop {
             if let Some(item) = self.peek() {
-                if item.token.kind() == item_kind {
-                    items.push(item);
+                if item.token.kind() == TokenKind::Identifier {
+                    let arg = self.identifier("lambda arg", true)?;
+                    args.push(arg);
                     self.advance()?;
-                    if !self.current(sep) {
+                    if !self.current(TokenKind::Comma) {
                         break;
                     } else {
-                        self.expect(sep)?;
+                        self.expect(TokenKind::Comma)?;
                         continue;
                     }
                 }
             }
-            return report_unexpected_token(self, &format!("Expected {:?}", item_kind));
+            return report_unexpected_token(self, format!("lambda arg"));
         }
-        assert!(!items.is_empty());
-        Ok(items)
+        assert!(!args.is_empty());
+        Ok(args)
     }
 
     fn parse_list1_in_parens<T>(
@@ -213,7 +218,7 @@ impl<'a> Parser<'a> {
                 break;
             } else {
                 if !comma {
-                    return report_unexpected_token(self, &format!("Expected comma"));
+                    return report_unexpected_token(self, format!("comma"));
                 }
             }
         }
@@ -243,13 +248,13 @@ impl<'a> Parser<'a> {
         Ok(items)
     }
 
-    fn parse_seq0(&mut self, item_kind: TokenKind) -> Result<Vec<TokenInfo>, Error> {
+    fn parse_args(&mut self) -> Result<Vec<String>, Error> {
         let mut items = Vec::new();
         while !self.is_done() {
-            if !self.current(item_kind) {
+            if !self.current(TokenKind::Identifier) {
                 break;
             }
-            let item = self.expect(item_kind)?;
+            let item = self.identifier("argument", true)?;
             items.push(item);
         }
         Ok(items)
@@ -354,13 +359,13 @@ impl<'a> Parser<'a> {
                     return Ok(id);
                 }
                 Token::Identifier(_) => {
-                    let name = self.identifier("Expected type identifier")?;
+                    let name = self.identifier("type", false)?;
                     let mut args = Vec::new();
                     loop {
                         match self.current_kind() {
                             TokenKind::Identifier => {
                                 let arg_start_index = self.get_index();
-                                let arg = self.identifier("Expected type identifier")?;
+                                let arg = self.identifier("type", false)?;
                                 let arg = self.add_type_signature(
                                     TypeSignature::Named(arg, Vec::new()),
                                     arg_start_index,
@@ -385,21 +390,20 @@ impl<'a> Parser<'a> {
                     return Ok(id);
                 }
                 _ => {
-                    return report_unexpected_token(self, "Expected type signature");
+                    return report_unexpected_token(self, format!("type signature"));
                 }
             },
             None => {
-                return report_unexpected_token(self, "Expected type signature");
+                return report_unexpected_token(self, format!("type signature"));
             }
         }
     }
 
-    fn parse_fn(&mut self, id: FunctionId) -> Result<Option<Function>, Error> {
+    fn parse_fn(&mut self, id: FunctionId) -> Result<Function, Error> {
         let mut start_index = self.get_index();
-        let name = self.identifier("Expected identifier as function name")?;
+        let name = self.identifier("function name", true)?;
         let mut name = name;
-        let args = self.parse_seq0(TokenKind::Identifier)?;
-        let mut args: Vec<_> = to_string_list(args);
+        let mut args = self.parse_args()?;
         let mut function_type = None;
         if let Some(next) = self.peek() {
             if next.token.kind() == TokenKind::KeywordDoubleColon {
@@ -417,14 +421,13 @@ impl<'a> Parser<'a> {
                 });
                 self.expect(TokenKind::EndOfItem)?;
                 start_index = self.get_index();
-                name = self.identifier("Expected identifier as function name")?;
-                let func_args = self.parse_seq0(TokenKind::Identifier)?;
-                args = to_string_list(func_args);
+                name = self.identifier("function name", true)?;
+                args = self.parse_args()?;
             }
         }
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
-        let equal = self.expect(TokenKind::Equal)?;
+        self.expect(TokenKind::Equal)?;
         let body = if let Some(token) = self.peek() {
             if token.token.kind() == TokenKind::KeywordExtern {
                 self.expect(TokenKind::KeywordExtern)?;
@@ -434,11 +437,7 @@ impl<'a> Parser<'a> {
                 FunctionBody::Expr(body)
             }
         } else {
-            return Err(Error::parse_err(
-                format!("Expected expression as function body",),
-                self.file_path.clone(),
-                equal.location,
-            ));
+            unreachable!()
         };
         self.expect(TokenKind::EndOfItem)?;
         let function = Function {
@@ -449,7 +448,7 @@ impl<'a> Parser<'a> {
             func_type: function_type,
             location_id: location_id,
         };
-        Ok(Some(function))
+        Ok(function)
     }
 
     fn parse_imported_member(parser: &mut Parser) -> Result<ImportedMember, Error> {
@@ -457,7 +456,7 @@ impl<'a> Parser<'a> {
             parser.expect(TokenKind::DoubleDot)?;
             Ok(ImportedMember::All)
         } else {
-            let name = parser.identifier("Expected identifier as data member")?;
+            let name = parser.identifier("variant", true)?;
             Ok(ImportedMember::Specific(name))
         }
     }
@@ -467,13 +466,13 @@ impl<'a> Parser<'a> {
             parser.expect(TokenKind::DoubleDot)?;
             Ok(ExportedMember::All)
         } else {
-            let name = parser.identifier("Expected identifier as data member")?;
+            let name = parser.identifier("variant", true)?;
             Ok(ExportedMember::Specific(name))
         }
     }
 
     fn parse_imported_item(parser: &mut Parser) -> Result<ImportedItem, Error> {
-        let name = parser.identifier("Expected identifier as imported item")?;
+        let name = parser.identifier("imported item", true)?;
         if parser.current(TokenKind::LParen) {
             let members = parser.parse_list0_in_parens(Parser::parse_imported_member)?;
             let group = ImportedGroup {
@@ -487,7 +486,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItem, Error> {
-        let name = parser.identifier("Expected identifier as exported item")?;
+        let name = parser.identifier("exported item", true)?;
         if parser.current(TokenKind::LParen) {
             let members = parser.parse_list0_in_parens(Parser::parse_exported_data_member)?;
             let group = ExportedGroup {
@@ -501,14 +500,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_hidden_item(parser: &mut Parser) -> Result<HiddenItem, Error> {
-        let name = parser.identifier("Expected identifier as hidden item")?;
+        let name = parser.identifier("hidden item", true)?;
         Ok(HiddenItem { name: name })
     }
 
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordImport)?;
-        let name = self.identifier("Expected module name")?;
+        let name = self.identifier("module name", false)?;
         let import_kind = if self.current(TokenKind::KeywordHiding) {
             self.expect(TokenKind::KeywordHiding)?;
             let items = self.parse_list1_in_parens(Parser::parse_hidden_item)?;
@@ -524,7 +523,7 @@ impl<'a> Parser<'a> {
             if let Some(as_token) = self.peek() {
                 if let Token::KeywordAs = as_token.token {
                     self.advance()?;
-                    let name = self.identifier("Expected identifier after as in import")?;
+                    let name = self.identifier("alternative name", true)?;
                     alternative_name = Some(name);
                 }
             }
@@ -547,7 +546,7 @@ impl<'a> Parser<'a> {
 
     fn parse_record_field(&mut self) -> Result<RecordField, Error> {
         let start_index = self.get_index();
-        let name = self.identifier("Expected identifier as record item name")?;
+        let name = self.identifier("record field name", true)?;
         self.expect(TokenKind::KeywordDoubleColon)?;
         let type_signature_id = self.parse_function_type(false)?;
         let end_index = self.get_index();
@@ -593,7 +592,7 @@ impl<'a> Parser<'a> {
 
     fn parse_variant(&mut self) -> Result<VariantId, Error> {
         let variant_start_index = self.get_index();
-        let name = self.identifier("Expected identifier as variant")?;
+        let name = self.identifier("variant", true)?;
         self.restore(variant_start_index);
         let type_signature_id = self.parse_function_type(true)?;
         let end_index = self.get_index();
@@ -612,9 +611,8 @@ impl<'a> Parser<'a> {
     fn parse_data(&mut self) -> Result<Data, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordData)?;
-        let name = self.identifier("Expected identifier as data name")?;
-        let args = self.parse_seq0(TokenKind::Identifier)?;
-        let args: Vec<_> = to_string_list(args);
+        let name = self.identifier("type", true)?;
+        let args = self.parse_args()?;
         self.expect(TokenKind::Equal)?;
         if self.current(TokenKind::LCurly) {
             self.expect(TokenKind::LCurly)?;
@@ -647,7 +645,7 @@ impl<'a> Parser<'a> {
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
-        let name = self.identifier("Expected module name")?;
+        let name = self.identifier("module name", false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let export_list = if self.current(TokenKind::LParen) {
@@ -685,12 +683,9 @@ impl<'a> Parser<'a> {
                     }
                     _ => {
                         let function_id = self.program.get_function_id();
-                        if let Some(function) = self.parse_fn(function_id)? {
-                            module.functions.push(function_id);
-                            self.program.functions.insert(function_id, function);
-                        } else {
-                            return report_unexpected_token(self, "Expected function");
-                        }
+                        let function = self.parse_fn(function_id)?;
+                        module.functions.push(function_id);
+                        self.program.functions.insert(function_id, function);
                     }
                 }
             } else {

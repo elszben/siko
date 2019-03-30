@@ -122,7 +122,8 @@ impl Error {
         file_path: &FilePath,
         location: &Location,
     ) {
-        println!("{}", msg);
+        let error = "ERROR:";
+        println!("{} {}", error.red(), msg);
         Error::report_location(file_manager, file_path, location);
     }
 
