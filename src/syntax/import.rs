@@ -1,5 +1,4 @@
 use crate::location_info::item::LocationId;
-use crate::syntax::item_path::ItemPath;
 
 #[derive(Debug, Clone)]
 pub enum ImportedItem {
@@ -42,7 +41,7 @@ pub enum ImportList {
 #[derive(Debug, Clone)]
 pub struct Import {
     pub id: ImportId,
-    pub module_path: ItemPath,
+    pub module_path: String,
     pub kind: ImportKind,
     pub location_id: Option<LocationId>,
 }

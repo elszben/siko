@@ -1,5 +1,4 @@
 use crate::constants::BuiltinOperator;
-use crate::syntax::item_path::ItemPath;
 use crate::util::format_list;
 use std::fmt;
 
@@ -21,7 +20,7 @@ pub enum Expr {
     Builtin(BuiltinOperator),
     If(ExprId, ExprId, ExprId),
     Tuple(Vec<ExprId>),
-    Path(ItemPath),
+    Path(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
     BoolLiteral(bool),
@@ -43,7 +42,7 @@ impl fmt::Display for Expr {
                 write!(f, "If({}, {}, {})", cond, true_branch, false_branch)
             }
             Expr::Tuple(items) => write!(f, "Tuple({})", format_list(items)),
-            Expr::Path(path) => write!(f, "Path({})", path.path),
+            Expr::Path(path) => write!(f, "Path({})", path),
             Expr::IntegerLiteral(v) => write!(f, "Integer({})", v),
             Expr::FloatLiteral(v) => write!(f, "Float({})", v),
             Expr::BoolLiteral(v) => write!(f, "Bool({})", v),

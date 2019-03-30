@@ -37,7 +37,7 @@ impl<'a> Environment<'a> {
         );
     }
 
-    pub fn get_ref(&self, var: &String) -> Option<(NamedRef, usize)> {
+    pub fn get_ref(&self, var: &str) -> Option<(NamedRef, usize)> {
         if let Some(named_ref) = self.variables.get(var) {
             return Some((named_ref.clone(), self.level));
         } else {

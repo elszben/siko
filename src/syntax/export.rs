@@ -1,6 +1,3 @@
-use crate::location_info::item::LocationId;
-use crate::syntax::item_path::ItemPath;
-
 #[derive(Debug, Clone)]
 pub enum ExportedItem {
     Named(String),

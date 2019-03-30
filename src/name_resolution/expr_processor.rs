@@ -15,7 +15,6 @@ use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
-use crate::syntax::item_path::ItemPath;
 use crate::syntax::program::Program;
 use std::collections::BTreeSet;
 
@@ -27,14 +26,14 @@ enum PathResolveResult {
 }
 
 fn resolve_item_path(
-    path: &ItemPath,
+    path: &str,
     module: &Module,
     environment: &Environment,
     lambda_helper: &mut LambdaHelper,
 ) -> PathResolveResult {
-    let name = path.path.clone();
-    if path.path.len() == 1 {
-        if let Some((named_ref, level)) = environment.get_ref(&name) {
+    let name = path.clone();
+    if path.len() == 1 {
+        if let Some((named_ref, level)) = environment.get_ref(name) {
             let named_ref = lambda_helper.process_named_ref(named_ref.clone(), level);
             return PathResolveResult::VariableRef(named_ref);
         }
@@ -189,7 +188,7 @@ pub fn process_expr(
                         return add_expr(ir_expr, id, ir_program, program);
                     }
                     PathResolveResult::Ambiguous => {
-                        let err = ResolverError::AmbiguousName(path.path.clone(), location_id);
+                        let err = ResolverError::AmbiguousName(path.clone(), location_id);
                         errors.push(err);
                         let ir_expr = IrExpr::Tuple(vec![]);
                         return add_expr(ir_expr, id, ir_program, program);
@@ -204,13 +203,8 @@ pub fn process_expr(
                         let ir_expr = IrExpr::DynamicFunctionCall(right, vec![left]);
                         return add_expr(ir_expr, id, ir_program, program);
                     } else {
-                        let path = ItemPath {
-                            path: format!(
-                                "{}.op_{}",
-                                PRELUDE_NAME,
-                                format!("{:?}", op).to_lowercase()
-                            ),
-                        };
+                        let path =
+                            format!("{}.op_{}", PRELUDE_NAME, format!("{:?}", op).to_lowercase());
                         match resolve_item_path(&path, module, environment, lambda_helper) {
                             PathResolveResult::FunctionRef(n) => {
                                 let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
@@ -218,7 +212,7 @@ pub fn process_expr(
                             }
                             _ => panic!(
                                 "Couldn't handle builtin function {}, missing {}?",
-                                path.path.clone(),
+                                path.clone(),
                                 PRELUDE_NAME
                             ),
                         }
@@ -303,7 +297,7 @@ pub fn process_expr(
                 return add_expr(ir_expr, id, ir_program, program);
             }
             PathResolveResult::Ambiguous => {
-                let err = ResolverError::AmbiguousName(path.path.clone(), location_id);
+                let err = ResolverError::AmbiguousName(path.clone(), location_id);
                 errors.push(err);
                 let ir_expr = IrExpr::Tuple(vec![]);
                 return add_expr(ir_expr, id, ir_program, program);

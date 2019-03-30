@@ -46,22 +46,21 @@ fn process_type_signature(
                     }
                 }
             }
-            IrTypeSignature::Variant(name.path.clone(), item_ids)
+            IrTypeSignature::Variant(name.clone(), item_ids)
         }
-        AstTypeSignature::Named(name, named_args) => match name.path.as_ref() {
+        AstTypeSignature::Named(name, named_args) => match name.as_ref() {
             "Int" => IrTypeSignature::Int,
             "Bool" => IrTypeSignature::Bool,
             "String" => IrTypeSignature::String,
             _ => {
-                if let Some(index) = type_args.get(&name.path) {
-                    used_type_args.insert(name.path.clone());
+                if let Some(index) = type_args.get(name) {
+                    used_type_args.insert(name.clone());
                     IrTypeSignature::TypeArgument(*index)
                 } else {
-                    match module.imported_items.get(&name.path) {
+                    match module.imported_items.get(name) {
                         Some(items) => {
                             if items.len() > 1 {
-                                let error =
-                                    ResolverError::AmbiguousName(name.path.clone(), location_id);
+                                let error = ResolverError::AmbiguousName(name.clone(), location_id);
                                 errors.push(error);
                                 return None;
                             }
@@ -95,7 +94,7 @@ fn process_type_signature(
                                         TypeDef::Adt(adt) => {
                                             if adt.type_arg_count != named_arg_ids.len() {
                                                 let err = ResolverError::IncorrectTypeArgumentCount(
-                                                    name.path.clone(),
+                                                    name.clone(),
                                                     adt.type_arg_count,
                                                     named_arg_ids.len(),
                                                     location_id,
@@ -118,7 +117,7 @@ fn process_type_signature(
                                         TypeDef::Record(record) => {
                                             if record.type_arg_count != named_arg_ids.len() {
                                                 let err = ResolverError::IncorrectTypeArgumentCount(
-                                                    name.path.clone(),
+                                                    name.clone(),
                                                     record.type_arg_count,
                                                     named_arg_ids.len(),
                                                     location_id,
@@ -131,16 +130,14 @@ fn process_type_signature(
                                     }
                                 }
                                 Item::Function(..) => {
-                                    let err =
-                                        ResolverError::NameNotType(name.path.clone(), location_id);
+                                    let err = ResolverError::NameNotType(name.clone(), location_id);
                                     errors.push(err);
                                     return None;
                                 }
                             }
                         }
                         None => {
-                            let error =
-                                ResolverError::UnknownTypeName(name.path.clone(), location_id);
+                            let error = ResolverError::UnknownTypeName(name.clone(), location_id);
                             errors.push(error);
                             return None;
                         }

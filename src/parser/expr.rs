@@ -13,7 +13,7 @@ use crate::syntax::expr::ExprId;
 
 fn parse_path(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
-    let path = parser.parse_item_path()?;
+    let path = parser.identifier("Expected identifier")?;
     let expr = Expr::Path(path);
     let id = parser.add_expr(expr, start_index);
     Ok(id)

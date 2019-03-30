@@ -334,7 +334,7 @@ fn process_explicit_import_list(
                         }
                         Item::Function(..) => {
                             let err = ResolverError::IncorrectNameInImportedTypeConstructor(
-                                import.module_path.path.clone(),
+                                import.module_path.clone(),
                                 group.name.clone(),
                                 import.get_location(),
                             );
@@ -343,7 +343,7 @@ fn process_explicit_import_list(
                     },
                     None => {
                         let err = ResolverError::IncorrectNameInImportedTypeConstructor(
-                            import.module_path.path.clone(),
+                            import.module_path.clone(),
                             group.name.clone(),
                             import.get_location(),
                         );
@@ -379,7 +379,7 @@ fn process_explicit_import_list(
                     None => {
                         let err = ResolverError::ImportedSymbolNotExportedByModule(
                             item_name.clone(),
-                            import.module_path.path.clone(),
+                            import.module_path.clone(),
                             import.get_location(),
                         );
                         errors.push(err);
@@ -546,11 +546,11 @@ pub fn process_imports(
 
         let ast_module = program.modules.get(&module.id).expect("Module not found");
         for (_, import) in &ast_module.imports {
-            let source_module = match modules.get(&import.module_path.path) {
+            let source_module = match modules.get(&import.module_path) {
                 Some(source_module) => source_module,
                 None => {
                     let err = ResolverError::ImportedModuleNotFound(
-                        import.module_path.path.clone(),
+                        import.module_path.clone(),
                         import.get_location(),
                     );
                     errors.push(err);
@@ -570,7 +570,7 @@ pub fn process_imports(
                         if !found {
                             let err = ResolverError::ImportedSymbolNotExportedByModule(
                                 item.name.clone(),
-                                import.module_path.path.clone(),
+                                import.module_path.clone(),
                                 import.get_location(),
                             );
                             errors.push(err);
@@ -578,7 +578,7 @@ pub fn process_imports(
                             let hs = all_hidden_items
                                 .entry(item.name.clone())
                                 .or_insert_with(|| Vec::new());
-                            hs.push(import.module_path.path.clone());
+                            hs.push(import.module_path.clone());
                         }
                     }
                 }
@@ -587,7 +587,7 @@ pub fn process_imports(
         }
 
         for (_, import) in &ast_module.imports {
-            let source_module = match modules.get(&import.module_path.path.clone()) {
+            let source_module = match modules.get(&import.module_path.clone()) {
                 Some(source_module) => source_module,
                 None => {
                     continue;
@@ -602,10 +602,7 @@ pub fn process_imports(
                 } => {
                     let (namespace, mode) = match &alternative_name {
                         Some(n) => (n.clone(), ImportMode::NamespaceOnly),
-                        None => (
-                            import.module_path.path.clone(),
-                            ImportMode::NameAndNamespace,
-                        ),
+                        None => (import.module_path.clone(), ImportMode::NameAndNamespace),
                     };
                     match items {
                         ImportList::ImplicitAll => {

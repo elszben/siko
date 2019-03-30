@@ -38,7 +38,6 @@ use crate::syntax::import::ImportList;
 use crate::syntax::import::ImportedGroup;
 use crate::syntax::import::ImportedItem;
 use crate::syntax::import::ImportedMember;
-use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
 use crate::syntax::program::Program;
@@ -135,7 +134,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn identifier(&mut self, msg: &str) -> Result<String, Error> {
+    pub fn identifier(&mut self, msg: &str) -> Result<String, Error> {
         let token_info = self.peek().expect("Ran out of tokens");
         if let Token::Identifier(i) = token_info.token {
             self.advance()?;
@@ -354,14 +353,14 @@ impl<'a> Parser<'a> {
                     let id = self.add_type_signature(TypeSignature::Nothing, start_index);
                     return Ok(id);
                 }
-                Token::Identifier(i) => {
-                    let name = self.parse_item_path()?;
+                Token::Identifier(_) => {
+                    let name = self.identifier("Expected type identifier")?;
                     let mut args = Vec::new();
                     loop {
                         match self.current_kind() {
                             TokenKind::Identifier => {
                                 let arg_start_index = self.get_index();
-                                let arg = self.parse_item_path()?;
+                                let arg = self.identifier("Expected type identifier")?;
                                 let arg = self.add_type_signature(
                                     TypeSignature::Named(arg, Vec::new()),
                                     arg_start_index,
@@ -453,12 +452,6 @@ impl<'a> Parser<'a> {
         Ok(Some(function))
     }
 
-    pub fn parse_item_path(&mut self) -> Result<ItemPath, Error> {
-        let item_path = self.identifier("Expected item path")?;
-        let path = ItemPath { path: item_path };
-        Ok(path)
-    }
-
     fn parse_imported_member(parser: &mut Parser) -> Result<ImportedMember, Error> {
         if parser.current(TokenKind::Dot) {
             parser.expect(TokenKind::Dot)?;
@@ -517,7 +510,7 @@ impl<'a> Parser<'a> {
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordImport)?;
-        let name = self.parse_item_path()?;
+        let name = self.identifier("Expected module name")?;
         let import_kind = if self.current(TokenKind::KeywordHiding) {
             self.expect(TokenKind::KeywordHiding)?;
             let items = self.parse_list1_in_parens(Parser::parse_hidden_item)?;
@@ -656,7 +649,7 @@ impl<'a> Parser<'a> {
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
-        let name = self.parse_item_path()?;
+        let name = self.identifier("Expected module name")?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let export_list = if self.current(TokenKind::LParen) {
@@ -720,7 +713,7 @@ impl<'a> Parser<'a> {
 
         let mut prelude_exists = false;
         for (_, module) in self.program.modules.iter_mut() {
-            if module.name.path == PRELUDE_NAME {
+            if module.name == PRELUDE_NAME {
                 prelude_exists = true;
                 break;
             }
@@ -730,11 +723,11 @@ impl<'a> Parser<'a> {
             let mut modules_without_prelude = Vec::new();
             for (module_id, module) in &self.program.modules {
                 let mut prelude_imported = false;
-                if module.name.path == PRELUDE_NAME {
+                if module.name == PRELUDE_NAME {
                     continue;
                 }
                 for (_, import) in &module.imports {
-                    if import.module_path.path == PRELUDE_NAME {
+                    if import.module_path == PRELUDE_NAME {
                         prelude_imported = true;
                         break;
                     }
@@ -747,9 +740,7 @@ impl<'a> Parser<'a> {
                 let import_id = self.program.get_import_id();
                 let import = Import {
                     id: import_id,
-                    module_path: ItemPath {
-                        path: PRELUDE_NAME.to_string(),
-                    },
+                    module_path: PRELUDE_NAME.to_string(),
                     kind: ImportKind::ImportList {
                         items: ImportList::ImplicitAll,
                         alternative_name: None,

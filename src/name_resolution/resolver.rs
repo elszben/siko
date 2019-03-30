@@ -45,12 +45,12 @@ impl Resolver {
     ) {
         let module = Module::new(
             ast_module.id,
-            ast_module.name.path.clone(),
+            ast_module.name.clone(),
             ast_module.location_id,
         );
 
         let mods = modules
-            .entry(ast_module.name.path.clone())
+            .entry(ast_module.name.clone())
             .or_insert_with(Vec::new);
         mods.push(module);
     }

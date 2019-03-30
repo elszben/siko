@@ -6,7 +6,6 @@ use crate::syntax::export::ExportList;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
-use crate::syntax::item_path::ItemPath;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -16,7 +15,7 @@ pub struct ModuleId {
 
 #[derive(Debug, Clone)]
 pub struct Module {
-    pub name: ItemPath,
+    pub name: String,
     pub id: ModuleId,
     pub functions: Vec<FunctionId>,
     pub records: Vec<RecordId>,
@@ -28,7 +27,7 @@ pub struct Module {
 
 impl Module {
     pub fn new(
-        name: ItemPath,
+        name: String,
         id: ModuleId,
         location_id: LocationId,
         export_list: ExportList,
