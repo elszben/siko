@@ -8,7 +8,7 @@ some_func = 7
 
 module alma.korte where
 
-import Data (Person(..), Option(..)) as Foo
+import Data (Person(..), Option(..), some_func) as Foo
 
 main  :: Foo.Person
-main = 5
+main a = Foo.some_func 

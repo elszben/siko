@@ -11,6 +11,7 @@ use crate::ir::program::Program as IrProgram;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
+use crate::name_resolution::item::Item;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::syntax::expr::Expr;
@@ -31,29 +32,31 @@ fn resolve_item_path(
     environment: &Environment,
     lambda_helper: &mut LambdaHelper,
 ) -> PathResolveResult {
-    let name = path.clone();
-    if path.len() == 1 {
-        if let Some((named_ref, level)) = environment.get_ref(name) {
+    let subs: Vec<_> = path.split(".").collect();
+    if subs.len() == 1 {
+        if let Some((named_ref, level)) = environment.get_ref(path) {
             let named_ref = lambda_helper.process_named_ref(named_ref.clone(), level);
             return PathResolveResult::VariableRef(named_ref);
         }
     }
-    /*
-    let function_ids = module.imported_functions.get_function_id(&name);
-    match function_ids.len() {
-        0 => {
-            return PathResolveResult::Unknown(name);
+    match module.imported_items.get(path) {
+        Some(items) => {
+            if items.len() > 1 {
+                return PathResolveResult::Ambiguous;
+            } else {
+                let item = &items[0];
+                match item.item {
+                    Item::Function(_, ir_function_id) => {
+                        return PathResolveResult::FunctionRef(ir_function_id);
+                    }
+                    _ => unimplemented!(),
+                }
+            }
         }
-        1 => {
-            let id = self.resolve_named_function_id(&function_ids[0]);
-            return PathResolveResult::FunctionRef(id);
-        }
-        _ => {
-            return PathResolveResult::Ambiguous;
+        None => {
+            return PathResolveResult::Unknown(path.to_string());
         }
     }
-    */
-    unreachable!()
 }
 
 fn add_expr(
