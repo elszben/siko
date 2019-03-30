@@ -63,13 +63,3 @@ fn invalid_identifier_ends_with_dot() {
         unreachable!()
     }
 }
-
-#[test]
-fn invalid_identifier_starts_with_number() {
-    let source = "module 9Data ";
-    if let LexerError::InvalidIdentifier(id, _) = compile_err(source).get_single_lexer() {
-        assert_eq!(id, "9Data");
-    } else {
-        unreachable!()
-    }
-}

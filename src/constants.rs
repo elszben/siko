@@ -17,6 +17,7 @@ pub enum BuiltinOperator {
     Minus,
     Bind,
     Arrow,
+    Composition,
 }
 
 pub const MAIN_MODULE: &str = "Main";

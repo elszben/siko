@@ -290,5 +290,52 @@ fn parse_muldiv(parser: &mut Parser) -> Result<ExprId, Error> {
 }
 
 fn parse_pipe_forward(parser: &mut Parser) -> Result<ExprId, Error> {
-    return parse_binary_op(parser, &[BuiltinOperator::PipeForward], parse_primary);
+    return parse_binary_op(parser, &[BuiltinOperator::PipeForward], parse_composition);
+}
+
+fn parse_composition(parser: &mut Parser) -> Result<ExprId, Error> {
+    let start_index = parser.get_index();
+    let mut left = parse_primary(parser)?;
+    loop {
+        if let Some((op, _)) = parser.consume_op(&[BuiltinOperator::Composition]) {
+            if let Some(next) = parser.peek() {
+                match next.token {
+                    Token::Identifier(_) => {
+                        let field_name = parser.identifier("Expected field name")?;
+                        let subs: Vec<_> = field_name.split(".").collect();
+                        for sub in subs {
+                            let expr = match sub.parse::<usize>() {
+                                Ok(n) => Expr::TupleFieldAccess(n, left),
+                                Err(_) => Expr::FieldAccess(sub.to_string(), left),
+                            };
+                            let id = parser.add_expr(expr, start_index);
+                            left = id;
+                        }
+                        continue;
+                    }
+                    Token::IntegerLiteral(id) => {
+                        parser.advance()?;
+                        let expr = Expr::TupleFieldAccess(id as usize, left);
+                        let id = parser.add_expr(expr, start_index);
+                        left = id;
+                        continue;
+                    }
+                    _ => {
+                        let function_id_expr = Expr::Builtin(op);
+                        let function_id_expr_id = parser.add_expr(function_id_expr, start_index);
+                        let right = parse_primary(parser)?;
+                        let expr = Expr::FunctionCall(function_id_expr_id, vec![left, right]);
+                        let id = parser.add_expr(expr, start_index);
+                        left = id;
+                        continue;
+                    }
+                }
+            } else {
+                return report_unexpected_token(parser, "Expected expression");
+            }
+        } else {
+            break;
+        }
+    }
+    Ok(left)
 }

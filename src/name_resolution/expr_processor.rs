@@ -95,7 +95,7 @@ pub fn process_expr(
 ) -> IrExprId {
     let expr = program.get_expr(&id);
     let location_id = program.get_expr_location(&id);
-    //println!("Processing expr {}", expr);
+    println!("Processing expr {} {}", id, expr);
     match expr {
         Expr::Lambda(args, lambda_body) => {
             let ir_lambda_id = ir_program.get_function_id();
@@ -349,6 +349,32 @@ pub fn process_expr(
             );
             environment.add_expr_value(name.clone(), ir_expr_id);
             let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id);
+            return add_expr(ir_expr, id, ir_program, program);
+        }
+        Expr::FieldAccess(name, expr_id) => {
+            let ir_expr_id = process_expr(
+                *expr_id,
+                program,
+                module,
+                environment,
+                ir_program,
+                errors,
+                lambda_helper,
+            );
+            let ir_expr = IrExpr::Tuple(vec![]);
+            return add_expr(ir_expr, id, ir_program, program);
+        }
+        Expr::TupleFieldAccess(field_id, expr_id) => {
+            let ir_expr_id = process_expr(
+                *expr_id,
+                program,
+                module,
+                environment,
+                ir_program,
+                errors,
+                lambda_helper,
+            );
+            let ir_expr = IrExpr::Tuple(vec![]);
             return add_expr(ir_expr, id, ir_program, program);
         }
     }

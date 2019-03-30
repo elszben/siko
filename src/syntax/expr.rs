@@ -27,6 +27,8 @@ pub enum Expr {
     StringLiteral(String),
     Do(Vec<ExprId>),
     Bind(String, ExprId),
+    FieldAccess(String, ExprId),
+    TupleFieldAccess(usize, ExprId),
 }
 
 impl fmt::Display for Expr {
@@ -49,6 +51,8 @@ impl fmt::Display for Expr {
             Expr::StringLiteral(v) => write!(f, "String({})", v),
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
             Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
+            Expr::FieldAccess(name, expr) => write!(f, "FieldAccess({}, {})", name, expr),
+            Expr::TupleFieldAccess(id, expr) => write!(f, "TupleFieldAccess({}, {})", id, expr),
         }
     }
 }

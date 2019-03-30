@@ -453,9 +453,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_imported_member(parser: &mut Parser) -> Result<ImportedMember, Error> {
-        if parser.current(TokenKind::Dot) {
-            parser.expect(TokenKind::Dot)?;
-            parser.expect(TokenKind::Dot)?;
+        if parser.current(TokenKind::DoubleDot) {
+            parser.expect(TokenKind::DoubleDot)?;
             Ok(ImportedMember::All)
         } else {
             let name = parser.identifier("Expected identifier as data member")?;
@@ -464,9 +463,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_exported_data_member(parser: &mut Parser) -> Result<ExportedMember, Error> {
-        if parser.current(TokenKind::Dot) {
-            parser.expect(TokenKind::Dot)?;
-            parser.expect(TokenKind::Dot)?;
+        if parser.current(TokenKind::DoubleDot) {
+            parser.expect(TokenKind::DoubleDot)?;
             Ok(ExportedMember::All)
         } else {
             let name = parser.identifier("Expected identifier as data member")?;

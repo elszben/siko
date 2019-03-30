@@ -87,7 +87,7 @@ impl Lexer {
 
     fn is_operator(c: char) -> bool {
         match c {
-            '|' | '>' | '<' | '&' | '*' | '+' | '-' | '/' | '=' | '!' | '\\' | ':' => true,
+            '|' | '>' | '<' | '&' | '*' | '+' | '-' | '/' | '=' | '!' | '\\' | ':' | '.' => true,
             _ => false,
         }
     }
@@ -118,13 +118,6 @@ impl Lexer {
         Ok((token, span))
     }
 
-    fn is_num(c: char) -> bool {
-        match c {
-            '0'...'9' => true,
-            _ => false,
-        }
-    }
-
     fn collect_identifier(&mut self) -> Result<(), LexerError> {
         let (identifier, span) = self.collect(|c| Lexer::is_identifier(c, false))?;
 
@@ -147,10 +140,7 @@ impl Lexer {
                 Err(_) => match identifier.parse::<f64>() {
                     Ok(f) => Token::FloatLiteral(f),
                     Err(_) => {
-                        if identifier.contains("..")
-                            || identifier.ends_with(".")
-                            || Lexer::is_num(identifier.chars().next().expect("empty identifier"))
-                        {
+                        if identifier.contains("..") || identifier.ends_with(".") {
                             let err = LexerError::InvalidIdentifier(
                                 identifier.clone(),
                                 LocationInfo {
@@ -192,6 +182,8 @@ impl Lexer {
             "<-" => Token::Op(BuiltinOperator::Bind),
             "->" => Token::Op(BuiltinOperator::Arrow),
             "::" => Token::KeywordDoubleColon,
+            "." => Token::Op(BuiltinOperator::Composition),
+            ".." => Token::DoubleDot,
             _ => {
                 return Err(Error::lexer_err(
                     format!("Unsupported operator {}", operator),
@@ -364,7 +356,6 @@ impl Lexer {
                     }
                     '=' => Token::Equal,
                     ',' => Token::Comma,
-                    '.' => Token::Dot,
                     '{' => Token::LCurly,
                     '}' => Token::RCurly,
                     '(' => Token::LParen,
