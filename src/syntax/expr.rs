@@ -43,7 +43,7 @@ impl fmt::Display for Expr {
                 write!(f, "If({}, {}, {})", cond, true_branch, false_branch)
             }
             Expr::Tuple(items) => write!(f, "Tuple({})", format_list(items)),
-            Expr::Path(path) => write!(f, "Path({})", format_list(&path.path[..])),
+            Expr::Path(path) => write!(f, "Path({})", path.path),
             Expr::IntegerLiteral(v) => write!(f, "Integer({})", v),
             Expr::FloatLiteral(v) => write!(f, "Float({})", v),
             Expr::BoolLiteral(v) => write!(f, "Bool({})", v),

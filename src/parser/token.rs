@@ -1,11 +1,12 @@
 use crate::constants::BuiltinOperator;
 use crate::location_info::location::Location;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Identifier(String),
     StringLiteral(String),
-    NumericLiteral(String),
+    IntegerLiteral(i64),
+    FloatLiteral(f64),
     BoolLiteral(bool),
     KeywordWhere,
     KeywordData,
@@ -56,7 +57,8 @@ impl Token {
         match self {
             Token::Identifier(..) => TokenKind::Identifier,
             Token::StringLiteral(..) => TokenKind::StringLiteral,
-            Token::NumericLiteral(..) => TokenKind::NumericLiteral,
+            Token::IntegerLiteral(..) => TokenKind::IntegerLiteral,
+            Token::FloatLiteral(..) => TokenKind::FloatLiteral,
             Token::BoolLiteral(..) => TokenKind::BoolLiteral,
             Token::KeywordWhere => TokenKind::KeywordWhere,
             Token::KeywordData => TokenKind::KeywordData,
@@ -92,7 +94,8 @@ impl Token {
 pub enum TokenKind {
     Identifier,
     StringLiteral,
-    NumericLiteral,
+    IntegerLiteral,
+    FloatLiteral,
     BoolLiteral,
     KeywordWhere,
     KeywordData,
@@ -122,7 +125,7 @@ pub enum TokenKind {
     EndOfModule,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct TokenInfo {
     pub token: Token,
     pub location: Location,

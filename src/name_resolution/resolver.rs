@@ -45,12 +45,12 @@ impl Resolver {
     ) {
         let module = Module::new(
             ast_module.id,
-            ast_module.name.clone(),
+            ast_module.name.path.clone(),
             ast_module.location_id,
         );
 
         let mods = modules
-            .entry(ast_module.name.get())
+            .entry(ast_module.name.path.clone())
             .or_insert_with(Vec::new);
         mods.push(module);
     }
@@ -183,7 +183,7 @@ impl Resolver {
                         }
                     }
                     let err = ResolverError::InternalModuleConflicts(
-                        module.name.get(),
+                        module.name.clone(),
                         name.clone(),
                         locations,
                     );
@@ -278,7 +278,7 @@ impl Resolver {
                 );
                 errors.push(err);
             }
-            let host_function = format!("{}/{}", module.name.get(), function.name);
+            let host_function = format!("{}/{}", module.name, function.name);
             let mut lambda_helper = LambdaHelper::new(
                 0,
                 host_function,
@@ -300,7 +300,7 @@ impl Resolver {
         let named_info = NamedFunctionInfo {
             body: body,
             name: function.name.clone(),
-            module: module.name.get(),
+            module: module.name.clone(),
             type_signature: type_signature_id,
             ast_function_id: function.id,
             location_id: function.location_id,

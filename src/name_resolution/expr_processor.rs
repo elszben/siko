@@ -32,7 +32,7 @@ fn resolve_item_path(
     environment: &Environment,
     lambda_helper: &mut LambdaHelper,
 ) -> PathResolveResult {
-    let name = path.get();
+    let name = path.path.clone();
     if path.path.len() == 1 {
         if let Some((named_ref, level)) = environment.get_ref(&name) {
             let named_ref = lambda_helper.process_named_ref(named_ref.clone(), level);
@@ -189,7 +189,7 @@ pub fn process_expr(
                         return add_expr(ir_expr, id, ir_program, program);
                     }
                     PathResolveResult::Ambiguous => {
-                        let err = ResolverError::AmbiguousName(path.get(), location_id);
+                        let err = ResolverError::AmbiguousName(path.path.clone(), location_id);
                         errors.push(err);
                         let ir_expr = IrExpr::Tuple(vec![]);
                         return add_expr(ir_expr, id, ir_program, program);
@@ -205,11 +205,11 @@ pub fn process_expr(
                         return add_expr(ir_expr, id, ir_program, program);
                     } else {
                         let path = ItemPath {
-                            path: vec![format!(
+                            path: format!(
                                 "{}.op_{}",
                                 PRELUDE_NAME,
                                 format!("{:?}", op).to_lowercase()
-                            )],
+                            ),
                         };
                         match resolve_item_path(&path, module, environment, lambda_helper) {
                             PathResolveResult::FunctionRef(n) => {
@@ -218,7 +218,7 @@ pub fn process_expr(
                             }
                             _ => panic!(
                                 "Couldn't handle builtin function {}, missing {}?",
-                                path.get(),
+                                path.path.clone(),
                                 PRELUDE_NAME
                             ),
                         }
@@ -303,7 +303,7 @@ pub fn process_expr(
                 return add_expr(ir_expr, id, ir_program, program);
             }
             PathResolveResult::Ambiguous => {
-                let err = ResolverError::AmbiguousName(path.get(), location_id);
+                let err = ResolverError::AmbiguousName(path.path.clone(), location_id);
                 errors.push(err);
                 let ir_expr = IrExpr::Tuple(vec![]);
                 return add_expr(ir_expr, id, ir_program, program);

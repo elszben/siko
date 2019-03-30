@@ -5,10 +5,8 @@ use crate::ir::types::TypeSignature as IrTypeSignature;
 use crate::ir::types::TypeSignatureId as IrTypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::name_resolution::error::ResolverError;
-use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
-use crate::syntax::function::FunctionType as AstFunctionType;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature as AstTypeSignature;
 use crate::syntax::types::TypeSignatureId;
@@ -48,113 +46,108 @@ fn process_type_signature(
                     }
                 }
             }
-            IrTypeSignature::Variant(name.get(), item_ids)
+            IrTypeSignature::Variant(name.path.clone(), item_ids)
         }
-        AstTypeSignature::Named(n, named_args) => {
-            let name = n.get();
-            match name.as_ref() {
-                "Int" => IrTypeSignature::Int,
-                "Bool" => IrTypeSignature::Bool,
-                "String" => IrTypeSignature::String,
-                _ => {
-                    if let Some(index) = type_args.get(&name) {
-                        used_type_args.insert(name.clone());
-                        IrTypeSignature::TypeArgument(*index)
-                    } else {
-                        match module.imported_items.get(&name) {
-                            Some(items) => {
-                                if items.len() > 1 {
-                                    let error =
-                                        ResolverError::AmbiguousName(name.clone(), location_id);
-                                    errors.push(error);
-                                    return None;
-                                }
-                                let mut named_arg_ids = Vec::new();
-                                for named_arg in named_args {
-                                    match process_type_signature(
-                                        named_arg,
-                                        program,
-                                        ir_program,
-                                        module,
-                                        type_args,
-                                        errors,
-                                        used_type_args,
-                                    ) {
-                                        Some(id) => {
-                                            named_arg_ids.push(id);
-                                        }
-                                        None => {
-                                            return None;
-                                        }
+        AstTypeSignature::Named(name, named_args) => match name.path.as_ref() {
+            "Int" => IrTypeSignature::Int,
+            "Bool" => IrTypeSignature::Bool,
+            "String" => IrTypeSignature::String,
+            _ => {
+                if let Some(index) = type_args.get(&name.path) {
+                    used_type_args.insert(name.path.clone());
+                    IrTypeSignature::TypeArgument(*index)
+                } else {
+                    match module.imported_items.get(&name.path) {
+                        Some(items) => {
+                            if items.len() > 1 {
+                                let error =
+                                    ResolverError::AmbiguousName(name.path.clone(), location_id);
+                                errors.push(error);
+                                return None;
+                            }
+                            let mut named_arg_ids = Vec::new();
+                            for named_arg in named_args {
+                                match process_type_signature(
+                                    named_arg,
+                                    program,
+                                    ir_program,
+                                    module,
+                                    type_args,
+                                    errors,
+                                    used_type_args,
+                                ) {
+                                    Some(id) => {
+                                        named_arg_ids.push(id);
                                     }
-                                }
-                                let item = &items[0];
-                                match item.item {
-                                    Item::Adt(_, ir_typedef_id) => {
-                                        let ir_adt = ir_program
-                                            .typedefs
-                                            .get(&ir_typedef_id)
-                                            .expect("TypeDef not found");
-                                        match ir_adt {
-                                            TypeDef::Adt(adt) => {
-                                                if adt.type_arg_count != named_arg_ids.len() {
-                                                    let err =
-                                                        ResolverError::IncorrectTypeArgumentCount(
-                                                            name.clone(),
-                                                            adt.type_arg_count,
-                                                            named_arg_ids.len(),
-                                                            location_id,
-                                                        );
-                                                    errors.push(err);
-                                                    return None;
-                                                }
-                                                IrTypeSignature::Named(ir_typedef_id, named_arg_ids)
-                                            }
-                                            TypeDef::Record(_) => unreachable!(),
-                                        }
-                                    }
-                                    Item::Record(_, ir_typedef_id) => {
-                                        let ir_record = ir_program
-                                            .typedefs
-                                            .get(&ir_typedef_id)
-                                            .expect("TypeDef not found");
-                                        match ir_record {
-                                            TypeDef::Adt(_) => unreachable!(),
-                                            TypeDef::Record(record) => {
-                                                if record.type_arg_count != named_arg_ids.len() {
-                                                    let err =
-                                                        ResolverError::IncorrectTypeArgumentCount(
-                                                            name.clone(),
-                                                            record.type_arg_count,
-                                                            named_arg_ids.len(),
-                                                            location_id,
-                                                        );
-                                                    errors.push(err);
-                                                    return None;
-                                                }
-                                                IrTypeSignature::Named(ir_typedef_id, named_arg_ids)
-                                            }
-                                        }
-                                    }
-                                    Item::Function(..) => {
-                                        let err =
-                                            ResolverError::NameNotType(name.clone(), location_id);
-                                        errors.push(err);
+                                    None => {
                                         return None;
                                     }
                                 }
                             }
-                            None => {
-                                let error =
-                                    ResolverError::UnknownTypeName(name.clone(), location_id);
-                                errors.push(error);
-                                return None;
+                            let item = &items[0];
+                            match item.item {
+                                Item::Adt(_, ir_typedef_id) => {
+                                    let ir_adt = ir_program
+                                        .typedefs
+                                        .get(&ir_typedef_id)
+                                        .expect("TypeDef not found");
+                                    match ir_adt {
+                                        TypeDef::Adt(adt) => {
+                                            if adt.type_arg_count != named_arg_ids.len() {
+                                                let err = ResolverError::IncorrectTypeArgumentCount(
+                                                    name.path.clone(),
+                                                    adt.type_arg_count,
+                                                    named_arg_ids.len(),
+                                                    location_id,
+                                                );
+                                                errors.push(err);
+                                                return None;
+                                            }
+                                            IrTypeSignature::Named(ir_typedef_id, named_arg_ids)
+                                        }
+                                        TypeDef::Record(_) => unreachable!(),
+                                    }
+                                }
+                                Item::Record(_, ir_typedef_id) => {
+                                    let ir_record = ir_program
+                                        .typedefs
+                                        .get(&ir_typedef_id)
+                                        .expect("TypeDef not found");
+                                    match ir_record {
+                                        TypeDef::Adt(_) => unreachable!(),
+                                        TypeDef::Record(record) => {
+                                            if record.type_arg_count != named_arg_ids.len() {
+                                                let err = ResolverError::IncorrectTypeArgumentCount(
+                                                    name.path.clone(),
+                                                    record.type_arg_count,
+                                                    named_arg_ids.len(),
+                                                    location_id,
+                                                );
+                                                errors.push(err);
+                                                return None;
+                                            }
+                                            IrTypeSignature::Named(ir_typedef_id, named_arg_ids)
+                                        }
+                                    }
+                                }
+                                Item::Function(..) => {
+                                    let err =
+                                        ResolverError::NameNotType(name.path.clone(), location_id);
+                                    errors.push(err);
+                                    return None;
+                                }
                             }
+                        }
+                        None => {
+                            let error =
+                                ResolverError::UnknownTypeName(name.path.clone(), location_id);
+                            errors.push(error);
+                            return None;
                         }
                     }
                 }
             }
-        }
+        },
         AstTypeSignature::Tuple(items) => {
             let mut item_ids = Vec::new();
             for item in items {

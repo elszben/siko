@@ -3,14 +3,13 @@ use crate::name_resolution::export::ExportedDataMember;
 use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::import::ImportedMemberInfo;
 use crate::name_resolution::item::Item;
-use crate::syntax::item_path::ItemPath;
 use crate::syntax::module::ModuleId;
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct Module {
     pub id: ModuleId,
-    pub name: ItemPath,
+    pub name: String,
     pub exported_items: BTreeMap<String, Item>,
     pub exported_members: BTreeMap<String, Vec<ExportedDataMember>>,
     pub imported_items: BTreeMap<String, Vec<ImportedItemInfo>>,
@@ -20,7 +19,7 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn new(id: ModuleId, name: ItemPath, location_id: LocationId) -> Module {
+    pub fn new(id: ModuleId, name: String, location_id: LocationId) -> Module {
         Module {
             id: id,
             name: name,

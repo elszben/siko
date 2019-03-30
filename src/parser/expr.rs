@@ -6,10 +6,10 @@ use crate::constants::BuiltinOperator;
 use crate::error::Error;
 
 use crate::parser::parser::Parser;
-use crate::syntax::expr::Expr;
-use crate::syntax::expr::ExprId;
 use crate::parser::token::Token;
 use crate::parser::token::TokenKind;
+use crate::syntax::expr::Expr;
+use crate::syntax::expr::ExprId;
 
 fn parse_path(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
@@ -106,26 +106,15 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
         Token::Identifier(..) => {
             return parse_path(parser);
         }
-        Token::NumericLiteral(n) => {
+        Token::IntegerLiteral(n) => {
             parser.advance()?;
-            if let Some(token_info) = parser.peek() {
-                if let TokenKind::Dot = token_info.token.kind() {
-                    parser.advance()?;
-                    let mut float = format!("{}.", n);
-                    if let Some(token_info) = parser.peek() {
-                        if let Token::NumericLiteral(n2) = token_info.token {
-                            parser.advance()?;
-                            float = format!("{}{}", float, n2);
-                        }
-                    }
-                    let f = float.parse().expect("Failed to parse float");
-                    let expr = Expr::FloatLiteral(f);
-                    let id = parser.add_expr(expr, start_index);
-                    return Ok(id);
-                }
-            }
-            let n = n.parse().expect("Failed to parse int");
             let expr = Expr::IntegerLiteral(n);
+            let id = parser.add_expr(expr, start_index);
+            id
+        }
+        Token::FloatLiteral(f) => {
+            parser.advance()?;
+            let expr = Expr::FloatLiteral(f);
             let id = parser.add_expr(expr, start_index);
             id
         }
@@ -168,7 +157,7 @@ fn parse_primary(parser: &mut Parser) -> Result<ExprId, Error> {
         match parser.current_kind() {
             TokenKind::Op(BuiltinOperator::Not)
             | TokenKind::Identifier
-            | TokenKind::NumericLiteral
+            | TokenKind::IntegerLiteral
             | TokenKind::BoolLiteral
             | TokenKind::StringLiteral
             | TokenKind::LParen

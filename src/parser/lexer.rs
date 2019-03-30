@@ -77,9 +77,10 @@ impl Lexer {
         }
     }
 
-    fn is_identifier(c: char) -> bool {
+    fn is_identifier(c: char, first: bool) -> bool {
         match c {
             'a'...'z' | 'A'...'Z' | '0'...'9' | '_' => true,
+            '.' if first == false => true,
             _ => false,
         }
     }
@@ -118,7 +119,7 @@ impl Lexer {
     }
 
     fn collect_identifier(&mut self) -> Result<(), LexerError> {
-        let (identifier, span) = self.collect(Lexer::is_identifier)?;
+        let (identifier, span) = self.collect(|c| Lexer::is_identifier(c, false))?;
 
         let t = match identifier.as_ref() {
             "where" => Token::KeywordWhere,
@@ -135,8 +136,11 @@ impl Lexer {
             "extern" => Token::KeywordExtern,
             "hiding" => Token::KeywordHiding,
             _ => match identifier.parse::<i64>() {
-                Ok(_) => Token::NumericLiteral(identifier),
-                Err(_) => Token::Identifier(identifier),
+                Ok(i) => Token::IntegerLiteral(i),
+                Err(_) => match identifier.parse::<f64>() {
+                    Ok(f) => Token::FloatLiteral(f),
+                    Err(_) => Token::Identifier(identifier),
+                },
             },
         };
         self.add_token(t, span);
@@ -297,7 +301,7 @@ impl Lexer {
                 break;
             }
             let c = self.peek()?;
-            if Lexer::is_identifier(c) {
+            if Lexer::is_identifier(c, true) {
                 self.collect_identifier()?;
             } else if Lexer::is_operator(c) {
                 match self.peek_next() {

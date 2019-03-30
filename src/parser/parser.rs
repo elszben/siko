@@ -11,6 +11,9 @@ use crate::location_info::item::Item;
 use crate::location_info::item::LocationId;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_set::LocationSet;
+use crate::parser::token::Token;
+use crate::parser::token::TokenInfo;
+use crate::parser::token::TokenKind;
 use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
 use crate::syntax::data::Record;
@@ -41,9 +44,6 @@ use crate::syntax::module::ModuleId;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
-use crate::parser::token::Token;
-use crate::parser::token::TokenInfo;
-use crate::parser::token::TokenKind;
 
 pub struct Parser<'a> {
     file_path: FilePath,
@@ -454,9 +454,8 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_item_path(&mut self) -> Result<ItemPath, Error> {
-        let name_parts = self.parse_list1(TokenKind::Identifier, TokenKind::Dot)?;
-        let name_parts: Vec<_> = to_string_list(name_parts);
-        let path = ItemPath { path: name_parts };
+        let item_path = self.identifier("Expected item path")?;
+        let path = ItemPath { path: item_path };
         Ok(path)
     }
 
@@ -721,7 +720,7 @@ impl<'a> Parser<'a> {
 
         let mut prelude_exists = false;
         for (_, module) in self.program.modules.iter_mut() {
-            if module.name.get() == PRELUDE_NAME {
+            if module.name.path == PRELUDE_NAME {
                 prelude_exists = true;
                 break;
             }
@@ -731,11 +730,11 @@ impl<'a> Parser<'a> {
             let mut modules_without_prelude = Vec::new();
             for (module_id, module) in &self.program.modules {
                 let mut prelude_imported = false;
-                if module.name.get() == PRELUDE_NAME {
+                if module.name.path == PRELUDE_NAME {
                     continue;
                 }
                 for (_, import) in &module.imports {
-                    if import.module_path.get() == PRELUDE_NAME {
+                    if import.module_path.path == PRELUDE_NAME {
                         prelude_imported = true;
                         break;
                     }
@@ -749,7 +748,7 @@ impl<'a> Parser<'a> {
                 let import = Import {
                     id: import_id,
                     module_path: ItemPath {
-                        path: vec![PRELUDE_NAME.to_string()],
+                        path: PRELUDE_NAME.to_string(),
                     },
                     kind: ImportKind::ImportList {
                         items: ImportList::ImplicitAll,

@@ -17,7 +17,6 @@ use crate::syntax::import::ImportList;
 use crate::syntax::import::ImportedGroup;
 use crate::syntax::import::ImportedItem as AstImportedItem;
 use crate::syntax::import::ImportedMember;
-use crate::syntax::item_path::ItemPath;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 
@@ -27,10 +26,10 @@ enum ImportMode {
     NamespaceOnly,
 }
 
-fn get_imported_item_info(imported_item: Item, source_module: &ItemPath) -> ImportedItemInfo {
+fn get_imported_item_info(imported_item: Item, source_module: String) -> ImportedItemInfo {
     ImportedItemInfo {
         item: imported_item,
-        source_module: source_module.get(),
+        source_module: source_module,
     }
 }
 
@@ -58,11 +57,11 @@ fn get_imported_member(exported_member: &ExportedDataMember) -> (ImportedDataMem
 
 fn get_imported_member_info(
     imported_member: ImportedDataMember,
-    source_module: &ItemPath,
+    source_module: String,
 ) -> ImportedMemberInfo {
     ImportedMemberInfo {
         member: imported_member,
-        source_module: source_module.get(),
+        source_module: source_module,
     }
 }
 
@@ -99,12 +98,11 @@ fn process_record_field_import_list(
     namespace: &str,
     mode: ImportMode,
 ) {
-    let source_module_name = source_module.name.get();
     for member in &group.members {
         match member {
             ImportedMember::All => {
                 for (exported_member_name, source_items) in &source_module.exported_members {
-                    if is_hidden(exported_member_name, &source_module_name, &all_hidden_items) {
+                    if is_hidden(exported_member_name, &source_module.name, &all_hidden_items) {
                         continue;
                     }
                     for source_item in source_items {
@@ -125,10 +123,10 @@ fn process_record_field_import_list(
                 }
             }
             ImportedMember::Specific(member_name) => {
-                if is_hidden(member_name, &source_module_name, &all_hidden_items) {
+                if is_hidden(member_name, &source_module.name, &all_hidden_items) {
                     let err = ResolverError::ExplicitlyImportedRecordFieldHidden(
                         member_name.clone(),
-                        module.name.get(),
+                        module.name.clone(),
                         import.get_location(),
                     );
                     errors.push(err);
@@ -188,12 +186,11 @@ fn process_adt_variant_import_list(
     namespace: &str,
     mode: ImportMode,
 ) {
-    let source_module_name = source_module.name.get();
     for member in &group.members {
         match member {
             ImportedMember::All => {
                 for (exported_member_name, source_items) in &source_module.exported_members {
-                    if is_hidden(exported_member_name, &source_module_name, &all_hidden_items) {
+                    if is_hidden(exported_member_name, &source_module.name, &all_hidden_items) {
                         continue;
                     }
                     for source_item in source_items {
@@ -214,10 +211,10 @@ fn process_adt_variant_import_list(
                 }
             }
             ImportedMember::Specific(member_name) => {
-                if is_hidden(member_name, &source_module_name, &all_hidden_items) {
+                if is_hidden(member_name, &source_module.name, &all_hidden_items) {
                     let err = ResolverError::ExplicitlyImportedAdtVariantdHidden(
                         member_name.clone(),
-                        module.name.get(),
+                        module.name.clone(),
                         import.get_location(),
                     );
                     errors.push(err);
@@ -277,14 +274,13 @@ fn process_explicit_import_list(
     namespace: &str,
     mode: ImportMode,
 ) {
-    let source_module_name = source_module.name.get();
     for imported_list_item in imported_list_items {
         match imported_list_item {
             AstImportedItem::Group(group) => {
-                if is_hidden(&group.name, &source_module_name, &all_hidden_items) {
+                if is_hidden(&group.name, &source_module.name, &all_hidden_items) {
                     let err = ResolverError::ExplicitlyImportedTypeHidden(
                         group.name.clone(),
-                        module.name.get(),
+                        module.name.clone(),
                         import.get_location(),
                     );
                     errors.push(err);
@@ -338,7 +334,7 @@ fn process_explicit_import_list(
                         }
                         Item::Function(..) => {
                             let err = ResolverError::IncorrectNameInImportedTypeConstructor(
-                                import.module_path.get(),
+                                import.module_path.path.clone(),
                                 group.name.clone(),
                                 import.get_location(),
                             );
@@ -347,7 +343,7 @@ fn process_explicit_import_list(
                     },
                     None => {
                         let err = ResolverError::IncorrectNameInImportedTypeConstructor(
-                            import.module_path.get(),
+                            import.module_path.path.clone(),
                             group.name.clone(),
                             import.get_location(),
                         );
@@ -356,10 +352,10 @@ fn process_explicit_import_list(
                 }
             }
             AstImportedItem::NamedItem(item_name) => {
-                if is_hidden(item_name, &source_module_name, &all_hidden_items) {
+                if is_hidden(item_name, &source_module.name, &all_hidden_items) {
                     let err = ResolverError::ExplicitlyImportedItemHidden(
                         item_name.clone(),
-                        module.name.get(),
+                        module.name.clone(),
                         import.get_location(),
                     );
                     errors.push(err);
@@ -368,8 +364,10 @@ fn process_explicit_import_list(
 
                 match source_module.exported_items.get(item_name) {
                     Some(exported_item) => {
-                        let imported_item_info =
-                            get_imported_item_info(exported_item.clone(), &source_module.name);
+                        let imported_item_info = get_imported_item_info(
+                            exported_item.clone(),
+                            source_module.name.clone(),
+                        );
                         let names = get_names(&namespace, item_name, mode);
                         for name in names {
                             let imported_item_infos = imported_items
@@ -381,7 +379,7 @@ fn process_explicit_import_list(
                     None => {
                         let err = ResolverError::ImportedSymbolNotExportedByModule(
                             item_name.clone(),
-                            import.module_path.get(),
+                            import.module_path.path.clone(),
                             import.get_location(),
                         );
                         errors.push(err);
@@ -401,7 +399,8 @@ fn import_exported_member(
     mode: ImportMode,
 ) {
     let (imported_member, is_record) = get_imported_member(exported_member);
-    let imported_member_info = get_imported_member_info(imported_member, &source_module.name);
+    let imported_member_info =
+        get_imported_member_info(imported_member, source_module.name.clone());
     let names = if is_record {
         vec![member_name.to_string()]
     } else {
@@ -423,7 +422,8 @@ fn import_exported_item(
     namespace: &str,
     mode: ImportMode,
 ) {
-    let imported_item_info = get_imported_item_info(exported_item.clone(), &source_module.name);
+    let imported_item_info =
+        get_imported_item_info(exported_item.clone(), source_module.name.clone());
     let names = get_names(&namespace, item_name, mode);
     for name in names {
         let imported_item_infos = imported_items
@@ -441,9 +441,8 @@ fn process_implicit_import_list(
     namespace: &str,
     mode: ImportMode,
 ) {
-    let source_module_name = source_module.name.get();
     for (item_name, exported_item) in &source_module.exported_items {
-        if is_hidden(item_name, &source_module_name, &all_hidden_items) {
+        if is_hidden(item_name, &source_module.name, &all_hidden_items) {
             continue;
         }
         import_exported_item(
@@ -456,7 +455,7 @@ fn process_implicit_import_list(
         );
     }
     for (member_name, exported_members) in &source_module.exported_members {
-        if is_hidden(member_name, &source_module_name, &all_hidden_items) {
+        if is_hidden(member_name, &source_module.name, &all_hidden_items) {
             continue;
         }
         for exported_member in exported_members {
@@ -547,11 +546,11 @@ pub fn process_imports(
 
         let ast_module = program.modules.get(&module.id).expect("Module not found");
         for (_, import) in &ast_module.imports {
-            let source_module = match modules.get(&import.module_path.get()) {
+            let source_module = match modules.get(&import.module_path.path) {
                 Some(source_module) => source_module,
                 None => {
                     let err = ResolverError::ImportedModuleNotFound(
-                        import.module_path.get(),
+                        import.module_path.path.clone(),
                         import.get_location(),
                     );
                     errors.push(err);
@@ -571,7 +570,7 @@ pub fn process_imports(
                         if !found {
                             let err = ResolverError::ImportedSymbolNotExportedByModule(
                                 item.name.clone(),
-                                import.module_path.get(),
+                                import.module_path.path.clone(),
                                 import.get_location(),
                             );
                             errors.push(err);
@@ -579,7 +578,7 @@ pub fn process_imports(
                             let hs = all_hidden_items
                                 .entry(item.name.clone())
                                 .or_insert_with(|| Vec::new());
-                            hs.push(import.module_path.get());
+                            hs.push(import.module_path.path.clone());
                         }
                     }
                 }
@@ -588,7 +587,7 @@ pub fn process_imports(
         }
 
         for (_, import) in &ast_module.imports {
-            let source_module = match modules.get(&import.module_path.get()) {
+            let source_module = match modules.get(&import.module_path.path.clone()) {
                 Some(source_module) => source_module,
                 None => {
                     continue;
@@ -603,7 +602,10 @@ pub fn process_imports(
                 } => {
                     let (namespace, mode) = match &alternative_name {
                         Some(n) => (n.clone(), ImportMode::NamespaceOnly),
-                        None => (import.module_path.get(), ImportMode::NameAndNamespace),
+                        None => (
+                            import.module_path.path.clone(),
+                            ImportMode::NameAndNamespace,
+                        ),
                     };
                     match items {
                         ImportList::ImplicitAll => {
