@@ -29,10 +29,10 @@ pub fn process_exports(
                     exported_items.insert(name.clone(), item.clone());
                     match item {
                         Item::Function(..) => {}
-                        Item::Record(record_id, ir_typedef_id) => {
+                        Item::Record(record_id, _) => {
                             export_all_fields(record_id, program, &mut exported_members);
                         }
-                        Item::Adt(adt_id, ir_typedef_id) => {
+                        Item::Adt(adt_id, _) => {
                             export_all_variants(adt_id, program, &mut exported_members);
                         }
                     }
@@ -63,7 +63,7 @@ pub fn process_exports(
                                 assert_eq!(items.len(), 1);
                                 let item = &items[0];
                                 match item {
-                                    Item::Record(record_id, ir_typedef_id) => {
+                                    Item::Record(record_id, _) => {
                                         exported_items.insert(group.name.clone(), item.clone());
                                         for member in &group.members {
                                             match member {
@@ -106,7 +106,7 @@ pub fn process_exports(
                                             }
                                         }
                                     }
-                                    Item::Adt(adt_id, ir_typedef_id) => {
+                                    Item::Adt(adt_id, _) => {
                                         exported_items.insert(group.name.clone(), item.clone());
                                         for member in &group.members {
                                             match member {

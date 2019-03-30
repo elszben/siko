@@ -37,14 +37,6 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn get_ident(&self) -> String {
-        if let Token::Identifier(i) = self {
-            i.clone()
-        } else {
-            unreachable!()
-        }
-    }
-
     pub fn get_op(&self) -> Option<BuiltinOperator> {
         if let Token::Op(o) = self {
             Some(o.clone())

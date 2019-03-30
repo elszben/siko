@@ -570,12 +570,18 @@ impl<'a> Parser<'a> {
         loop {
             let record_field = self.parse_record_field()?;
             fields.push(record_field);
+            let mut found = false;
             if self.current(TokenKind::Comma) {
+                found = true;
                 self.expect(TokenKind::Comma)?;
             }
             if self.current(TokenKind::RCurly) {
+                found = true;
                 self.expect(TokenKind::RCurly)?;
                 break;
+            }
+            if !found {
+                return report_unexpected_token(self, format!("comma or }}"));
             }
         }
         let end_index = self.get_index();

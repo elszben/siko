@@ -1,6 +1,5 @@
 use crate::error::Error;
 use crate::parser::parser::Parser;
-use crate::parser::token::TokenInfo;
 use crate::parser::token::TokenKind;
 
 pub enum ParserErrorReason {
