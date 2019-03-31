@@ -1,22 +1,5 @@
 use crate::location_info::item::LocationId;
-
-#[derive(Debug, Clone)]
-pub enum ImportedItem {
-    NamedItem(String),
-    Group(ImportedGroup),
-}
-
-#[derive(Debug, Clone)]
-pub enum ImportedMember {
-    Specific(String),
-    All,
-}
-
-#[derive(Debug, Clone)]
-pub struct ImportedGroup {
-    pub name: String,
-    pub members: Vec<ImportedMember>,
-}
+use crate::syntax::export_import::EIItemInfo;
 
 #[derive(Debug, Clone)]
 pub struct HiddenItem {
@@ -35,7 +18,7 @@ pub enum ImportKind {
 #[derive(Debug, Clone)]
 pub enum ImportList {
     ImplicitAll,
-    Explicit(Vec<ImportedItem>),
+    Explicit(Vec<EIItemInfo>),
 }
 
 #[derive(Debug, Clone)]

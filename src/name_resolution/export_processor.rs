@@ -3,11 +3,9 @@ use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
-use crate::syntax::data::AdtId;
-use crate::syntax::data::RecordId;
-use crate::syntax::export::ExportList;
-use crate::syntax::export::ExportedItem as AstExportedItem;
-use crate::syntax::export::ExportedMember;
+use crate::syntax::export_import::EIItem;
+use crate::syntax::export_import::EIMember;
+use crate::syntax::export_import::ExportList;
 use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
@@ -75,14 +73,14 @@ fn process_patterns(
             for pattern_item in pattern_items {
                 let item = &pattern_item.item;
                 match item {
-                    AstExportedItem::Named(entity_name) => {
+                    EIItem::Named(entity_name) => {
                         item_patterns.push(ExportItemPattern::new(
                             Some(entity_name.clone()),
                             false,
                             Some(pattern_item.location_id),
                         ));
                     }
-                    AstExportedItem::Group(group) => {
+                    EIItem::Group(group) => {
                         item_patterns.push(ExportItemPattern::new(
                             Some(group.name.clone()),
                             true,
@@ -90,7 +88,7 @@ fn process_patterns(
                         ));
                         for member_info in &group.members {
                             match &member_info.member {
-                                ExportedMember::All => {
+                                EIMember::All => {
                                     let pattern = ExportMemberPattern::new(
                                         group.name.clone(),
                                         None,
@@ -99,7 +97,7 @@ fn process_patterns(
                                     member_patterns
                                         .push(ExportMemberPatternKind::Specific(pattern));
                                 }
-                                ExportedMember::Specific(name) => {
+                                EIMember::Specific(name) => {
                                     let pattern = ExportMemberPattern::new(
                                         group.name.clone(),
                                         Some(name.clone()),

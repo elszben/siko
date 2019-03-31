@@ -1,37 +1,37 @@
 use crate::location_info::item::LocationId;
 
 #[derive(Debug, Clone)]
-pub enum ExportedItem {
+pub enum EIItem {
     Named(String),
-    Group(ExportedGroup),
+    Group(EIGroup),
 }
 
 #[derive(Debug, Clone)]
-pub enum ExportedMember {
+pub enum EIMember {
     Specific(String),
     All,
 }
 
 #[derive(Debug, Clone)]
-pub struct ExportedMemberInfo {
-    pub member: ExportedMember,
+pub struct EIMemberInfo {
+    pub member: EIMember,
     pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
-pub struct ExportedGroup {
+pub struct EIGroup {
     pub name: String,
-    pub members: Vec<ExportedMemberInfo>,
+    pub members: Vec<EIMemberInfo>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ExportedItemInfo {
-    pub item: ExportedItem,
+pub struct EIItemInfo {
+    pub item: EIItem,
     pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
 pub enum ExportList {
     ImplicitAll,
-    Explicit(Vec<ExportedItemInfo>),
+    Explicit(Vec<EIItemInfo>),
 }

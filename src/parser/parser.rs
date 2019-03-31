@@ -21,12 +21,12 @@ use crate::syntax::data::Record;
 use crate::syntax::data::RecordField;
 use crate::syntax::data::Variant;
 use crate::syntax::data::VariantId;
-use crate::syntax::export::ExportList;
-use crate::syntax::export::ExportedGroup;
-use crate::syntax::export::ExportedItem;
-use crate::syntax::export::ExportedItemInfo;
-use crate::syntax::export::ExportedMember;
-use crate::syntax::export::ExportedMemberInfo;
+use crate::syntax::export_import::EIGroup;
+use crate::syntax::export_import::EIItem;
+use crate::syntax::export_import::EIItemInfo;
+use crate::syntax::export_import::EIMember;
+use crate::syntax::export_import::EIMemberInfo;
+use crate::syntax::export_import::ExportList;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
@@ -38,9 +38,6 @@ use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
 use crate::syntax::import::ImportList;
-use crate::syntax::import::ImportedGroup;
-use crate::syntax::import::ImportedItem;
-use crate::syntax::import::ImportedMember;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
 use crate::syntax::program::Program;
@@ -453,64 +450,40 @@ impl<'a> Parser<'a> {
         Ok(function)
     }
 
-    fn parse_imported_member(parser: &mut Parser) -> Result<ImportedMember, Error> {
-        if parser.current(TokenKind::DoubleDot) {
-            parser.expect(TokenKind::DoubleDot)?;
-            Ok(ImportedMember::All)
-        } else {
-            let name = parser.identifier("variant", true)?;
-            Ok(ImportedMember::Specific(name))
-        }
-    }
-
-    fn parse_exported_data_member(parser: &mut Parser) -> Result<ExportedMemberInfo, Error> {
+    fn parse_export_import_data_member(parser: &mut Parser) -> Result<EIMemberInfo, Error> {
         let start_index = parser.get_index();
         let member = if parser.current(TokenKind::DoubleDot) {
             parser.expect(TokenKind::DoubleDot)?;
-            ExportedMember::All
+            EIMember::All
         } else {
             let name = parser.identifier("variant", true)?;
-            ExportedMember::Specific(name)
+            EIMember::Specific(name)
         };
         let end_index = parser.get_index();
         let location_id = parser.get_location_id(start_index, end_index);
-        let info = ExportedMemberInfo {
+        let info = EIMemberInfo {
             member: member,
             location_id: location_id,
         };
         Ok(info)
     }
 
-    fn parse_imported_item(parser: &mut Parser) -> Result<ImportedItem, Error> {
-        let name = parser.identifier("imported item", true)?;
-        if parser.current(TokenKind::LParen) {
-            let members = parser.parse_list0_in_parens(Parser::parse_imported_member)?;
-            let group = ImportedGroup {
-                name: name,
-                members: members,
-            };
-            Ok(ImportedItem::Group(group))
-        } else {
-            Ok(ImportedItem::NamedItem(name))
-        }
-    }
-
-    fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItemInfo, Error> {
+    fn parse_export_import_item(parser: &mut Parser) -> Result<EIItemInfo, Error> {
         let start_index = parser.get_index();
         let name = parser.identifier("exported item", true)?;
         let item = if parser.current(TokenKind::LParen) {
-            let members = parser.parse_list0_in_parens(Parser::parse_exported_data_member)?;
-            let group = ExportedGroup {
+            let members = parser.parse_list0_in_parens(Parser::parse_export_import_data_member)?;
+            let group = EIGroup {
                 name: name,
                 members: members,
             };
-            ExportedItem::Group(group)
+            EIItem::Group(group)
         } else {
-            ExportedItem::Named(name)
+            EIItem::Named(name)
         };
         let end_index = parser.get_index();
         let location_id = parser.get_location_id(start_index, end_index);
-        let info = ExportedItemInfo {
+        let info = EIItemInfo {
             item: item,
             location_id: location_id,
         };
@@ -532,7 +505,7 @@ impl<'a> Parser<'a> {
             ImportKind::Hiding(items)
         } else {
             let import_list = if self.current(TokenKind::LParen) {
-                let items = self.parse_list0_in_parens(Parser::parse_imported_item)?;
+                let items = self.parse_list0_in_parens(Parser::parse_export_import_item)?;
                 ImportList::Explicit(items)
             } else {
                 ImportList::ImplicitAll
@@ -594,7 +567,6 @@ impl<'a> Parser<'a> {
                 self.expect(TokenKind::Comma)?;
             }
             if self.current(TokenKind::RCurly) {
-                found = true;
                 self.expect(TokenKind::RCurly)?;
                 break;
             }
@@ -673,7 +645,7 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let export_list = if self.current(TokenKind::LParen) {
-            let exported_items = self.parse_list0_in_parens(Parser::parse_exported_item)?;
+            let exported_items = self.parse_list0_in_parens(Parser::parse_export_import_item)?;
             ExportList::Explicit(exported_items)
         } else {
             ExportList::ImplicitAll

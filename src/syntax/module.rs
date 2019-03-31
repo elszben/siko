@@ -1,8 +1,7 @@
 use crate::location_info::item::LocationId;
-use crate::syntax::data::Adt;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
-use crate::syntax::export::ExportList;
+use crate::syntax::export_import::ExportList;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
