@@ -1,7 +1,4 @@
 use crate::name_resolution::error::ResolverError;
-use crate::name_resolution::export::ExportedDataMember;
-use crate::name_resolution::export::ExportedField;
-use crate::name_resolution::export::ExportedVariant;
 use crate::name_resolution::import::ImportedDataMember;
 use crate::name_resolution::import::ImportedField;
 use crate::name_resolution::import::ImportedItemInfo;
@@ -30,28 +27,6 @@ fn get_imported_item_info(imported_item: Item, source_module: String) -> Importe
     ImportedItemInfo {
         item: imported_item,
         source_module: source_module,
-    }
-}
-
-fn get_imported_member(exported_member: &ExportedDataMember) -> (ImportedDataMember, bool) {
-    match exported_member {
-        ExportedDataMember::RecordField(ExportedField {
-            field_id,
-            record_id,
-        }) => (
-            ImportedDataMember::RecordField(ImportedField {
-                field_id: *field_id,
-                record_id: *record_id,
-            }),
-            true,
-        ),
-        ExportedDataMember::Variant(ExportedVariant { variant_id, adt_id }) => (
-            ImportedDataMember::Variant(ImportedVariant {
-                variant_id: *variant_id,
-                adt_id: *adt_id,
-            }),
-            false,
-        ),
     }
 }
 
@@ -98,6 +73,7 @@ fn process_record_field_import_list(
     namespace: &str,
     mode: ImportMode,
 ) {
+    /*
     for member in &group.members {
         match member {
             ImportedMember::All => {
@@ -172,6 +148,7 @@ fn process_record_field_import_list(
             }
         }
     }
+    */
 }
 
 fn process_adt_variant_import_list(
@@ -186,6 +163,7 @@ fn process_adt_variant_import_list(
     namespace: &str,
     mode: ImportMode,
 ) {
+    /*
     for member in &group.members {
         match member {
             ImportedMember::All => {
@@ -260,6 +238,7 @@ fn process_adt_variant_import_list(
             }
         }
     }
+    */
 }
 
 fn process_explicit_import_list(
@@ -332,7 +311,7 @@ fn process_explicit_import_list(
                                 mode,
                             );
                         }
-                        Item::Function(..) => {
+                        Item::Function(..) | Item::Variant(..) => {
                             let err = ResolverError::IncorrectNameInImportedTypeConstructor(
                                 import.module_path.clone(),
                                 group.name.clone(),
@@ -392,26 +371,11 @@ fn process_explicit_import_list(
 
 fn import_exported_member(
     member_name: &str,
-    exported_member: &ExportedDataMember,
     source_module: &Module,
     imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
     namespace: &str,
     mode: ImportMode,
 ) {
-    let (imported_member, is_record) = get_imported_member(exported_member);
-    let imported_member_info =
-        get_imported_member_info(imported_member, source_module.name.clone());
-    let names = if is_record {
-        vec![member_name.to_string()]
-    } else {
-        get_names(&namespace, member_name, mode)
-    };
-    for name in names {
-        let imported_member_infos = imported_members
-            .entry(name.clone())
-            .or_insert_with(|| Vec::new());
-        imported_member_infos.push(imported_member_info.clone());
-    }
 }
 
 fn import_exported_item(
@@ -459,6 +423,7 @@ fn process_implicit_import_list(
             continue;
         }
         for exported_member in exported_members {
+            /*
             import_exported_member(
                 member_name,
                 exported_member,
@@ -467,6 +432,7 @@ fn process_implicit_import_list(
                 namespace,
                 mode,
             );
+            */
         }
     }
 }
@@ -510,7 +476,7 @@ pub fn process_imports(
                         }
                     }
                 }
-                Item::Function(..) => {}
+                Item::Function(..) | Item::Variant(..) => {}
                 Item::Record(record_id, _) => {
                     let record = program.records.get(record_id).expect("Record not found");
                     for field in &record.fields {

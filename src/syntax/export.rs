@@ -1,3 +1,5 @@
+use crate::location_info::item::LocationId;
+
 #[derive(Debug, Clone)]
 pub enum ExportedItem {
     Named(String),
@@ -11,18 +13,25 @@ pub enum ExportedMember {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExportedGroup {
-    pub name: String,
-    pub members: Vec<ExportedMember>,
+pub struct ExportedMemberInfo {
+    pub member: ExportedMember,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
-pub struct HiddenItem {
+pub struct ExportedGroup {
     pub name: String,
+    pub members: Vec<ExportedMemberInfo>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportedItemInfo {
+    pub item: ExportedItem,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
 pub enum ExportList {
     ImplicitAll,
-    Explicit(Vec<ExportedItem>),
+    Explicit(Vec<ExportedItemInfo>),
 }

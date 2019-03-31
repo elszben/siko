@@ -275,8 +275,14 @@ impl Typechecker {
                 });
                 *var
             }
-            TypeSignature::Named(..) => unimplemented!(),
-            TypeSignature::Variant(..) => unimplemented!(),
+            TypeSignature::Named(..) => {
+                let ty = Type::Nothing;
+                return self.type_store.add_var(ty);
+            }
+            TypeSignature::Variant(..) => {
+                let ty = Type::Nothing;
+                return self.type_store.add_var(ty);
+            }
         }
     }
 
@@ -306,6 +312,8 @@ impl Typechecker {
             let mut function_info = FunctionDependencyInfo::new();
             let mut function_info_collector = FunctionInfoCollector::new(&mut function_info);
             match &function.info {
+                FunctionInfo::RecordConstructor(_) => {}
+                FunctionInfo::VariantConstructor(_) => {}
                 FunctionInfo::Lambda(_) => {}
                 FunctionInfo::NamedFunction(i) => {
                     let untyped = match i.type_signature {

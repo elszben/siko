@@ -3,17 +3,25 @@ use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::function::NamedFunctionInfo;
+use crate::ir::function::RecordConstructorInfo;
+use crate::ir::function::VariantConstructorInfo;
 use crate::ir::program::Program as IrProgram;
 use crate::ir::types::Adt;
 use crate::ir::types::Record;
 use crate::ir::types::TypeDef;
 use crate::ir::types::TypeDefId;
+use crate::ir::types::TypeSignature;
+use crate::ir::types::Variant as IrVariant;
+use crate::ir::types::VariantItem;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export_processor::process_exports;
 use crate::name_resolution::expr_processor::process_expr;
 use crate::name_resolution::import_processor::process_imports;
+use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
+use crate::name_resolution::item::RecordField;
+use crate::name_resolution::item::Variant;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::name_resolution::type_processor::process_type_signatures;
@@ -114,12 +122,24 @@ impl Resolver {
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id).expect("Record not found");
                 let ir_typedef_id = ir_program.get_typedef_id();
+                let ir_ctor_id = ir_program.get_function_id();
+                let record_ctor_info = RecordConstructorInfo {
+                    type_id: ir_typedef_id,
+                };
+                let ir_ctor_function = IrFunction {
+                    id: ir_ctor_id,
+                    arg_count: record.fields.len(),
+                    info: FunctionInfo::RecordConstructor(record_ctor_info),
+                };
+                ir_program.add_function(ir_ctor_id, ir_ctor_function);
+
                 let ir_record = Record {
                     name: record.name.clone(),
                     ast_record_id: *record_id,
                     id: ir_typedef_id,
                     type_arg_count: record.type_args.len(),
                     fields: Vec::new(),
+                    constructor: ir_ctor_id,
                 };
                 let typedef = TypeDef::Record(ir_record);
                 ir_program.add_typedef(ir_typedef_id, typedef);
@@ -128,6 +148,17 @@ impl Resolver {
                     .entry(record.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Record(*record_id, ir_typedef_id));
+                for field in &record.fields {
+                    let members = module
+                        .members
+                        .entry(field.name.clone())
+                        .or_insert_with(|| Vec::new());
+                    let record_field = RecordField {
+                        field_id: field.id,
+                        record_id: *record_id,
+                    };
+                    members.push(DataMember::RecordField(record_field));
+                }
             }
             for adt_id in &ast_module.adts {
                 let adt = program.adts.get(adt_id).expect("Adt not found");
@@ -146,6 +177,23 @@ impl Resolver {
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Adt(*adt_id, ir_typedef_id));
+                for variant_id in &adt.variants {
+                    let ast_variant = program.variants.get(variant_id).expect("Variant not found");
+                    let items = module
+                        .items
+                        .entry(ast_variant.name.clone())
+                        .or_insert_with(|| Vec::new());
+                    items.push(Item::Variant(*adt_id, *variant_id));
+                    let members = module
+                        .members
+                        .entry(ast_variant.name.clone())
+                        .or_insert_with(|| Vec::new());
+                    let variant = Variant {
+                        variant_id: *variant_id,
+                        adt_id: *adt_id,
+                    };
+                    members.push(DataMember::Variant(variant));
+                }
             }
             for function_id in &ast_module.functions {
                 let function = program
@@ -179,6 +227,10 @@ impl Resolver {
                             Item::Adt(id, _) => {
                                 let adt = program.adts.get(id).expect("Adt not found");
                                 locations.push(adt.location_id);
+                            }
+                            Item::Variant(_, id) => {
+                                let variant = program.variants.get(id).expect("Variant not found");
+                                locations.push(variant.location_id);
                             }
                         }
                     }
@@ -341,6 +393,56 @@ impl Resolver {
             adt.location_id,
             errors,
         );
+
+        if errors.is_empty() {
+            let mut ir_variants = Vec::new();
+            for (index, _) in adt.variants.iter().enumerate() {
+                let ir_typesignature_id = result[index].expect("type signature missing");
+                if let TypeSignature::Variant(name, items) = ir_program
+                    .type_signatures
+                    .get(&ir_typesignature_id)
+                    .expect("type signature missing")
+                    .type_signature
+                    .clone()
+                {
+                    let items: Vec<_> = items
+                        .iter()
+                        .map(|i| VariantItem {
+                            type_signature_id: *i,
+                        })
+                        .collect();
+                    let ir_ctor_id = ir_program.get_function_id();
+                    let variant_ctor_info = VariantConstructorInfo {
+                        type_id: ir_typedef_id,
+                    };
+                    let ir_ctor_function = IrFunction {
+                        id: ir_ctor_id,
+                        arg_count: items.len(),
+                        info: FunctionInfo::VariantConstructor(variant_ctor_info),
+                    };
+                    ir_program.add_function(ir_ctor_id, ir_ctor_function);
+
+                    let ir_variant = IrVariant {
+                        name: name.clone(),
+                        items: items,
+                        type_signature_id: ir_typesignature_id,
+                        constructor: ir_ctor_id,
+                    };
+
+                    ir_variants.push(ir_variant);
+                } else {
+                    unreachable!()
+                }
+            }
+
+            let ir_adt = ir_program
+                .typedefs
+                .get_mut(&ir_typedef_id)
+                .expect("Adt not found");
+            if let TypeDef::Adt(adt) = ir_adt {
+                adt.variants = ir_variants;
+            }
+        }
     }
 
     fn process_record(

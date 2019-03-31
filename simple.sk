@@ -1,4 +1,4 @@
-module Data (Option(..), Person(..), some_func) where
+module Data where
 
 data Option a  = Some a | None a (Option a)
 
@@ -8,7 +8,7 @@ some_func a = 7 + a
 
 module alma.korte where
 
-import Data (Person(..), Option(..), some_func) as Foo
+import Data  as Foo
 
 main  :: Foo.Person
-main a = a. a
+main a = Foo.Some "a"

@@ -24,7 +24,9 @@ use crate::syntax::data::VariantId;
 use crate::syntax::export::ExportList;
 use crate::syntax::export::ExportedGroup;
 use crate::syntax::export::ExportedItem;
+use crate::syntax::export::ExportedItemInfo;
 use crate::syntax::export::ExportedMember;
+use crate::syntax::export::ExportedMemberInfo;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
@@ -461,14 +463,22 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_exported_data_member(parser: &mut Parser) -> Result<ExportedMember, Error> {
-        if parser.current(TokenKind::DoubleDot) {
+    fn parse_exported_data_member(parser: &mut Parser) -> Result<ExportedMemberInfo, Error> {
+        let start_index = parser.get_index();
+        let member = if parser.current(TokenKind::DoubleDot) {
             parser.expect(TokenKind::DoubleDot)?;
-            Ok(ExportedMember::All)
+            ExportedMember::All
         } else {
             let name = parser.identifier("variant", true)?;
-            Ok(ExportedMember::Specific(name))
-        }
+            ExportedMember::Specific(name)
+        };
+        let end_index = parser.get_index();
+        let location_id = parser.get_location_id(start_index, end_index);
+        let info = ExportedMemberInfo {
+            member: member,
+            location_id: location_id,
+        };
+        Ok(info)
     }
 
     fn parse_imported_item(parser: &mut Parser) -> Result<ImportedItem, Error> {
@@ -485,18 +495,26 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItem, Error> {
+    fn parse_exported_item(parser: &mut Parser) -> Result<ExportedItemInfo, Error> {
+        let start_index = parser.get_index();
         let name = parser.identifier("exported item", true)?;
-        if parser.current(TokenKind::LParen) {
+        let item = if parser.current(TokenKind::LParen) {
             let members = parser.parse_list0_in_parens(Parser::parse_exported_data_member)?;
             let group = ExportedGroup {
                 name: name,
                 members: members,
             };
-            Ok(ExportedItem::Group(group))
+            ExportedItem::Group(group)
         } else {
-            Ok(ExportedItem::Named(name))
-        }
+            ExportedItem::Named(name)
+        };
+        let end_index = parser.get_index();
+        let location_id = parser.get_location_id(start_index, end_index);
+        let info = ExportedItemInfo {
+            item: item,
+            location_id: location_id,
+        };
+        Ok(info)
     }
 
     fn parse_hidden_item(parser: &mut Parser) -> Result<HiddenItem, Error> {

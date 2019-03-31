@@ -294,54 +294,12 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::ExportedEntityDoesNotExist(module_name, entity_name, id) => {
+                        ResolverError::ExportNoMatch(module_name, entity_name, id) => {
                             println!(
-                                "{} exported entity {} does not exist in module {}",
+                                "{} item {} does not export anything in module {}",
                                 error.red(),
                                 entity_name.yellow(),
                                 module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::IncorrectNameInExportedTypeConstructor(
-                            module_name,
-                            type_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} exported type {} does not exist in module {}",
-                                error.red(),
-                                type_name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ExportedRecordFieldDoesNotExist(
-                            record_name,
-                            field_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} exported record field name {} does not exist in record {}",
-                                error.red(),
-                                field_name.yellow(),
-                                record_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ExportedAdtVariantDoesNotExist(
-                            adt_name,
-                            variant_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} exported type variant name {} does not exist in type {}",
-                                error.red(),
-                                variant_name.yellow(),
-                                adt_name.yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);

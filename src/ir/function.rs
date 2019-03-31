@@ -1,4 +1,5 @@
 use crate::ir::expr::ExprId;
+use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::syntax::function::FunctionId as AstFunctionId;
@@ -45,9 +46,33 @@ impl fmt::Display for LambdaInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordConstructorInfo {
+    pub type_id: TypeDefId,
+}
+
+impl fmt::Display for RecordConstructorInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.type_id)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VariantConstructorInfo {
+    pub type_id: TypeDefId,
+}
+
+impl fmt::Display for VariantConstructorInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.type_id)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum FunctionInfo {
     Lambda(LambdaInfo),
     NamedFunction(NamedFunctionInfo),
+    RecordConstructor(RecordConstructorInfo),
+    VariantConstructor(VariantConstructorInfo),
 }
 
 impl FunctionInfo {
@@ -55,6 +80,8 @@ impl FunctionInfo {
         match self {
             FunctionInfo::Lambda(i) => i.body,
             FunctionInfo::NamedFunction(i) => i.body.expect("Body does not exist").clone(),
+            FunctionInfo::RecordConstructor(_) => unreachable!(),
+            FunctionInfo::VariantConstructor(_) => unreachable!(),
         }
     }
 }
@@ -62,8 +89,10 @@ impl FunctionInfo {
 impl fmt::Display for FunctionInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            FunctionInfo::Lambda(e) => write!(f, "lambda{}", e),
+            FunctionInfo::Lambda(i) => write!(f, "lambda{}", i),
             FunctionInfo::NamedFunction(i) => write!(f, "{}", i),
+            FunctionInfo::RecordConstructor(i) => write!(f, "{}", i),
+            FunctionInfo::VariantConstructor(i) => write!(f, "{}", i),
         }
     }
 }

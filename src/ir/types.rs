@@ -1,6 +1,8 @@
+use crate::ir::function::FunctionId;
 use crate::syntax::data::AdtId as AstAdtId;
 use crate::syntax::data::RecordId as AstRecordId;
 use crate::syntax::types::TypeSignatureId as AstTypeSignatureId;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeSignatureId {
@@ -48,6 +50,7 @@ pub struct Record {
     pub id: TypeDefId,
     pub type_arg_count: usize,
     pub fields: Vec<RecordField>,
+    pub constructor: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -58,8 +61,9 @@ pub struct VariantItem {
 #[derive(Debug, Clone)]
 pub struct Variant {
     pub name: String,
-    pub type_signature_id: TypeSignatureId,
     pub items: Vec<VariantItem>,
+    pub type_signature_id: TypeSignatureId,
+    pub constructor: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -80,4 +84,10 @@ pub enum TypeDef {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeDefId {
     pub id: usize,
+}
+
+impl fmt::Display for TypeDefId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TypeDefId({})", self.id)
+    }
 }
