@@ -9,6 +9,10 @@ some_func a = 7 + a
 module alma.korte where
 
 import Data  (Person(address), Option(..)) as Foo
+func :: Int -> (Int -> Int)
+func a = do
+         b <- 5
+         \a -> b + a
 
-main  :: Foo.Person
-main a = (a).address
+main  :: String
+main a = "a"

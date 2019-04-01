@@ -182,7 +182,6 @@ impl<'a> Parser<'a> {
                 if item.token.kind() == TokenKind::Identifier {
                     let arg = self.identifier("lambda arg", true)?;
                     args.push(arg);
-                    self.advance()?;
                     if !self.current(TokenKind::Comma) {
                         break;
                     } else {

@@ -2,5 +2,4 @@
 
 set -e 
 
-cargo build --release
-./siko simple.sk std/*.sk $@
+cargo run -- simple.sk std/*.sk $@

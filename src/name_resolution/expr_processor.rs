@@ -111,8 +111,8 @@ fn process_named_ref(
     let ir_expr = match named_ref {
         NamedRef::ExprValue(expr_ref) => IrExpr::ExprValue(expr_ref),
         NamedRef::FunctionArg(arg_ref) => IrExpr::ArgRef(arg_ref),
-        NamedRef::LambdaCapturedExprValue(_, arg_ref) => IrExpr::LambdaCapturedArgRef(arg_ref),
-        NamedRef::LambdaCapturedFunctionArg(_, arg_ref) => IrExpr::LambdaCapturedArgRef(arg_ref),
+        NamedRef::LambdaCapturedExprValue(arg_ref) => IrExpr::LambdaCapturedArgRef(arg_ref),
+        NamedRef::LambdaCapturedFunctionArg(arg_ref) => IrExpr::LambdaCapturedArgRef(arg_ref),
     };
     add_expr(ir_expr, id, ir_program, program)
 }
@@ -429,7 +429,7 @@ pub fn process_expr(
                 }
             }
         }
-        Expr::TupleFieldAccess(field_id, expr_id) => {
+        Expr::TupleFieldAccess(index, expr_id) => {
             let ir_expr_id = process_expr(
                 *expr_id,
                 program,
@@ -439,7 +439,7 @@ pub fn process_expr(
                 errors,
                 lambda_helper,
             );
-            let ir_expr = IrExpr::Tuple(vec![]);
+            let ir_expr = IrExpr::TupleFieldAccess(*index, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
         }
     }
