@@ -31,7 +31,7 @@ pub struct EIItemInfo {
 }
 
 #[derive(Debug, Clone)]
-pub enum ExportList {
+pub enum EIList {
     ImplicitAll,
     Explicit(Vec<EIItemInfo>),
 }

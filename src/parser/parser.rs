@@ -24,9 +24,9 @@ use crate::syntax::data::VariantId;
 use crate::syntax::export_import::EIGroup;
 use crate::syntax::export_import::EIItem;
 use crate::syntax::export_import::EIItemInfo;
+use crate::syntax::export_import::EIList;
 use crate::syntax::export_import::EIMember;
 use crate::syntax::export_import::EIMemberInfo;
-use crate::syntax::export_import::ExportList;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
@@ -37,7 +37,6 @@ use crate::syntax::import::HiddenItem;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
-use crate::syntax::import::ImportList;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
 use crate::syntax::program::Program;
@@ -491,8 +490,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_hidden_item(parser: &mut Parser) -> Result<HiddenItem, Error> {
+        let start_index = parser.get_index();
         let name = parser.identifier("hidden item", true)?;
-        Ok(HiddenItem { name: name })
+        let end_index = parser.get_index();
+        let location_id = parser.get_location_id(start_index, end_index);
+        Ok(HiddenItem {
+            name: name,
+            location_id: location_id,
+        })
     }
 
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
@@ -504,12 +509,7 @@ impl<'a> Parser<'a> {
             let items = self.parse_list1_in_parens(Parser::parse_hidden_item)?;
             ImportKind::Hiding(items)
         } else {
-            let import_list = if self.current(TokenKind::LParen) {
-                let items = self.parse_list0_in_parens(Parser::parse_export_import_item)?;
-                ImportList::Explicit(items)
-            } else {
-                ImportList::ImplicitAll
-            };
+            let import_list = self.parse_export_import_list()?;
             let mut alternative_name = None;
             if let Some(as_token) = self.peek() {
                 if let Token::KeywordAs = as_token.token {
@@ -638,18 +638,23 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_export_import_list(&mut self) -> Result<EIList, Error> {
+        let export_list = if self.current(TokenKind::LParen) {
+            let items = self.parse_list0_in_parens(Parser::parse_export_import_item)?;
+            EIList::Explicit(items)
+        } else {
+            EIList::ImplicitAll
+        };
+        Ok(export_list)
+    }
+
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
         let name = self.identifier("module name", false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
-        let export_list = if self.current(TokenKind::LParen) {
-            let exported_items = self.parse_list0_in_parens(Parser::parse_export_import_item)?;
-            ExportList::Explicit(exported_items)
-        } else {
-            ExportList::ImplicitAll
-        };
+        let export_list = self.parse_export_import_list()?;
         let mut module = Module::new(name, id, location_id, export_list);
         self.expect(TokenKind::KeywordWhere)?;
         loop {
@@ -731,7 +736,7 @@ impl<'a> Parser<'a> {
                     id: import_id,
                     module_path: PRELUDE_NAME.to_string(),
                     kind: ImportKind::ImportList {
-                        items: ImportList::ImplicitAll,
+                        items: EIList::ImplicitAll,
                         alternative_name: None,
                     },
                     location_id: None,

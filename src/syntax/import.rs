@@ -1,24 +1,19 @@
 use crate::location_info::item::LocationId;
-use crate::syntax::export_import::EIItemInfo;
+use crate::syntax::export_import::EIList;
 
 #[derive(Debug, Clone)]
 pub struct HiddenItem {
     pub name: String,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
 pub enum ImportKind {
     Hiding(Vec<HiddenItem>),
     ImportList {
-        items: ImportList,
+        items: EIList,
         alternative_name: Option<String>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub enum ImportList {
-    ImplicitAll,
-    Explicit(Vec<EIItemInfo>),
 }
 
 #[derive(Debug, Clone)]

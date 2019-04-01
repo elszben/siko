@@ -19,6 +19,7 @@ pub enum ResolverError {
     RecordFieldNotUnique(String, String, LocationId),
     VariantNotUnique(String, String, LocationId),
     ExportNoMatch(String, String, LocationId),
+    ImportNoMatch(String, String, LocationId),
     ExplicitlyImportedItemHidden(String, String, LocationId),
     ExplicitlyImportedRecordFieldHidden(String, String, LocationId),
     ExplicitlyImportedTypeHidden(String, String, LocationId),
@@ -28,4 +29,5 @@ pub enum ResolverError {
     ImportedAdtVariantNotExported(String, String, LocationId),
     IncorrectTypeArgumentCount(String, usize, usize, LocationId),
     NameNotType(String, LocationId),
+    UnusedHiddenItem(String, String, LocationId),
 }

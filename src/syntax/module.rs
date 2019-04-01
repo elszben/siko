@@ -1,7 +1,7 @@
 use crate::location_info::item::LocationId;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
-use crate::syntax::export_import::ExportList;
+use crate::syntax::export_import::EIList;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
@@ -21,16 +21,11 @@ pub struct Module {
     pub adts: Vec<AdtId>,
     pub imports: BTreeMap<ImportId, Import>,
     pub location_id: LocationId,
-    pub export_list: ExportList,
+    pub export_list: EIList,
 }
 
 impl Module {
-    pub fn new(
-        name: String,
-        id: ModuleId,
-        location_id: LocationId,
-        export_list: ExportList,
-    ) -> Module {
+    pub fn new(name: String, id: ModuleId, location_id: LocationId, export_list: EIList) -> Module {
         Module {
             name: name,
             id: id,

@@ -304,6 +304,16 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ImportNoMatch(module_name, entity_name, id) => {
+                            println!(
+                                "{} item {} does not import anything from module {}",
+                                error.red(),
+                                entity_name.yellow(),
+                                module_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                         ResolverError::ExplicitlyImportedItemHidden(item_name, module_name, id) => {
                             println!(
                                 "{} explicitly imported item {} is also hidden in module {}",
@@ -414,6 +424,16 @@ impl Error {
                         }
                         ResolverError::NameNotType(name, id) => {
                             println!("{} name is not a type {}", error.red(), name.yellow(),);
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::UnusedHiddenItem(hidden_item, module_name, id) => {
+                            println!(
+                                "{} hidden item {} does not hide anything from module {}",
+                                error.red(),
+                                hidden_item.yellow(),
+                                module_name.yellow()
+                            );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }

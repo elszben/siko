@@ -1,16 +1,20 @@
+use crate::location_info::item::LocationId;
 use crate::name_resolution::error::ResolverError;
-use crate::name_resolution::import::ImportedDataMember;
-use crate::name_resolution::import::ImportedField;
+use crate::name_resolution::export_import_pattern::check_item;
+use crate::name_resolution::export_import_pattern::check_member;
+use crate::name_resolution::export_import_pattern::process_patterns;
+use crate::name_resolution::export_import_pattern::MemberPatternKind;
 use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::import::ImportedMemberInfo;
-use crate::name_resolution::import::ImportedVariant;
+use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
+use crate::name_resolution::item::RecordField;
+use crate::name_resolution::item::Variant;
 use crate::name_resolution::module::Module;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportKind;
-use crate::syntax::import::ImportList;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 
@@ -18,23 +22,6 @@ use std::collections::BTreeMap;
 enum ImportMode {
     NameAndNamespace,
     NamespaceOnly,
-}
-
-fn get_imported_item_info(imported_item: Item, source_module: String) -> ImportedItemInfo {
-    ImportedItemInfo {
-        item: imported_item,
-        source_module: source_module,
-    }
-}
-
-fn get_imported_member_info(
-    imported_member: ImportedDataMember,
-    source_module: String,
-) -> ImportedMemberInfo {
-    ImportedMemberInfo {
-        member: imported_member,
-        source_module: source_module,
-    }
 }
 
 fn get_names(namespace: &str, item_name: &str, mode: ImportMode) -> Vec<String> {
@@ -50,78 +37,88 @@ fn get_names(namespace: &str, item_name: &str, mode: ImportMode) -> Vec<String> 
 fn is_hidden(
     item_name: &str,
     source_module: &String,
-    all_hidden_items: &BTreeMap<String, Vec<String>>,
+    all_hidden_items: &mut BTreeMap<String, Vec<HidePattern>>,
 ) -> bool {
-    match all_hidden_items.get(item_name) {
-        Some(items) => items.contains(source_module),
+    match all_hidden_items.get_mut(item_name) {
+        Some(items) => {
+            for item in items.iter_mut() {
+                if item.source_module == *source_module && item.name == item_name {
+                    item.matched = true;
+                    return true;
+                }
+            }
+            return false;
+        }
         None => false,
     }
 }
 
-fn import_exported_member(
-    member_name: &str,
-    source_module: &Module,
-    imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
+fn import_item(
+    name: &str,
+    source_module: &String,
     namespace: &str,
     mode: ImportMode,
-) {
-}
-
-fn import_exported_item(
-    item_name: &str,
-    exported_item: &Item,
-    source_module: &Module,
+    item: &Item,
     imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
-    namespace: &str,
-    mode: ImportMode,
 ) {
-    let imported_item_info =
-        get_imported_item_info(exported_item.clone(), source_module.name.clone());
-    let names = get_names(&namespace, item_name, mode);
-    for name in names {
-        let imported_item_infos = imported_items
+    let names = get_names(namespace, name, mode);
+    for name in &names {
+        let iis = imported_items
             .entry(name.clone())
             .or_insert_with(|| Vec::new());
-        imported_item_infos.push(imported_item_info.clone());
+        iis.push(ImportedItemInfo {
+            item: item.clone(),
+            source_module: source_module.clone(),
+        })
     }
 }
 
-fn process_implicit_import_list(
-    source_module: &Module,
-    all_hidden_items: &BTreeMap<String, Vec<String>>,
+fn import_local_items_and_members(
+    module_name: &String,
+    module: &Module,
     imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
     imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
-    namespace: &str,
-    mode: ImportMode,
 ) {
-    for (item_name, exported_item) in &source_module.exported_items {
-        if is_hidden(item_name, &source_module.name, &all_hidden_items) {
-            continue;
-        }
-        import_exported_item(
-            item_name,
-            exported_item,
-            source_module,
+    for (name, items) in &module.items {
+        assert_eq!(items.len(), 1);
+        let item = &items[0];
+        import_item(
+            name,
+            module_name,
+            module_name,
+            ImportMode::NameAndNamespace,
+            item,
             imported_items,
-            namespace,
-            mode,
         );
     }
-    for (member_name, exported_members) in &source_module.exported_members {
-        if is_hidden(member_name, &source_module.name, &all_hidden_items) {
-            continue;
+
+    for (name, members) in &module.members {
+        for member in members {
+            let ims = imported_members
+                .entry(name.clone())
+                .or_insert_with(|| Vec::new());
+            ims.push(ImportedMemberInfo {
+                member: member.clone(),
+                source_module: module_name.clone(),
+            })
         }
-        for exported_member in exported_members {
-            /*
-            import_exported_member(
-                member_name,
-                exported_member,
-                source_module,
-                imported_members,
-                namespace,
-                mode,
-            );
-            */
+    }
+}
+
+struct HidePattern {
+    name: String,
+    matched: bool,
+    source_module: String,
+    location_id: LocationId,
+}
+
+impl HidePattern {
+    fn new(name: String, source_module: String, location_id: LocationId) -> HidePattern {
+        HidePattern {
+            name: name,
+            matched: false,
+            source_module: source_module,
+            location_id: location_id,
         }
     }
 }
@@ -140,64 +137,12 @@ pub fn process_imports(
         let mut imported_items = BTreeMap::new();
         let mut imported_members = BTreeMap::new();
 
-        for (name, items) in &module.items {
-            let names = get_names(module_name, name, ImportMode::NameAndNamespace);
-            let item = &items[0];
-            match item {
-                Item::Adt(adt_id, _) => {
-                    let adt = program.adts.get(adt_id).expect("Adt not found");
-                    for variant_id in &adt.variants {
-                        let imported_member = ImportedDataMember::Variant(ImportedVariant {
-                            adt_id: *adt_id,
-                            variant_id: *variant_id,
-                        });
-                        let variant = program.variants.get(variant_id).expect("Variant not found");
-                        let names =
-                            get_names(module_name, &variant.name, ImportMode::NameAndNamespace);
-                        for name in &names {
-                            let ims = imported_members
-                                .entry(name.clone())
-                                .or_insert_with(|| Vec::new());
-                            ims.push(ImportedMemberInfo {
-                                member: imported_member.clone(),
-                                source_module: module_name.clone(),
-                            })
-                        }
-                    }
-                }
-                Item::Function(..) | Item::Variant(..) => {}
-                Item::Record(record_id, _) => {
-                    let record = program.records.get(record_id).expect("Record not found");
-                    for field in &record.fields {
-                        let imported_member = ImportedDataMember::RecordField(ImportedField {
-                            record_id: *record_id,
-                            field_id: field.id,
-                        });
-                        let names =
-                            get_names(module_name, &field.name, ImportMode::NameAndNamespace);
-                        for name in &names {
-                            let ims = imported_members
-                                .entry(name.clone())
-                                .or_insert_with(|| Vec::new());
-                            ims.push(ImportedMemberInfo {
-                                member: imported_member.clone(),
-                                source_module: module_name.clone(),
-                            })
-                        }
-                    }
-                }
-            }
-
-            for name in &names {
-                let iis = imported_items
-                    .entry(name.clone())
-                    .or_insert_with(|| Vec::new());
-                iis.push(ImportedItemInfo {
-                    item: item.clone(),
-                    source_module: module_name.clone(),
-                })
-            }
-        }
+        import_local_items_and_members(
+            module_name,
+            module,
+            &mut imported_items,
+            &mut imported_members,
+        );
 
         let ast_module = program.modules.get(&module.id).expect("Module not found");
         for (_, import) in &ast_module.imports {
@@ -214,27 +159,16 @@ pub fn process_imports(
             };
             match &import.kind {
                 ImportKind::Hiding(hidden_items) => {
-                    for item in hidden_items {
-                        let mut found = false;
-                        if source_module.exported_items.get(&item.name).is_some() {
-                            found = true;
-                        }
-                        if source_module.exported_members.get(&item.name).is_some() {
-                            found = true;
-                        }
-                        if !found {
-                            let err = ResolverError::ImportedSymbolNotExportedByModule(
-                                item.name.clone(),
-                                import.module_path.clone(),
-                                import.get_location(),
-                            );
-                            errors.push(err);
-                        } else {
-                            let hs = all_hidden_items
-                                .entry(item.name.clone())
-                                .or_insert_with(|| Vec::new());
-                            hs.push(import.module_path.clone());
-                        }
+                    for hidden_item in hidden_items {
+                        let hs = all_hidden_items
+                            .entry(hidden_item.name.clone())
+                            .or_insert_with(|| Vec::new());
+                        let hide_pattern = HidePattern::new(
+                            hidden_item.name.clone(),
+                            import.module_path.clone(),
+                            hidden_item.location_id,
+                        );
+                        hs.push(hide_pattern);
                     }
                 }
                 ImportKind::ImportList { .. } => {}
@@ -259,23 +193,115 @@ pub fn process_imports(
                         Some(n) => (n.clone(), ImportMode::NamespaceOnly),
                         None => (import.module_path.clone(), ImportMode::NameAndNamespace),
                     };
-                    match items {
-                        ImportList::ImplicitAll => {
-                            process_implicit_import_list(
-                                source_module,
-                                &all_hidden_items,
-                                &mut imported_items,
-                                &mut imported_members,
-                                &namespace,
-                                mode,
+
+                    let (mut item_patterns, mut member_patterns) = process_patterns(items);
+
+                    let mut local_imported_items = BTreeMap::new();
+
+                    for (item_name, item) in &source_module.exported_items {
+                        check_item(
+                            &mut item_patterns,
+                            &mut member_patterns,
+                            item_name,
+                            item,
+                            program,
+                            &mut local_imported_items,
+                        );
+                    }
+
+                    for (name, item) in local_imported_items {
+                        if is_hidden(&name, &source_module.name, &mut all_hidden_items) {
+                            continue;
+                        }
+                        import_item(
+                            &name,
+                            &source_module.name,
+                            &namespace,
+                            mode,
+                            &item,
+                            &mut imported_items,
+                        );
+                    }
+
+                    for pattern in item_patterns {
+                        match &pattern.name {
+                            Some(name) => {
+                                if !pattern.matched {
+                                    let err = ResolverError::ImportNoMatch(
+                                        source_module.name.clone(),
+                                        name.clone(),
+                                        pattern.location_id.expect("No location"),
+                                    );
+                                    errors.push(err);
+                                }
+                            }
+                            None => {}
+                        }
+                    }
+
+                    let mut local_imported_members = BTreeMap::new();
+
+                    for (member_name, members) in &module.exported_members {
+                        for member in members {
+                            check_member(
+                                &mut member_patterns,
+                                member_name,
+                                member,
+                                program,
+                                &mut local_imported_members,
                             );
                         }
-                        ImportList::Explicit(imported_list_items) => {}
+                    }
+
+                    for (name, members) in local_imported_members {
+                        if is_hidden(&name, &source_module.name, &mut all_hidden_items) {
+                            continue;
+                        }
+                        for member in members {
+                            let ims = imported_members
+                                .entry(name.clone())
+                                .or_insert_with(|| Vec::new());
+                            ims.push(ImportedMemberInfo {
+                                member: member.clone(),
+                                source_module: module_name.clone(),
+                            })
+                        }
+                    }
+
+                    for pattern_kind in member_patterns {
+                        match pattern_kind {
+                            MemberPatternKind::ImplicitAll => {}
+                            MemberPatternKind::Specific(pattern) => match &pattern.name {
+                                Some(name) => {
+                                    if !pattern.matched {
+                                        let err = ResolverError::ImportNoMatch(
+                                            module_name.clone(),
+                                            name.clone(),
+                                            pattern.location_id,
+                                        );
+                                        errors.push(err);
+                                    }
+                                }
+                                None => {}
+                            },
+                        }
                     }
                 }
             }
         }
 
+        for (name, hidden_items) in all_hidden_items {
+            for hidden_item in hidden_items {
+                if !hidden_item.matched {
+                    let err = ResolverError::UnusedHiddenItem(
+                        name.clone(),
+                        hidden_item.source_module.clone(),
+                        hidden_item.location_id,
+                    );
+                    errors.push(err);
+                }
+            }
+        }
         /*
         println!("Module {} imports:", module_name);
         println!(
@@ -290,7 +316,6 @@ pub fn process_imports(
             println!("Member: {} => {:?}", name, import);
         }
         */
-
         all_imported_items.push((module_name.clone(), imported_items));
         all_imported_members.push((module_name.clone(), imported_members));
     }
