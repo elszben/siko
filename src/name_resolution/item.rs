@@ -11,7 +11,7 @@ pub enum Item {
     Function(FunctionId, IrFunctionId),
     Record(RecordId, TypeDefId),
     Adt(AdtId, TypeDefId),
-    Variant(AdtId, VariantId),
+    Variant(AdtId, VariantId, TypeDefId, usize),
 }
 
 #[derive(Debug, Clone)]

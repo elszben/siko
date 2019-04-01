@@ -70,6 +70,7 @@ pub enum Error {
 }
 
 impl Error {
+    #[cfg(test)]
     pub fn get_single_lexer(self) -> LexerError {
         if let Error::LexerError(mut errs) = self {
             assert_eq!(errs.len(), 1);
@@ -191,16 +192,6 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::ImportedSymbolNotExportedByModule(name, module_name, id) => {
-                            println!(
-                                "{} imported symbol {} not exported by module {}",
-                                error.red(),
-                                name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
                         ResolverError::UnknownTypeName(var_name, id) => {
                             println!("{} unknown type name {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
@@ -310,96 +301,6 @@ impl Error {
                                 error.red(),
                                 entity_name.yellow(),
                                 module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ExplicitlyImportedItemHidden(item_name, module_name, id) => {
-                            println!(
-                                "{} explicitly imported item {} is also hidden in module {}",
-                                error.red(),
-                                item_name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::IncorrectNameInImportedTypeConstructor(
-                            module_name,
-                            type_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} imported type {} is not exported by module {}",
-                                error.red(),
-                                type_name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ImportedRecordFieldNotExported(
-                            record_name,
-                            field_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} imported field {} is not exported for record {}",
-                                error.red(),
-                                field_name.yellow(),
-                                record_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ExplicitlyImportedRecordFieldHidden(
-                            field_name,
-                            module_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} explicitly imported record field {} is also hidden in module {}",
-                                error.red(),
-                                field_name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ExplicitlyImportedTypeHidden(type_name, module_name, id) => {
-                            println!(
-                                "{} explicitly imported type {} is also hidden in module {}",
-                                error.red(),
-                                type_name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ExplicitlyImportedAdtVariantdHidden(
-                            variant_name,
-                            module_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} explicitly imported variant {} is also hidden in module {}",
-                                error.red(),
-                                variant_name.yellow(),
-                                module_name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::ImportedAdtVariantNotExported(
-                            type_name,
-                            variant_name,
-                            id,
-                        ) => {
-                            println!(
-                                "{} imported variant {} is not exported for type {}",
-                                error.red(),
-                                variant_name.yellow(),
-                                type_name.yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);

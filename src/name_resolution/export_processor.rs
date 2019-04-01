@@ -1,16 +1,9 @@
-use crate::location_info::item::LocationId;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::export_import_pattern::check_item;
 use crate::name_resolution::export_import_pattern::check_member;
 use crate::name_resolution::export_import_pattern::process_patterns;
 use crate::name_resolution::export_import_pattern::MemberPatternKind;
-use crate::name_resolution::item::DataMember;
-use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
-use crate::syntax::export_import::EIItem;
-use crate::syntax::export_import::EIList;
-use crate::syntax::export_import::EIMember;
-use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 

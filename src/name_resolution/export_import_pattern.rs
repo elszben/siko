@@ -4,7 +4,6 @@ use crate::name_resolution::item::Item;
 use crate::syntax::export_import::EIItem;
 use crate::syntax::export_import::EIList;
 use crate::syntax::export_import::EIMember;
-use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 
@@ -192,7 +191,7 @@ pub fn check_item(
     }
     for pattern_kind in member_patterns.iter_mut() {
         match item {
-            Item::Variant(adt_id, variant_id) => match pattern_kind {
+            Item::Variant(adt_id, variant_id, _, _) => match pattern_kind {
                 MemberPatternKind::ImplicitAll => {
                     matched_item = true;
                 }

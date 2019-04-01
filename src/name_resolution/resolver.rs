@@ -177,13 +177,13 @@ impl Resolver {
                     .entry(adt.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Adt(*adt_id, ir_typedef_id));
-                for variant_id in &adt.variants {
+                for (index, variant_id) in adt.variants.iter().enumerate() {
                     let ast_variant = program.variants.get(variant_id).expect("Variant not found");
                     let items = module
                         .items
                         .entry(ast_variant.name.clone())
                         .or_insert_with(|| Vec::new());
-                    items.push(Item::Variant(*adt_id, *variant_id));
+                    items.push(Item::Variant(*adt_id, *variant_id, ir_typedef_id, index));
                     let members = module
                         .members
                         .entry(ast_variant.name.clone())
@@ -228,7 +228,7 @@ impl Resolver {
                                 let adt = program.adts.get(id).expect("Adt not found");
                                 locations.push(adt.location_id);
                             }
-                            Item::Variant(_, id) => {
+                            Item::Variant(_, id, _, _) => {
                                 let variant = program.variants.get(id).expect("Variant not found");
                                 locations.push(variant.location_id);
                             }

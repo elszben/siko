@@ -62,7 +62,22 @@ fn resolve_item_path(
                             unreachable!()
                         }
                     }
-                    _ => unimplemented!(),
+                    Item::Variant(_, _, ir_typedef_id, index) => {
+                        let ir_typedef = ir_program
+                            .typedefs
+                            .get(&ir_typedef_id)
+                            .expect("Adt not found");
+                        if let TypeDef::Adt(ir_adt) = ir_typedef {
+                            return PathResolveResult::FunctionRef(
+                                ir_adt.variants[index].constructor,
+                            );
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    _ => {
+                        return PathResolveResult::Unknown(path.to_string());
+                    }
                 }
             }
         }

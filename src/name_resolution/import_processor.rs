@@ -6,14 +6,8 @@ use crate::name_resolution::export_import_pattern::process_patterns;
 use crate::name_resolution::export_import_pattern::MemberPatternKind;
 use crate::name_resolution::import::ImportedItemInfo;
 use crate::name_resolution::import::ImportedMemberInfo;
-use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
-use crate::name_resolution::item::RecordField;
-use crate::name_resolution::item::Variant;
 use crate::name_resolution::module::Module;
-use crate::syntax::data::AdtId;
-use crate::syntax::data::RecordId;
-use crate::syntax::import::Import;
 use crate::syntax::import::ImportKind;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
@@ -146,17 +140,14 @@ pub fn process_imports(
 
         let ast_module = program.modules.get(&module.id).expect("Module not found");
         for (_, import) in &ast_module.imports {
-            let source_module = match modules.get(&import.module_path) {
-                Some(source_module) => source_module,
-                None => {
-                    let err = ResolverError::ImportedModuleNotFound(
-                        import.module_path.clone(),
-                        import.get_location(),
-                    );
-                    errors.push(err);
-                    continue;
-                }
-            };
+            if modules.get(&import.module_path).is_none() {
+                let err = ResolverError::ImportedModuleNotFound(
+                    import.module_path.clone(),
+                    import.get_location(),
+                );
+                errors.push(err);
+                continue;
+            }
             match &import.kind {
                 ImportKind::Hiding(hidden_items) => {
                     for hidden_item in hidden_items {
