@@ -1,4 +1,5 @@
 use crate::ir::function::FunctionId;
+use crate::ir::types::TypeDefId;
 use crate::location_info::item::LocationId;
 use crate::syntax::expr::ExprId as AstExprId;
 use crate::util::format_list;
@@ -37,6 +38,23 @@ impl fmt::Display for ExprId {
 }
 
 #[derive(Debug, Clone)]
+struct FieldAccessInfo {
+    record_id: TypeDefId,
+    index: usize,
+    name: String,
+}
+
+impl fmt::Display for FieldAccessInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "FieldAccessInfo{}:{}({})",
+            self.record_id, self.index, self.name
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     StaticFunctionCall(FunctionId, Vec<ExprId>),
     LambdaFunction(FunctionId, Vec<ExprId>),
@@ -52,6 +70,8 @@ pub enum Expr {
     ArgRef(FunctionArgumentRef),
     ExprValue(ExprId),
     LambdaCapturedArgRef(FunctionArgumentRef),
+    FieldAccess(Vec<FieldAccessInfo>, ExprId),
+    TupleFieldAccess(usize, ExprId),
 }
 
 impl fmt::Display for Expr {
@@ -79,6 +99,12 @@ impl fmt::Display for Expr {
             Expr::ArgRef(v) => write!(f, "{}", v),
             Expr::ExprValue(id) => write!(f, "ExprValue({})", id),
             Expr::LambdaCapturedArgRef(v) => write!(f, "LambdaCaptured({})", v),
+            Expr::FieldAccess(accesses, expr) => {
+                write!(f, "FieldAccess({}, {})", format_list(accesses), expr)
+            }
+            Expr::TupleFieldAccess(index, expr) => {
+                write!(f, "TupleFieldAccess({}, {})", index, expr)
+            }
         }
     }
 }

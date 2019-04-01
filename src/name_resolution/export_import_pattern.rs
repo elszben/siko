@@ -7,6 +7,7 @@ use crate::syntax::export_import::EIMember;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
 pub struct ItemPattern {
     pub name: Option<String>,
     group: bool,
@@ -25,6 +26,7 @@ impl ItemPattern {
     }
 }
 
+#[derive(Debug)]
 pub struct MemberPattern {
     group_name: String,
     pub name: Option<String>,
@@ -32,6 +34,7 @@ pub struct MemberPattern {
     pub location_id: LocationId,
 }
 
+#[derive(Debug)]
 pub enum MemberPatternKind {
     ImplicitAll,
     Specific(MemberPattern),

@@ -311,6 +311,8 @@ impl<'a> TypeProcessor<'a> {
                     }
                 }
                 Expr::LambdaCapturedArgRef(_) => {}
+                Expr::FieldAccess(..) => {}
+                Expr::TupleFieldAccess(..) => {}
             }
         }
     }
@@ -421,6 +423,8 @@ impl<'a> Collector for TypeProcessor<'a> {
                     .expect("Missing lambda arg set")[arg_ref.index];
                 self.type_of_exprs.insert(id, var);
             }
+            Expr::FieldAccess(..) => {}
+            Expr::TupleFieldAccess(..) => {}
         }
     }
 }

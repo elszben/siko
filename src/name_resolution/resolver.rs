@@ -94,23 +94,6 @@ impl Resolver {
         }
     }
 
-    fn resolve_named_function_id(&self, named_id: &(String, String)) -> IrFunctionId {
-        /*
-        let m = self.modules.get(&named_id.0).expect("Module not found");
-        let f = m
-            .exported_functions
-            .get(&named_id.1)
-            .expect("Function not found");
-        let ast_id = f[0].id.clone();
-        let ir_function_id = self
-            .function_map
-            .get(&ast_id)
-            .expect("Ir function not found");
-        ir_function_id.clone()
-        */
-        unreachable!()
-    }
-
     fn process_items_and_types(
         &mut self,
         program: &Program,

@@ -52,7 +52,9 @@ impl fmt::Display for Expr {
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
             Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
             Expr::FieldAccess(name, expr) => write!(f, "FieldAccess({}, {})", name, expr),
-            Expr::TupleFieldAccess(id, expr) => write!(f, "TupleFieldAccess({}, {})", id, expr),
+            Expr::TupleFieldAccess(index, expr) => {
+                write!(f, "TupleFieldAccess({}, {})", index, expr)
+            }
         }
     }
 }

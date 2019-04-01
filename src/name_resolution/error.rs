@@ -22,4 +22,5 @@ pub enum ResolverError {
     IncorrectTypeArgumentCount(String, usize, usize, LocationId),
     NameNotType(String, LocationId),
     UnusedHiddenItem(String, String, LocationId),
+    UnknownFieldName(String, LocationId),
 }

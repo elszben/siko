@@ -69,6 +69,8 @@ fn walker(program: &Program, id: &ExprId, collector: &mut Collector) {
         Expr::ArgRef(_) => {}
         Expr::ExprValue(_) => {}
         Expr::LambdaCapturedArgRef(_) => {}
+        Expr::FieldAccess(..) => {}
+        Expr::TupleFieldAccess(..) => {}
     }
     collector.process(program, &expr, *id);
 }

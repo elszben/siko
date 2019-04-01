@@ -400,6 +400,13 @@ pub fn process_expr(
                 errors,
                 lambda_helper,
             );
+            match module.imported_members.get(name) {
+                Some(members) => {}
+                None => {
+                    let err = ResolverError::UnknownFieldName(name.clone(), location_id);
+                    errors.push(err);
+                }
+            }
             let ir_expr = IrExpr::Tuple(vec![]);
             return add_expr(ir_expr, id, ir_program, program);
         }
