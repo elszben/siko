@@ -12,7 +12,6 @@ use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeDef;
 use crate::location_info::item::LocationId;
 use crate::name_resolution::environment::Environment;
-use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
