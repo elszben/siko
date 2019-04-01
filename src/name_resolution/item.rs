@@ -24,6 +24,8 @@ pub enum DataMember {
 pub struct RecordField {
     pub field_id: RecordFieldId,
     pub record_id: RecordId,
+    pub ir_typedef_id: TypeDefId,
+    pub index: usize,
 }
 
 #[derive(Debug, Clone)]

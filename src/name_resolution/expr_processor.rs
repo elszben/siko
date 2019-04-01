@@ -3,6 +3,7 @@ use crate::constants::PRELUDE_NAME;
 use crate::ir::expr::Expr as IrExpr;
 use crate::ir::expr::ExprId as IrExprId;
 use crate::ir::expr::ExprInfo as IrExprInfo;
+use crate::ir::expr::FieldAccessInfo;
 use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
@@ -12,6 +13,7 @@ use crate::ir::types::TypeDef;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::environment::NamedRef;
 use crate::name_resolution::error::ResolverError;
+use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
@@ -401,14 +403,31 @@ pub fn process_expr(
                 lambda_helper,
             );
             match module.imported_members.get(name) {
-                Some(members) => {}
+                Some(members) => {
+                    let mut accesses = Vec::new();
+                    for member in members {
+                        match &member.member {
+                            DataMember::Variant(..) => {}
+                            DataMember::RecordField(record_field) => {
+                                let access = FieldAccessInfo {
+                                    record_id: record_field.ir_typedef_id,
+                                    index: record_field.index,
+                                    name: name.clone(),
+                                };
+                                accesses.push(access);
+                            }
+                        }
+                    }
+                    let ir_expr = IrExpr::FieldAccess(accesses, ir_expr_id);
+                    return add_expr(ir_expr, id, ir_program, program);
+                }
                 None => {
                     let err = ResolverError::UnknownFieldName(name.clone(), location_id);
                     errors.push(err);
+                    let ir_expr = IrExpr::Tuple(vec![]);
+                    return add_expr(ir_expr, id, ir_program, program);
                 }
             }
-            let ir_expr = IrExpr::Tuple(vec![]);
-            return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::TupleFieldAccess(field_id, expr_id) => {
             let ir_expr_id = process_expr(

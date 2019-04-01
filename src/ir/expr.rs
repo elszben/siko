@@ -38,10 +38,10 @@ impl fmt::Display for ExprId {
 }
 
 #[derive(Debug, Clone)]
-struct FieldAccessInfo {
-    record_id: TypeDefId,
-    index: usize,
-    name: String,
+pub struct FieldAccessInfo {
+    pub record_id: TypeDefId,
+    pub index: usize,
+    pub name: String,
 }
 
 impl fmt::Display for FieldAccessInfo {

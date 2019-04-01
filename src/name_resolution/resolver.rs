@@ -131,7 +131,7 @@ impl Resolver {
                     .entry(record.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Record(*record_id, ir_typedef_id));
-                for field in &record.fields {
+                for (index, field) in record.fields.iter().enumerate() {
                     let members = module
                         .members
                         .entry(field.name.clone())
@@ -139,6 +139,8 @@ impl Resolver {
                     let record_field = RecordField {
                         field_id: field.id,
                         record_id: *record_id,
+                        ir_typedef_id: ir_typedef_id,
+                        index: index,
                     };
                     members.push(DataMember::RecordField(record_field));
                 }
