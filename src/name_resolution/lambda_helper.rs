@@ -1,3 +1,4 @@
+use crate::ir::expr::Expr;
 use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::FunctionId;
 use crate::name_resolution::environment::NamedRef;
@@ -7,7 +8,7 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct LambdaHelper {
-    captures: Vec<NamedRef>,
+    captures: Vec<Expr>,
     level: usize,
     host_function: String,
     counter: Rc<RefCell<Counter>>,
@@ -30,15 +31,17 @@ impl LambdaHelper {
         }
     }
 
-    pub fn process_named_ref(&mut self, r: NamedRef, level: usize) -> NamedRef {
+    pub fn process_named_ref(&mut self, r: NamedRef, level: usize) -> Expr {
+        let r = match r {
+            NamedRef::ExprValue(expr_ref) => Expr::ExprValue(expr_ref),
+            NamedRef::FunctionArg(arg_ref) => Expr::ArgRef(arg_ref),
+        };
         if level < self.level {
             let arg_index = self.captures.len();
             let lambda_arg_ref = FunctionArgumentRef::new(self.function_id, arg_index);
             let updated_ref = match &r {
-                NamedRef::ExprValue(id) => NamedRef::LambdaCapturedExprValue(lambda_arg_ref),
-                NamedRef::FunctionArg(arg_ref) => {
-                    NamedRef::LambdaCapturedFunctionArg(lambda_arg_ref)
-                }
+                Expr::ExprValue(id) => Expr::LambdaCapturedArgRef(lambda_arg_ref),
+                Expr::ArgRef(arg_ref) => Expr::LambdaCapturedArgRef(lambda_arg_ref),
                 _ => panic!("Unexpected name ref {:?}", r),
             };
             //println!("Captured variable {:?}", updated_ref);
@@ -49,7 +52,7 @@ impl LambdaHelper {
         }
     }
 
-    pub fn captures(&self) -> Vec<NamedRef> {
+    pub fn captures(&self) -> Vec<Expr> {
         self.captures.clone()
     }
 

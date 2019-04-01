@@ -7,8 +7,6 @@ use std::collections::BTreeMap;
 pub enum NamedRef {
     FunctionArg(FunctionArgumentRef),
     ExprValue(ExprId),
-    LambdaCapturedExprValue(FunctionArgumentRef),
-    LambdaCapturedFunctionArg(FunctionArgumentRef),
 }
 
 pub struct Environment<'a> {
