@@ -1,18 +1,6 @@
-module Data where
+module Main where
 
-data Option a  = Some a | None a (Option a)
-
-data Person = { name :: String, address :: Option String }
-
-some_func a = 7 + a
-
-module alma.korte where
-
-import Data  (Person(address), Option(..)) as Foo
-func :: Int -> (Int -> Int)
-func a = do
-         b <- 5
-         \a -> b + a
+func a b = b
 
 main  :: String
-main a = "a"
+main a = func "a" "c"

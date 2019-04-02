@@ -1,11 +1,14 @@
 use crate::constants;
 use crate::constants::BuiltinOperator;
 use crate::error::Error;
-use crate::ir::Expr;
-use crate::ir::Function;
-use crate::ir::FunctionBody;
-use crate::ir::FunctionId;
-use crate::ir::Program;
+use crate::ir::expr::Expr;
+use crate::ir::expr::ExprId;
+use crate::ir::expr::FunctionArgumentRef;
+use crate::ir::function::Function;
+use crate::ir::function::FunctionId;
+use crate::ir::function::FunctionInfo;
+use crate::ir::function::NamedFunctionInfo;
+use crate::ir::program::Program;
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -155,13 +158,17 @@ impl fmt::Display for Value {
 }
 
 struct Environment<'a> {
+    function_id: FunctionId,
+    args: Vec<Value>,
     variables: BTreeMap<String, Value>,
     parent: Option<&'a Environment<'a>>,
 }
 
 impl<'a> Environment<'a> {
-    fn new() -> Environment<'a> {
+    fn new(function_id: FunctionId) -> Environment<'a> {
         Environment {
+            function_id: function_id,
+            args: Vec::new(),
             variables: BTreeMap::new(),
             parent: None,
         }
@@ -183,10 +190,28 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn child(parent: &'a Environment<'a>) -> Environment<'a> {
+    fn child(
+        parent: &'a Environment<'a>,
+        args: Vec<Value>,
+        function_id: FunctionId,
+    ) -> Environment<'a> {
         Environment {
+            function_id: function_id,
+            args: args,
             variables: BTreeMap::new(),
             parent: Some(parent),
+        }
+    }
+
+    fn get_arg(&self, arg_ref: &FunctionArgumentRef) -> Value {
+        if self.function_id == arg_ref.id {
+            return self.args[arg_ref.index].clone();
+        } else {
+            if let Some(parent) = self.parent {
+                return parent.get_arg(arg_ref);
+            } else {
+                unreachable!()
+            }
         }
     }
 }
@@ -198,6 +223,8 @@ impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {}
     }
+
+    /*
 
     fn call_callable(
         &self,
@@ -244,172 +271,224 @@ impl Interpreter {
                 return left.eval_binary_op(*op, right);
             }
             */
-            FunctionId::Lambda(name) => {
-                let function = program.get_lambda(name);
-                let mut environment = Environment::child(environment);
-                if arg_values.len() != function.args.len() {
-                    let err = format!(
-                        "Unexpected argument count for lambda {} != {}",
-                        arg_values.len(),
-                        function.args.len()
-                    );
-                    return Err(Error::runtime_err(err));
-                }
-                for (arg_value, arg_name) in arg_values.into_iter().zip(function.args.iter()) {
-                    environment.add(arg_name.0.clone(), arg_value.clone());
-                }
-                for (name, value) in captures.captures.clone() {
-                    environment.add(name, value);
-                }
-                return self.execute(program, function, &mut environment);
-            }
-        }
+    FunctionId::Lambda(name) => {
+    let function = program.get_lambda(name);
+    let mut environment = Environment::child(environment);
+    if arg_values.len() != function.args.len() {
+    let err = format!(
+    "Unexpected argument count for lambda {} != {}",
+    arg_values.len(),
+    function.args.len()
+    );
+    return Err(Error::runtime_err(err));
+    }
+    for (arg_value, arg_name) in arg_values.into_iter().zip(function.args.iter()) {
+    environment.add(arg_name.0.clone(), arg_value.clone());
+    }
+    for (name, value) in captures.captures.clone() {
+    environment.add(name, value);
+    }
+    return self.execute(program, function, &mut environment);
+    }
+    }
     }
 
     fn evaluate(
-        &self,
-        program: &Program,
-        expr: &Expr,
-        environment: &mut Environment,
+    &self,
+    program: &Program,
+    expr: &Expr,
+    environment: &mut Environment,
     ) -> Result<Value, Error> {
-        match expr {
-            Expr::Lambda(capture_names, function_id) => {
-                let mut captures = CaptureList::new();
-                for name in capture_names {
-                    let value = environment.get_value(name);
-                    captures.add(name.clone(), value);
-                }
-                return Ok(Value::Callable(function_id.clone(), captures));
-            }
-            Expr::FunctionCall(function_id_expr, args) => {
-                let callable = self.evaluate(program, function_id_expr, environment)?;
-                let mut arg_values = Vec::new();
-                for arg in args.iter() {
-                    let value = self.evaluate(program, arg, environment)?;
-                    arg_values.push(value);
-                }
-                return self.call_callable(&callable, &arg_values[..], program, environment);
-            }
-            Expr::If(cond, true_branch, false_branch) => {
-                let cond_value = self.evaluate(program, cond, environment)?;
-                let v = cond_value.get_bool();
-                if v {
-                    return self.evaluate(program, true_branch, environment);
-                } else {
-                    return self.evaluate(program, false_branch, environment);
-                }
-            }
-            Expr::IntegerLiteral(value, _) => {
-                return Ok(Value::Int(value.clone()));
-            }
-            Expr::BoolLiteral(value, _) => {
-                return Ok(Value::Bool(value.clone()));
-            }
-            Expr::StringLiteral(value, _) => {
-                return Ok(Value::String(value.clone()));
-            }
-            Expr::Do(exprs) => {
-                let mut environment = Environment::child(environment);
-                let mut last = Value::Tuple(vec![]);
-                for expr in exprs.iter() {
-                    last = self.evaluate(program, expr, &mut environment)?;
-                    match &last {
-                        Value::Callable(id, captures) => {
-                            if let FunctionId::NamedFunctionId(id) = id {
-                                let function =
-                                    program.get_function(&id.module_name, &id.function_name);
-                                if function.args.is_empty() {
-                                    // no argument functions cannot be lambda functions
-                                    assert!(captures.is_empty());
-                                    last = self.execute(program, function, &mut environment)?;
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                return Ok(last);
-            }
-            Expr::Bind((name, _), expr) => {
-                let value = self.evaluate(program, expr, environment)?;
-                environment.add(name.clone(), value);
-                return Ok(Value::Tuple(vec![]));
-            }
-            Expr::VariableRef(name, _) => {
-                let value = environment.get_value(name);
-                return Ok(value);
-            }
-            Expr::FunctionRef(function_id, _) => {
-                return Ok(Value::Callable(function_id.clone(), CaptureList::new()));
-            }
-            _ => panic!("Unimplemented expr evaluation {:?}", expr),
-        }
+    match expr {
+    Expr::Lambda(capture_names, function_id) => {
+    let mut captures = CaptureList::new();
+    for name in capture_names {
+    let value = environment.get_value(name);
+    captures.add(name.clone(), value);
+    }
+    return Ok(Value::Callable(function_id.clone(), captures));
+    }
+    Expr::FunctionCall(function_id_expr, args) => {
+    let callable = self.evaluate(program, function_id_expr, environment)?;
+    let mut arg_values = Vec::new();
+    for arg in args.iter() {
+    let value = self.evaluate(program, arg, environment)?;
+    arg_values.push(value);
+    }
+    return self.call_callable(&callable, &arg_values[..], program, environment);
+    }
+    Expr::If(cond, true_branch, false_branch) => {
+    let cond_value = self.evaluate(program, cond, environment)?;
+    let v = cond_value.get_bool();
+    if v {
+    return self.evaluate(program, true_branch, environment);
+    } else {
+    return self.evaluate(program, false_branch, environment);
+    }
+    }
+    Expr::IntegerLiteral(value, _) => {
+    return Ok(Value::Int(value.clone()));
+    }
+    Expr::BoolLiteral(value, _) => {
+    return Ok(Value::Bool(value.clone()));
+    }
+    Expr::StringLiteral(value, _) => {
+    return Ok(Value::String(value.clone()));
+    }
+    Expr::Do(exprs) => {
+    let mut environment = Environment::child(environment);
+    let mut last = Value::Tuple(vec![]);
+    for expr in exprs.iter() {
+    last = self.evaluate(program, expr, &mut environment)?;
+    match &last {
+    Value::Callable(id, captures) => {
+    if let FunctionId::NamedFunctionId(id) = id {
+    let function =
+    program.get_function(&id.module_name, &id.function_name);
+    if function.args.is_empty() {
+    // no argument functions cannot be lambda functions
+    assert!(captures.is_empty());
+    last = self.execute(program, function, &mut environment)?;
+    }
+    }
+    }
+    _ => {}
+    }
+    }
+    return Ok(last);
+    }
+    Expr::Bind((name, _), expr) => {
+    let value = self.evaluate(program, expr, environment)?;
+    environment.add(name.clone(), value);
+    return Ok(Value::Tuple(vec![]));
+    }
+    Expr::VariableRef(name, _) => {
+    let value = environment.get_value(name);
+    return Ok(value);
+    }
+    Expr::FunctionRef(function_id, _) => {
+    return Ok(Value::Callable(function_id.clone(), CaptureList::new()));
+    }
+    _ => panic!("Unimplemented expr evaluation {:?}", expr),
+    }
     }
 
     fn execute(
+    &self,
+    program: &Program,
+    function: &Function,
+    environment: &mut Environment,
+    ) -> Result<Value, Error> {
+    match &function.body {
+    FunctionBody::Expr(expr) => {
+    return self.evaluate(program, expr, environment);
+    }
+    FunctionBody::Extern => {
+    match function.module.as_ref() {
+    "Std.IO" => match function.name.as_ref() {
+    "print" => {
+    let value = environment.get_value("msg");
+    println!("{}", value);
+    return Ok(Value::Tuple(vec![]));
+    }
+    _ => {}
+    },
+    "Std.Util" => match function.name.as_ref() {
+    "assert" => {
+    let v = environment.get_value("value");
+    if !v.get_bool() {
+    panic!("Assertion failed");
+    }
+    return Ok(Value::Tuple(vec![]));
+    }
+    _ => {}
+    },
+    "Prelude" => match function.name.as_ref() {
+    "op_add" => {
+    let x = environment.get_value("x");
+    let y = environment.get_value("y");
+    match x {
+    Value::Int(v1) => match y {
+    Value::Int(v2) => {
+    let r = v1 + v2;
+    return Ok(Value::Int(r));
+    }
+    _ => {}
+    },
+    _ => {}
+    }
+    }
+    _ => {}
+    },
+    _ => {}
+    }
+    panic!("Unimplemented extern function {}", function.name);
+    }
+    }
+    }
+
+    */
+
+    fn eval_expr(
         &self,
         program: &Program,
-        function: &Function,
+        expr_id: ExprId,
         environment: &mut Environment,
-    ) -> Result<Value, Error> {
-        match &function.body {
-            FunctionBody::Expr(expr) => {
-                return self.evaluate(program, expr, environment);
+    ) -> Value {
+        let expr = program.get_expr(&expr_id);
+        println!("Eval {}", expr);
+        match expr {
+            Expr::IntegerLiteral(v) => Value::Int(*v),
+            Expr::StringLiteral(v) => Value::String(v.clone()),
+            Expr::ArgRef(arg_ref) => {
+                return environment.get_arg(arg_ref);
             }
-            FunctionBody::Extern => {
-                match function.module.as_ref() {
-                    "Std.IO" => match function.name.as_ref() {
-                        "print" => {
-                            let value = environment.get_value("msg");
-                            println!("{}", value);
-                            return Ok(Value::Tuple(vec![]));
-                        }
-                        _ => {}
-                    },
-                    "Std.Util" => match function.name.as_ref() {
-                        "assert" => {
-                            let v = environment.get_value("value");
-                            if !v.get_bool() {
-                                panic!("Assertion failed");
-                            }
-                            return Ok(Value::Tuple(vec![]));
-                        }
-                        _ => {}
-                    },
-                    "Prelude" => match function.name.as_ref() {
-                        "op_add" => {
-                            let x = environment.get_value("x");
-                            let y = environment.get_value("y");
-                            match x {
-                                Value::Int(v1) => match y {
-                                    Value::Int(v2) => {
-                                        let r = v1 + v2;
-                                        return Ok(Value::Int(r));
-                                    }
-                                    _ => {}
-                                },
-                                _ => {}
-                            }
-                        }
-                        _ => {}
-                    },
-                    _ => {}
-                }
-                panic!("Unimplemented extern function {}", function.name);
+            Expr::StaticFunctionCall(function_id, args) => {
+                let arg_values: Vec<_> = args
+                    .iter()
+                    .map(|arg| self.eval_expr(program, *arg, environment))
+                    .collect();
+                let mut environment = Environment::child(environment, arg_values, *function_id);
+                return self.execute(program, *function_id, &mut environment);
             }
+            _ => panic!("{} eval is not implemented", expr),
         }
     }
 
-    pub fn run(&self, program: &Program) -> Result<Value, Error> {
-        if !program.is_valid() {
-            return Err(Error::runtime_err(format!(
-                "Cannot find function {} in module {}",
-                constants::MAIN_FUNCTION,
-                constants::MAIN_MODULE
-            )));
+    fn execute(&self, program: &Program, id: FunctionId, environment: &mut Environment) -> Value {
+        let function = program.get_function(&id);
+        match &function.info {
+            FunctionInfo::NamedFunction(info) => match info.body {
+                Some(body) => {
+                    return self.eval_expr(program, body, environment);
+                }
+                None => {
+                    panic!("Extern function, not implemented");
+                }
+            },
+            _ => unimplemented!(),
         }
-        let main_function = program.get_function(constants::MAIN_MODULE, constants::MAIN_FUNCTION);
-        let mut environment = Environment::new();
-        return self.execute(program, main_function, &mut environment);
+    }
+
+    pub fn run(&self, program: &Program) -> Value {
+        for (id, function) in &program.functions {
+            match &function.info {
+                FunctionInfo::NamedFunction(info) => {
+                    if info.module == constants::MAIN_MODULE
+                        && info.name == constants::MAIN_FUNCTION
+                    {
+                        let mut environment = Environment::new(*id);
+                        return self.execute(program, *id, &mut environment);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        panic!(
+            "Cannot find function {} in module {}",
+            constants::MAIN_FUNCTION,
+            constants::MAIN_MODULE
+        );
     }
 }

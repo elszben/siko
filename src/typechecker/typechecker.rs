@@ -97,7 +97,7 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let function = program.get_function(&id);
-        // println!("Checking untyped {},{}", id, function.info);
+        //println!("Checking untyped {},{}", id, function.info);
         let mut args = Vec::new();
         for _ in 0..function.arg_count {
             let ty = self.type_store.get_unique_type_arg_type();
@@ -127,7 +127,7 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let function = program.get_function(&id);
-        //println!("Checking typed {},{}", id, function.info);
+        println!("Checking typed {},{}", id, function.info);
         let function_type_var = self
             .function_type_map
             .get(&id)
@@ -139,7 +139,8 @@ impl Typechecker {
         match function_type {
             Type::Function(function_type) => {
                 expected_result_var = function_type.get_return_type();
-                args.extend(function_type.get_arg_types());
+                let arg_types = function_type.get_arg_types();
+                args.extend(arg_types);
             }
             _ => {}
         }
@@ -150,13 +151,13 @@ impl Typechecker {
         type_processor.check_constraints(program, errors);
         //type_processor.dump_types(program);
         let inferred_function_type_var = type_processor.get_function_type(&body);
-        /* println!(
+        println!(
             "Type of {},{}: {}",
             id,
             function.info,
             self.type_store
                 .get_resolved_type_string(&inferred_function_type_var)
-        );*/
+        );
         let inferred_function_type = self.type_store.get_type(&inferred_function_type_var);
         let inferred_result_var: TypeVariable = match inferred_function_type {
             Type::Function(inferred_function_type) => inferred_function_type.get_return_type(),
@@ -354,19 +355,19 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
         /*
-                println!(
-                    "Typed: {}, untyped: {}, extern: {}",
-                    typed_functions.len(),
-                    untyped_check_order.len(),
-                    extern_count
-                );
+        println!(
+            "Typed: {}, untyped: {}, extern: {}",
+            typed_functions.len(),
+            untyped_check_order.len(),
+            extern_count
+        );
         */
-        for function_id in typed_functions {
-            self.check_typed_function(function_id, program, &mut errors);
-        }
-
         for function_id in untyped_check_order {
             self.check_untyped_function(function_id, program, &mut errors);
+        }
+
+        for function_id in typed_functions {
+            self.check_typed_function(function_id, program, &mut errors);
         }
 
         if errors.is_empty() {

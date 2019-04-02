@@ -1,7 +1,7 @@
+mod compiler;
 mod constants;
 mod error;
-//mod interpreter;
-mod compiler;
+mod interpreter;
 mod ir;
 mod location_info;
 mod name_resolution;

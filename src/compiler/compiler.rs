@@ -1,6 +1,6 @@
 use crate::compiler::file_manager::FileManager;
 use crate::error::Error;
-//use crate::interpreter::Interpreter;
+use crate::interpreter::Interpreter;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location_info::LocationInfo;
 use crate::name_resolution::resolver::Resolver;
@@ -109,13 +109,11 @@ impl Compiler {
         let mut typechecker = Typechecker::new();
 
         typechecker.check(&ir_program)?;
-        /*
-            let interpreter = Interpreter::new();
+        let interpreter = Interpreter::new();
 
-            let value = interpreter.run(&ir_program)?;
+        let value = interpreter.run(&ir_program);
 
-            println!("Result {}", value);
-        */
+        println!("Result {}", value);
         Ok(())
     }
 
