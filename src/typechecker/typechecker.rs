@@ -109,7 +109,7 @@ impl Typechecker {
             TypeProcessor::new(&mut self.type_store, &self.function_type_map, id, args);
         walker(program, &body, &mut type_processor);
         type_processor.check_constraints(program, errors);
-        // type_processor.dump_types(program);
+        //type_processor.dump_types(program);
         let function_type = type_processor.get_function_type(&body);
         /*println!(
             "Type of {},{}: {}",
@@ -127,7 +127,7 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let function = program.get_function(&id);
-        println!("Checking typed {},{}", id, function.info);
+        // println!("Checking typed {},{}", id, function.info);
         let function_type_var = self
             .function_type_map
             .get(&id)
@@ -135,15 +135,13 @@ impl Typechecker {
         let mut args = Vec::new();
         let function_type = self.type_store.get_type(function_type_var);
         let function_type = self.type_store.clone_type(&function_type);
-        let mut expected_result_var = *function_type_var;
-        match function_type {
-            Type::Function(function_type) => {
-                expected_result_var = function_type.get_return_type();
-                let arg_types = function_type.get_arg_types();
-                args.extend(arg_types);
+        let expected_result_var = match function_type {
+            Type::Function(func_type) => {
+                func_type.get_arg_types(&self.type_store, &mut args);
+                func_type.get_return_type(&self.type_store)
             }
-            _ => {}
-        }
+            _ => *function_type_var,
+        };
         let body = function.info.body();
         let mut type_processor =
             TypeProcessor::new(&mut self.type_store, &self.function_type_map, id, args);
@@ -151,29 +149,30 @@ impl Typechecker {
         type_processor.check_constraints(program, errors);
         //type_processor.dump_types(program);
         let inferred_function_type_var = type_processor.get_function_type(&body);
+        /*
+        let inferred_function_type = self
+            .type_store
+            .get_resolved_type_string(&inferred_function_type_var);
+        let expected_result_type = self
+            .type_store
+            .get_resolved_type_string(&expected_result_var);
+
         println!(
-            "Type of {},{}: {}",
-            id,
-            function.info,
-            self.type_store
-                .get_resolved_type_string(&inferred_function_type_var)
+            "Expected/inferred type of {},{}: {}/{}",
+            id, function.info, expected_result_type, inferred_function_type
         );
-        let inferred_function_type = self.type_store.get_type(&inferred_function_type_var);
-        let inferred_result_var: TypeVariable = match inferred_function_type {
-            Type::Function(inferred_function_type) => inferred_function_type.get_return_type(),
-            _ => inferred_function_type_var,
-        };
+        */
         let mut unified_variables = false;
 
         if !self.type_store.unify(
             &expected_result_var,
-            &inferred_result_var,
+            &inferred_function_type_var,
             &mut unified_variables,
         ) {
             let location_id = program.get_expr_location(&body);
             let body_type = self
                 .type_store
-                .get_resolved_type_string(&inferred_result_var);
+                .get_resolved_type_string(&inferred_function_type_var);
             let expected_result_type = self
                 .type_store
                 .get_resolved_type_string(&expected_result_var);
@@ -227,6 +226,24 @@ impl Typechecker {
         untyped_check_order
     }
 
+    fn process_function_signature_part(
+        &mut self,
+        type_signature_ids: &[TypeSignatureId],
+        program: &Program,
+        arg_map: &mut BTreeMap<usize, TypeVariable>,
+    ) -> TypeVariable {
+        if type_signature_ids.len() < 2 {
+            return self.process_type_signature(&type_signature_ids[0], program, arg_map);
+        } else {
+            let from = &type_signature_ids[0];
+            let from = self.process_type_signature(&from, program, arg_map);
+            let to =
+                self.process_function_signature_part(&type_signature_ids[1..], program, arg_map);
+            let ty = Type::Function(FunctionType::new(from, to));
+            return self.type_store.add_var(ty);
+        }
+    }
+
     fn process_type_signature(
         &mut self,
         type_signature_id: &TypeSignatureId,
@@ -260,12 +277,7 @@ impl Typechecker {
                 return self.type_store.add_var(ty);
             }
             TypeSignature::Function(items) => {
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|i| self.process_type_signature(i, program, arg_map))
-                    .collect();
-                let ty = Type::Function(FunctionType::new(items));
-                return self.type_store.add_var(ty);
+                return self.process_function_signature_part(&items[..], program, arg_map);
             }
             TypeSignature::TypeArgument(index) => {
                 let var = arg_map.entry(*index).or_insert_with(|| {

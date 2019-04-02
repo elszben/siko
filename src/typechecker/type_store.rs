@@ -97,7 +97,7 @@ impl TypeStore {
         let var_ty2 = self.get_type(var2);
         /*
         println!(
-            "Unify vars t1:{},{:?} t2:{},{:?}",
+            "Unify vars t1:({}),{:?} t2:({}),{:?}",
             var_ty1, var1, var_ty2, var2
         );
         */
@@ -142,14 +142,11 @@ impl TypeStore {
                 }
             }
             (Type::Function(f1), Type::Function(f2)) => {
-                if f1.type_vars.len() != f2.type_vars.len() {
+                if !self.unify(&f1.from, &f2.from, unified_variables) {
                     return false;
-                } else {
-                    for (v1, v2) in f1.type_vars.iter().zip(f2.type_vars.iter()) {
-                        if !self.unify(v1, v2, unified_variables) {
-                            return false;
-                        }
-                    }
+                }
+                if !self.unify(&f1.to, &f2.to, unified_variables) {
+                    return false;
                 }
             }
             _ => {

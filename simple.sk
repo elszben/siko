@@ -3,4 +3,4 @@ module Main where
 func a b = b
 
 main  :: String
-main a = func "a" "c"
+main a = func "a"

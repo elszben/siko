@@ -52,12 +52,9 @@ impl Type {
                 Type::Tuple(typevars)
             }
             Type::Function(func_type) => {
-                let types: Vec<_> = func_type
-                    .type_vars
-                    .iter()
-                    .map(|var| Type::clone_type_var(var, vars, args, type_store))
-                    .collect();
-                Type::Function(FunctionType::new(types))
+                let from = Type::clone_type_var(&func_type.from, vars, args, type_store);
+                let to = Type::clone_type_var(&func_type.to, vars, args, type_store);
+                Type::Function(FunctionType::new(from, to))
             }
             Type::TypeArgument {
                 index,
@@ -94,7 +91,7 @@ impl Type {
                 }
             }
             Type::Function(func_type) => {
-                for var in &func_type.type_vars {
+                for var in &[func_type.from, func_type.to] {
                     vars.push(*var);
                     let ty = type_store.get_type(var);
                     ty.collect(vars, args, type_store);
