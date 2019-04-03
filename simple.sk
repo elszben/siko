@@ -1,6 +1,11 @@
 module Main where
 
-func a b = b
+func a = a 5
+
+id a = a
+
+korte :: String -> String
+korte a = a
 
 main  :: String
-main a = func "a"
+main a = func id

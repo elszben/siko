@@ -111,12 +111,12 @@ impl Typechecker {
         type_processor.check_constraints(program, errors);
         //type_processor.dump_types(program);
         let function_type = type_processor.get_function_type(&body);
-        /*println!(
+        println!(
             "Type of {},{}: {}",
             id,
             function.info,
             self.type_store.get_resolved_type_string(&function_type)
-        );*/
+        );
         self.function_type_map.insert(id, function_type);
     }
 
@@ -135,12 +135,12 @@ impl Typechecker {
         let mut args = Vec::new();
         let function_type = self.type_store.get_type(function_type_var);
         let function_type = self.type_store.clone_type(&function_type);
-        let expected_result_var = match function_type {
+        let expected_result_var = function_type_var;
+        match function_type {
             Type::Function(func_type) => {
                 func_type.get_arg_types(&self.type_store, &mut args);
-                func_type.get_return_type(&self.type_store)
             }
-            _ => *function_type_var,
+            _ => {}
         };
         let body = function.info.body();
         let mut type_processor =
@@ -149,7 +149,6 @@ impl Typechecker {
         type_processor.check_constraints(program, errors);
         //type_processor.dump_types(program);
         let inferred_function_type_var = type_processor.get_function_type(&body);
-        /*
         let inferred_function_type = self
             .type_store
             .get_resolved_type_string(&inferred_function_type_var);
@@ -161,7 +160,6 @@ impl Typechecker {
             "Expected/inferred type of {},{}: {}/{}",
             id, function.info, expected_result_type, inferred_function_type
         );
-        */
         let mut unified_variables = false;
 
         if !self.type_store.unify(

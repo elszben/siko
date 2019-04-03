@@ -246,24 +246,40 @@ impl<'a> TypeProcessor<'a> {
                         .function_type_map
                         .get(function_id)
                         .expect("Function type not found");
-                    let ty = self.type_store.get_type(target_func_type_var);
-                    match &ty {
-                        Type::Function(function_type) => {
-                            let f = program.get_function(function_id);
-                            let name = format!("{}", f.info);
-                            self.process_function_call(
-                                &ty,
-                                function_type,
-                                args,
-                                id,
-                                program,
-                                errors,
-                                name,
-                                unified_variables,
-                            );
+                    if args.is_empty() {
+                        let call_var = self.get_type_var_for_expr(&id);
+                        if !self.type_store.unify(
+                            &call_var,
+                            target_func_type_var,
+                            unified_variables,
+                        ) {
+                            let location_id = program.get_expr_location(&id);
+                            let call_type = self.type_store.get_resolved_type_string(&call_var);
+                            let func_type = self
+                                .type_store
+                                .get_resolved_type_string(target_func_type_var);
+                            let err =
+                                TypecheckError::TypeMismatch(location_id, call_type, func_type);
+                            errors.push(err);
                         }
-                        _ => {
-                            if !args.is_empty() {
+                    } else {
+                        let ty = self.type_store.get_type(target_func_type_var);
+                        match &ty {
+                            Type::Function(function_type) => {
+                                let f = program.get_function(function_id);
+                                let name = format!("{}", f.info);
+                                self.process_function_call(
+                                    &ty,
+                                    function_type,
+                                    args,
+                                    id,
+                                    program,
+                                    errors,
+                                    name,
+                                    unified_variables,
+                                );
+                            }
+                            _ => {
                                 let f = program.get_function(function_id);
                                 let name = format!("{}", f.info);
                                 let location_id = program.get_expr_location(&id);
@@ -274,26 +290,6 @@ impl<'a> TypeProcessor<'a> {
                                     args.len(),
                                 );
                                 errors.push(err);
-                            } else {
-                                let call_var = self.get_type_var_for_expr(&id);
-                                if !self.type_store.unify(
-                                    &call_var,
-                                    target_func_type_var,
-                                    unified_variables,
-                                ) {
-                                    let location_id = program.get_expr_location(&id);
-                                    let call_type =
-                                        self.type_store.get_resolved_type_string(&call_var);
-                                    let func_type = self
-                                        .type_store
-                                        .get_resolved_type_string(target_func_type_var);
-                                    let err = TypecheckError::TypeMismatch(
-                                        location_id,
-                                        call_type,
-                                        func_type,
-                                    );
-                                    errors.push(err);
-                                }
                             }
                         }
                     }
@@ -321,12 +317,23 @@ impl<'a> TypeProcessor<'a> {
                             );
                         }
                         _ => {
-                            if final_round {
+                            let from = &args[0];
+                            let from_var = self.get_type_var_for_expr(from);
+                            let call_var = self.get_type_var_for_expr(&id);
+                            let new_function =
+                                Type::Function(FunctionType::new(from_var, call_var));
+                            let new_function_var = self.type_store.add_var(new_function);
+                            if !self.type_store.unify(
+                                &new_function_var,
+                                &type_var,
+                                unified_variables,
+                            ) {
                                 let location_id = program.get_expr_location(&id);
-                                let err = TypecheckError::NotCallableType(
-                                    location_id,
-                                    format!("{}", resolved_type),
-                                );
+                                let call_type =
+                                    self.type_store.get_resolved_type_string(&new_function_var);
+                                let func_type = self.type_store.get_resolved_type_string(&type_var);
+                                let err =
+                                    TypecheckError::TypeMismatch(location_id, call_type, func_type);
                                 errors.push(err);
                             }
                         }
