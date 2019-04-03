@@ -166,48 +166,9 @@ impl TypeStore {
 
     pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
         let ty = self.get_type(var);
-        ty.as_string(self)
+        ty.as_string(self, false)
     }
 
-    /*
-        pub fn get_resolved_type(&self, var: &TypeVariable) -> Type {
-            let index = self.get_index(var);
-            let t = self
-                .indices
-                .get(&index)
-                .expect("invalid type index")
-                .clone();
-            match t {
-                Type::Tuple(inners) => {
-                    let resolved_types = inners
-                        .into_iter()
-                        .map(|v| match v {
-                            Type::TypeVar(v) => self.get_resolved_type(&v),
-                            _ => v,
-                        })
-                        .collect();
-                    return Type::Tuple(resolved_types);
-                }
-                Type::TypeVar(inner) => {
-                    return self.get_resolved_type(&inner);
-                }
-                Type::Function(inner) => {
-                    let resolved_types = inner
-                        .types
-                        .into_iter()
-                        .map(|v| match v {
-                            Type::TypeVar(v) => self.get_resolved_type(&v),
-                            _ => v,
-                        })
-                        .collect();
-                    return Type::Function(FunctionType::new(resolved_types));
-                }
-                _ => {
-                    return t;
-                }
-            }
-        }
-    */
     pub fn clone_type(&mut self, ty: &Type) -> Type {
         let mut vars = Vec::new();
         let mut args = Vec::new();

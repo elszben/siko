@@ -30,8 +30,8 @@ impl FunctionType {
     }
 
     pub fn as_string(&self, type_store: &TypeStore) -> String {
-        let from = type_store.get_type(&self.from).as_string(type_store);
-        let to = type_store.get_type(&self.to).as_string(type_store);
+        let from = type_store.get_type(&self.from).as_string(type_store, true);
+        let to = type_store.get_type(&self.to).as_string(type_store, true);
         format!("{} -> {}", from, to)
     }
 }

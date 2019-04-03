@@ -4,6 +4,10 @@ func a = a 5
 
 id a = a
 
+foo a = id
+
+boo a b c = a b c 
+
 korte :: String -> String
 korte a = a
 

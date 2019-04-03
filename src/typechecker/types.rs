@@ -103,7 +103,7 @@ impl Type {
         }
     }
 
-    pub fn as_string(&self, type_store: &TypeStore) -> String {
+    pub fn as_string(&self, type_store: &TypeStore, need_parens: bool) -> String {
         match self {
             Type::Int => format!("Int"),
             Type::Float => format!("Float"),
@@ -115,12 +115,19 @@ impl Type {
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store)
+                        ty.as_string(type_store, false)
                     })
                     .collect();
                 format!("({})", ss.join(", "))
             }
-            Type::Function(func_type) => func_type.as_string(type_store),
+            Type::Function(func_type) => {
+                let func_type_str = func_type.as_string(type_store);
+                if need_parens {
+                    format!("({})", func_type_str)
+                } else {
+                    func_type_str
+                }
+            }
             Type::TypeArgument { index, .. } => format!("t{}", index),
         }
     }
