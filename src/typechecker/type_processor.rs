@@ -150,39 +150,26 @@ impl<'a> TypeProcessor<'a> {
                     unified_variables,
                     errors,
                 );
-                if let Type::Function(_) = self.type_store.get_type(&function_type.to) {
-                    if args[1..].len() > 0 {
-                        self.apply_function(
-                            &function_type.to,
-                            &args[1..],
-                            id,
-                            program,
-                            errors,
-                            name,
-                            unified_variables,
-                        );
-                    }
+                if args[1..].len() > 0 {
+                    self.apply_function(
+                        &function_type.to,
+                        &args[1..],
+                        id,
+                        program,
+                        errors,
+                        name,
+                        unified_variables,
+                    );
                 } else {
-                    if args[1..].len() > 0 {
-                        self.ensure_callable(
-                            &args[0],
-                            &id,
-                            &function_type.to,
-                            program,
-                            unified_variables,
-                            errors,
-                        );
-                    } else {
-                        let result_var = self.get_type_var_for_expr(&id);
-                        self.unify_variables(
-                            &function_type.to,
-                            &result_var,
-                            program,
-                            id,
-                            unified_variables,
-                            errors,
-                        );
-                    }
+                    let result_var = self.get_type_var_for_expr(&id);
+                    self.unify_variables(
+                        &function_type.to,
+                        &result_var,
+                        program,
+                        id,
+                        unified_variables,
+                        errors,
+                    );
                 }
             } else {
                 self.ensure_callable(
