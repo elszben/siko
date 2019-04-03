@@ -1,15 +1,9 @@
 module Main where
 
-func a = a 5
+id a = a 6
 
-id a = a
-
-foo a = id
-
-boo a b c = a b c 
-
-korte :: String -> String
-korte a = a
+korte :: Int -> String
+korte b = "a"
 
 main  :: String
-main a = func id
+main a = id korte 
