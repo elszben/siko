@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::function::NamedFunctionInfo;
@@ -17,13 +18,19 @@ use std::fmt;
 struct FunctionTypeInfo {
     args: Vec<TypeVariable>,
     result: TypeVariable,
+    function_type: TypeVariable,
 }
 
 impl FunctionTypeInfo {
-    fn new(args: Vec<TypeVariable>, result: TypeVariable) -> FunctionTypeInfo {
+    fn new(
+        args: Vec<TypeVariable>,
+        result: TypeVariable,
+        function_type: TypeVariable,
+    ) -> FunctionTypeInfo {
         FunctionTypeInfo {
             args: args,
             result: result,
+            function_type: function_type,
         }
     }
 }
@@ -33,13 +40,14 @@ impl fmt::Display for FunctionTypeInfo {
         let mut vars = self.args.clone();
         vars.push(self.result);
         let ss: Vec<_> = vars.iter().map(|i| format!("{}", i)).collect();
-        write!(f, "{}", ss.join(" -> "))
+        write!(f, "{} = {}", self.function_type, ss.join(" -> "))
     }
 }
 
 pub struct Typechecker {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
+    expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
 }
 
 impl Typechecker {
@@ -47,6 +55,24 @@ impl Typechecker {
         Typechecker {
             type_store: TypeStore::new(),
             function_type_info_map: BTreeMap::new(),
+            expression_type_var_map: BTreeMap::new(),
+        }
+    }
+
+    fn get_new_type_var(&mut self) -> TypeVariable {
+        let ty = self.type_store.get_unique_type_arg_type();
+        let var = self.type_store.add_var(ty);
+        var
+    }
+
+    fn get_type_var_for_expr(&mut self, expr_id: ExprId) -> TypeVariable {
+        match self.expression_type_var_map.get(&expr_id) {
+            Some(var) => *var,
+            None => {
+                let var = self.get_new_type_var();
+                self.expression_type_var_map.insert(expr_id, var);
+                var
+            }
         }
     }
 
@@ -135,13 +161,13 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let mut arg_map = BTreeMap::new();
-        let var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
+        let func_type_var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
         println!(
             "Registering function {} with type {}",
             function_id,
-            self.type_store.get_resolved_type_string(&var)
+            self.type_store.get_resolved_type_string(&func_type_var)
         );
-        let ty = self.type_store.get_type(&var);
+        let ty = self.type_store.get_type(&func_type_var);
         let function_type_info = match ty {
             Type::Function(func_type) => {
                 let mut arg_vars = Vec::new();
@@ -156,7 +182,11 @@ impl Typechecker {
                     errors.push(err);
                     return;
                 }
-                FunctionTypeInfo::new(arg_vars, func_type.get_return_type(&self.type_store))
+                FunctionTypeInfo::new(
+                    arg_vars,
+                    func_type.get_return_type(&self.type_store),
+                    func_type_var,
+                )
             }
             _ => {
                 if arg_count > 0 {
@@ -169,7 +199,7 @@ impl Typechecker {
                     errors.push(err);
                     return;
                 }
-                FunctionTypeInfo::new(vec![], var)
+                FunctionTypeInfo::new(vec![], func_type_var, func_type_var)
             }
         };
         self.function_type_info_map
@@ -183,32 +213,54 @@ impl Typechecker {
                 FunctionInfo::RecordConstructor(_) => {}
                 FunctionInfo::VariantConstructor(_) => {}
                 FunctionInfo::Lambda(_) => {}
-                FunctionInfo::NamedFunction(i) => {
-                    let untyped = match i.type_signature {
-                        Some(type_signature) => {
-                            self.register_typed_function(
-                                i,
-                                function.arg_count,
-                                type_signature,
-                                *id,
-                                program,
-                                &mut errors,
-                            );
-                            false
+                FunctionInfo::NamedFunction(i) => match i.type_signature {
+                    Some(type_signature) => {
+                        self.register_typed_function(
+                            i,
+                            function.arg_count,
+                            type_signature,
+                            *id,
+                            program,
+                            &mut errors,
+                        );
+                    }
+                    None => match i.body {
+                        Some(body) => {
+                            let mut args = Vec::new();
+                            for _ in 0..function.arg_count {
+                                let arg_var = self.get_new_type_var();
+                                args.push(arg_var);
+                            }
+                            let result = self.get_type_var_for_expr(body);
+                            let func_type_var = if function.arg_count > 0 {
+                                let mut vars = args.clone();
+                                vars.push(result);
+                                while vars.len() > 1 {
+                                    let from = vars[vars.len() - 2];
+                                    let to = vars[vars.len() - 1];
+                                    let func = Type::Function(FunctionType::new(from, to));
+                                    let var = self.type_store.add_var(func);
+                                    let index = vars.len() - 2;
+                                    vars[index] = var;
+                                    vars.pop();
+                                }
+                                vars[0]
+                            } else {
+                                result
+                            };
+                            let function_type_info =
+                                FunctionTypeInfo::new(args, result, func_type_var);
+                            self.function_type_info_map.insert(*id, function_type_info);
                         }
-                        None => true,
-                    };
-                    if let Some(body) = i.body {
-                    } else {
-                        if untyped {
+                        None => {
                             let err = TypecheckError::UntypedExternFunction(
                                 i.name.clone(),
                                 i.location_id,
                             );
                             errors.push(err)
                         }
-                    }
-                }
+                    },
+                },
             }
         }
 
