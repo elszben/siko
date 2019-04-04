@@ -75,6 +75,13 @@ impl Program {
             .type_signature
     }
 
+    pub fn get_type_signature_location(&self, id: &TypeSignatureId) -> LocationId {
+        self.type_signatures
+            .get(id)
+            .expect("TypeSignature not found")
+            .location_id
+    }
+
     pub fn add_expr(&mut self, id: ExprId, expr_info: ExprInfo) {
         self.exprs.insert(id, expr_info);
     }

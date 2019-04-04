@@ -1,7 +1,7 @@
 use crate::ir::function::FunctionId;
+use crate::location_info::item::LocationId;
 use crate::syntax::data::AdtId as AstAdtId;
 use crate::syntax::data::RecordId as AstRecordId;
-use crate::syntax::types::TypeSignatureId as AstTypeSignatureId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -25,14 +25,14 @@ pub enum TypeSignature {
 #[derive(Debug, Clone)]
 pub struct TypeInfo {
     pub type_signature: TypeSignature,
-    pub ast_type_id: AstTypeSignatureId,
+    pub location_id: LocationId,
 }
 
 impl TypeInfo {
-    pub fn new(type_signature: TypeSignature, ast_type_id: AstTypeSignatureId) -> TypeInfo {
+    pub fn new(type_signature: TypeSignature, location_id: LocationId) -> TypeInfo {
         TypeInfo {
             type_signature: type_signature,
-            ast_type_id: ast_type_id,
+            location_id: location_id,
         }
     }
 }

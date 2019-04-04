@@ -3,7 +3,7 @@ module Main where
 foo a = a 6
 
 korte :: Int -> String
-korte b = "a"
+korte b  = "a"
 
 main  :: String
-main a = foo korte 
+main = foo korte 

@@ -23,7 +23,7 @@ impl FunctionType {
     }
 
     pub fn get_arg_types(&self, type_store: &TypeStore, arg_vars: &mut Vec<TypeVariable>) {
-        arg_vars.push(self.to);
+        arg_vars.push(self.from);
         if let Type::Function(to_func_type) = type_store.get_type(&self.to) {
             to_func_type.get_arg_types(type_store, arg_vars);
         }

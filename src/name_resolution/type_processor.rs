@@ -191,7 +191,7 @@ fn process_type_signature(
         }
     };
     let id = ir_program.get_type_signature_id();
-    let type_info = TypeInfo::new(ir_type_signature, type_signature_id.clone());
+    let type_info = TypeInfo::new(ir_type_signature, location_id);
     ir_program.add_type_signature(id, type_info);
     return Some(id);
 }

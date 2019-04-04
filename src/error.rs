@@ -361,9 +361,6 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError::FunctionTypeDependencyLoop => {
-                            println!("{} function type dependency loop detected", error.red());
-                        }
                         TypecheckError::TooManyArguments(id, name, expected, found) => {
                             println!(
                                 "{} too many arguments given for {}",
@@ -394,6 +391,28 @@ impl Error {
                                 "{} trying to call a non-callable type {}",
                                 error.red(),
                                 ty.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::FunctionArgAndSignatureMismatch(
+                            name,
+                            arg_count,
+                            signature_arg_count,
+                            id,
+                        ) => {
+                            println!(
+                                "{} function type signature for {} does not match its argument count",
+                                error.red(),
+                                name.yellow()
+                            );
+                            println!(
+                                "Arguments:                      {}",
+                                format!("{}", arg_count).yellow()
+                            );
+                            println!(
+                                "Arguments in type signature:    {}",
+                                format!("{}", signature_arg_count).yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
