@@ -87,6 +87,11 @@ impl TypeStore {
         }
     }
 
+    fn set_variable_type(&mut self, var: &TypeVariable, ty: Type) {
+        let index = self.get_index(var);
+        self.indices.insert(index, ty);
+    }
+
     pub fn unify(
         &mut self,
         var1: &TypeVariable,
@@ -156,6 +161,41 @@ impl TypeStore {
         return true;
     }
 
+    pub fn unify_variable_with_type(
+        &mut self,
+        var: &TypeVariable,
+        ty: &Type,
+        unified_variables: &mut bool,
+    ) -> bool {
+        let var_ty = self.get_type(var);
+        match (&var_ty, &ty) {
+            (Type::Int, Type::Int) => {}
+            (Type::String, Type::String) => {}
+            (Type::Bool, Type::Bool) => {}
+            (
+                _,
+                Type::TypeArgument {
+                    index: _,
+                    user_defined: false,
+                },
+            ) => unreachable!(),
+            (
+                Type::TypeArgument {
+                    index: _,
+                    user_defined: false,
+                },
+                _,
+            ) => {
+                *unified_variables = true;
+                self.set_variable_type(var, ty.clone());
+            }
+            _ => {
+                return false;
+            }
+        }
+        return true;
+    }
+
     pub fn get_type(&self, var: &TypeVariable) -> Type {
         let index = self.get_index(var);
         self.indices
@@ -185,8 +225,8 @@ impl TypeStore {
     }
 
     pub fn dump(&self) {
-        for (var, idx) in &self.variables {
-            println!("{:?} => {:?}", var, idx);
+        for (var, _) in &self.variables {
+            println!("{} => {}", var, self.get_resolved_type_string(var));
         }
     }
 }

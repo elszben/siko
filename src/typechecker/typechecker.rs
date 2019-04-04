@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
@@ -206,6 +207,45 @@ impl Typechecker {
             .insert(function_id, function_type_info);
     }
 
+    fn unify_variables(
+        &mut self,
+        expected: &TypeVariable,
+        found: &TypeVariable,
+        program: &Program,
+        id: ExprId,
+        unified_variables: &mut bool,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        if !self.type_store.unify(&expected, &found, unified_variables) {
+            let location_id = program.get_expr_location(&id);
+            let expected_type = self.type_store.get_resolved_type_string(&expected);
+            let found_type = self.type_store.get_resolved_type_string(&found);
+            let err = TypecheckError::TypeMismatch(location_id, expected_type, found_type);
+            errors.push(err);
+        }
+    }
+
+    fn unify_variable_with_type(
+        &mut self,
+        var: &TypeVariable,
+        ty: &Type,
+        program: &Program,
+        id: ExprId,
+        unified_variables: &mut bool,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        if !self
+            .type_store
+            .unify_variable_with_type(var, ty, unified_variables)
+        {
+            let location_id = program.get_expr_location(&id);
+            let found_type = self.type_store.get_resolved_type_string(var);
+            let expected_type = ty.as_string(&self.type_store, false);
+            let err = TypecheckError::TypeMismatch(location_id, expected_type, found_type);
+            errors.push(err);
+        }
+    }
+
     pub fn check(&mut self, program: &Program) -> Result<(), Error> {
         let mut errors = Vec::new();
         for (id, function) in &program.functions {
@@ -231,7 +271,7 @@ impl Typechecker {
                                 let arg_var = self.get_new_type_var();
                                 args.push(arg_var);
                             }
-                            let result = self.get_type_var_for_expr(body);
+                            let result = self.get_new_type_var();
                             let func_type_var = if function.arg_count > 0 {
                                 let mut vars = args.clone();
                                 vars.push(result);
@@ -267,6 +307,44 @@ impl Typechecker {
         for (id, info) in &self.function_type_info_map {
             println!("{}: {}", id, info);
         }
+
+        for (expr_id, expr_info) in &program.exprs {
+            println!("Processing {} {}", expr_id, expr_info.expr);
+            self.get_type_var_for_expr(*expr_id);
+        }
+
+        let mut unified_variables = false;
+
+        for (expr_id, expr_info) in &program.exprs {
+            println!("Checking {} {}", expr_id, expr_info.expr);
+            match expr_info.expr {
+                Expr::IntegerLiteral(_) => {
+                    let var = self.get_type_var_for_expr(*expr_id);
+                    self.unify_variable_with_type(
+                        &var,
+                        &Type::Int,
+                        program,
+                        *expr_id,
+                        &mut unified_variables,
+                        &mut errors,
+                    );
+                }
+                _ => {
+                    panic!("Unimplemented expr {}", expr_info.expr);
+                }
+            }
+        }
+
+        for (id, info) in &self.function_type_info_map {
+            println!(
+                "{}: {}",
+                id,
+                self.type_store
+                    .get_resolved_type_string(&info.function_type)
+            );
+        }
+
+        self.type_store.dump();
 
         if errors.is_empty() {
             Ok(())

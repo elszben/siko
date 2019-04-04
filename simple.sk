@@ -1,9 +1,3 @@
 module Main where
 
-foo a = a 6
-
-korte :: Int -> String
-korte b  = "a"
-
-main  :: String
-main = foo korte 
+foo a = 6
