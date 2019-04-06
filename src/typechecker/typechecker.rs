@@ -279,7 +279,7 @@ impl Typechecker {
             println!("Processing {} {}", expr_id, expr_info.expr);
             self.get_type_var_for_expr(*expr_id);
             match &expr_info.expr {
-                Expr::StaticFunctionCall(id, args) => {
+                Expr::StaticFunctionCall(_, args) => {
                     let called_function_type = if args.is_empty() {
                         self.get_new_type_var()
                     } else {
@@ -292,10 +292,11 @@ impl Typechecker {
                         }
                         to
                     };
-                    println!(
-                        "Static call called func type {}",
-                        self.type_store
-                            .get_resolved_type_string(&called_function_type)
+                    self.function_call_info_map.insert(
+                        *expr_id,
+                        FunctionCallInfo {
+                            called_function_type: called_function_type,
+                        },
                     );
                 }
                 _ => {}
