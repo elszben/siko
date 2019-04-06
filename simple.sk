@@ -1,3 +1,6 @@
 module Main where
 
-foo a = 6
+boo :: Int -> Int -> Int
+boo a = extern
+
+foo a = boo
