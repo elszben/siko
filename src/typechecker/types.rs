@@ -19,23 +19,17 @@ pub enum Type {
 impl Type {
     pub fn clone_type_var(
         type_var: &TypeVariable,
-        vars: &BTreeMap<TypeVariable, TypeVariable>,
-        args: &BTreeMap<usize, usize>,
+        bindings: &mut BTreeMap<usize, TypeVariable>,
         type_store: &mut TypeStore,
     ) -> TypeVariable {
-        let new_var = vars
-            .get(type_var)
-            .expect("Type variable not found during clone");
         let ty = type_store.get_type(type_var);
-        let ty = ty.clone_type(vars, args, type_store);
-        type_store.add_var_and_type(*new_var, ty);
-        *new_var
+        let ty = ty.clone_type(bindings, type_store);
+        type_store.add_var(ty)
     }
 
     pub fn clone_type(
         &self,
-        vars: &BTreeMap<TypeVariable, TypeVariable>,
-        args: &BTreeMap<usize, usize>,
+        bindings: &mut BTreeMap<usize, TypeVariable>,
         type_store: &mut TypeStore,
     ) -> Type {
         match self {
@@ -47,52 +41,20 @@ impl Type {
             Type::Tuple(typevars) => {
                 let typevars: Vec<_> = typevars
                     .iter()
-                    .map(|var| Type::clone_type_var(var, vars, args, type_store))
+                    .map(|var| Type::clone_type_var(var, bindings, type_store))
                     .collect();
                 Type::Tuple(typevars)
             }
             Type::Function(func_type) => {
-                let from = Type::clone_type_var(&func_type.from, vars, args, type_store);
-                let to = Type::clone_type_var(&func_type.to, vars, args, type_store);
+                let from = Type::clone_type_var(&func_type.from, bindings, type_store);
+                let to = Type::clone_type_var(&func_type.to, bindings, type_store);
                 Type::Function(FunctionType::new(from, to))
             }
             Type::TypeArgument(index) => {
-                let new_index = args
-                    .get(index)
-                    .expect("Type argument not found during clone");
-                Type::TypeArgument(*new_index)
-            }
-        }
-    }
-
-    pub fn collect(
-        &self,
-        vars: &mut Vec<TypeVariable>,
-        args: &mut Vec<usize>,
-        type_store: &TypeStore,
-    ) {
-        match self {
-            Type::Int => {}
-            Type::Float => {}
-            Type::Bool => {}
-            Type::String => {}
-            Type::Nothing => {}
-            Type::Tuple(type_vars) => {
-                for var in type_vars {
-                    vars.push(*var);
-                    let ty = type_store.get_type(var);
-                    ty.collect(vars, args, type_store);
-                }
-            }
-            Type::Function(func_type) => {
-                for var in &[func_type.from, func_type.to] {
-                    vars.push(*var);
-                    let ty = type_store.get_type(var);
-                    ty.collect(vars, args, type_store);
-                }
-            }
-            Type::TypeArgument(index) => {
-                args.push(*index);
+                let var = bindings
+                    .entry(*index)
+                    .or_insert_with(|| type_store.get_new_type_var());
+                type_store.get_type(var)
             }
         }
     }
