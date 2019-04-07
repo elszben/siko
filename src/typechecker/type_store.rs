@@ -39,10 +39,7 @@ impl TypeStore {
     }
 
     pub fn get_unique_type_arg_type(&mut self) -> Type {
-        let ty = Type::TypeArgument {
-            index: self.arg_counter.next(),
-            user_defined: false,
-        };
+        let ty = Type::TypeArgument(self.arg_counter.next());
         ty
     }
 
@@ -77,7 +74,7 @@ impl TypeStore {
             .clone()
     }
 
-    fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
+    pub fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
         let from_index = self.get_index(from);
         let to_index = self.get_index(to);
         for (_, value) in self.variables.iter_mut() {
@@ -87,7 +84,7 @@ impl TypeStore {
         }
     }
 
-    fn set_variable_type(&mut self, var: &TypeVariable, ty: Type) {
+    pub fn set_variable_type(&mut self, var: &TypeVariable, ty: Type) {
         let index = self.get_index(var);
         self.indices.insert(index, ty);
     }
@@ -115,23 +112,11 @@ impl TypeStore {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
-            (
-                Type::TypeArgument {
-                    index: _,
-                    user_defined: false,
-                },
-                _,
-            ) => {
+            (Type::TypeArgument(_), _) => {
                 *unified_variables = true;
                 self.merge(var2, var1);
             }
-            (
-                _,
-                Type::TypeArgument {
-                    index: _,
-                    user_defined: false,
-                },
-            ) => {
+            (_, Type::TypeArgument(_)) => {
                 *unified_variables = true;
                 self.merge(var1, var2);
             }
@@ -172,20 +157,8 @@ impl TypeStore {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
-            (
-                _,
-                Type::TypeArgument {
-                    index: _,
-                    user_defined: false,
-                },
-            ) => unreachable!(),
-            (
-                Type::TypeArgument {
-                    index: _,
-                    user_defined: false,
-                },
-                _,
-            ) => {
+            (_, Type::TypeArgument(index)) => unreachable!(),
+            (Type::TypeArgument(index), _) => {
                 *unified_variables = true;
                 self.set_variable_type(var, ty.clone());
             }
@@ -207,6 +180,12 @@ impl TypeStore {
     pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
         let ty = self.get_type(var);
         ty.as_string(self, false)
+    }
+
+    pub fn get_new_type_var(&mut self) -> TypeVariable {
+        let ty = self.get_unique_type_arg_type();
+        let var = self.add_var(ty);
+        var
     }
 
     pub fn clone_type(&mut self, ty: &Type) -> Type {

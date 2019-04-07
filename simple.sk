@@ -1,6 +1,6 @@
 module Main where
 
-boo :: Int -> Int -> Int
+boo :: Int -> Int -> Int -> String
 boo a = extern
 
-foo a = boo
+foo a = boo 1 2

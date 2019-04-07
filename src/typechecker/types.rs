@@ -13,7 +13,7 @@ pub enum Type {
     Nothing,
     Tuple(Vec<TypeVariable>),
     Function(FunctionType),
-    TypeArgument { index: usize, user_defined: bool },
+    TypeArgument(usize),
 }
 
 impl Type {
@@ -56,17 +56,11 @@ impl Type {
                 let to = Type::clone_type_var(&func_type.to, vars, args, type_store);
                 Type::Function(FunctionType::new(from, to))
             }
-            Type::TypeArgument {
-                index,
-                user_defined,
-            } => {
+            Type::TypeArgument(index) => {
                 let new_index = args
                     .get(index)
                     .expect("Type argument not found during clone");
-                Type::TypeArgument {
-                    index: *new_index,
-                    user_defined: *user_defined,
-                }
+                Type::TypeArgument(*new_index)
             }
         }
     }
@@ -97,7 +91,7 @@ impl Type {
                     ty.collect(vars, args, type_store);
                 }
             }
-            Type::TypeArgument { index, .. } => {
+            Type::TypeArgument(index) => {
                 args.push(*index);
             }
         }
@@ -128,7 +122,7 @@ impl Type {
                     func_type_str
                 }
             }
-            Type::TypeArgument { index, .. } => format!("t{}", index),
+            Type::TypeArgument(index) => format!("t{}", index),
         }
     }
 }
@@ -146,7 +140,7 @@ impl fmt::Display for Type {
                 write!(f, "({})", ss.join(", "))
             }
             Type::Function(func_type) => write!(f, "{}", func_type),
-            Type::TypeArgument { index, .. } => write!(f, "t{}", index),
+            Type::TypeArgument(index) => write!(f, "t{}", index),
         }
     }
 }
