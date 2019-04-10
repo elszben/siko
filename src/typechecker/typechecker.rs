@@ -79,82 +79,6 @@ fn unify_variables(
     }
 }
 
-fn unify_with_bindings(
-    caller_arg: &TypeVariable,
-    callee_arg: &TypeVariable,
-    bindings: &mut BTreeMap<usize, TypeVariable>,
-    type_store: &mut TypeStore,
-    program: &Program,
-    expr_id: ExprId,
-    errors: &mut Vec<TypecheckError>,
-) -> Result<(), ()> {
-    let caller_type = type_store.get_type(caller_arg);
-    let callee_type = type_store.get_type(callee_arg);
-    println!(
-        "unify with bind {},{} === {},{}",
-        caller_arg,
-        type_store.get_resolved_type_string(caller_arg),
-        callee_arg,
-        type_store.get_resolved_type_string(callee_arg)
-    );
-    match (&caller_type, &callee_type) {
-        (Type::Int, Type::Int) => {}
-        (Type::String, Type::String) => {}
-        (Type::TypeArgument(_), Type::Function(_)) => {
-            let new_ty = callee_type.clone_type(bindings, type_store);
-            type_store.set_variable_type(caller_arg, new_ty);
-        }
-        (_, Type::TypeArgument(arg_index)) => {
-            let var = bindings
-                .entry(*arg_index)
-                .or_insert_with(|| type_store.get_new_type_var());
-            println!(
-                "bind {} to {} {}",
-                arg_index,
-                var,
-                type_store.get_resolved_type_string(var)
-            );
-            println!("merge {} -> {}", caller_arg, var);
-            unify_variables(&caller_arg, &var, type_store, program, expr_id, errors);
-        }
-        (Type::TypeArgument(_), _) => {
-            type_store.set_variable_type(caller_arg, callee_type);
-        }
-        _ => return Err(()),
-    }
-    Ok(())
-}
-
-fn check_call(
-    func_var: &TypeVariable,
-    arg: &TypeVariable,
-    bindings: &mut BTreeMap<usize, TypeVariable>,
-    type_store: &mut TypeStore,
-    program: &Program,
-    expr_id: ExprId,
-    errors: &mut Vec<TypecheckError>,
-) -> Option<TypeVariable> {
-    let func_ty = type_store.get_type(func_var);
-    match func_ty {
-        Type::Function(function_type) => {
-            if let Ok(_) = unify_with_bindings(
-                arg,
-                &function_type.from,
-                bindings,
-                type_store,
-                program,
-                expr_id,
-                errors,
-            ) {
-                Some(function_type.to)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
 pub struct Typechecker {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
@@ -365,51 +289,6 @@ impl Typechecker {
                         .function_type_info_map
                         .get(function_id)
                         .expect("Function type info not found");
-                    if target_function_type_info.args.len() < args.len() {
-                        panic!("Too many args");
-                    } else {
-                        let mut target_func_var = target_function_type_info.function_type;
-                        let mut bindings = BTreeMap::new();
-                        for arg in args.iter() {
-                            let arg_var = self.lookup_type_var_for_expr(arg);
-                            if let Some(to) = check_call(
-                                &target_func_var,
-                                &arg_var,
-                                &mut bindings,
-                                &mut self.type_store,
-                                program,
-                                *expr_id,
-                                errors,
-                            ) {
-                                target_func_var = to;
-                            } else {
-                                panic!("type mismatch");
-                            }
-                        }
-                        let expr_result_var = self.lookup_type_var_for_expr(expr_id);
-                        println!("unifying result",);
-                        if unify_with_bindings(
-                            &expr_result_var,
-                            &target_func_var,
-                            &mut bindings,
-                            &mut self.type_store,
-                            program,
-                            *expr_id,
-                            errors,
-                        )
-                        .is_err()
-                        {
-                            let expr_type_str =
-                                self.type_store.get_resolved_type_string(&expr_result_var);
-                            let result_type_str =
-                                self.type_store.get_resolved_type_string(&target_func_var);
-                            panic!("Type mismatch 2 {} {}", expr_type_str, result_type_str);
-                        }
-                        println!(
-                            "expr result {}",
-                            self.type_store.get_resolved_type_string(&expr_result_var),
-                        );
-                    }
                 }
                 Expr::ArgRef(arg_ref) => {
                     let function_type_info = self
