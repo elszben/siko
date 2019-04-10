@@ -53,7 +53,7 @@ impl TypeStore {
         index
     }
 
-    pub fn add_var(&mut self, ty: Type) -> TypeVariable {
+    pub fn add_type(&mut self, ty: Type) -> TypeVariable {
         let type_var = self.allocate_var();
         let index = self.allocate_index();
         self.indices.insert(index, ty);
@@ -89,29 +89,32 @@ impl TypeStore {
         self.indices.insert(index, ty);
     }
 
-    pub fn unify(&mut self, var1: &TypeVariable, var2: &TypeVariable) -> bool {
-        let var_ty1 = self.get_type(var1);
-        let var_ty2 = self.get_type(var2);
+    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
+        let primary_type = self.get_type(primary);
+        let secondary_type = self.get_type(secondary);
         /*
         println!(
             "Unify vars t1:({}),{:?} t2:({}),{:?}",
             var_ty1, var1, var_ty2, var2
         );
         */
-        let index1 = self.get_index(var1);
-        let index2 = self.get_index(var2);
+        let index1 = self.get_index(primary);
+        let index2 = self.get_index(secondary);
         if index1 == index2 {
             return true;
         }
-        match (&var_ty1, &var_ty2) {
+        match (&primary_type, &secondary_type) {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
+            (Type::TypeArgument(_), Type::TypeArgument(_)) => {
+                self.merge(primary, secondary);
+            }
             (Type::TypeArgument(_), _) => {
-                self.merge(var2, var1);
+                self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {
-                self.merge(var1, var2);
+                self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
                 if type_vars1.len() != type_vars2.len() {
@@ -171,7 +174,7 @@ impl TypeStore {
 
     pub fn get_new_type_var(&mut self) -> TypeVariable {
         let ty = self.get_unique_type_arg_type();
-        let var = self.add_var(ty);
+        let var = self.add_type(ty);
         var
     }
 

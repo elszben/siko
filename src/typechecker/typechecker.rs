@@ -121,7 +121,7 @@ impl Typechecker {
             let to =
                 self.process_function_signature_part(&type_signature_ids[1..], program, arg_map);
             let ty = Type::Function(FunctionType::new(from, to));
-            return self.type_store.add_var(ty);
+            return self.type_store.add_type(ty);
         }
     }
 
@@ -135,19 +135,19 @@ impl Typechecker {
         match type_signature {
             TypeSignature::Bool => {
                 let ty = Type::Bool;
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Int => {
                 let ty = Type::Int;
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::String => {
                 let ty = Type::String;
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Nothing => {
                 let ty = Type::Nothing;
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Tuple(items) => {
                 let items: Vec<_> = items
@@ -155,7 +155,7 @@ impl Typechecker {
                     .map(|i| self.process_type_signature(i, program, arg_map))
                     .collect();
                 let ty = Type::Tuple(items);
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Function(items) => {
                 return self.process_function_signature_part(&items[..], program, arg_map);
@@ -164,17 +164,17 @@ impl Typechecker {
                 let var = arg_map.entry(*index).or_insert_with(|| {
                     let arg = self.type_store.get_unique_type_arg();
                     let ty = Type::TypeArgument(arg);
-                    self.type_store.add_var(ty)
+                    self.type_store.add_type(ty)
                 });
                 *var
             }
             TypeSignature::Named(..) => {
                 let ty = Type::Nothing;
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Variant(..) => {
                 let ty = Type::Nothing;
-                return self.type_store.add_var(ty);
+                return self.type_store.add_type(ty);
             }
         }
     }
@@ -251,7 +251,7 @@ impl Typechecker {
                 let from = vars[vars.len() - 2];
                 let to = vars[vars.len() - 1];
                 let func = Type::Function(FunctionType::new(from, to));
-                let var = self.type_store.add_var(func);
+                let var = self.type_store.add_type(func);
                 let index = vars.len() - 2;
                 vars[index] = var;
                 vars.pop();
