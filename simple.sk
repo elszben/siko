@@ -3,5 +3,5 @@ module Main where
 id a :: a -> a -> Int -> a
 id a b = a
 
-qoo = id 1 "a"
-
+qoo :: Int
+qoo = "a"

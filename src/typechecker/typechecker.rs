@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 struct FunctionTypeInfo {
+    displayed_name: String,
     args: Vec<TypeVariable>,
     result: TypeVariable,
     function_type: TypeVariable,
@@ -26,6 +27,7 @@ struct FunctionTypeInfo {
 
 impl FunctionTypeInfo {
     fn new(
+        displayed_name: String,
         args: Vec<TypeVariable>,
         result: TypeVariable,
         function_type: TypeVariable,
@@ -33,6 +35,7 @@ impl FunctionTypeInfo {
         body: Option<ExprId>,
     ) -> FunctionTypeInfo {
         FunctionTypeInfo {
+            displayed_name: displayed_name,
             args: args,
             result: result,
             function_type: function_type,
@@ -181,6 +184,7 @@ impl Typechecker {
 
     fn register_typed_function(
         &mut self,
+        displayed_name: String,
         named_info: &NamedFunctionInfo,
         arg_count: usize,
         type_signature_id: TypeSignatureId,
@@ -192,8 +196,9 @@ impl Typechecker {
         let mut arg_map = BTreeMap::new();
         let func_type_var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
         println!(
-            "Registering function {} with type {}",
+            "Registering named function {} {} with type {}",
             function_id,
+            displayed_name,
             self.type_store.get_resolved_type_string(&func_type_var)
         );
         let ty = self.type_store.get_type(&func_type_var);
@@ -212,6 +217,7 @@ impl Typechecker {
                     return;
                 }
                 FunctionTypeInfo::new(
+                    displayed_name,
                     arg_vars,
                     func_type.get_return_type(&self.type_store),
                     func_type_var,
@@ -222,7 +228,7 @@ impl Typechecker {
             _ => {
                 if arg_count > 0 {
                     let err = TypecheckError::FunctionArgAndSignatureMismatch(
-                        named_info.name.clone(),
+                        displayed_name,
                         arg_count,
                         0,
                         program.get_type_signature_location(&type_signature_id),
@@ -230,14 +236,27 @@ impl Typechecker {
                     errors.push(err);
                     return;
                 }
-                FunctionTypeInfo::new(vec![], func_type_var, func_type_var, true, body)
+                FunctionTypeInfo::new(
+                    named_info.name.clone(),
+                    vec![],
+                    func_type_var,
+                    func_type_var,
+                    true,
+                    body,
+                )
             }
         };
         self.function_type_info_map
             .insert(function_id, function_type_info);
     }
 
-    fn register_untyped_function(&mut self, id: FunctionId, function: &Function, body: ExprId) {
+    fn register_untyped_function(
+        &mut self,
+        name: String,
+        id: FunctionId,
+        function: &Function,
+        body: ExprId,
+    ) {
         let mut args = Vec::new();
         for _ in 0..function.arg_count {
             let arg_var = self.type_store.get_new_type_var();
@@ -261,14 +280,26 @@ impl Typechecker {
             result
         };
         let function_type_info =
-            FunctionTypeInfo::new(args, result, func_type_var, false, Some(body));
+            FunctionTypeInfo::new(name, args, result, func_type_var, false, Some(body));
         self.function_type_info_map.insert(id, function_type_info);
     }
 
     fn process_expr_and_create_vars(&mut self, program: &Program) {
         for (expr_id, expr_info) in &program.exprs {
             println!("Processing {} {}", expr_id, expr_info.expr);
-            self.create_type_var_for_expr(*expr_id);
+            match &expr_info.expr {
+                Expr::IntegerLiteral(_) => {
+                    let var = self.type_store.add_type(Type::Int);
+                    self.expression_type_var_map.insert(*expr_id, var);
+                }
+                Expr::StringLiteral(_) => {
+                    let var = self.type_store.add_type(Type::String);
+                    self.expression_type_var_map.insert(*expr_id, var);
+                }
+                _ => {
+                    self.create_type_var_for_expr(*expr_id);
+                }
+            }
         }
     }
 
@@ -276,14 +307,8 @@ impl Typechecker {
         for (expr_id, expr_info) in &program.exprs {
             println!("Checking {} {}", expr_id, expr_info.expr);
             match &expr_info.expr {
-                Expr::IntegerLiteral(_) => {
-                    let var = self.lookup_type_var_for_expr(expr_id);
-                    self.unify_variable_with_type(&var, &Type::Int, program, *expr_id, errors);
-                }
-                Expr::StringLiteral(_) => {
-                    let var = self.lookup_type_var_for_expr(expr_id);
-                    self.unify_variable_with_type(&var, &Type::String, program, *expr_id, errors);
-                }
+                Expr::IntegerLiteral(_) => {}
+                Expr::StringLiteral(_) => {}
                 Expr::StaticFunctionCall(function_id, args) => {
                     let target_function_type_info = self
                         .function_type_info_map
@@ -297,14 +322,6 @@ impl Typechecker {
                         .expect("Function type info not found");
                     let arg_var = function_type_info.args[arg_ref.index];
                     let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    unify_variables(
-                        &arg_var,
-                        &expr_var,
-                        &mut self.type_store,
-                        program,
-                        *expr_id,
-                        errors,
-                    );
                 }
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
@@ -313,42 +330,24 @@ impl Typechecker {
         }
 
         for (_, function_type_info) in &self.function_type_info_map {
-            if !function_type_info.typed {
-                if let Some(body) = function_type_info.body {
-                    let body_var = self.lookup_type_var_for_expr(&body);
-                    unify_variables(
-                        &body_var,
-                        &function_type_info.result,
-                        &mut self.type_store,
-                        program,
-                        body,
-                        errors,
-                    );
-                }
+            if let Some(body) = function_type_info.body {
+                let body_var = self.lookup_type_var_for_expr(&body);
+                unify_variables(
+                    &function_type_info.result,
+                    &body_var,
+                    &mut self.type_store,
+                    program,
+                    body,
+                    errors,
+                );
             }
-        }
-    }
-
-    fn unify_variable_with_type(
-        &mut self,
-        var: &TypeVariable,
-        ty: &Type,
-        program: &Program,
-        id: ExprId,
-        errors: &mut Vec<TypecheckError>,
-    ) {
-        if !self.type_store.unify_variable_with_type(var, ty) {
-            let location_id = program.get_expr_location(&id);
-            let found_type = self.type_store.get_resolved_type_string(var);
-            let expected_type = ty.as_string(&self.type_store, false);
-            let err = TypecheckError::TypeMismatch(location_id, expected_type, found_type);
-            errors.push(err);
         }
     }
 
     pub fn check(&mut self, program: &Program) -> Result<(), Error> {
         let mut errors = Vec::new();
         for (id, function) in &program.functions {
+            let displayed_name = format!("{}", function.info);
             match &function.info {
                 FunctionInfo::RecordConstructor(_) => {}
                 FunctionInfo::VariantConstructor(_) => {}
@@ -356,6 +355,7 @@ impl Typechecker {
                 FunctionInfo::NamedFunction(i) => match i.type_signature {
                     Some(type_signature) => {
                         self.register_typed_function(
+                            displayed_name,
                             i,
                             function.arg_count,
                             type_signature,
@@ -367,7 +367,7 @@ impl Typechecker {
                     }
                     None => match i.body {
                         Some(body) => {
-                            self.register_untyped_function(*id, function, body);
+                            self.register_untyped_function(displayed_name, *id, function, body);
                         }
                         None => {
                             let err = TypecheckError::UntypedExternFunction(
@@ -395,8 +395,9 @@ impl Typechecker {
 
         for (id, info) in &self.function_type_info_map {
             println!(
-                "{}: {}",
+                "{}/{}: {}",
                 id,
+                info.displayed_name,
                 self.type_store
                     .get_resolved_type_string(&info.function_type)
             );

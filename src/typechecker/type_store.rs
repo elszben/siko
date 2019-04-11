@@ -92,12 +92,10 @@ impl TypeStore {
     pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
-        /*
         println!(
             "Unify vars t1:({}),{:?} t2:({}),{:?}",
-            var_ty1, var1, var_ty2, var2
+            primary, primary_type, secondary, secondary_type
         );
-        */
         let index1 = self.get_index(primary);
         let index2 = self.get_index(secondary);
         if index1 == index2 {
@@ -134,23 +132,6 @@ impl TypeStore {
                 if !self.unify(&f1.to, &f2.to) {
                     return false;
                 }
-            }
-            _ => {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    pub fn unify_variable_with_type(&mut self, var: &TypeVariable, ty: &Type) -> bool {
-        let var_ty = self.get_type(var);
-        match (&var_ty, &ty) {
-            (Type::Int, Type::Int) => {}
-            (Type::String, Type::String) => {}
-            (Type::Bool, Type::Bool) => {}
-            (_, Type::TypeArgument(index)) => unreachable!(),
-            (Type::TypeArgument(index), _) => {
-                self.set_variable_type(var, ty.clone());
             }
             _ => {
                 return false;
