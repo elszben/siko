@@ -372,12 +372,14 @@ impl Error {
                             println!("Expected: {}", format!("{}", expected).yellow());
                             println!("Found: {}", format!("{}", found).yellow());
                         }
-                        TypecheckError::TypeMismatch(id, expected, found) => {
+                        TypecheckError::TypeMismatch(expected_id, found_id, expected, found) => {
                             println!("{} type mismatch in expression", error.red());
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
                             println!("Expected: {}", expected.yellow());
                             println!("Found:    {}", found.yellow());
+                            let location_set = location_info.get_item_location(expected_id);
+                            print_location_set(file_manager, location_set);
+                            let location_set = location_info.get_item_location(found_id);
+                            print_location_set(file_manager, location_set);
                         }
                         TypecheckError::FunctionArgumentMismatch(id, args, func) => {
                             println!("{} invalid argument(s)", error.red());

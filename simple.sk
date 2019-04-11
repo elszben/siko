@@ -7,5 +7,5 @@ qoo :: Int
 qoo = 5
 
 
-qoo2 a :: Int -> a
-qoo2 a = 5
+qoo2  :: Int -> String
+qoo2 a = a
