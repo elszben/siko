@@ -330,8 +330,33 @@ impl Typechecker {
         }
 
         for (_, function_type_info) in &self.function_type_info_map {
-            if let Some(body) = function_type_info.body {
-                let body_var = self.lookup_type_var_for_expr(&body);
+            let body = if let Some(body) = function_type_info.body {
+                body
+            } else {
+                continue;
+            };
+            let body_var = self.lookup_type_var_for_expr(&body);
+            if function_type_info.typed {
+                let copied_result = self.type_store.clone_type_var(function_type_info.result);
+                unify_variables(
+                    &copied_result,
+                    &body_var,
+                    &mut self.type_store,
+                    program,
+                    body,
+                    errors,
+                );
+                if self.type_store.modified() {
+                    report_type_mismatch(
+                        &function_type_info.result,
+                        &body_var,
+                        &mut self.type_store,
+                        program,
+                        body,
+                        errors,
+                    );
+                }
+            } else {
                 unify_variables(
                     &function_type_info.result,
                     &body_var,

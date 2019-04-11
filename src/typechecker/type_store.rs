@@ -21,6 +21,7 @@ pub struct TypeStore {
     var_counter: Counter,
     index_counter: Counter,
     arg_counter: Counter,
+    modified: bool,
 }
 
 impl TypeStore {
@@ -31,7 +32,12 @@ impl TypeStore {
             var_counter: Counter::new(),
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
+            modified: false,
         }
+    }
+
+    pub fn modified(&self) -> bool {
+        self.modified
     }
 
     pub fn get_unique_type_arg(&mut self) -> usize {
@@ -74,7 +80,7 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
+    fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
         let from_index = self.get_index(from);
         let to_index = self.get_index(to);
         for (_, value) in self.variables.iter_mut() {
@@ -84,18 +90,20 @@ impl TypeStore {
         }
     }
 
-    pub fn set_variable_type(&mut self, var: &TypeVariable, ty: Type) {
-        let index = self.get_index(var);
-        self.indices.insert(index, ty);
+    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
+        self.modified = false;
+        self.unify_inner(primary, secondary)
     }
 
-    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
+    pub fn unify_inner(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
+        /*
         println!(
             "Unify vars t1:({}),{:?} t2:({}),{:?}",
             primary, primary_type, secondary, secondary_type
         );
+        */
         let index1 = self.get_index(primary);
         let index2 = self.get_index(secondary);
         if index1 == index2 {
@@ -109,9 +117,11 @@ impl TypeStore {
                 self.merge(primary, secondary);
             }
             (Type::TypeArgument(_), _) => {
+                self.modified = true;
                 self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {
+                self.modified = true;
                 self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
@@ -157,6 +167,27 @@ impl TypeStore {
         let ty = self.get_unique_type_arg_type();
         let var = self.add_type(ty);
         var
+    }
+
+    pub fn clone_type(&mut self, ty: &Type) -> Type {
+        let mut vars = Vec::new();
+        let mut args = Vec::new();
+        ty.collect(&mut vars, &mut args, self);
+        let mut var_map = BTreeMap::new();
+        let mut arg_map = BTreeMap::new();
+        for var in vars {
+            var_map.insert(var, self.allocate_var());
+        }
+        for arg in args {
+            arg_map.insert(arg, self.get_unique_type_arg());
+        }
+        ty.clone_type(&var_map, &arg_map, self)
+    }
+
+    pub fn clone_type_var(&mut self, var: TypeVariable) -> TypeVariable {
+        let ty = self.get_type(&var);
+        let new_ty = self.clone_type(&ty);
+        self.add_type(new_ty)
     }
 
     pub fn dump(&self) {

@@ -4,4 +4,8 @@ id a :: a -> a -> Int -> a
 id a b = a
 
 qoo :: Int
-qoo = "a"
+qoo = 5
+
+
+qoo2 a :: Int -> a
+qoo2 a = 5
