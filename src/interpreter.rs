@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone)]
-struct Callable {
+pub struct Callable {
     function_id: FunctionId,
     values: Vec<Value>,
 }
@@ -26,6 +26,22 @@ pub enum Value {
     String(String),
     Tuple(Vec<Value>),
     Callable(Callable),
+}
+
+impl Value {
+    fn as_int(&self) -> i64 {
+        match self {
+            Value::Int(i) => *i,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_bool(&self) -> bool {
+        match self {
+            Value::Bool(b) => *b,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -44,6 +60,7 @@ impl fmt::Display for Value {
     }
 }
 
+#[derive(Debug)]
 struct Environment<'a> {
     function_id: FunctionId,
     args: Vec<Value>,
@@ -186,7 +203,43 @@ impl Interpreter {
             Expr::ExprValue(ref_expr_id) => {
                 return environment.get_value(ref_expr_id);
             }
+            Expr::If(cond, true_branch, false_branch) => {
+                let cond_value = self.eval_expr(program, *cond, environment);
+                if cond_value.as_bool() {
+                    return self.eval_expr(program, *true_branch, environment);
+                } else {
+                    return self.eval_expr(program, *false_branch, environment);
+                }
+            }
             _ => panic!("{} eval is not implemented", expr),
+        }
+    }
+
+    fn call_extern(&self, module: &str, name: &str, environment: &mut Environment) -> Value {
+        match (module, name) {
+            ("Prelude", "op_add") => {
+                let l = environment.args[0].as_int();
+                let r = environment.args[1].as_int();
+                return Value::Int(l + r);
+            }
+            ("Prelude", "op_sub") => {
+                let l = environment.args[0].as_int();
+                let r = environment.args[1].as_int();
+                return Value::Int(l - r);
+            }
+            ("Prelude", "op_mul") => {
+                let l = environment.args[0].as_int();
+                let r = environment.args[1].as_int();
+                return Value::Int(l * r);
+            }
+            ("Prelude", "op_lessthan") => {
+                let l = environment.args[0].as_int();
+                let r = environment.args[1].as_int();
+                return Value::Bool(l < r);
+            }
+            _ => {
+                panic!("Unimplemented extern function {}/{}", module, name);
+            }
         }
     }
 
@@ -198,7 +251,7 @@ impl Interpreter {
                     return self.eval_expr(program, body, environment);
                 }
                 None => {
-                    panic!("Extern function, not implemented");
+                    return self.call_extern(&info.module, &info.name, environment);
                 }
             },
             _ => unimplemented!(),

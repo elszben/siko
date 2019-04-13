@@ -2,4 +2,4 @@
 
 set -e 
 
-cargo run -- simple.sk $@
+cargo run -- simple.sk std/*.sk $@

@@ -369,8 +369,10 @@ impl Error {
                             println!("Found:    {}", found.yellow());
                             let location_set = location_info.get_item_location(expected_id);
                             print_location_set(file_manager, location_set);
-                            let location_set = location_info.get_item_location(found_id);
-                            print_location_set(file_manager, location_set);
+                            if expected_id != found_id {
+                                let location_set = location_info.get_item_location(found_id);
+                                print_location_set(file_manager, location_set);
+                            }
                         }
                         TypecheckError::FunctionArgumentMismatch(id, args, func) => {
                             println!("{} invalid argument(s)", error.red());

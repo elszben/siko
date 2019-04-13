@@ -554,6 +554,31 @@ impl Typechecker {
                         errors,
                     );
                 }
+                Expr::If(cond_expr, true_branch_expr, false_branch_expr) => {
+                    let bool_var = self.type_store.add_type(Type::Bool);
+                    let cond_var = self.lookup_type_var_for_expr(&cond_expr);
+                    let expr_location_id = program.get_expr_location(cond_expr);
+                    unify_variables(
+                        &bool_var,
+                        &cond_var,
+                        &mut self.type_store,
+                        expr_location_id,
+                        expr_location_id,
+                        errors,
+                    );
+                    let true_var = self.lookup_type_var_for_expr(&true_branch_expr);
+                    let true_expr_location_id = program.get_expr_location(true_branch_expr);
+                    let false_var = self.lookup_type_var_for_expr(&false_branch_expr);
+                    let false_expr_location_id = program.get_expr_location(false_branch_expr);
+                    unify_variables(
+                        &true_var,
+                        &false_var,
+                        &mut self.type_store,
+                        true_expr_location_id,
+                        false_expr_location_id,
+                        errors,
+                    );
+                }
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
                 }
