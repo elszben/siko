@@ -1,3 +1,4 @@
+use crate::constants;
 use crate::error::Error;
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
@@ -251,12 +252,14 @@ impl Typechecker {
             &mut signature_arg_locations,
             arg_locations.len(),
         );
+        /*
         println!(
             "Registering named function {} {} with type {}",
             function_id,
             displayed_name,
             self.type_store.get_resolved_type_string(&func_type_var)
         );
+        */
         let ty = self.type_store.get_type(&func_type_var);
         let function_type_info = match ty {
             Type::Function(func_type) => {
@@ -367,7 +370,7 @@ impl Typechecker {
 
     fn process_expr_and_create_vars(&mut self, program: &Program) {
         for (expr_id, expr_info) in &program.exprs {
-            println!("Processing {} {}", expr_id, expr_info.expr);
+            //println!("Processing {} {}", expr_id, expr_info.expr);
             match &expr_info.expr {
                 Expr::IntegerLiteral(_) => {
                     let var = self.type_store.add_type(Type::Int);
@@ -601,8 +604,50 @@ impl Typechecker {
         assert!(loop_count > 0);
     }
 
-    pub fn check(&mut self, program: &Program) -> Result<(), Error> {
-        let mut errors = Vec::new();
+    fn dump_everything(&self, program: &Program) {
+        for (id, info) in &self.function_type_info_map {
+            println!(
+                "{}/{}: {}",
+                id,
+                info.displayed_name,
+                self.type_store
+                    .get_resolved_type_string(&info.function_type)
+            );
+        }
+
+        for (expr_id, expr_info) in &program.exprs {
+            let var = self.lookup_type_var_for_expr(expr_id);
+            println!(
+                "Expr: {}: {} -> {}",
+                expr_id,
+                expr_info.expr,
+                self.type_store.get_resolved_type_string(&var)
+            );
+        }
+    }
+
+    fn check_main(&self, program: &Program, errors: &mut Vec<TypecheckError>) {
+        let mut main_found = false;
+
+        for (_, function) in &program.functions {
+            match &function.info {
+                FunctionInfo::NamedFunction(info) => {
+                    if info.module == constants::MAIN_MODULE
+                        && info.name == constants::MAIN_FUNCTION
+                    {
+                        main_found = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if !main_found {
+            errors.push(TypecheckError::MainNotFound);
+        }
+    }
+
+    fn process_functions(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         for (id, function) in &program.functions {
             let displayed_name = format!("{}", function.info);
             match &function.info {
@@ -618,7 +663,7 @@ impl Typechecker {
                             type_signature,
                             *id,
                             program,
-                            &mut errors,
+                            errors,
                             i.body,
                         );
                     }
@@ -637,29 +682,20 @@ impl Typechecker {
                 },
             }
         }
+    }
+
+    pub fn check(&mut self, program: &Program) -> Result<(), Error> {
+        let mut errors = Vec::new();
+
+        self.process_functions(program, &mut errors);
 
         self.process_expr_and_create_vars(program);
 
         self.check_constraints(program, &mut errors);
 
-        for (id, info) in &self.function_type_info_map {
-            println!(
-                "{}/{}: {}",
-                id,
-                info.displayed_name,
-                self.type_store
-                    .get_resolved_type_string(&info.function_type)
-            );
-        }
+        //self.dump_everything(program);
 
-        for (expr_id, _) in &program.exprs {
-            let var = self.lookup_type_var_for_expr(expr_id);
-            println!(
-                "Expr: {}: {}",
-                expr_id,
-                self.type_store.get_resolved_type_string(&var)
-            );
-        }
+        self.check_main(program, &mut errors);
 
         if errors.is_empty() {
             Ok(())

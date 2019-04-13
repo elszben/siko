@@ -13,24 +13,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone)]
-pub struct CaptureList {
-    captures: Vec<(String, Value)>,
-}
-
-impl CaptureList {
-    fn new() -> CaptureList {
-        CaptureList {
-            captures: Vec::new(),
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.captures.is_empty()
-    }
-
-    fn add(&mut self, name: String, value: Value) {
-        self.captures.push((name, value));
-    }
+struct Callable {
+    function_id: FunctionId,
+    values: Vec<Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -40,105 +25,7 @@ pub enum Value {
     Bool(bool),
     String(String),
     Tuple(Vec<Value>),
-    Callable(FunctionId, CaptureList),
-}
-
-impl Value {
-    fn eval_binary_op(&self, op: BuiltinOperator, other: &Value) -> Result<Value, Error> {
-        match op {
-            BuiltinOperator::Mul => match self {
-                Value::Int(v1) => match other {
-                    Value::Int(v2) => {
-                        let r = *v1 * *v2;
-                        return Ok(Value::Int(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            BuiltinOperator::Div => match self {
-                Value::Int(v1) => match other {
-                    Value::Int(v2) => {
-                        let r = *v1 / *v2;
-                        return Ok(Value::Int(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            BuiltinOperator::And => match self {
-                Value::Bool(v1) => match other {
-                    Value::Bool(v2) => {
-                        let r = *v1 && *v2;
-                        return Ok(Value::Bool(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            BuiltinOperator::Or => match self {
-                Value::Bool(v1) => match other {
-                    Value::Bool(v2) => {
-                        let r = *v1 || *v2;
-                        return Ok(Value::Bool(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            BuiltinOperator::Equals => match self {
-                Value::Bool(v1) => match other {
-                    Value::Bool(v2) => {
-                        let r = *v1 == *v2;
-                        return Ok(Value::Bool(r));
-                    }
-                    _ => {}
-                },
-                Value::Int(v1) => match other {
-                    Value::Int(v2) => {
-                        let r = *v1 == *v2;
-                        return Ok(Value::Bool(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            BuiltinOperator::NotEquals => match self {
-                Value::Bool(v1) => match other {
-                    Value::Bool(v2) => {
-                        let r = *v1 != *v2;
-                        return Ok(Value::Bool(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            BuiltinOperator::LessThan => match self {
-                Value::Int(v1) => match other {
-                    Value::Int(v2) => {
-                        let r = *v1 < *v2;
-                        return Ok(Value::Bool(r));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-
-            _ => {}
-        }
-        let err = format!(
-            "Unimplemented binary op {:?} for {:?} and {:?}",
-            op, self, other
-        );
-        return Err(Error::runtime_err(err));
-    }
-
-    fn get_bool(&self) -> bool {
-        if let Value::Bool(b) = self {
-            return *b;
-        }
-        panic!("{} is not a bool", self);
-    }
+    Callable(Callable),
 }
 
 impl fmt::Display for Value {
@@ -152,7 +39,7 @@ impl fmt::Display for Value {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
                 write!(f, "({})", ss.join(", "))
             }
-            Value::Callable(v, captures) => write!(f, "{:?} {:?}", v, captures),
+            Value::Callable(callable) => write!(f, "{:?}", callable),
         }
     }
 }
@@ -160,25 +47,25 @@ impl fmt::Display for Value {
 struct Environment<'a> {
     function_id: FunctionId,
     args: Vec<Value>,
-    variables: BTreeMap<String, Value>,
+    variables: BTreeMap<ExprId, Value>,
     parent: Option<&'a Environment<'a>>,
 }
 
 impl<'a> Environment<'a> {
-    fn new(function_id: FunctionId) -> Environment<'a> {
+    fn new(function_id: FunctionId, args: Vec<Value>) -> Environment<'a> {
         Environment {
             function_id: function_id,
-            args: Vec::new(),
+            args: args,
             variables: BTreeMap::new(),
             parent: None,
         }
     }
 
-    fn add(&mut self, var: String, value: Value) {
+    fn add(&mut self, var: ExprId, value: Value) {
         self.variables.insert(var, value);
     }
 
-    fn get_value(&self, var: &str) -> Value {
+    fn get_value(&self, var: &ExprId) -> Value {
         if let Some(value) = self.variables.get(var) {
             return value.clone();
         } else {
@@ -198,6 +85,15 @@ impl<'a> Environment<'a> {
         Environment {
             function_id: function_id,
             args: args,
+            variables: BTreeMap::new(),
+            parent: Some(parent),
+        }
+    }
+
+    fn block_child(parent: &'a Environment<'a>) -> Environment<'a> {
+        Environment {
+            function_id: parent.function_id,
+            args: parent.args.clone(),
             variables: BTreeMap::new(),
             parent: Some(parent),
         }
@@ -224,210 +120,22 @@ impl Interpreter {
         Interpreter {}
     }
 
-    /*
-
-    fn call_callable(
-        &self,
-        callable: &Value,
-        arg_values: &[Value],
-        program: &Program,
-        environment: &Environment,
-    ) -> Result<Value, Error> {
-        let (id, captures) = if let Value::Callable(id, captures) = callable {
-            (id, captures)
-        } else {
-            return Err(Error::runtime_err(format!("Cannot call {:?}", callable)));
-        };
-        match id {
-            FunctionId::NamedFunctionId(function_id) => {
-                let function =
-                    program.get_function(&function_id.module_name, &function_id.function_name);
-                let mut environment = Environment::child(environment);
-                if arg_values.len() != function.args.len() {
-                    let err = format!(
-                        "Unexpected argument count {} != {}",
-                        arg_values.len(),
-                        function.args.len()
-                    );
-                    return Err(Error::runtime_err(err));
+    fn call(&self, callable: Value, args: Vec<Value>, program: &Program) -> Value {
+        match callable {
+            Value::Callable(mut callable) => {
+                let func_info = program.get_function(&callable.function_id);
+                callable.values.extend(args);
+                if func_info.arg_locations.len() > callable.values.len() {
+                    Value::Callable(callable)
+                } else {
+                    assert_eq!(func_info.arg_locations.len(), (callable.values.len()));
+                    let mut environment = Environment::new(callable.function_id, callable.values);
+                    return self.execute(program, callable.function_id, &mut environment);
                 }
-                for (arg_value, arg_name) in arg_values.into_iter().zip(function.args.iter()) {
-                    environment.add(arg_name.0.clone(), arg_value.clone());
-                }
-                return self.execute(program, function, &mut environment);
             }
-            /*
-            FunctionId::Builtin(op) => {
-                if *op == BuiltinOperator::Not {
-                    let v = arg_values[0].get_bool();
-                    return Ok(Value::Bool(!v));
-                } else if *op == BuiltinOperator::PipeForward {
-                    let value = arg_values[0].clone();
-                    let callable = &arg_values[1];
-                    return self.call_callable(callable, &[value], program, environment);
-                }
-                let left = &arg_values[0];
-                let right = &arg_values[1];
-                return left.eval_binary_op(*op, right);
-            }
-            */
-    FunctionId::Lambda(name) => {
-    let function = program.get_lambda(name);
-    let mut environment = Environment::child(environment);
-    if arg_values.len() != function.args.len() {
-    let err = format!(
-    "Unexpected argument count for lambda {} != {}",
-    arg_values.len(),
-    function.args.len()
-    );
-    return Err(Error::runtime_err(err));
+            _ => unreachable!(),
+        }
     }
-    for (arg_value, arg_name) in arg_values.into_iter().zip(function.args.iter()) {
-    environment.add(arg_name.0.clone(), arg_value.clone());
-    }
-    for (name, value) in captures.captures.clone() {
-    environment.add(name, value);
-    }
-    return self.execute(program, function, &mut environment);
-    }
-    }
-    }
-
-    fn evaluate(
-    &self,
-    program: &Program,
-    expr: &Expr,
-    environment: &mut Environment,
-    ) -> Result<Value, Error> {
-    match expr {
-    Expr::Lambda(capture_names, function_id) => {
-    let mut captures = CaptureList::new();
-    for name in capture_names {
-    let value = environment.get_value(name);
-    captures.add(name.clone(), value);
-    }
-    return Ok(Value::Callable(function_id.clone(), captures));
-    }
-    Expr::FunctionCall(function_id_expr, args) => {
-    let callable = self.evaluate(program, function_id_expr, environment)?;
-    let mut arg_values = Vec::new();
-    for arg in args.iter() {
-    let value = self.evaluate(program, arg, environment)?;
-    arg_values.push(value);
-    }
-    return self.call_callable(&callable, &arg_values[..], program, environment);
-    }
-    Expr::If(cond, true_branch, false_branch) => {
-    let cond_value = self.evaluate(program, cond, environment)?;
-    let v = cond_value.get_bool();
-    if v {
-    return self.evaluate(program, true_branch, environment);
-    } else {
-    return self.evaluate(program, false_branch, environment);
-    }
-    }
-    Expr::IntegerLiteral(value, _) => {
-    return Ok(Value::Int(value.clone()));
-    }
-    Expr::BoolLiteral(value, _) => {
-    return Ok(Value::Bool(value.clone()));
-    }
-    Expr::StringLiteral(value, _) => {
-    return Ok(Value::String(value.clone()));
-    }
-    Expr::Do(exprs) => {
-    let mut environment = Environment::child(environment);
-    let mut last = Value::Tuple(vec![]);
-    for expr in exprs.iter() {
-    last = self.evaluate(program, expr, &mut environment)?;
-    match &last {
-    Value::Callable(id, captures) => {
-    if let FunctionId::NamedFunctionId(id) = id {
-    let function =
-    program.get_function(&id.module_name, &id.function_name);
-    if function.args.is_empty() {
-    // no argument functions cannot be lambda functions
-    assert!(captures.is_empty());
-    last = self.execute(program, function, &mut environment)?;
-    }
-    }
-    }
-    _ => {}
-    }
-    }
-    return Ok(last);
-    }
-    Expr::Bind((name, _), expr) => {
-    let value = self.evaluate(program, expr, environment)?;
-    environment.add(name.clone(), value);
-    return Ok(Value::Tuple(vec![]));
-    }
-    Expr::VariableRef(name, _) => {
-    let value = environment.get_value(name);
-    return Ok(value);
-    }
-    Expr::FunctionRef(function_id, _) => {
-    return Ok(Value::Callable(function_id.clone(), CaptureList::new()));
-    }
-    _ => panic!("Unimplemented expr evaluation {:?}", expr),
-    }
-    }
-
-    fn execute(
-    &self,
-    program: &Program,
-    function: &Function,
-    environment: &mut Environment,
-    ) -> Result<Value, Error> {
-    match &function.body {
-    FunctionBody::Expr(expr) => {
-    return self.evaluate(program, expr, environment);
-    }
-    FunctionBody::Extern => {
-    match function.module.as_ref() {
-    "Std.IO" => match function.name.as_ref() {
-    "print" => {
-    let value = environment.get_value("msg");
-    println!("{}", value);
-    return Ok(Value::Tuple(vec![]));
-    }
-    _ => {}
-    },
-    "Std.Util" => match function.name.as_ref() {
-    "assert" => {
-    let v = environment.get_value("value");
-    if !v.get_bool() {
-    panic!("Assertion failed");
-    }
-    return Ok(Value::Tuple(vec![]));
-    }
-    _ => {}
-    },
-    "Prelude" => match function.name.as_ref() {
-    "op_add" => {
-    let x = environment.get_value("x");
-    let y = environment.get_value("y");
-    match x {
-    Value::Int(v1) => match y {
-    Value::Int(v2) => {
-    let r = v1 + v2;
-    return Ok(Value::Int(r));
-    }
-    _ => {}
-    },
-    _ => {}
-    }
-    }
-    _ => {}
-    },
-    _ => {}
-    }
-    panic!("Unimplemented extern function {}", function.name);
-    }
-    }
-    }
-
-    */
 
     fn eval_expr(
         &self,
@@ -436,7 +144,7 @@ impl Interpreter {
         environment: &mut Environment,
     ) -> Value {
         let expr = program.get_expr(&expr_id);
-        println!("Eval {}", expr);
+        // println!("Eval {}", expr);
         match expr {
             Expr::IntegerLiteral(v) => Value::Int(*v),
             Expr::StringLiteral(v) => Value::String(v.clone()),
@@ -444,12 +152,39 @@ impl Interpreter {
                 return environment.get_arg(arg_ref);
             }
             Expr::StaticFunctionCall(function_id, args) => {
+                let callable = Value::Callable(Callable {
+                    function_id: *function_id,
+                    values: vec![],
+                });
                 let arg_values: Vec<_> = args
                     .iter()
                     .map(|arg| self.eval_expr(program, *arg, environment))
                     .collect();
-                let mut environment = Environment::child(environment, arg_values, *function_id);
-                return self.execute(program, *function_id, &mut environment);
+                return self.call(callable, arg_values, program);
+            }
+            Expr::DynamicFunctionCall(function_expr_id, args) => {
+                let function_expr_id = self.eval_expr(program, *function_expr_id, environment);
+                let arg_values: Vec<_> = args
+                    .iter()
+                    .map(|arg| self.eval_expr(program, *arg, environment))
+                    .collect();
+                return self.call(function_expr_id, arg_values, program);
+            }
+            Expr::Do(exprs) => {
+                let mut environment = Environment::block_child(environment);
+                let mut result = Value::Bool(false);
+                for expr in exprs {
+                    result = self.eval_expr(program, *expr, &mut environment);
+                }
+                return result;
+            }
+            Expr::Bind(_, id) => {
+                let value = self.eval_expr(program, *id, environment);
+                environment.add(*id, value);
+                return Value::Tuple(vec![]);
+            }
+            Expr::ExprValue(ref_expr_id) => {
+                return environment.get_value(ref_expr_id);
             }
             _ => panic!("{} eval is not implemented", expr),
         }
@@ -477,7 +212,7 @@ impl Interpreter {
                     if info.module == constants::MAIN_MODULE
                         && info.name == constants::MAIN_FUNCTION
                     {
-                        let mut environment = Environment::new(*id);
+                        let mut environment = Environment::new(*id, vec![]);
                         return self.execute(program, *id, &mut environment);
                     }
                 }

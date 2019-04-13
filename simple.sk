@@ -6,8 +6,7 @@ a a b c = 5
 foo a :: a -> Int
 foo a = 5
 
-id :: Int
-id = do
+main = do
      b <- a 5 5
      b 4 
      foo 5

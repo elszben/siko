@@ -363,17 +363,6 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError::TooManyArguments(id, name, expected, found) => {
-                            println!(
-                                "{} too many arguments given for {}",
-                                error.red(),
-                                name.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                            println!("Expected: {}", format!("{}", expected).yellow());
-                            println!("Found: {}", format!("{}", found).yellow());
-                        }
                         TypecheckError::TypeMismatch(expected_id, found_id, expected, found) => {
                             println!("{} type mismatch in expression", error.red());
                             println!("Expected: {}", expected.yellow());
@@ -389,15 +378,6 @@ impl Error {
                             print_location_set(file_manager, location_set);
                             println!("Argument(s):      {}", args.yellow());
                             println!("Function type:    {}", func.yellow());
-                        }
-                        TypecheckError::NotCallableType(id, ty) => {
-                            println!(
-                                "{} trying to call a non-callable type {}",
-                                error.red(),
-                                ty.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
                         }
                         TypecheckError::FunctionArgAndSignatureMismatch(
                             name,
@@ -420,6 +400,14 @@ impl Error {
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::MainNotFound => {
+                            println!(
+                                "{} {} function in module {} not found",
+                                error.red(),
+                                "main".yellow(),
+                                "Main".yellow()
+                            );
                         }
                     }
                 }
