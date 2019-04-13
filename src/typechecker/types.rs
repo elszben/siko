@@ -134,6 +134,46 @@ impl Type {
             Type::FixedTypeArgument(_, name) => format!("{}", name),
         }
     }
+
+    pub fn check_recursion(&self, vars: &Vec<TypeVariable>, type_store: &TypeStore) -> bool {
+        fn check_sub_var(
+            var: &TypeVariable,
+            vars: &Vec<TypeVariable>,
+            type_store: &TypeStore,
+        ) -> bool {
+            if vars.contains(var) {
+                return true;
+            }
+            if type_store.is_recursive(*var) {
+                return true;
+            }
+            false
+        }
+
+        match self {
+            Type::Int => false,
+            Type::Float => false,
+            Type::Bool => false,
+            Type::String => false,
+            Type::Nothing => false,
+            Type::Tuple(type_vars) => {
+                for var in type_vars {
+                    if check_sub_var(var, vars, type_store) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Function(func_type) => {
+                if check_sub_var(&func_type.from, vars, type_store) {
+                    return true;
+                }
+                check_sub_var(&func_type.to, vars, type_store)
+            }
+            Type::TypeArgument(..) => false,
+            Type::FixedTypeArgument(..) => false,
+        }
+    }
 }
 
 impl fmt::Display for Type {

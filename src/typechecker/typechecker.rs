@@ -292,6 +292,24 @@ impl Typechecker {
             .insert(function_id, function_type_info);
     }
 
+    fn create_general_function_type(
+        &mut self,
+        arg_count: usize,
+        args: &mut Vec<TypeVariable>,
+    ) -> (TypeVariable, TypeVariable) {
+        if arg_count > 0 {
+            let from_var = self.type_store.get_new_type_var();
+            args.push(from_var);
+            let (to_var, result) = self.create_general_function_type(arg_count - 1, args);
+            let func_ty = Type::Function(FunctionType::new(from_var, to_var));
+            let func_var = self.type_store.add_type(func_ty);
+            (func_var, result)
+        } else {
+            let v = self.type_store.get_new_type_var();
+            (v, v)
+        }
+    }
+
     fn register_untyped_function(
         &mut self,
         name: String,
@@ -300,27 +318,9 @@ impl Typechecker {
         body: ExprId,
     ) {
         let mut args = Vec::new();
-        for _ in 0..function.arg_locations.len() {
-            let arg_var = self.type_store.get_new_type_var();
-            args.push(arg_var);
-        }
-        let result = self.type_store.get_new_type_var();
-        let func_type_var = if function.arg_locations.len() > 0 {
-            let mut vars = args.clone();
-            vars.push(result);
-            while vars.len() > 1 {
-                let from = vars[vars.len() - 2];
-                let to = vars[vars.len() - 1];
-                let func = Type::Function(FunctionType::new(from, to));
-                let var = self.type_store.add_type(func);
-                let index = vars.len() - 2;
-                vars[index] = var;
-                vars.pop();
-            }
-            vars[0]
-        } else {
-            result
-        };
+
+        let (func_type_var, result) =
+            self.create_general_function_type(function.arg_locations.len(), &mut args);
         let function_type_info = FunctionTypeInfo::new(
             name,
             args,
@@ -329,6 +329,10 @@ impl Typechecker {
             result,
             func_type_var,
             Some(body),
+        );
+        println!(
+            "base type {}",
+            self.type_store.get_resolved_type_string(&func_type_var)
         );
         self.function_type_info_map.insert(id, function_type_info);
     }
@@ -378,6 +382,43 @@ impl Typechecker {
                             panic!("Non typed argument failed to unify with argref");
                         }
                     }
+                    Expr::DynamicFunctionCall(callable_expr_id, args) => {
+                        let mut gen_args = Vec::new();
+                        let (func_type_var, result) =
+                            self.create_general_function_type(args.len(), &mut gen_args);
+                        let callable_expr_var = self.lookup_type_var_for_expr(callable_expr_id);
+                        let callable_location_id = program.get_expr_location(callable_expr_id);
+                        unify_variables(
+                            &func_type_var,
+                            &callable_expr_var,
+                            &mut self.type_store,
+                            callable_location_id,
+                            callable_location_id,
+                            errors,
+                        );
+                        let expr_var = self.lookup_type_var_for_expr(expr_id);
+                        let expr_location_id = program.get_expr_location(expr_id);
+                        println!("{}", line!());
+                        unify_variables(
+                            &expr_var,
+                            &result,
+                            &mut self.type_store,
+                            expr_location_id,
+                            expr_location_id,
+                            errors,
+                        );
+                        for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
+                            let arg_var = self.lookup_type_var_for_expr(arg);
+                            unify_variables(
+                                &arg_var,
+                                &gen_arg,
+                                &mut self.type_store,
+                                expr_location_id,
+                                expr_location_id,
+                                errors,
+                            );
+                        }
+                    }
                     _ => {
                         panic!("Unimplemented expr {}", expr_info.expr);
                     }
@@ -403,6 +444,12 @@ impl Typechecker {
                     errors,
                 );
             } else {
+                println!(
+                    "b result {} {}",
+                    self.type_store
+                        .get_resolved_type_string(&function_type_info.result),
+                    self.type_store.get_resolved_type_string(&body_var),
+                );
                 unify_variables(
                     &function_type_info.result,
                     &body_var,
@@ -410,6 +457,12 @@ impl Typechecker {
                     location_id,
                     location_id,
                     errors,
+                );
+                println!(
+                    "a result {} {}",
+                    self.type_store
+                        .get_resolved_type_string(&function_type_info.result),
+                    self.type_store.get_resolved_type_string(&body_var),
                 );
             }
         }

@@ -1,4 +1,3 @@
 module Main where
 
-id a :: a -> Int -> a
-id a = a
+foo a b = a a

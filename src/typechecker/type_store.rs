@@ -98,10 +98,12 @@ impl TypeStore {
     pub fn unify_inner(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
+        /*
         println!(
             "Unify vars t1:({}),{:?} t2:({}),{:?}",
             primary, primary_type, secondary, secondary_type
         );
+        */
         let index1 = self.get_index(primary);
         let index2 = self.get_index(secondary);
         if index1 == index2 {
@@ -157,6 +159,9 @@ impl TypeStore {
     }
 
     pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
+        if self.is_recursive(*var) {
+            return format!("<recursive type>");
+        }
         let ty = self.get_type(var);
         ty.as_string(self, false)
     }
@@ -192,5 +197,11 @@ impl TypeStore {
         for (var, _) in &self.variables {
             println!("{} => {}", var, self.get_resolved_type_string(var));
         }
+    }
+
+    pub fn is_recursive(&self, var: TypeVariable) -> bool {
+        let ty = self.get_type(&var);
+        let vars = vec![var];
+        ty.check_recursion(&vars, self)
     }
 }
