@@ -410,6 +410,8 @@ impl Typechecker {
                         .type_store
                         .clone_type_var(target_function_type_info.function_type);
                     let expr_location_id = program.get_expr_location(expr_id);
+                    self.print_type(func_type_var, "func_type_var");
+                    self.print_type(cloned, "cloned");
                     let mut failed = false;
                     if self.type_store.unify(&func_type_var, &cloned, false) {
                         let expr_var = self.lookup_type_var_for_expr(expr_id);
@@ -420,7 +422,11 @@ impl Typechecker {
                                     failed = true;
                                 }
                             }
+                        } else {
+                            failed = true;
                         }
+                    } else {
+                        failed = true;
                     }
                     if failed {
                         let mut arg_strs = Vec::new();
