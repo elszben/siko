@@ -8,10 +8,12 @@ use crate::parser::error::LexerError;
 use crate::typechecker::error::TypecheckError;
 use crate::util::format_list;
 use colored::*;
+use std::cmp;
 use std::convert::From;
 use std::io::Error as IoError;
 
 fn s_from_range(chars: &[char], start: usize, end: usize) -> String {
+    let start = cmp::min(start, end);
     let subs = &chars[start..end];
     let s: String = subs.iter().collect();
     s

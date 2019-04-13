@@ -70,9 +70,9 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
             break;
         }
     }
-    parser.expect(TokenKind::EndOfBlock)?;
     let expr = Expr::Do(exprs);
     let id = parser.add_expr(expr, start_index);
+    parser.expect(TokenKind::EndOfBlock)?;
     Ok(id)
 }
 

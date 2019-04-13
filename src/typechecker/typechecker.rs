@@ -11,6 +11,7 @@ use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
+use crate::typechecker::type_store::ProgressTrackingMode;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
@@ -113,7 +114,7 @@ fn unify_variables(
     found_id: LocationId,
     errors: &mut Vec<TypecheckError>,
 ) {
-    if !type_store.unify(&found, &expected, true) {
+    if !type_store.unify(&found, &expected, ProgressTrackingMode::All) {
         report_type_mismatch(expected, found, type_store, expected_id, found_id, errors);
     }
 }
@@ -393,7 +394,7 @@ impl Typechecker {
 
     fn check_exprs(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         for (expr_id, expr_info) in &program.exprs {
-            println!("Checking {} {}", expr_id, expr_info.expr);
+            // println!("Checking {} {}", expr_id, expr_info.expr);
             match &expr_info.expr {
                 Expr::IntegerLiteral(_) => {}
                 Expr::BoolLiteral(_) => {}
@@ -410,16 +411,26 @@ impl Typechecker {
                         .type_store
                         .clone_type_var(target_function_type_info.function_type);
                     let expr_location_id = program.get_expr_location(expr_id);
-                    self.print_type(func_type_var, "func_type_var");
-                    self.print_type(cloned, "cloned");
                     let mut failed = false;
-                    if self.type_store.unify(&func_type_var, &cloned, false) {
+                    if self
+                        .type_store
+                        .unify(&func_type_var, &cloned, ProgressTrackingMode::None)
+                    {
                         let expr_var = self.lookup_type_var_for_expr(expr_id);
-                        if self.type_store.unify(&expr_var, &result, true) {
+                        if self.type_store.unify(
+                            &expr_var,
+                            &result,
+                            ProgressTrackingMode::PrimaryOnly,
+                        ) {
                             for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
                                 let arg_var = self.lookup_type_var_for_expr(arg);
-                                if !self.type_store.unify(&arg_var, gen_arg, true) {
+                                if !self.type_store.unify(
+                                    &arg_var,
+                                    gen_arg,
+                                    ProgressTrackingMode::PrimaryOnly,
+                                ) {
                                     failed = true;
+                                    break;
                                 }
                             }
                         } else {
@@ -454,7 +465,10 @@ impl Typechecker {
                         .expect("Function type info not found");
                     let arg_var = function_type_info.args[arg_ref.index];
                     let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    if !self.type_store.unify(&arg_var, &expr_var, true) {
+                    if !self
+                        .type_store
+                        .unify(&arg_var, &expr_var, ProgressTrackingMode::All)
+                    {
                         panic!("Non typed argument failed to unify with argref");
                     }
                 }
@@ -493,6 +507,49 @@ impl Typechecker {
                             errors,
                         );
                     }
+                }
+                Expr::Do(exprs) => {
+                    let last_expr_id = exprs[exprs.len() - 1];
+                    let expr_var = self.lookup_type_var_for_expr(expr_id);
+                    let last_expr_var = self.lookup_type_var_for_expr(&last_expr_id);
+                    let expr_location_id = program.get_expr_location(expr_id);
+                    let last_expr_location_id = program.get_expr_location(&last_expr_id);
+                    unify_variables(
+                        &expr_var,
+                        &last_expr_var,
+                        &mut self.type_store,
+                        expr_location_id,
+                        last_expr_location_id,
+                        errors,
+                    );
+                }
+                Expr::Bind(_, rhs_expr_id) => {
+                    let expr_var = self.lookup_type_var_for_expr(expr_id);
+                    let rhs_expr_var = self.lookup_type_var_for_expr(&rhs_expr_id);
+                    let expr_location_id = program.get_expr_location(expr_id);
+                    let last_expr_location_id = program.get_expr_location(&rhs_expr_id);
+                    unify_variables(
+                        &expr_var,
+                        &rhs_expr_var,
+                        &mut self.type_store,
+                        expr_location_id,
+                        last_expr_location_id,
+                        errors,
+                    );
+                }
+                Expr::ExprValue(ref_expr_id) => {
+                    let expr_var = self.lookup_type_var_for_expr(expr_id);
+                    let ref_expr_var = self.lookup_type_var_for_expr(&ref_expr_id);
+                    let expr_location_id = program.get_expr_location(expr_id);
+                    let last_expr_location_id = program.get_expr_location(&ref_expr_id);
+                    unify_variables(
+                        &expr_var,
+                        &ref_expr_var,
+                        &mut self.type_store,
+                        expr_location_id,
+                        last_expr_location_id,
+                        errors,
+                    );
                 }
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
@@ -534,12 +591,14 @@ impl Typechecker {
 
     fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         let mut primary_modified = true;
-        while primary_modified && errors.is_empty() {
+        let mut loop_count = 10;
+        while primary_modified && errors.is_empty() && loop_count > 0 {
             self.check_exprs(program, errors);
             self.check_body_and_result(program, errors);
-
+            loop_count -= 1;
             primary_modified = self.progress_checker.get_and_unset();
         }
+        assert!(loop_count > 0);
     }
 
     pub fn check(&mut self, program: &Program) -> Result<(), Error> {
