@@ -322,31 +322,20 @@ impl<'a> Parser<'a> {
 
     fn parse_function_type(&mut self, parsing_variant: bool) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
-        let mut parts = Vec::new();
-        loop {
-            let part = self.parse_type_part(parsing_variant)?;
-            parts.push(part);
-            if let Some(next) = self.peek() {
-                match next.token {
-                    Token::Op(BuiltinOperator::Arrow) => {
-                        self.advance()?;
-                    }
-                    _ => {
-                        break;
-                    }
+        let mut from = self.parse_type_part(parsing_variant)?;
+        if let Some(next) = self.peek() {
+            match next.token {
+                Token::Op(BuiltinOperator::Arrow) => {
+                    self.advance()?;
+                    let to = self.parse_function_type(parsing_variant)?;
+                    let ty = TypeSignature::Function(from, to);
+                    let ty = self.add_type_signature(ty, start_index);
+                    from = ty;
                 }
+                _ => {}
             }
         }
-        let id: TypeSignatureId = match parts.len() {
-            0 => unreachable!(),
-            1 => parts.pop().unwrap(),
-            _ => {
-                let type_signature = TypeSignature::Function(parts);
-                let id = self.add_type_signature(type_signature, start_index);
-                id
-            }
-        };
-        Ok(id)
+        Ok(from)
     }
 
     fn parse_type_part(&mut self, parsing_variant: bool) -> Result<TypeSignatureId, Error> {

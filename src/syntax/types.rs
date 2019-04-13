@@ -9,5 +9,5 @@ pub enum TypeSignature {
     Named(String, Vec<TypeSignatureId>),
     Variant(String, Vec<TypeSignatureId>),
     Tuple(Vec<TypeSignatureId>),
-    Function(Vec<TypeSignatureId>),
+    Function(TypeSignatureId, TypeSignatureId),
 }

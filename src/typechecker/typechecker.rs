@@ -118,43 +118,13 @@ impl Typechecker {
             .expect("Type var for expr not found")
     }
 
-    fn process_function_signature_part(
-        &mut self,
-        type_signature_ids: &[TypeSignatureId],
-        program: &Program,
-        arg_map: &mut BTreeMap<usize, TypeVariable>,
-        signature_arg_locations: &mut Vec<LocationId>,
-    ) -> (TypeVariable, LocationId) {
-        if type_signature_ids.len() < 2 {
-            return self.process_type_signature(
-                &type_signature_ids[0],
-                program,
-                arg_map,
-                signature_arg_locations,
-            );
-        } else {
-            let from = &type_signature_ids[0];
-            let location_id = program.get_type_signature_location(from);
-            signature_arg_locations.push(location_id);
-            let (from, _) =
-                self.process_type_signature(&from, program, arg_map, signature_arg_locations);
-            let (to, to_location_id) = self.process_function_signature_part(
-                &type_signature_ids[1..],
-                program,
-                arg_map,
-                signature_arg_locations,
-            );
-            let ty = Type::Function(FunctionType::new(from, to));
-            return (self.type_store.add_type(ty), to_location_id);
-        }
-    }
-
     fn process_type_signature(
         &mut self,
         type_signature_id: &TypeSignatureId,
         program: &Program,
         arg_map: &mut BTreeMap<usize, TypeVariable>,
         signature_arg_locations: &mut Vec<LocationId>,
+        arg_count: usize,
     ) -> (TypeVariable, LocationId) {
         let type_signature = program.get_type_signature(type_signature_id);
         let location_id = program.get_type_signature_location(type_signature_id);
@@ -179,20 +149,36 @@ impl Typechecker {
                 let items: Vec<_> = items
                     .iter()
                     .map(|i| {
-                        self.process_type_signature(i, program, arg_map, signature_arg_locations)
+                        self.process_type_signature(
+                            i,
+                            program,
+                            arg_map,
+                            signature_arg_locations,
+                            arg_count,
+                        )
                     })
                     .map(|(i, _)| i)
                     .collect();
                 let ty = Type::Tuple(items);
                 return (self.type_store.add_type(ty), location_id);
             }
-            TypeSignature::Function(items) => {
-                return self.process_function_signature_part(
-                    &items[..],
+            TypeSignature::Function(from, to) => {
+                let (from_var, _) =
+                    self.process_type_signature(from, program, arg_map, signature_arg_locations, 0);
+                let (to_var, _) = self.process_type_signature(
+                    to,
                     program,
                     arg_map,
                     signature_arg_locations,
+                    if arg_count > 0 { arg_count - 1 } else { 0 },
                 );
+                if arg_count > 0 {
+                    let from_location_id = program.get_type_signature_location(from);
+                    signature_arg_locations.push(from_location_id);
+                }
+                let to_location_id = program.get_type_signature_location(to);
+                let ty = Type::Function(FunctionType::new(from_var, to_var));
+                return (self.type_store.add_type(ty), to_location_id);
             }
             TypeSignature::TypeArgument(index, name) => {
                 let var = arg_map.entry(*index).or_insert_with(|| {
@@ -231,6 +217,7 @@ impl Typechecker {
             program,
             &mut arg_map,
             &mut signature_arg_locations,
+            arg_locations.len(),
         );
         println!(
             "Registering named function {} {} with type {}",
@@ -261,7 +248,7 @@ impl Typechecker {
                 let arg_vars: Vec<_> = signature_vars
                     .iter()
                     .take(arg_locations.len())
-                    .map(|v| self.type_store.clone_type_var(*v))
+                    .cloned()
                     .collect();
 
                 let return_value_var = func_type.get_return_type(&self.type_store, arg_vars.len());

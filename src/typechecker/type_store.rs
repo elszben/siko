@@ -98,12 +98,10 @@ impl TypeStore {
     pub fn unify_inner(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
-        /*
         println!(
             "Unify vars t1:({}),{:?} t2:({}),{:?}",
             primary, primary_type, secondary, secondary_type
         );
-        */
         let index1 = self.get_index(primary);
         let index2 = self.get_index(secondary);
         if index1 == index2 {

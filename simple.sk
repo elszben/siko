@@ -1,11 +1,4 @@
 module Main where
 
-id a :: a -> a -> Int -> a
-id a b = a
-
-qoo :: Int
-qoo = 5
-
-
-qoo2  :: Int -> String
-qoo2 a = a
+id a :: a -> Int -> a
+id a = a

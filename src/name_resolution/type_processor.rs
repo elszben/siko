@@ -167,27 +167,36 @@ fn process_type_signature(
             }
             IrTypeSignature::Tuple(item_ids)
         }
-        AstTypeSignature::Function(items) => {
-            let mut item_ids = Vec::new();
-            for item in items {
-                match process_type_signature(
-                    item,
-                    program,
-                    ir_program,
-                    module,
-                    type_args,
-                    errors,
-                    used_type_args,
-                ) {
-                    Some(id) => {
-                        item_ids.push(id);
-                    }
-                    None => {
-                        return None;
-                    }
+        AstTypeSignature::Function(from, to) => {
+            let ir_from = match process_type_signature(
+                from,
+                program,
+                ir_program,
+                module,
+                type_args,
+                errors,
+                used_type_args,
+            ) {
+                Some(id) => id,
+                None => {
+                    return None;
                 }
-            }
-            IrTypeSignature::Function(item_ids)
+            };
+            let ir_to = match process_type_signature(
+                to,
+                program,
+                ir_program,
+                module,
+                type_args,
+                errors,
+                used_type_args,
+            ) {
+                Some(id) => id,
+                None => {
+                    return None;
+                }
+            };
+            IrTypeSignature::Function(ir_from, ir_to)
         }
     };
     let id = ir_program.get_type_signature_id();
