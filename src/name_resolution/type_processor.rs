@@ -55,7 +55,7 @@ fn process_type_signature(
             _ => {
                 if let Some(index) = type_args.get(name) {
                     used_type_args.insert(name.clone());
-                    IrTypeSignature::TypeArgument(*index)
+                    IrTypeSignature::TypeArgument(*index, name.clone())
                 } else {
                     match module.imported_items.get(name) {
                         Some(items) => {
@@ -197,7 +197,7 @@ fn process_type_signature(
 }
 
 pub fn process_type_signatures(
-    original_type_args: &[String],
+    original_type_args: &[(String, LocationId)],
     type_signature_ids: &[TypeSignatureId],
     program: &Program,
     ir_program: &mut IrProgram,
@@ -209,8 +209,8 @@ pub fn process_type_signatures(
     let mut type_args = BTreeMap::new();
     let mut conflicting_names = BTreeSet::new();
     for (index, type_arg) in original_type_args.iter().enumerate() {
-        if type_args.insert(type_arg.clone(), index).is_some() {
-            conflicting_names.insert(type_arg.clone());
+        if type_args.insert(type_arg.0.clone(), index).is_some() {
+            conflicting_names.insert(type_arg.0.clone());
         }
     }
     if !conflicting_names.is_empty() {

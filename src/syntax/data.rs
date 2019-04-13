@@ -10,7 +10,7 @@ pub enum Data {
 pub struct Adt {
     pub name: String,
     pub id: AdtId,
-    pub type_args: Vec<String>,
+    pub type_args: Vec<(String, LocationId)>,
     pub variants: Vec<VariantId>,
     pub location_id: LocationId,
 }
@@ -37,7 +37,7 @@ pub struct VariantId {
 pub struct Record {
     pub name: String,
     pub id: RecordId,
-    pub type_args: Vec<String>,
+    pub type_args: Vec<(String, LocationId)>,
     pub fields: Vec<RecordField>,
     pub location_id: LocationId,
 }

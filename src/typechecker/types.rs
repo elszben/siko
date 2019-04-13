@@ -14,6 +14,7 @@ pub enum Type {
     Tuple(Vec<TypeVariable>),
     Function(FunctionType),
     TypeArgument(usize),
+    FixedTypeArgument(usize, String),
 }
 
 impl Type {
@@ -62,6 +63,12 @@ impl Type {
                     .expect("Type argument not found during clone");
                 Type::TypeArgument(*new_index)
             }
+            Type::FixedTypeArgument(index, _) => {
+                let new_index = args
+                    .get(index)
+                    .expect("Type argument not found during clone");
+                Type::TypeArgument(*new_index)
+            }
         }
     }
 
@@ -94,6 +101,7 @@ impl Type {
             Type::TypeArgument(index) => {
                 args.push(*index);
             }
+            Type::FixedTypeArgument(index, _) => args.push(*index),
         }
     }
 
@@ -123,6 +131,7 @@ impl Type {
                 }
             }
             Type::TypeArgument(index) => format!("t{}", index),
+            Type::FixedTypeArgument(_, name) => format!("{}", name),
         }
     }
 }
@@ -141,6 +150,7 @@ impl fmt::Display for Type {
             }
             Type::Function(func_type) => write!(f, "{}", func_type),
             Type::TypeArgument(index) => write!(f, "t{}", index),
+            Type::FixedTypeArgument(_, name) => write!(f, "{}", name),
         }
     }
 }

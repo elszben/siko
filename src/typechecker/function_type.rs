@@ -14,11 +14,15 @@ impl FunctionType {
         FunctionType { from: from, to: to }
     }
 
-    pub fn get_return_type(&self, type_store: &TypeStore) -> TypeVariable {
-        if let Type::Function(to_func_type) = type_store.get_type(&self.to) {
-            to_func_type.get_return_type(type_store)
-        } else {
+    pub fn get_return_type(&self, type_store: &TypeStore, arg_count: usize) -> TypeVariable {
+        if arg_count == 1 {
             self.to
+        } else {
+            if let Type::Function(to_func_type) = type_store.get_type(&self.to) {
+                to_func_type.get_return_type(type_store, arg_count - 1)
+            } else {
+                self.to
+            }
         }
     }
 

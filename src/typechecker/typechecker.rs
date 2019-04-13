@@ -25,8 +25,8 @@ struct FunctionSignatureLocation {
 struct FunctionTypeInfo {
     displayed_name: String,
     args: Vec<TypeVariable>,
-    signature_args: Vec<TypeVariable>,
     signature_location: Option<FunctionSignatureLocation>,
+    arg_locations: Vec<LocationId>,
     result: TypeVariable,
     function_type: TypeVariable,
     body: Option<ExprId>,
@@ -36,8 +36,8 @@ impl FunctionTypeInfo {
     fn new(
         displayed_name: String,
         args: Vec<TypeVariable>,
-        signature_args: Vec<TypeVariable>,
         signature_location: Option<FunctionSignatureLocation>,
+        arg_locations: Vec<LocationId>,
         result: TypeVariable,
         function_type: TypeVariable,
         body: Option<ExprId>,
@@ -45,8 +45,8 @@ impl FunctionTypeInfo {
         FunctionTypeInfo {
             displayed_name: displayed_name,
             args: args,
-            signature_args: signature_args,
             signature_location: signature_location,
+            arg_locations: arg_locations,
             result: result,
             function_type: function_type,
             body: body,
@@ -194,10 +194,10 @@ impl Typechecker {
                     signature_arg_locations,
                 );
             }
-            TypeSignature::TypeArgument(index) => {
+            TypeSignature::TypeArgument(index, name) => {
                 let var = arg_map.entry(*index).or_insert_with(|| {
                     let arg = self.type_store.get_unique_type_arg();
-                    let ty = Type::TypeArgument(arg);
+                    let ty = Type::FixedTypeArgument(arg, name.clone());
                     self.type_store.add_type(ty)
                 });
                 return (*var, location_id);
@@ -217,7 +217,7 @@ impl Typechecker {
         &mut self,
         displayed_name: String,
         named_info: &NamedFunctionInfo,
-        arg_count: usize,
+        arg_locations: Vec<LocationId>,
         type_signature_id: TypeSignatureId,
         function_id: FunctionId,
         program: &Program,
@@ -243,10 +243,10 @@ impl Typechecker {
             Type::Function(func_type) => {
                 let mut signature_vars = Vec::new();
                 func_type.get_arg_types(&self.type_store, &mut signature_vars);
-                if signature_vars.len() < arg_count {
+                if signature_vars.len() < arg_locations.len() {
                     let err = TypecheckError::FunctionArgAndSignatureMismatch(
                         named_info.name.clone(),
-                        arg_count,
+                        arg_locations.len(),
                         signature_vars.len(),
                         program.get_type_signature_location(&type_signature_id),
                     );
@@ -258,25 +258,28 @@ impl Typechecker {
                     arg_locations: signature_arg_locations,
                 };
 
-                let arg_vars = signature_vars
+                let arg_vars: Vec<_> = signature_vars
                     .iter()
+                    .take(arg_locations.len())
                     .map(|v| self.type_store.clone_type_var(*v))
                     .collect();
+
+                let return_value_var = func_type.get_return_type(&self.type_store, arg_vars.len());
                 FunctionTypeInfo::new(
                     displayed_name,
                     arg_vars,
-                    signature_vars,
                     Some(signature_location),
-                    func_type.get_return_type(&self.type_store),
+                    arg_locations,
+                    return_value_var,
                     func_type_var,
                     body,
                 )
             }
             _ => {
-                if arg_count > 0 {
+                if arg_locations.len() > 0 {
                     let err = TypecheckError::FunctionArgAndSignatureMismatch(
                         displayed_name,
-                        arg_count,
+                        arg_locations.len(),
                         0,
                         program.get_type_signature_location(&type_signature_id),
                     );
@@ -290,8 +293,8 @@ impl Typechecker {
                 FunctionTypeInfo::new(
                     named_info.name.clone(),
                     vec![],
-                    vec![],
                     Some(signature_location),
+                    arg_locations,
                     func_type_var,
                     func_type_var,
                     body,
@@ -310,12 +313,12 @@ impl Typechecker {
         body: ExprId,
     ) {
         let mut args = Vec::new();
-        for _ in 0..function.arg_count {
+        for _ in 0..function.arg_locations.len() {
             let arg_var = self.type_store.get_new_type_var();
             args.push(arg_var);
         }
         let result = self.type_store.get_new_type_var();
-        let func_type_var = if function.arg_count > 0 {
+        let func_type_var = if function.arg_locations.len() > 0 {
             let mut vars = args.clone();
             vars.push(result);
             while vars.len() > 1 {
@@ -331,12 +334,11 @@ impl Typechecker {
         } else {
             result
         };
-        let signature_args = args.clone();
         let function_type_info = FunctionTypeInfo::new(
             name,
             args,
-            signature_args,
             None,
+            function.arg_locations.clone(),
             result,
             func_type_var,
             Some(body),
@@ -385,26 +387,9 @@ impl Typechecker {
                             .expect("Function type info not found");
                         let arg_var = function_type_info.args[arg_ref.index];
                         let expr_var = self.lookup_type_var_for_expr(expr_id);
-                        match &function_type_info.signature_location {
-                            Some(locations) => {
-                                let copied_arg_var = self.type_store.clone_type_var(arg_var);
-                                let arg_location_id = locations.arg_locations[arg_ref.index];
-                                let location_id = program.get_expr_location(expr_id);
-                                unify_variables(
-                                    &copied_arg_var,
-                                    &expr_var,
-                                    &mut self.type_store,
-                                    location_id,
-                                    arg_location_id,
-                                    errors,
-                                );
-                            }
-                            None => {
-                                if !self.type_store.unify(&arg_var, &expr_var) {
-                                    panic!("Non typed argument failed to unify with argref");
-                                }
-                            }
-                        };
+                        if !self.type_store.unify(&arg_var, &expr_var) {
+                            panic!("Non typed argument failed to unify with argref");
+                        }
                     }
                     _ => {
                         panic!("Unimplemented expr {}", expr_info.expr);
@@ -422,48 +407,14 @@ impl Typechecker {
             let location_id = program.get_expr_location(&body);
             let body_var = self.lookup_type_var_for_expr(&body);
             if let Some(locations) = &function_type_info.signature_location {
-                let copied_result = self.type_store.clone_type_var(function_type_info.result);
                 unify_variables(
-                    &copied_result,
+                    &function_type_info.result,
                     &body_var,
                     &mut self.type_store,
                     locations.return_location_id,
                     location_id,
                     errors,
                 );
-                if self.type_store.modified() {
-                    report_type_mismatch(
-                        &function_type_info.result,
-                        &body_var,
-                        &mut self.type_store,
-                        locations.return_location_id,
-                        location_id,
-                        errors,
-                    );
-                }
-                for (index, arg) in function_type_info.args.iter().enumerate() {
-                    let signature_arg = &function_type_info.signature_args[index];
-                    let signature_location = locations.arg_locations[index];
-                    let copied_signature_arg = self.type_store.clone_type_var(*signature_arg);
-                    unify_variables(
-                        &copied_signature_arg,
-                        &arg,
-                        &mut self.type_store,
-                        signature_location,
-                        signature_location,
-                        errors,
-                    );
-                    if self.type_store.modified() {
-                        report_type_mismatch(
-                            &signature_arg,
-                            &arg,
-                            &mut self.type_store,
-                            signature_location,
-                            signature_location,
-                            errors,
-                        );
-                    }
-                }
             } else {
                 unify_variables(
                     &function_type_info.result,
@@ -490,7 +441,7 @@ impl Typechecker {
                         self.register_typed_function(
                             displayed_name,
                             i,
-                            function.arg_count,
+                            function.arg_locations.clone(),
                             type_signature,
                             *id,
                             program,

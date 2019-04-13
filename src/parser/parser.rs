@@ -175,13 +175,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_lambda_args(&mut self) -> Result<Vec<String>, Error> {
+    pub fn parse_lambda_args(&mut self) -> Result<Vec<(String, LocationId)>, Error> {
         let mut args = Vec::new();
         loop {
             if let Some(item) = self.peek() {
                 if item.token.kind() == TokenKind::Identifier {
+                    let start_index = self.get_index();
                     let arg = self.identifier("lambda arg", true)?;
-                    args.push(arg);
+                    let end_index = self.get_index();
+                    let location_id = self.get_location_id(start_index, end_index);
+                    args.push((arg, location_id));
                     if !self.current(TokenKind::Comma) {
                         break;
                     } else {
@@ -245,14 +248,17 @@ impl<'a> Parser<'a> {
         Ok(items)
     }
 
-    fn parse_args(&mut self) -> Result<Vec<String>, Error> {
+    fn parse_args(&mut self) -> Result<Vec<(String, LocationId)>, Error> {
         let mut items = Vec::new();
         while !self.is_done() {
             if !self.current(TokenKind::Identifier) {
                 break;
             }
+            let start_index = self.get_index();
             let item = self.identifier("argument", true)?;
-            items.push(item);
+            let end_index = self.get_index();
+            let location_id = self.get_location_id(start_index, end_index);
+            items.push((item, location_id));
         }
         Ok(items)
     }
@@ -553,7 +559,7 @@ impl<'a> Parser<'a> {
     fn parse_record(
         &mut self,
         name: String,
-        type_args: Vec<String>,
+        type_args: Vec<(String, LocationId)>,
         start_index: usize,
     ) -> Result<Record, Error> {
         let mut fields = Vec::new();

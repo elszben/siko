@@ -111,7 +111,11 @@ impl Resolver {
                 };
                 let ir_ctor_function = IrFunction {
                     id: ir_ctor_id,
-                    arg_count: record.fields.len(),
+                    arg_locations: record
+                        .fields
+                        .iter()
+                        .map(|field| field.location_id)
+                        .collect(),
                     info: FunctionInfo::RecordConstructor(record_ctor_info),
                 };
                 ir_program.add_function(ir_ctor_id, ir_ctor_function);
@@ -303,10 +307,10 @@ impl Resolver {
             let mut arg_names = BTreeSet::new();
             let mut conflicting_names = BTreeSet::new();
             for (index, arg) in function.args.iter().enumerate() {
-                if !arg_names.insert(arg.clone()) {
-                    conflicting_names.insert(arg.clone());
+                if !arg_names.insert(arg.0.clone()) {
+                    conflicting_names.insert(arg.0.clone());
                 }
-                environment.add_arg(arg.clone(), ir_function_id, index);
+                environment.add_arg(arg.0.clone(), ir_function_id, index);
             }
             if !conflicting_names.is_empty() {
                 let err = ResolverError::ArgumentConflict(
@@ -339,13 +343,12 @@ impl Resolver {
             name: function.name.clone(),
             module: module.name.clone(),
             type_signature: type_signature_id,
-            ast_function_id: function.id,
             location_id: function.location_id,
         };
 
         let ir_function = IrFunction {
             id: ir_function_id,
-            arg_count: function.args.len(),
+            arg_locations: function.args.iter().map(|arg| arg.1).collect(),
             info: FunctionInfo::NamedFunction(named_info),
         };
         ir_program.add_function(ir_function_id, ir_function);
@@ -402,7 +405,12 @@ impl Resolver {
                     };
                     let ir_ctor_function = IrFunction {
                         id: ir_ctor_id,
-                        arg_count: items.len(),
+                        arg_locations: items
+                            .iter()
+                            .map(|item| {
+                                ir_program.get_type_signature_location(&item.type_signature_id)
+                            })
+                            .collect(),
                         info: FunctionInfo::VariantConstructor(variant_ctor_info),
                     };
                     ir_program.add_function(ir_ctor_id, ir_ctor_function);

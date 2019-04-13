@@ -194,13 +194,13 @@ pub fn process_expr(
         Expr::Lambda(args, lambda_body) => {
             let ir_lambda_id = ir_program.get_function_id();
             let mut arg_names = BTreeSet::new();
-            let mut conflicting_names = BTreeSet::new();
+            let mut conflicting_names: BTreeSet<String> = BTreeSet::new();
             let mut environment = Environment::child(environment);
             for (index, arg) in args.iter().enumerate() {
-                if !arg_names.insert(arg.clone()) {
-                    conflicting_names.insert(arg.clone());
+                if !arg_names.insert(arg.0.clone()) {
+                    conflicting_names.insert(arg.0.clone());
                 }
-                environment.add_arg(arg.clone(), ir_lambda_id, index);
+                environment.add_arg(arg.0.clone(), ir_lambda_id, index);
             }
             if !conflicting_names.is_empty() {
                 let err = ResolverError::LambdaArgumentConflict(
@@ -234,7 +234,7 @@ pub fn process_expr(
 
             let ir_function = IrFunction {
                 id: ir_lambda_id,
-                arg_count: args.len(),
+                arg_locations: args.iter().map(|arg| arg.1).collect(),
                 info: FunctionInfo::Lambda(lambda_info),
             };
             ir_program.add_function(ir_lambda_id, ir_function);

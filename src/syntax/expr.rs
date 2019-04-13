@@ -1,4 +1,5 @@
 use crate::constants::BuiltinOperator;
+use crate::location_info::item::LocationId;
 use crate::util::format_list;
 use std::fmt;
 
@@ -15,7 +16,7 @@ impl fmt::Display for ExprId {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Lambda(Vec<String>, ExprId),
+    Lambda(Vec<(String, LocationId)>, ExprId),
     FunctionCall(ExprId, Vec<ExprId>),
     Builtin(BuiltinOperator),
     If(ExprId, ExprId, ExprId),
@@ -34,7 +35,10 @@ pub enum Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::Lambda(args, body) => write!(f, "Lambda({}, {})", format_list(args), body),
+            Expr::Lambda(args, body) => {
+                let args: Vec<_> = args.iter().map(|arg| &arg.0).collect();
+                write!(f, "Lambda({}, {})", format_list(&args[..]), body)
+            }
             Expr::FunctionCall(expr, args) => {
                 write!(f, "FunctionCall({}, {})", expr, format_list(args))
             }

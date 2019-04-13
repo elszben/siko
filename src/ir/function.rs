@@ -22,7 +22,6 @@ pub struct NamedFunctionInfo {
     pub module: String,
     pub name: String,
     pub type_signature: Option<TypeSignatureId>,
-    pub ast_function_id: AstFunctionId,
     pub location_id: LocationId,
 }
 
@@ -100,6 +99,6 @@ impl fmt::Display for FunctionInfo {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub id: FunctionId,
-    pub arg_count: usize,
+    pub arg_locations: Vec<LocationId>,
     pub info: FunctionInfo,
 }
