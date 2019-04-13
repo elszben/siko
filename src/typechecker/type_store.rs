@@ -1,4 +1,5 @@
 use super::type_variable::TypeVariable;
+use crate::typechecker::typechecker::ProgressChecker;
 use crate::typechecker::types::Type;
 use crate::util::Counter;
 use std::collections::BTreeMap;
@@ -14,30 +15,27 @@ impl TypeIndex {
     }
 }
 
-#[derive(Debug)]
 pub struct TypeStore {
     variables: BTreeMap<TypeVariable, TypeIndex>,
     indices: BTreeMap<TypeIndex, Type>,
     var_counter: Counter,
     index_counter: Counter,
     arg_counter: Counter,
-    modified: bool,
+    primary_modified: bool,
+    progress_checker: ProgressChecker,
 }
 
 impl TypeStore {
-    pub fn new() -> TypeStore {
+    pub fn new(progress_checker: ProgressChecker) -> TypeStore {
         TypeStore {
             variables: BTreeMap::new(),
             indices: BTreeMap::new(),
             var_counter: Counter::new(),
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
-            modified: false,
+            primary_modified: false,
+            progress_checker: progress_checker,
         }
-    }
-
-    pub fn modified(&self) -> bool {
-        self.modified
     }
 
     pub fn get_unique_type_arg(&mut self) -> usize {
@@ -90,9 +88,18 @@ impl TypeStore {
         }
     }
 
-    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
-        self.modified = false;
-        self.unify_inner(primary, secondary)
+    pub fn unify(
+        &mut self,
+        primary: &TypeVariable,
+        secondary: &TypeVariable,
+        check_progress: bool,
+    ) -> bool {
+        self.primary_modified = false;
+        let r = self.unify_inner(primary, secondary);
+        if self.primary_modified && check_progress {
+            self.progress_checker.set();
+        }
+        r
     }
 
     pub fn unify_inner(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
@@ -114,14 +121,14 @@ impl TypeStore {
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
             (Type::TypeArgument(_), Type::TypeArgument(_)) => {
+                self.primary_modified = true;
                 self.merge(primary, secondary);
             }
             (Type::TypeArgument(_), _) => {
-                self.modified = true;
+                self.primary_modified = true;
                 self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {
-                self.modified = true;
                 self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
@@ -129,17 +136,17 @@ impl TypeStore {
                     return false;
                 } else {
                     for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.unify(v1, v2) {
+                        if !self.unify_inner(v1, v2) {
                             return false;
                         }
                     }
                 }
             }
             (Type::Function(f1), Type::Function(f2)) => {
-                if !self.unify(&f1.from, &f2.from) {
+                if !self.unify_inner(&f1.from, &f2.from) {
                     return false;
                 }
-                if !self.unify(&f1.to, &f2.to) {
+                if !self.unify_inner(&f1.to, &f2.to) {
                     return false;
                 }
             }

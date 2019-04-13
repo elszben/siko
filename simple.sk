@@ -1,3 +1,7 @@
 module Main where
 
-foo a b = a a
+
+foo :: Int -> Bool
+foo a = False
+
+id = foo "a"

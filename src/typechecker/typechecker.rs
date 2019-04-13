@@ -14,8 +14,36 @@ use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
+use crate::util::format_list;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt;
+use std::rc::Rc;
+
+#[derive(Clone)]
+pub struct ProgressChecker {
+    data: Rc<RefCell<bool>>,
+}
+
+impl ProgressChecker {
+    fn new() -> ProgressChecker {
+        ProgressChecker {
+            data: Rc::new(RefCell::new(false)),
+        }
+    }
+
+    pub fn set(&self) {
+        let mut d = self.data.borrow_mut();
+        *d = true;
+    }
+
+    fn get_and_unset(&self) -> bool {
+        let mut d = self.data.borrow_mut();
+        let r = *d;
+        *d = false;
+        r
+    }
+}
 
 struct FunctionSignatureLocation {
     arg_locations: Vec<LocationId>,
@@ -85,7 +113,7 @@ fn unify_variables(
     found_id: LocationId,
     errors: &mut Vec<TypecheckError>,
 ) {
-    if !type_store.unify(&found, &expected) {
+    if !type_store.unify(&found, &expected, true) {
         report_type_mismatch(expected, found, type_store, expected_id, found_id, errors);
     }
 }
@@ -94,14 +122,17 @@ pub struct Typechecker {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
+    progress_checker: ProgressChecker,
 }
 
 impl Typechecker {
     pub fn new() -> Typechecker {
+        let progress_checker = ProgressChecker::new();
         Typechecker {
-            type_store: TypeStore::new(),
+            type_store: TypeStore::new(progress_checker.clone()),
             function_type_info_map: BTreeMap::new(),
             expression_type_var_map: BTreeMap::new(),
+            progress_checker: progress_checker,
         }
     }
 
@@ -330,10 +361,6 @@ impl Typechecker {
             func_type_var,
             Some(body),
         );
-        println!(
-            "base type {}",
-            self.type_store.get_resolved_type_string(&func_type_var)
-        );
         self.function_type_info_map.insert(id, function_type_info);
     }
 
@@ -343,6 +370,10 @@ impl Typechecker {
             match &expr_info.expr {
                 Expr::IntegerLiteral(_) => {
                     let var = self.type_store.add_type(Type::Int);
+                    self.expression_type_var_map.insert(*expr_id, var);
+                }
+                Expr::BoolLiteral(_) => {
+                    let var = self.type_store.add_type(Type::Bool);
                     self.expression_type_var_map.insert(*expr_id, var);
                 }
                 Expr::StringLiteral(_) => {
@@ -356,76 +387,115 @@ impl Typechecker {
         }
     }
 
-    fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        let mut primary_modified = true;
-        while primary_modified {
-            primary_modified = false;
-            for (expr_id, expr_info) in &program.exprs {
-                println!("Checking {} {}", expr_id, expr_info.expr);
-                match &expr_info.expr {
-                    Expr::IntegerLiteral(_) => {}
-                    Expr::StringLiteral(_) => {}
-                    Expr::StaticFunctionCall(function_id, args) => {
-                        let target_function_type_info = self
-                            .function_type_info_map
-                            .get(function_id)
-                            .expect("Function type info not found");
-                    }
-                    Expr::ArgRef(arg_ref) => {
-                        let function_type_info = self
-                            .function_type_info_map
-                            .get(&arg_ref.id)
-                            .expect("Function type info not found");
-                        let arg_var = function_type_info.args[arg_ref.index];
+    fn print_type(&self, var: TypeVariable, msg: &str) {
+        println!("{} {}", msg, self.type_store.get_resolved_type_string(&var));
+    }
+
+    fn check_exprs(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
+        for (expr_id, expr_info) in &program.exprs {
+            println!("Checking {} {}", expr_id, expr_info.expr);
+            match &expr_info.expr {
+                Expr::IntegerLiteral(_) => {}
+                Expr::BoolLiteral(_) => {}
+                Expr::StringLiteral(_) => {}
+                Expr::StaticFunctionCall(function_id, args) => {
+                    let mut gen_args = Vec::new();
+                    let (func_type_var, result) =
+                        self.create_general_function_type(args.len(), &mut gen_args);
+                    let target_function_type_info = self
+                        .function_type_info_map
+                        .get(function_id)
+                        .expect("Function type info not found");
+                    let cloned = self
+                        .type_store
+                        .clone_type_var(target_function_type_info.function_type);
+                    let expr_location_id = program.get_expr_location(expr_id);
+                    let mut failed = false;
+                    if self.type_store.unify(&func_type_var, &cloned, false) {
                         let expr_var = self.lookup_type_var_for_expr(expr_id);
-                        if !self.type_store.unify(&arg_var, &expr_var) {
-                            panic!("Non typed argument failed to unify with argref");
+                        if self.type_store.unify(&expr_var, &result, true) {
+                            for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
+                                let arg_var = self.lookup_type_var_for_expr(arg);
+                                if !self.type_store.unify(&arg_var, gen_arg, true) {
+                                    failed = true;
+                                }
+                            }
                         }
                     }
-                    Expr::DynamicFunctionCall(callable_expr_id, args) => {
-                        let mut gen_args = Vec::new();
-                        let (func_type_var, result) =
-                            self.create_general_function_type(args.len(), &mut gen_args);
-                        let callable_expr_var = self.lookup_type_var_for_expr(callable_expr_id);
-                        let callable_location_id = program.get_expr_location(callable_expr_id);
-                        unify_variables(
-                            &func_type_var,
-                            &callable_expr_var,
-                            &mut self.type_store,
-                            callable_location_id,
-                            callable_location_id,
-                            errors,
-                        );
-                        let expr_var = self.lookup_type_var_for_expr(expr_id);
-                        let expr_location_id = program.get_expr_location(expr_id);
-                        println!("{}", line!());
-                        unify_variables(
-                            &expr_var,
-                            &result,
-                            &mut self.type_store,
-                            expr_location_id,
-                            expr_location_id,
-                            errors,
-                        );
-                        for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
+                    if failed {
+                        let mut arg_strs = Vec::new();
+                        for arg in args {
                             let arg_var = self.lookup_type_var_for_expr(arg);
-                            unify_variables(
-                                &arg_var,
-                                &gen_arg,
-                                &mut self.type_store,
-                                expr_location_id,
-                                expr_location_id,
-                                errors,
-                            );
+                            let arg_type_str = self.type_store.get_resolved_type_string(&arg_var);
+                            arg_strs.push(arg_type_str);
                         }
+                        let args_str = format_list(&arg_strs[..]);
+                        let func_type_str = self
+                            .type_store
+                            .get_resolved_type_string(&target_function_type_info.function_type);
+                        let err = TypecheckError::FunctionArgumentMismatch(
+                            expr_location_id,
+                            args_str,
+                            func_type_str,
+                        );
+                        errors.push(err);
                     }
-                    _ => {
-                        panic!("Unimplemented expr {}", expr_info.expr);
+                }
+                Expr::ArgRef(arg_ref) => {
+                    let function_type_info = self
+                        .function_type_info_map
+                        .get(&arg_ref.id)
+                        .expect("Function type info not found");
+                    let arg_var = function_type_info.args[arg_ref.index];
+                    let expr_var = self.lookup_type_var_for_expr(expr_id);
+                    if !self.type_store.unify(&arg_var, &expr_var, true) {
+                        panic!("Non typed argument failed to unify with argref");
                     }
+                }
+                Expr::DynamicFunctionCall(callable_expr_id, args) => {
+                    let mut gen_args = Vec::new();
+                    let (func_type_var, result) =
+                        self.create_general_function_type(args.len(), &mut gen_args);
+                    let callable_expr_var = self.lookup_type_var_for_expr(callable_expr_id);
+                    let callable_location_id = program.get_expr_location(callable_expr_id);
+                    unify_variables(
+                        &func_type_var,
+                        &callable_expr_var,
+                        &mut self.type_store,
+                        callable_location_id,
+                        callable_location_id,
+                        errors,
+                    );
+                    let expr_var = self.lookup_type_var_for_expr(expr_id);
+                    let expr_location_id = program.get_expr_location(expr_id);
+                    unify_variables(
+                        &expr_var,
+                        &result,
+                        &mut self.type_store,
+                        expr_location_id,
+                        expr_location_id,
+                        errors,
+                    );
+                    for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
+                        let arg_var = self.lookup_type_var_for_expr(arg);
+                        unify_variables(
+                            &arg_var,
+                            &gen_arg,
+                            &mut self.type_store,
+                            expr_location_id,
+                            expr_location_id,
+                            errors,
+                        );
+                    }
+                }
+                _ => {
+                    panic!("Unimplemented expr {}", expr_info.expr);
                 }
             }
         }
+    }
 
+    fn check_body_and_result(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         for (_, function_type_info) in &self.function_type_info_map {
             let body = if let Some(body) = function_type_info.body {
                 body
@@ -444,12 +514,6 @@ impl Typechecker {
                     errors,
                 );
             } else {
-                println!(
-                    "b result {} {}",
-                    self.type_store
-                        .get_resolved_type_string(&function_type_info.result),
-                    self.type_store.get_resolved_type_string(&body_var),
-                );
                 unify_variables(
                     &function_type_info.result,
                     &body_var,
@@ -458,13 +522,17 @@ impl Typechecker {
                     location_id,
                     errors,
                 );
-                println!(
-                    "a result {} {}",
-                    self.type_store
-                        .get_resolved_type_string(&function_type_info.result),
-                    self.type_store.get_resolved_type_string(&body_var),
-                );
             }
+        }
+    }
+
+    fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
+        let mut primary_modified = true;
+        while primary_modified && errors.is_empty() {
+            self.check_exprs(program, errors);
+            self.check_body_and_result(program, errors);
+
+            primary_modified = self.progress_checker.get_and_unset();
         }
     }
 
@@ -505,17 +573,9 @@ impl Typechecker {
             }
         }
 
-        /*
-        for (id, info) in &self.function_type_info_map {
-            println!("{}: {}", id, info);
-        }
-        */
-
         self.process_expr_and_create_vars(program);
 
         self.check_constraints(program, &mut errors);
-
-        //self.type_store.dump();
 
         for (id, info) in &self.function_type_info_map {
             println!(
