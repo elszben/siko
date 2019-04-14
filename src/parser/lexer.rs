@@ -77,10 +77,9 @@ impl Lexer {
         }
     }
 
-    fn is_identifier(c: char, first: bool) -> bool {
+    fn is_identifier(c: char) -> bool {
         match c {
-            'a'...'z' | 'A'...'Z' | '0'...'9' | '_' => true,
-            '.' if first == false => true,
+            'a'...'z' | 'A'...'Z' | '0'...'9' | '_' | '.' => true,
             _ => false,
         }
     }
@@ -119,7 +118,7 @@ impl Lexer {
     }
 
     fn collect_identifier(&mut self) -> Result<(), LexerError> {
-        let (mut identifier, mut span) = self.collect(|c| Lexer::is_identifier(c, false))?;
+        let (mut identifier, mut span) = self.collect(|c| Lexer::is_identifier(c))?;
 
         let t = match identifier.as_ref() {
             "where" => Token::KeywordWhere,
@@ -137,28 +136,49 @@ impl Lexer {
             "hiding" => Token::KeywordHiding,
             _ => match identifier.parse::<i64>() {
                 Ok(i) => Token::IntegerLiteral(i),
-                Err(_) => match identifier.parse::<f64>() {
-                    Ok(f) => Token::FloatLiteral(f),
-                    Err(_) => {
-                        if identifier.contains("..") {
-                            let err = LexerError::InvalidIdentifier(
-                                identifier.clone(),
-                                LocationInfo {
-                                    file_path: self.file_path.clone(),
-                                    location: Location::new(self.line_index, span),
-                                },
-                            );
-                            return Err(err);
+                Err(_) => {
+                    if identifier.contains("..") {
+                        let err = LexerError::InvalidIdentifier(
+                            identifier.clone(),
+                            LocationInfo {
+                                file_path: self.file_path.clone(),
+                                location: Location::new(self.line_index, span),
+                            },
+                        );
+                        return Err(err);
+                    }
+                    let mut could_be_float = true;
+
+                    if identifier.starts_with(".") {
+                        could_be_float = false;
+                        let mut comp_span = span.clone();
+                        comp_span.end = comp_span.start + 1;
+                        span.start += 1;
+                        identifier.remove(0);
+                        let comp = Token::Op(BuiltinOperator::Composition);
+                        self.add_token(comp, comp_span);
+                        if identifier.is_empty() {
+                            return Ok(());
                         }
-                        if identifier.ends_with(".") {
-                            identifier.pop();
-                            span.end -= 1;
-                            self.index -= 1;
-                            self.line_offset -= 1;
+                    }
+
+                    if identifier.ends_with(".") {
+                        could_be_float = false;
+                        identifier.pop();
+                        span.end -= 1;
+                        self.index -= 1;
+                        self.line_offset -= 1;
+                    }
+
+                    if identifier.contains(".") && could_be_float {
+                        match identifier.parse::<f64>() {
+                            Ok(f) => Token::FloatLiteral(f),
+                            Err(_) => Token::Identifier(identifier),
                         }
+                    } else {
                         Token::Identifier(identifier)
                     }
-                },
+                }
             },
         };
         self.add_token(t, span);
@@ -188,7 +208,6 @@ impl Lexer {
             "<-" => Token::Op(BuiltinOperator::Bind),
             "->" => Token::Op(BuiltinOperator::Arrow),
             "::" => Token::KeywordDoubleColon,
-            "." => Token::Op(BuiltinOperator::Composition),
             ".." => Token::DoubleDot,
             _ => {
                 return Err(Error::lexer_err(
@@ -321,7 +340,7 @@ impl Lexer {
                 break;
             }
             let c = self.peek()?;
-            if Lexer::is_identifier(c, true) {
+            if Lexer::is_identifier(c) {
                 self.collect_identifier()?;
             } else if Lexer::is_operator(c) {
                 match self.peek_next() {

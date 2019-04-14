@@ -692,6 +692,7 @@ impl Typechecker {
                 Expr::Tuple(exprs) => {
                     self.check_tuple(expr_id, exprs, program, errors);
                 }
+                Expr::TupleFieldAccess(_, _) => {}
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
                 }

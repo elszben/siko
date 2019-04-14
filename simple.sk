@@ -15,6 +15,6 @@ main = do
      b 4 
      a <- (4, 4)
      q <- foo (factorial 5)
-     (a, q, tuple)
+     (a, q, tuple).2.0
 
 tuple = (4, foo)

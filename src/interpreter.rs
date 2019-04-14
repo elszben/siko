@@ -218,6 +218,14 @@ impl Interpreter {
                     .collect();
                 return Value::Tuple(values);
             }
+            Expr::TupleFieldAccess(index, tuple) => {
+                let tuple_value = self.eval_expr(program, *tuple, environment);
+                if let Value::Tuple(t) = tuple_value {
+                    return t[*index].clone();
+                } else {
+                    unreachable!()
+                }
+            }
             _ => panic!("{} eval is not implemented", expr),
         }
     }

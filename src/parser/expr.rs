@@ -314,6 +314,7 @@ fn parse_composition(parser: &mut Parser) -> Result<ExprId, Error> {
                         continue;
                     }
                     _ => {
+                        println!("next {:?}", next);
                         let function_id_expr = Expr::Builtin(op);
                         let function_id_expr_id = parser.add_expr(function_id_expr, start_index);
                         let right = parse_primary(parser)?;
