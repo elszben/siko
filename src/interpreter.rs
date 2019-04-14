@@ -181,6 +181,7 @@ impl<'a> Interpreter<'a> {
             Expr::IntegerLiteral(v) => Value::Int(*v),
             Expr::StringLiteral(v) => Value::String(v.clone()),
             Expr::FloatLiteral(v) => Value::Float(v.clone()),
+            Expr::BoolLiteral(v) => Value::Bool(v.clone()),
             Expr::ArgRef(arg_ref) => {
                 return environment.get_arg(arg_ref);
             }
@@ -287,6 +288,7 @@ impl<'a> Interpreter<'a> {
                     let location_id = program.get_expr_location(&current_expr);
                     let err = Error::RuntimeError(format!("Assertion failed"), location_id);
                     err.report_error(&self.error_context);
+                    panic!("Abort not implemented");
                 }
                 return Value::Tuple(vec![]);
             }

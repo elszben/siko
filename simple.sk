@@ -1,20 +1,8 @@
 module Main where
 
 
-factorial :: Int -> Int
-factorial n = if n < 2 then 1 else n * factorial (n-1)
-//factorial n = if n < 2 then False else n * factorial (n-1)
+funky_stuff a = a
 
-a a b c = 5
+get_tuple a = (1, True, funky_stuff, a)
 
-foo :: Int -> Int
-foo a = a + 1
-
-main = do
-     b <- a 5 5
-     b 4 
-     a <- (4, 4)
-     q <- foo (factorial 5)
-     (a, q, tuple, -2.1).2
-
-tuple = (4, foo).1
+main = 5

@@ -371,7 +371,7 @@ impl Lexer {
             } else {
                 let span = Span::single(self.line_offset);
                 let t = match c {
-                    ' ' => {
+                    ' ' | '\t' => {
                         self.advance()?;
                         continue;
                     }
