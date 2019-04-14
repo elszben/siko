@@ -789,7 +789,7 @@ impl Typechecker {
 
     fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         let mut run = true;
-        let mut loop_count = 10;
+        let mut loop_count = 20;
         let mut phase = 0;
         while run && errors.is_empty() && loop_count > 0 {
             self.check_exprs(program, errors, phase);
@@ -896,7 +896,7 @@ impl Typechecker {
 
         self.check_constraints(program, &mut errors);
 
-        //self.dump_everything(program);
+        self.dump_everything(program);
 
         self.check_main(program, &mut errors);
 
