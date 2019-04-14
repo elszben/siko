@@ -385,6 +385,10 @@ impl Typechecker {
                     let var = self.type_store.add_type(Type::String);
                     self.expression_type_var_map.insert(*expr_id, var);
                 }
+                Expr::FloatLiteral(_) => {
+                    let var = self.type_store.add_type(Type::Float);
+                    self.expression_type_var_map.insert(*expr_id, var);
+                }
                 _ => {
                     self.create_type_var_for_expr(*expr_id);
                 }
@@ -655,6 +659,7 @@ impl Typechecker {
                 Expr::IntegerLiteral(_) => {}
                 Expr::BoolLiteral(_) => {}
                 Expr::StringLiteral(_) => {}
+                Expr::FloatLiteral(_) => {}
                 Expr::StaticFunctionCall(function_id, args) => {
                     self.check_static_function_call(expr_id, function_id, args, program, errors);
                 }

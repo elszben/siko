@@ -165,6 +165,7 @@ impl Interpreter {
         match expr {
             Expr::IntegerLiteral(v) => Value::Int(*v),
             Expr::StringLiteral(v) => Value::String(v.clone()),
+            Expr::FloatLiteral(v) => Value::Float(v.clone()),
             Expr::ArgRef(arg_ref) => {
                 return environment.get_arg(arg_ref);
             }
