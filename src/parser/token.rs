@@ -119,10 +119,16 @@ pub enum TokenKind {
 
 impl TokenKind {
     pub fn nice_name(&self) -> String {
-        let name = format!("{:?}", self);
-        let name = name.to_lowercase();
-        let name = name.replace("keyword", "keyword ");
-        name
+        match self {
+            TokenKind::LParen => format!("("),
+            TokenKind::RParen => format!(")"),
+            _ => {
+                let name = format!("{:?}", self);
+                let name = name.to_lowercase();
+                let name = name.replace("keyword", "keyword ");
+                name
+            }
+        }
     }
 }
 

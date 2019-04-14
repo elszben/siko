@@ -34,7 +34,7 @@ pub fn report_parser_error<T>(parser: &mut Parser, reason: ParserErrorReason) ->
             }
         }
     } else {
-        let found = parser.advance()?;
+        let found = parser.peek().expect("empty");
         match reason {
             ParserErrorReason::UnexpectedToken { expected } => {
                 if found.token.kind() == TokenKind::EndOfItem

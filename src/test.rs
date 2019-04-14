@@ -3,6 +3,8 @@ use crate::compiler::compiler::Compiler;
 #[cfg(test)]
 use crate::compiler::compiler::CompilerInput;
 #[cfg(test)]
+use crate::compiler::config::Config;
+#[cfg(test)]
 use crate::error::Error;
 #[cfg(test)]
 use crate::parser::error::LexerError;
@@ -22,13 +24,13 @@ fn single(source: &str) -> Vec<CompilerInput> {
 
 #[cfg(test)]
 fn ok(inputs: Vec<CompilerInput>) {
-    let mut compiler = Compiler::new(false);
+    let mut compiler = Compiler::new(Config::new());
     assert!(compiler.compile(inputs).is_ok());
 }
 
 #[cfg(test)]
 fn compile_err(source: &str) -> Error {
-    let mut compiler = Compiler::new(false);
+    let mut compiler = Compiler::new(Config::new());
     compiler
         .compile(single(source))
         .err()

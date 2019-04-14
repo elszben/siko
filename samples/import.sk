@@ -2,7 +2,7 @@ module Test.Import where
 import Plus as Foo
 import Prelude
 import Foo.Bar (wee)
-import Foo.Bar (wee foo)
+import Foo.Bar (wee, foo)
 import Foo.Bar ()
 import Foo.Bar (ff) as Boo
 import Boo

@@ -161,13 +161,14 @@ impl<'a> Parser<'a> {
     }
 
     pub fn expect(&mut self, token: TokenKind) -> Result<TokenInfo, Error> {
-        let t = self.advance()?;
-        if t.token.kind() == token {
+        let t = self.current_kind();
+        if t == token {
+            let t = self.advance()?;
             return Ok(t);
         } else {
             if token == TokenKind::EndOfItem {
                 let reason = ParserErrorReason::Custom {
-                    msg: format!("unexpected {}", t.token.kind().nice_name()),
+                    msg: format!("unexpected {}", t.nice_name()),
                 };
                 return report_parser_error(self, reason);
             }

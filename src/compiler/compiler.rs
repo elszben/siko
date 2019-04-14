@@ -1,3 +1,4 @@
+use crate::compiler::config::Config;
 use crate::compiler::file_manager::FileManager;
 use crate::error::Error;
 use crate::interpreter::Interpreter;
@@ -22,7 +23,7 @@ pub enum CompilerInput {
 
 fn parse(
     content: &str,
-    verbose: bool,
+    config: &Config,
     file_path: FilePath,
     program: &mut Program,
     location_info: &mut LocationInfo,
@@ -47,12 +48,12 @@ fn parse(
         .iter()
         .map(|t| format!("{:?}", t.token.kind()))
         .collect();
-    if verbose {
+    if config.verbose {
         println!("Tokens [{}]", token_kinds.join(", "));
     }
     let mut parser = Parser::new(file_path, &tokens[..], program, location_info);
     parser.parse()?;
-    if verbose {
+    if config.verbose {
         println!("program {:?}", program);
     }
     Ok(())
@@ -61,15 +62,15 @@ fn parse(
 pub struct Compiler {
     file_manager: FileManager,
     location_info: LocationInfo,
-    verbose: bool,
+    config: Config,
 }
 
 impl Compiler {
-    pub fn new(verbose: bool) -> Compiler {
+    pub fn new(config: Config) -> Compiler {
         Compiler {
             file_manager: FileManager::new(),
             location_info: LocationInfo::new(),
-            verbose: verbose,
+            config: config,
         }
     }
 
@@ -91,7 +92,7 @@ impl Compiler {
         for (file_path, content) in self.file_manager.files.iter() {
             parse(
                 content,
-                self.verbose,
+                &self.config,
                 file_path.clone(),
                 &mut program,
                 &mut self.location_info,
@@ -102,7 +103,7 @@ impl Compiler {
 
         let ir_program = resolver.resolve(&program)?;
 
-        if self.verbose {
+        if self.config.verbose {
             println!("program {:#?}", ir_program);
         }
 
