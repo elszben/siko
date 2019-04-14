@@ -55,7 +55,7 @@ impl fmt::Display for Value {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
                 write!(f, "({})", ss.join(", "))
             }
-            Value::Callable(callable) => write!(f, "{:?}", callable),
+            Value::Callable(_) => write!(f, "<closure>"),
         }
     }
 }
@@ -210,6 +210,13 @@ impl Interpreter {
                 } else {
                     return self.eval_expr(program, *false_branch, environment);
                 }
+            }
+            Expr::Tuple(exprs) => {
+                let values: Vec<_> = exprs
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment))
+                    .collect();
+                return Value::Tuple(values);
             }
             _ => panic!("{} eval is not implemented", expr),
         }

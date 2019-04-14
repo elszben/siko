@@ -13,4 +13,8 @@ foo a = a + 1
 main = do
      b <- a 5 5
      b 4 
-     foo (factorial 5)
+     a <- (4, 4)
+     q <- foo (factorial 5)
+     (a, q, tuple)
+
+tuple = (4, foo)

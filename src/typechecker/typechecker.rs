@@ -568,19 +568,20 @@ impl Typechecker {
         let expr_var = self.lookup_type_var_for_expr(expr_id);
         let ref_expr_var = self.lookup_type_var_for_expr(&ref_expr_id);
         let expr_location_id = program.get_expr_location(expr_id);
-        let last_expr_location_id = program.get_expr_location(&ref_expr_id);
+        let ref_expr_location_id = program.get_expr_location(&ref_expr_id);
         unify_variables(
             &expr_var,
             &ref_expr_var,
             &mut self.type_store,
             expr_location_id,
-            last_expr_location_id,
+            ref_expr_location_id,
             errors,
         );
     }
 
     fn check_if(
         &mut self,
+        expr_id: &ExprId,
         cond_expr: &ExprId,
         true_branch_expr: &ExprId,
         false_branch_expr: &ExprId,
@@ -608,6 +609,41 @@ impl Typechecker {
             &mut self.type_store,
             true_expr_location_id,
             false_expr_location_id,
+            errors,
+        );
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        unify_variables(
+            &expr_var,
+            &true_var,
+            &mut self.type_store,
+            expr_location_id,
+            true_expr_location_id,
+            errors,
+        );
+    }
+
+    fn check_tuple(
+        &mut self,
+        expr_id: &ExprId,
+        exprs: &Vec<ExprId>,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let expr_vars: Vec<_> = exprs
+            .iter()
+            .map(|e| self.lookup_type_var_for_expr(e))
+            .collect();
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        let tuple_ty = Type::Tuple(expr_vars);
+        let tuple_var = self.type_store.add_type(tuple_ty);
+        unify_variables(
+            &expr_var,
+            &tuple_var,
+            &mut self.type_store,
+            expr_location_id,
+            expr_location_id,
             errors,
         );
     }
@@ -645,12 +681,16 @@ impl Typechecker {
                 }
                 Expr::If(cond_expr, true_branch_expr, false_branch_expr) => {
                     self.check_if(
+                        expr_id,
                         cond_expr,
                         true_branch_expr,
                         false_branch_expr,
                         program,
                         errors,
                     );
+                }
+                Expr::Tuple(exprs) => {
+                    self.check_tuple(expr_id, exprs, program, errors);
                 }
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
