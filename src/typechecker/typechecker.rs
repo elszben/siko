@@ -97,7 +97,7 @@ impl fmt::Display for FunctionTypeInfo {
 fn report_type_mismatch(
     expected: &TypeVariable,
     found: &TypeVariable,
-    type_store: &mut TypeStore,
+    type_store: &TypeStore,
     expected_id: LocationId,
     found_id: LocationId,
     errors: &mut Vec<TypecheckError>,
@@ -439,6 +439,17 @@ impl Typechecker {
                     }
                 }
             } else {
+                if args.is_empty() {
+                    report_type_mismatch(
+                        &expr_var,
+                        &result,
+                        &self.type_store,
+                        expr_location_id,
+                        expr_location_id,
+                        errors,
+                    );
+                    return;
+                }
                 failed = true;
             }
         } else {
