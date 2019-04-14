@@ -2,6 +2,7 @@ use crate::constants;
 use crate::error::Error;
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
+use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
@@ -395,6 +396,222 @@ impl Typechecker {
         println!("{} {}", msg, self.type_store.get_resolved_type_string(&var));
     }
 
+    fn check_static_function_call(
+        &mut self,
+        expr_id: &ExprId,
+        function_id: &FunctionId,
+        args: &Vec<ExprId>,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let mut gen_args = Vec::new();
+        let (func_type_var, result) = self.create_general_function_type(args.len(), &mut gen_args);
+        let target_function_type_info = self
+            .function_type_info_map
+            .get(function_id)
+            .expect("Function type info not found");
+        let cloned = self
+            .type_store
+            .clone_type_var(target_function_type_info.function_type);
+        let expr_location_id = program.get_expr_location(expr_id);
+        let mut failed = false;
+        if self
+            .type_store
+            .unify(&func_type_var, &cloned, ProgressTrackingMode::None)
+        {
+            let expr_var = self.lookup_type_var_for_expr(expr_id);
+            if self
+                .type_store
+                .unify(&expr_var, &result, ProgressTrackingMode::PrimaryOnly)
+            {
+                for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
+                    let arg_var = self.lookup_type_var_for_expr(arg);
+                    if !self
+                        .type_store
+                        .unify(&arg_var, gen_arg, ProgressTrackingMode::PrimaryOnly)
+                    {
+                        failed = true;
+                        break;
+                    }
+                }
+            } else {
+                failed = true;
+            }
+        } else {
+            failed = true;
+        }
+        if failed {
+            let mut arg_strs = Vec::new();
+            for arg in args {
+                let arg_var = self.lookup_type_var_for_expr(arg);
+                let arg_type_str = self.type_store.get_resolved_type_string(&arg_var);
+                arg_strs.push(arg_type_str);
+            }
+            let args_str = format_list(&arg_strs[..]);
+            let func_type_str = self
+                .type_store
+                .get_resolved_type_string(&target_function_type_info.function_type);
+            let err =
+                TypecheckError::FunctionArgumentMismatch(expr_location_id, args_str, func_type_str);
+            errors.push(err);
+        }
+    }
+
+    fn check_arg_ref(&mut self, expr_id: &ExprId, arg_ref: &FunctionArgumentRef) {
+        let function_type_info = self
+            .function_type_info_map
+            .get(&arg_ref.id)
+            .expect("Function type info not found");
+        let arg_var = function_type_info.args[arg_ref.index];
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        if !self
+            .type_store
+            .unify(&arg_var, &expr_var, ProgressTrackingMode::All)
+        {
+            panic!("Non typed argument failed to unify with argref");
+        }
+    }
+
+    fn check_dynamic_function_call(
+        &mut self,
+        expr_id: &ExprId,
+        callable_expr_id: &ExprId,
+        args: &Vec<ExprId>,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let mut gen_args = Vec::new();
+        let (func_type_var, result) = self.create_general_function_type(args.len(), &mut gen_args);
+        let callable_expr_var = self.lookup_type_var_for_expr(callable_expr_id);
+        let callable_location_id = program.get_expr_location(callable_expr_id);
+        unify_variables(
+            &func_type_var,
+            &callable_expr_var,
+            &mut self.type_store,
+            callable_location_id,
+            callable_location_id,
+            errors,
+        );
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        unify_variables(
+            &expr_var,
+            &result,
+            &mut self.type_store,
+            expr_location_id,
+            expr_location_id,
+            errors,
+        );
+        for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
+            let arg_var = self.lookup_type_var_for_expr(arg);
+            unify_variables(
+                &arg_var,
+                &gen_arg,
+                &mut self.type_store,
+                expr_location_id,
+                expr_location_id,
+                errors,
+            );
+        }
+    }
+
+    fn check_do(
+        &mut self,
+        expr_id: &ExprId,
+        exprs: &Vec<ExprId>,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let last_expr_id = exprs[exprs.len() - 1];
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let last_expr_var = self.lookup_type_var_for_expr(&last_expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        let last_expr_location_id = program.get_expr_location(&last_expr_id);
+        unify_variables(
+            &expr_var,
+            &last_expr_var,
+            &mut self.type_store,
+            expr_location_id,
+            last_expr_location_id,
+            errors,
+        );
+    }
+
+    fn check_bind(
+        &mut self,
+        expr_id: &ExprId,
+        rhs_expr_id: &ExprId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let rhs_expr_var = self.lookup_type_var_for_expr(&rhs_expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        let last_expr_location_id = program.get_expr_location(&rhs_expr_id);
+        unify_variables(
+            &expr_var,
+            &rhs_expr_var,
+            &mut self.type_store,
+            expr_location_id,
+            last_expr_location_id,
+            errors,
+        );
+    }
+
+    fn check_expr_value(
+        &mut self,
+        expr_id: &ExprId,
+        ref_expr_id: &ExprId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let ref_expr_var = self.lookup_type_var_for_expr(&ref_expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        let last_expr_location_id = program.get_expr_location(&ref_expr_id);
+        unify_variables(
+            &expr_var,
+            &ref_expr_var,
+            &mut self.type_store,
+            expr_location_id,
+            last_expr_location_id,
+            errors,
+        );
+    }
+
+    fn check_if(
+        &mut self,
+        cond_expr: &ExprId,
+        true_branch_expr: &ExprId,
+        false_branch_expr: &ExprId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let bool_var = self.type_store.add_type(Type::Bool);
+        let cond_var = self.lookup_type_var_for_expr(&cond_expr);
+        let expr_location_id = program.get_expr_location(cond_expr);
+        unify_variables(
+            &bool_var,
+            &cond_var,
+            &mut self.type_store,
+            expr_location_id,
+            expr_location_id,
+            errors,
+        );
+        let true_var = self.lookup_type_var_for_expr(&true_branch_expr);
+        let true_expr_location_id = program.get_expr_location(true_branch_expr);
+        let false_var = self.lookup_type_var_for_expr(&false_branch_expr);
+        let false_expr_location_id = program.get_expr_location(false_branch_expr);
+        unify_variables(
+            &true_var,
+            &false_var,
+            &mut self.type_store,
+            true_expr_location_id,
+            false_expr_location_id,
+            errors,
+        );
+    }
+
     fn check_exprs(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         for (expr_id, expr_info) in &program.exprs {
             // println!("Checking {} {}", expr_id, expr_info.expr);
@@ -403,179 +620,35 @@ impl Typechecker {
                 Expr::BoolLiteral(_) => {}
                 Expr::StringLiteral(_) => {}
                 Expr::StaticFunctionCall(function_id, args) => {
-                    let mut gen_args = Vec::new();
-                    let (func_type_var, result) =
-                        self.create_general_function_type(args.len(), &mut gen_args);
-                    let target_function_type_info = self
-                        .function_type_info_map
-                        .get(function_id)
-                        .expect("Function type info not found");
-                    let cloned = self
-                        .type_store
-                        .clone_type_var(target_function_type_info.function_type);
-                    let expr_location_id = program.get_expr_location(expr_id);
-                    let mut failed = false;
-                    if self
-                        .type_store
-                        .unify(&func_type_var, &cloned, ProgressTrackingMode::None)
-                    {
-                        let expr_var = self.lookup_type_var_for_expr(expr_id);
-                        if self.type_store.unify(
-                            &expr_var,
-                            &result,
-                            ProgressTrackingMode::PrimaryOnly,
-                        ) {
-                            for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
-                                let arg_var = self.lookup_type_var_for_expr(arg);
-                                if !self.type_store.unify(
-                                    &arg_var,
-                                    gen_arg,
-                                    ProgressTrackingMode::PrimaryOnly,
-                                ) {
-                                    failed = true;
-                                    break;
-                                }
-                            }
-                        } else {
-                            failed = true;
-                        }
-                    } else {
-                        failed = true;
-                    }
-                    if failed {
-                        let mut arg_strs = Vec::new();
-                        for arg in args {
-                            let arg_var = self.lookup_type_var_for_expr(arg);
-                            let arg_type_str = self.type_store.get_resolved_type_string(&arg_var);
-                            arg_strs.push(arg_type_str);
-                        }
-                        let args_str = format_list(&arg_strs[..]);
-                        let func_type_str = self
-                            .type_store
-                            .get_resolved_type_string(&target_function_type_info.function_type);
-                        let err = TypecheckError::FunctionArgumentMismatch(
-                            expr_location_id,
-                            args_str,
-                            func_type_str,
-                        );
-                        errors.push(err);
-                    }
+                    self.check_static_function_call(expr_id, function_id, args, program, errors);
                 }
                 Expr::ArgRef(arg_ref) => {
-                    let function_type_info = self
-                        .function_type_info_map
-                        .get(&arg_ref.id)
-                        .expect("Function type info not found");
-                    let arg_var = function_type_info.args[arg_ref.index];
-                    let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    if !self
-                        .type_store
-                        .unify(&arg_var, &expr_var, ProgressTrackingMode::All)
-                    {
-                        panic!("Non typed argument failed to unify with argref");
-                    }
+                    self.check_arg_ref(expr_id, arg_ref);
                 }
                 Expr::DynamicFunctionCall(callable_expr_id, args) => {
-                    let mut gen_args = Vec::new();
-                    let (func_type_var, result) =
-                        self.create_general_function_type(args.len(), &mut gen_args);
-                    let callable_expr_var = self.lookup_type_var_for_expr(callable_expr_id);
-                    let callable_location_id = program.get_expr_location(callable_expr_id);
-                    unify_variables(
-                        &func_type_var,
-                        &callable_expr_var,
-                        &mut self.type_store,
-                        callable_location_id,
-                        callable_location_id,
+                    self.check_dynamic_function_call(
+                        expr_id,
+                        callable_expr_id,
+                        args,
+                        program,
                         errors,
                     );
-                    let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    let expr_location_id = program.get_expr_location(expr_id);
-                    unify_variables(
-                        &expr_var,
-                        &result,
-                        &mut self.type_store,
-                        expr_location_id,
-                        expr_location_id,
-                        errors,
-                    );
-                    for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
-                        let arg_var = self.lookup_type_var_for_expr(arg);
-                        unify_variables(
-                            &arg_var,
-                            &gen_arg,
-                            &mut self.type_store,
-                            expr_location_id,
-                            expr_location_id,
-                            errors,
-                        );
-                    }
                 }
                 Expr::Do(exprs) => {
-                    let last_expr_id = exprs[exprs.len() - 1];
-                    let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    let last_expr_var = self.lookup_type_var_for_expr(&last_expr_id);
-                    let expr_location_id = program.get_expr_location(expr_id);
-                    let last_expr_location_id = program.get_expr_location(&last_expr_id);
-                    unify_variables(
-                        &expr_var,
-                        &last_expr_var,
-                        &mut self.type_store,
-                        expr_location_id,
-                        last_expr_location_id,
-                        errors,
-                    );
+                    self.check_do(expr_id, exprs, program, errors);
                 }
                 Expr::Bind(_, rhs_expr_id) => {
-                    let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    let rhs_expr_var = self.lookup_type_var_for_expr(&rhs_expr_id);
-                    let expr_location_id = program.get_expr_location(expr_id);
-                    let last_expr_location_id = program.get_expr_location(&rhs_expr_id);
-                    unify_variables(
-                        &expr_var,
-                        &rhs_expr_var,
-                        &mut self.type_store,
-                        expr_location_id,
-                        last_expr_location_id,
-                        errors,
-                    );
+                    self.check_bind(expr_id, rhs_expr_id, program, errors);
                 }
                 Expr::ExprValue(ref_expr_id) => {
-                    let expr_var = self.lookup_type_var_for_expr(expr_id);
-                    let ref_expr_var = self.lookup_type_var_for_expr(&ref_expr_id);
-                    let expr_location_id = program.get_expr_location(expr_id);
-                    let last_expr_location_id = program.get_expr_location(&ref_expr_id);
-                    unify_variables(
-                        &expr_var,
-                        &ref_expr_var,
-                        &mut self.type_store,
-                        expr_location_id,
-                        last_expr_location_id,
-                        errors,
-                    );
+                    self.check_expr_value(expr_id, ref_expr_id, program, errors);
                 }
                 Expr::If(cond_expr, true_branch_expr, false_branch_expr) => {
-                    let bool_var = self.type_store.add_type(Type::Bool);
-                    let cond_var = self.lookup_type_var_for_expr(&cond_expr);
-                    let expr_location_id = program.get_expr_location(cond_expr);
-                    unify_variables(
-                        &bool_var,
-                        &cond_var,
-                        &mut self.type_store,
-                        expr_location_id,
-                        expr_location_id,
-                        errors,
-                    );
-                    let true_var = self.lookup_type_var_for_expr(&true_branch_expr);
-                    let true_expr_location_id = program.get_expr_location(true_branch_expr);
-                    let false_var = self.lookup_type_var_for_expr(&false_branch_expr);
-                    let false_expr_location_id = program.get_expr_location(false_branch_expr);
-                    unify_variables(
-                        &true_var,
-                        &false_var,
-                        &mut self.type_store,
-                        true_expr_location_id,
-                        false_expr_location_id,
+                    self.check_if(
+                        cond_expr,
+                        true_branch_expr,
+                        false_branch_expr,
+                        program,
                         errors,
                     );
                 }
