@@ -1,6 +1,7 @@
 use crate::constants;
 use crate::constants::BuiltinOperator;
 use crate::error::Error;
+use crate::error::ErrorContext;
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::expr::FunctionArgumentRef;
@@ -129,15 +130,24 @@ impl<'a> Environment<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct Interpreter {}
+pub struct Interpreter<'a> {
+    error_context: ErrorContext<'a>,
+}
 
-impl Interpreter {
-    pub fn new() -> Interpreter {
-        Interpreter {}
+impl<'a> Interpreter<'a> {
+    pub fn new(error_context: ErrorContext<'a>) -> Interpreter<'a> {
+        Interpreter {
+            error_context: error_context,
+        }
     }
 
-    fn call(&self, callable: Value, args: Vec<Value>, program: &Program) -> Value {
+    fn call(
+        &mut self,
+        callable: Value,
+        args: Vec<Value>,
+        program: &Program,
+        expr_id: ExprId,
+    ) -> Value {
         match callable {
             Value::Callable(mut callable) => {
                 let func_info = program.get_function(&callable.function_id);
@@ -147,7 +157,12 @@ impl Interpreter {
                 } else {
                     assert_eq!(func_info.arg_locations.len(), (callable.values.len()));
                     let mut environment = Environment::new(callable.function_id, callable.values);
-                    return self.execute(program, callable.function_id, &mut environment);
+                    return self.execute(
+                        program,
+                        callable.function_id,
+                        &mut environment,
+                        Some(expr_id),
+                    );
                 }
             }
             _ => unreachable!(),
@@ -155,7 +170,7 @@ impl Interpreter {
     }
 
     fn eval_expr(
-        &self,
+        &mut self,
         program: &Program,
         expr_id: ExprId,
         environment: &mut Environment,
@@ -178,7 +193,7 @@ impl Interpreter {
                     .iter()
                     .map(|arg| self.eval_expr(program, *arg, environment))
                     .collect();
-                return self.call(callable, arg_values, program);
+                return self.call(callable, arg_values, program, expr_id);
             }
             Expr::DynamicFunctionCall(function_expr_id, args) => {
                 let function_expr_id = self.eval_expr(program, *function_expr_id, environment);
@@ -186,7 +201,7 @@ impl Interpreter {
                     .iter()
                     .map(|arg| self.eval_expr(program, *arg, environment))
                     .collect();
-                return self.call(function_expr_id, arg_values, program);
+                return self.call(function_expr_id, arg_values, program, expr_id);
             }
             Expr::Do(exprs) => {
                 let mut environment = Environment::block_child(environment);
@@ -231,7 +246,14 @@ impl Interpreter {
         }
     }
 
-    fn call_extern(&self, module: &str, name: &str, environment: &mut Environment) -> Value {
+    fn call_extern(
+        &self,
+        module: &str,
+        name: &str,
+        environment: &mut Environment,
+        program: &Program,
+        current_expr: Option<ExprId>,
+    ) -> Value {
         match (module, name) {
             ("Prelude", "op_add") => {
                 let l = environment.args[0].as_int();
@@ -253,13 +275,34 @@ impl Interpreter {
                 let r = environment.args[1].as_int();
                 return Value::Bool(l < r);
             }
+            ("Prelude", "op_equals") => {
+                let l = environment.args[0].as_int();
+                let r = environment.args[1].as_int();
+                return Value::Bool(l == r);
+            }
+            ("Std.Util", "assert") => {
+                let v = environment.args[0].as_bool();
+                if !v {
+                    let current_expr = current_expr.expect("No current expr");
+                    let location_id = program.get_expr_location(&current_expr);
+                    let err = Error::RuntimeError(format!("Assertion failed"), location_id);
+                    err.report_error(&self.error_context);
+                }
+                return Value::Tuple(vec![]);
+            }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);
             }
         }
     }
 
-    fn execute(&self, program: &Program, id: FunctionId, environment: &mut Environment) -> Value {
+    fn execute(
+        &mut self,
+        program: &Program,
+        id: FunctionId,
+        environment: &mut Environment,
+        current_expr: Option<ExprId>,
+    ) -> Value {
         let function = program.get_function(&id);
         match &function.info {
             FunctionInfo::NamedFunction(info) => match info.body {
@@ -267,14 +310,20 @@ impl Interpreter {
                     return self.eval_expr(program, body, environment);
                 }
                 None => {
-                    return self.call_extern(&info.module, &info.name, environment);
+                    return self.call_extern(
+                        &info.module,
+                        &info.name,
+                        environment,
+                        program,
+                        current_expr,
+                    );
                 }
             },
             _ => unimplemented!(),
         }
     }
 
-    pub fn run(&self, program: &Program) -> Value {
+    pub fn run(&mut self, program: &Program) -> Value {
         for (id, function) in &program.functions {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
@@ -282,7 +331,7 @@ impl Interpreter {
                         && info.name == constants::MAIN_FUNCTION
                     {
                         let mut environment = Environment::new(*id, vec![]);
-                        return self.execute(program, *id, &mut environment);
+                        return self.execute(program, *id, &mut environment, None);
                     }
                 }
                 _ => {}

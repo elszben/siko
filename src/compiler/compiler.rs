@@ -1,6 +1,7 @@
 use crate::compiler::config::Config;
 use crate::compiler::file_manager::FileManager;
 use crate::error::Error;
+use crate::error::ErrorContext;
 use crate::interpreter::Interpreter;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location_info::LocationInfo;
@@ -110,7 +111,7 @@ impl Compiler {
         let mut typechecker = Typechecker::new();
 
         typechecker.check(&ir_program)?;
-        let interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::new(self.context());
 
         let value = interpreter.run(&ir_program);
 
@@ -118,7 +119,14 @@ impl Compiler {
         Ok(())
     }
 
+    fn context(&self) -> ErrorContext {
+        ErrorContext {
+            file_manager: &self.file_manager,
+            location_info: &self.location_info,
+        }
+    }
+
     pub fn report_error(&self, error: Error) {
-        error.report_error(&self.file_manager, &self.location_info);
+        error.report_error(&self.context());
     }
 }

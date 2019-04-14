@@ -1,5 +1,6 @@
 use crate::compiler::file_manager::FileManager;
 use crate::location_info::filepath::FilePath;
+use crate::location_info::item::LocationId;
 use crate::location_info::location::Location;
 use crate::location_info::location_info::LocationInfo;
 use crate::location_info::location_set::LocationSet;
@@ -11,6 +12,11 @@ use colored::*;
 use std::cmp;
 use std::convert::From;
 use std::io::Error as IoError;
+
+pub struct ErrorContext<'a> {
+    pub file_manager: &'a FileManager,
+    pub location_info: &'a LocationInfo,
+}
 
 fn s_from_range(chars: &[char], start: usize, end: usize) -> String {
     let start = cmp::min(start, end);
@@ -68,7 +74,7 @@ pub enum Error {
     ParseError(String, FilePath, Location),
     ResolverError(Vec<ResolverError>),
     TypecheckError(Vec<TypecheckError>),
-    RuntimeError(String),
+    RuntimeError(String, LocationId),
 }
 
 impl Error {
@@ -98,9 +104,6 @@ impl Error {
         Error::TypecheckError(errors)
     }
 
-    pub fn runtime_err(s: String) -> Error {
-        Error::RuntimeError(s)
-    }
     fn report_location(file_manager: &FileManager, file_path: &FilePath, location: &Location) {
         let input = file_manager.content(file_path);
         let lines: Vec<_> = input.lines().collect();
@@ -130,7 +133,9 @@ impl Error {
         Error::report_location(file_manager, file_path, location);
     }
 
-    pub fn report_error(&self, file_manager: &FileManager, location_info: &LocationInfo) {
+    pub fn report_error(&self, context: &ErrorContext) {
+        let file_manager = context.file_manager;
+        let location_info = context.location_info;
         let error = "ERROR:";
         match self {
             Error::LexerError(errors) => {
@@ -348,8 +353,10 @@ impl Error {
                     }
                 }
             }
-            Error::RuntimeError(err) => {
-                println!("Error: {}", err);
+            Error::RuntimeError(err, id) => {
+                println!("{} {}", error.red(), err);
+                let location_set = location_info.get_item_location(id);
+                print_location_set(file_manager, location_set);
             }
             Error::TypecheckError(errs) => {
                 for err in errs {

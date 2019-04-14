@@ -45,7 +45,7 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>) {
             }
         }
     }
-    println!("Compiling {} file(s)", inputs.len());
+    //println!("Compiling {} file(s)", inputs.len());
     (config, inputs)
 }
 
