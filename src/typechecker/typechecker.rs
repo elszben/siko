@@ -652,7 +652,43 @@ impl Typechecker {
         );
     }
 
-    fn check_exprs(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
+    fn check_tuple_field_access(
+        &mut self,
+        expr_id: &ExprId,
+        index: usize,
+        tuple_expr: &ExprId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let expr_var = self.lookup_type_var_for_expr(expr_id);
+        let expr_location_id = program.get_expr_location(expr_id);
+        let tuple_var = self.lookup_type_var_for_expr(tuple_expr);
+        let tuple_ty = self.type_store.get_type(&tuple_var);
+        if let Type::Tuple(items) = tuple_ty {
+            if items.len() > index {
+                unify_variables(
+                    &expr_var,
+                    &items[index],
+                    &mut self.type_store,
+                    expr_location_id,
+                    expr_location_id,
+                    errors,
+                );
+                return;
+            }
+        }
+        let expected_type = format!("<tuple with at least {} item(s)>", index + 1);
+        let found_type = self.type_store.get_resolved_type_string(&tuple_var);
+        let err = TypecheckError::TypeMismatch(
+            expr_location_id,
+            expr_location_id,
+            expected_type,
+            found_type,
+        );
+        errors.push(err);
+    }
+
+    fn check_exprs(&mut self, program: &Program, errors: &mut Vec<TypecheckError>, phase: usize) {
         for (expr_id, expr_info) in &program.exprs {
             // println!("Checking {} {}", expr_id, expr_info.expr);
             match &expr_info.expr {
@@ -697,7 +733,11 @@ impl Typechecker {
                 Expr::Tuple(exprs) => {
                     self.check_tuple(expr_id, exprs, program, errors);
                 }
-                Expr::TupleFieldAccess(_, _) => {}
+                Expr::TupleFieldAccess(index, tuple_expr) => {
+                    if phase == 1 {
+                        self.check_tuple_field_access(expr_id, *index, tuple_expr, program, errors);
+                    }
+                }
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
                 }
@@ -737,13 +777,21 @@ impl Typechecker {
     }
 
     fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        let mut primary_modified = true;
+        let mut run = true;
         let mut loop_count = 10;
-        while primary_modified && errors.is_empty() && loop_count > 0 {
-            self.check_exprs(program, errors);
+        let mut phase = 0;
+        while run && errors.is_empty() && loop_count > 0 {
+            self.check_exprs(program, errors, phase);
             self.check_body_and_result(program, errors);
             loop_count -= 1;
-            primary_modified = self.progress_checker.get_and_unset();
+            let primary_modified = self.progress_checker.get_and_unset();
+            if !primary_modified {
+                if phase == 2 {
+                    run = false;
+                } else {
+                    phase += 1;
+                }
+            }
         }
         assert!(loop_count > 0);
     }
