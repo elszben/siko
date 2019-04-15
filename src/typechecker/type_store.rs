@@ -4,13 +4,6 @@ use crate::typechecker::types::Type;
 use crate::util::Counter;
 use std::collections::BTreeMap;
 
-#[derive(Eq, PartialEq)]
-pub enum ProgressTrackingMode {
-    None,
-    PrimaryOnly,
-    All,
-}
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeIndex {
     id: usize,
@@ -30,7 +23,6 @@ pub struct TypeStore {
     arg_counter: Counter,
     primary_modified: bool,
     progress_checker: ProgressChecker,
-    progress_tracking_mode: ProgressTrackingMode,
 }
 
 impl TypeStore {
@@ -43,7 +35,6 @@ impl TypeStore {
             arg_counter: Counter::new(),
             primary_modified: false,
             progress_checker: progress_checker,
-            progress_tracking_mode: ProgressTrackingMode::All,
         }
     }
 
@@ -97,16 +88,10 @@ impl TypeStore {
         }
     }
 
-    pub fn unify(
-        &mut self,
-        primary: &TypeVariable,
-        secondary: &TypeVariable,
-        progress_tracking_mode: ProgressTrackingMode,
-    ) -> bool {
+    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         self.primary_modified = false;
-        self.progress_tracking_mode = progress_tracking_mode;
         let r = self.unify_inner(primary, secondary);
-        if self.primary_modified && self.progress_tracking_mode != ProgressTrackingMode::None {
+        if self.primary_modified {
             self.progress_checker.set();
         }
         r
@@ -131,15 +116,11 @@ impl TypeStore {
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
             (Type::TypeArgument(_), Type::TypeArgument(_)) => {
-                if self.progress_tracking_mode == ProgressTrackingMode::All {
-                    self.primary_modified = true;
-                }
+                self.primary_modified = true;
                 self.merge(primary, secondary);
             }
             (Type::TypeArgument(_), _) => {
-                if self.progress_tracking_mode != ProgressTrackingMode::None {
-                    self.primary_modified = true;
-                }
+                self.primary_modified = true;
                 self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {

@@ -13,12 +13,12 @@ use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
-use crate::typechecker::type_store::ProgressTrackingMode;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
 use crate::util::format_list;
 use std::cell::RefCell;
+use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
@@ -116,15 +116,41 @@ fn unify_variables(
     found_id: LocationId,
     errors: &mut Vec<TypecheckError>,
 ) {
-    if !type_store.unify(&found, &expected, ProgressTrackingMode::All) {
+    if !type_store.unify(&found, &expected) {
         report_type_mismatch(expected, found, type_store, expected_id, found_id, errors);
     }
+}
+
+fn create_general_function_type(
+    arg_count: usize,
+    args: &mut Vec<TypeVariable>,
+    type_store: &mut TypeStore,
+) -> (TypeVariable, TypeVariable) {
+    if arg_count > 0 {
+        let from_var = type_store.get_new_type_var();
+        args.push(from_var);
+        let (to_var, result) = create_general_function_type(arg_count - 1, args, type_store);
+        let func_ty = Type::Function(FunctionType::new(from_var, to_var));
+        let func_var = type_store.add_type(func_ty);
+        (func_var, result)
+    } else {
+        let v = type_store.get_new_type_var();
+        (v, v)
+    }
+}
+
+#[derive(Clone)]
+struct FunctionCallInfo {
+    function_type: TypeVariable,
+    result: TypeVariable,
+    args: Vec<TypeVariable>,
 }
 
 pub struct Typechecker {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
+    function_call_info_map: BTreeMap<ExprId, FunctionCallInfo>,
     progress_checker: ProgressChecker,
 }
 
@@ -135,6 +161,7 @@ impl Typechecker {
             type_store: TypeStore::new(progress_checker.clone()),
             function_type_info_map: BTreeMap::new(),
             expression_type_var_map: BTreeMap::new(),
+            function_call_info_map: BTreeMap::new(),
             progress_checker: progress_checker,
         }
     }
@@ -328,24 +355,6 @@ impl Typechecker {
             .insert(function_id, function_type_info);
     }
 
-    fn create_general_function_type(
-        &mut self,
-        arg_count: usize,
-        args: &mut Vec<TypeVariable>,
-    ) -> (TypeVariable, TypeVariable) {
-        if arg_count > 0 {
-            let from_var = self.type_store.get_new_type_var();
-            args.push(from_var);
-            let (to_var, result) = self.create_general_function_type(arg_count - 1, args);
-            let func_ty = Type::Function(FunctionType::new(from_var, to_var));
-            let func_var = self.type_store.add_type(func_ty);
-            (func_var, result)
-        } else {
-            let v = self.type_store.get_new_type_var();
-            (v, v)
-        }
-    }
-
     fn register_untyped_function(
         &mut self,
         name: String,
@@ -355,8 +364,11 @@ impl Typechecker {
     ) {
         let mut args = Vec::new();
 
-        let (func_type_var, result) =
-            self.create_general_function_type(function.arg_locations.len(), &mut args);
+        let (func_type_var, result) = create_general_function_type(
+            function.arg_locations.len(),
+            &mut args,
+            &mut self.type_store,
+        );
         let function_type_info = FunctionTypeInfo::new(
             name,
             args,
@@ -408,8 +420,26 @@ impl Typechecker {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
     ) {
-        let mut gen_args = Vec::new();
-        let (func_type_var, result) = self.create_general_function_type(args.len(), &mut gen_args);
+        let (func_type_var, result, gen_args) = match self.function_call_info_map.entry(*expr_id) {
+            Entry::Occupied(info) => (
+                info.get().function_type,
+                info.get().result,
+                info.get().args.clone(),
+            ),
+            Entry::Vacant(entry) => {
+                let mut gen_args = Vec::new();
+                let (func_type_var, result) =
+                    create_general_function_type(args.len(), &mut gen_args, &mut self.type_store);
+                let info = FunctionCallInfo {
+                    function_type: func_type_var,
+                    result: result,
+                    args: gen_args,
+                };
+                entry.insert(info.clone());
+                (info.function_type, info.result, info.args)
+            }
+        };
+
         let target_function_type_info = self
             .function_type_info_map
             .get(function_id)
@@ -419,21 +449,12 @@ impl Typechecker {
             .clone_type_var(target_function_type_info.function_type);
         let expr_location_id = program.get_expr_location(expr_id);
         let mut failed = false;
-        if self
-            .type_store
-            .unify(&func_type_var, &cloned, ProgressTrackingMode::None)
-        {
+        if self.type_store.unify(&func_type_var, &cloned) {
             let expr_var = self.lookup_type_var_for_expr(expr_id);
-            if self
-                .type_store
-                .unify(&expr_var, &result, ProgressTrackingMode::PrimaryOnly)
-            {
+            if self.type_store.unify(&expr_var, &result) {
                 for (arg, gen_arg) in args.iter().zip(gen_args.iter()) {
                     let arg_var = self.lookup_type_var_for_expr(arg);
-                    if !self
-                        .type_store
-                        .unify(&arg_var, gen_arg, ProgressTrackingMode::PrimaryOnly)
-                    {
+                    if !self.type_store.unify(&arg_var, gen_arg) {
                         failed = true;
                         break;
                     }
@@ -479,10 +500,7 @@ impl Typechecker {
             .expect("Function type info not found");
         let arg_var = function_type_info.args[arg_ref.index];
         let expr_var = self.lookup_type_var_for_expr(expr_id);
-        if !self
-            .type_store
-            .unify(&arg_var, &expr_var, ProgressTrackingMode::All)
-        {
+        if !self.type_store.unify(&arg_var, &expr_var) {
             panic!("Non typed argument failed to unify with argref");
         }
     }
@@ -496,7 +514,8 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
     ) {
         let mut gen_args = Vec::new();
-        let (func_type_var, result) = self.create_general_function_type(args.len(), &mut gen_args);
+        let (func_type_var, result) =
+            create_general_function_type(args.len(), &mut gen_args, &mut self.type_store);
         let callable_expr_var = self.lookup_type_var_for_expr(callable_expr_id);
         let callable_location_id = program.get_expr_location(callable_expr_id);
         unify_variables(
