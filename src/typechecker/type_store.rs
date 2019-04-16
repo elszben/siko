@@ -1,5 +1,5 @@
 use super::type_variable::TypeVariable;
-use crate::typechecker::typechecker::ProgressChecker;
+use crate::typechecker::common::ProgressChecker;
 use crate::typechecker::types::Type;
 use crate::util::Counter;
 use std::collections::BTreeMap;
@@ -22,11 +22,11 @@ pub struct TypeStore {
     index_counter: Counter,
     arg_counter: Counter,
     primary_modified: bool,
-    progress_checker: ProgressChecker,
+    pub progress_checker: ProgressChecker,
 }
 
 impl TypeStore {
-    pub fn new(progress_checker: ProgressChecker) -> TypeStore {
+    pub fn new() -> TypeStore {
         TypeStore {
             variables: BTreeMap::new(),
             indices: BTreeMap::new(),
@@ -34,7 +34,7 @@ impl TypeStore {
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
             primary_modified: false,
-            progress_checker: progress_checker,
+            progress_checker: ProgressChecker::new(),
         }
     }
 
