@@ -15,7 +15,7 @@ pub enum Type {
     Function(FunctionType),
     TypeArgument(usize),
     FixedTypeArgument(usize, String),
-    TupleFieldIndexable(usize, TypeVariable),
+    TupleFieldIndexable(usize),
 }
 
 impl Type {
@@ -70,10 +70,7 @@ impl Type {
                     .expect("Type argument not found during clone");
                 Type::TypeArgument(*new_index)
             }
-            Type::TupleFieldIndexable(index, var) => {
-                let new_var = Type::clone_type_var(var, vars, args, type_store);
-                Type::TupleFieldIndexable(*index, new_var)
-            }
+            Type::TupleFieldIndexable(index) => Type::TupleFieldIndexable(*index),
         }
     }
 
@@ -107,11 +104,7 @@ impl Type {
                 args.push(*index);
             }
             Type::FixedTypeArgument(index, _) => args.push(*index),
-            Type::TupleFieldIndexable(_, var) => {
-                vars.push(*var);
-                let ty = type_store.get_type(var);
-                ty.collect(vars, args, type_store);
-            }
+            Type::TupleFieldIndexable(_) => {}
         }
     }
 
@@ -142,10 +135,7 @@ impl Type {
             }
             Type::TypeArgument(index) => format!("t{}", index),
             Type::FixedTypeArgument(_, name) => format!("{}", name),
-            Type::TupleFieldIndexable(index, var) => {
-                let ty = type_store.get_type(var);
-                format!("t.{}[{}]", index, ty.as_string(type_store, false))
-            }
+            Type::TupleFieldIndexable(index) => format!("t.{}", index),
         }
     }
 
@@ -186,7 +176,7 @@ impl Type {
             }
             Type::TypeArgument(..) => false,
             Type::FixedTypeArgument(..) => false,
-            Type::TupleFieldIndexable(.., var) => check_sub_var(var, vars, type_store),
+            Type::TupleFieldIndexable(.., var) => false,
         }
     }
 }
@@ -206,7 +196,7 @@ impl fmt::Display for Type {
             Type::Function(func_type) => write!(f, "{}", func_type),
             Type::TypeArgument(index) => write!(f, "t{}", index),
             Type::FixedTypeArgument(_, name) => write!(f, "{}", name),
-            Type::TupleFieldIndexable(index, var) => write!(f, "t.{}[{}]", index, var),
+            Type::TupleFieldIndexable(index) => write!(f, "t.{}", index),
         }
     }
 }

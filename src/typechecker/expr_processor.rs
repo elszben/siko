@@ -381,32 +381,18 @@ impl ExprProcessor {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
     ) {
-        let expr_var = self.lookup_type_var_for_expr(expr_id);
-        let expr_location_id = program.get_expr_location(expr_id);
+        //TODO
+        let tuple_expr_location_id = program.get_expr_location(tuple_expr);
         let tuple_var = self.lookup_type_var_for_expr(tuple_expr);
-        let tuple_ty = self.type_store.get_type(&tuple_var);
-        if let Type::Tuple(items) = tuple_ty {
-            if items.len() > index {
-                unify_variables(
-                    &expr_var,
-                    &items[index],
-                    &mut self.type_store,
-                    expr_location_id,
-                    expr_location_id,
-                    errors,
-                );
-                return;
-            }
-        }
-        let expected_type = format!("<tuple with at least {} item(s)>", index + 1);
-        let found_type = self.type_store.get_resolved_type_string(&tuple_var);
-        let err = TypecheckError::TypeMismatch(
-            expr_location_id,
-            expr_location_id,
-            expected_type,
-            found_type,
+        let var = self.type_store.add_type(Type::TupleFieldIndexable(index));
+        unify_variables(
+            &var,
+            &tuple_var,
+            &mut self.type_store,
+            tuple_expr_location_id,
+            tuple_expr_location_id,
+            errors,
         );
-        errors.push(err);
     }
 
     pub fn check_body_and_result(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {

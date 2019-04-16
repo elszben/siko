@@ -21,7 +21,6 @@ pub struct TypeStore {
     var_counter: Counter,
     index_counter: Counter,
     arg_counter: Counter,
-    primary_modified: bool,
     pub progress_checker: ProgressChecker,
 }
 
@@ -33,7 +32,6 @@ impl TypeStore {
             var_counter: Counter::new(),
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
-            primary_modified: false,
             progress_checker: ProgressChecker::new(),
         }
     }
@@ -89,11 +87,8 @@ impl TypeStore {
     }
 
     pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
-        self.primary_modified = false;
         let r = self.unify_inner(primary, secondary);
-        if self.primary_modified {
-            self.progress_checker.set();
-        }
+        self.progress_checker.set();
         r
     }
 
@@ -116,14 +111,15 @@ impl TypeStore {
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
             (Type::TypeArgument(_), Type::TypeArgument(_)) => {
-                self.primary_modified = true;
+                self.progress_checker.set();
                 self.merge(primary, secondary);
             }
             (Type::TypeArgument(_), _) => {
-                self.primary_modified = true;
+                self.progress_checker.set();
                 self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {
+                self.progress_checker.set();
                 self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
@@ -144,6 +140,13 @@ impl TypeStore {
                 if !self.unify_inner(&f1.to, &f2.to) {
                     return false;
                 }
+            }
+            (Type::TupleFieldIndexable(tuple_idx1), Type::TupleFieldIndexable(tuple_idx2)) => {
+                let max_idx = std::cmp::max(tuple_idx1, tuple_idx2);
+                let common_ty = Type::TupleFieldIndexable(*max_idx);
+                self.indices.insert(index1, common_ty.clone());
+                self.indices.insert(index2, common_ty);
+                self.progress_checker.set();
             }
             _ => {
                 return false;

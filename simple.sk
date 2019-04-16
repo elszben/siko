@@ -1,7 +1,8 @@
 module Main where
 
-funky_stuff a = a
-
+funky_stuff a = a.2
+/*
 get_tuple a = (1, True, funky_stuff, a)
 
 main = ((get_tuple 5).2) 5
+*/
