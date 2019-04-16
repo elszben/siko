@@ -467,12 +467,7 @@ impl ExprProcessor {
         }
     }
 
-    pub fn check_exprs(
-        &mut self,
-        program: &Program,
-        errors: &mut Vec<TypecheckError>,
-        phase: usize,
-    ) {
+    pub fn check_exprs(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         for (expr_id, expr_info) in &program.exprs {
             // println!("Checking {} {}", expr_id, expr_info.expr);
             match &expr_info.expr {
@@ -518,9 +513,7 @@ impl ExprProcessor {
                     self.check_tuple(expr_id, exprs, program, errors);
                 }
                 Expr::TupleFieldAccess(index, tuple_expr) => {
-                    if phase == 1 {
-                        self.check_tuple_field_access(expr_id, *index, tuple_expr, program, errors);
-                    }
+                    self.check_tuple_field_access(expr_id, *index, tuple_expr, program, errors);
                 }
                 _ => {
                     panic!("Unimplemented expr {}", expr_info.expr);
@@ -554,18 +547,13 @@ impl ExprProcessor {
     pub fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
         let mut run = true;
         let mut loop_count = 20;
-        let mut phase = 0;
         while run && errors.is_empty() && loop_count > 0 {
-            self.check_exprs(program, errors, phase);
+            self.check_exprs(program, errors);
             self.check_body_and_result(program, errors);
             loop_count -= 1;
             let primary_modified = self.type_store.progress_checker.get_and_unset();
             if !primary_modified {
-                if phase == 2 {
-                    run = false;
-                } else {
-                    phase += 1;
-                }
+                run = false;
             }
         }
         assert!(loop_count > 0);
