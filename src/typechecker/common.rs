@@ -1,6 +1,9 @@
 use crate::ir::expr::ExprId;
 use crate::location_info::item::LocationId;
+use crate::typechecker::function_type::FunctionType;
+use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
+use crate::typechecker::types::Type;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -73,5 +76,23 @@ impl ProgressChecker {
         let r = *d;
         *d = false;
         r
+    }
+}
+
+pub fn create_general_function_type(
+    arg_count: usize,
+    args: &mut Vec<TypeVariable>,
+    type_store: &mut TypeStore,
+) -> (TypeVariable, TypeVariable) {
+    if arg_count > 0 {
+        let from_var = type_store.get_new_type_var();
+        args.push(from_var);
+        let (to_var, result) = create_general_function_type(arg_count - 1, args, type_store);
+        let func_ty = Type::Function(FunctionType::new(from_var, to_var));
+        let func_var = type_store.add_type(func_ty);
+        (func_var, result)
+    } else {
+        let v = type_store.get_new_type_var();
+        (v, v)
     }
 }

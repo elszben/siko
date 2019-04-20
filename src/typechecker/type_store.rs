@@ -76,7 +76,7 @@ impl TypeStore {
             .clone()
     }
 
-    fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
+    pub fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
         let from_index = self.get_index(from);
         let to_index = self.get_index(to);
         for (_, value) in self.variables.iter_mut() {
@@ -86,23 +86,92 @@ impl TypeStore {
         }
     }
 
-    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
-        let r = self.unify_inner(primary, secondary);
-        self.progress_checker.set();
-        r
-    }
+    fn reshape_inner(
+        &mut self,
+        target: &TypeVariable,
+        source: &TypeVariable,
+        arg_map: &mut BTreeMap<usize, TypeVariable>,
+    ) -> bool {
+        let target_type = self.get_type(target);
+        let source_type = self.get_type(source);
 
-    pub fn unify_inner(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
-        let primary_type = self.get_type(primary);
-        let secondary_type = self.get_type(secondary);
+        let index1 = self.get_index(target);
+        let index2 = self.get_index(source);
         /*
         println!(
-            "Unify vars t1:({}),{:?} t2:({}),{:?}",
-            primary, primary_type, secondary, secondary_type
+            "Unify vars t1:({}),{:?},{} t2:({}),{:?},{}",
+            target, target_type, index1.id, source, source_type, index2.id,
         );
         */
+        if index1 == index2 {
+            return true;
+        }
+
+        if let Type::TypeArgument(arg_index) = source_type {
+            match arg_map.get(&arg_index).cloned() {
+                Some(v) => {
+                    return self.reshape_inner(target, &v, arg_map);
+                }
+                None => {
+                    arg_map.insert(arg_index, *target);
+                    return true;
+                }
+            }
+        }
+
+        match (&target_type, &source_type) {
+            (Type::Int, Type::Int) => {}
+            (Type::String, Type::String) => {}
+            (Type::Bool, Type::Bool) => {}
+            (Type::TypeArgument(_), _) => {
+                self.progress_checker.set();
+                let copied_source = self.clone_type_var(*source);
+                self.merge(&copied_source, target);
+            }
+            (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
+                if type_vars1.len() != type_vars2.len() {
+                    return false;
+                } else {
+                    for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
+                        if !self.reshape_inner(v1, v2, arg_map) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            (Type::Function(f1), Type::Function(f2)) => {
+                if !self.reshape_inner(&f1.from, &f2.from, arg_map) {
+                    return false;
+                }
+                if !self.reshape_inner(&f1.to, &f2.to, arg_map) {
+                    return false;
+                }
+            }
+            _ => {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn reshape(&mut self, target: &TypeVariable, source: &TypeVariable) -> bool {
+        let mut arg_map = BTreeMap::new();
+
+        return self.reshape_inner(target, source, &mut arg_map);
+    }
+
+    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
+        let primary_type = self.get_type(primary);
+        let secondary_type = self.get_type(secondary);
+
         let index1 = self.get_index(primary);
         let index2 = self.get_index(secondary);
+        /*
+        println!(
+            "Unify vars t1:({}),{:?},{} t2:({}),{:?},{}",
+            primary, primary_type, index1.id, secondary, secondary_type, index2.id,
+        );
+        */
         if index1 == index2 {
             return true;
         }
@@ -127,25 +196,22 @@ impl TypeStore {
                     return false;
                 } else {
                     for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.unify_inner(v1, v2) {
+                        if !self.unify(v1, v2) {
                             return false;
                         }
                     }
                 }
             }
             (Type::Function(f1), Type::Function(f2)) => {
-                if !self.unify_inner(&f1.from, &f2.from) {
+                if !self.unify(&f1.from, &f2.from) {
                     return false;
                 }
-                if !self.unify_inner(&f1.to, &f2.to) {
+                if !self.unify(&f1.to, &f2.to) {
                     return false;
                 }
             }
-            (Type::TupleFieldIndexable(tuple_idx1), Type::TupleFieldIndexable(tuple_idx2)) => {
-                let max_idx = std::cmp::max(tuple_idx1, tuple_idx2);
-                let common_ty = Type::TupleFieldIndexable(*max_idx);
-                self.indices.insert(index1, common_ty.clone());
-                self.indices.insert(index2, common_ty);
+            (Type::TupleFieldIndexable, Type::TupleFieldIndexable) => {
+                self.merge(primary, secondary);
                 self.progress_checker.set();
             }
             _ => {
@@ -208,5 +274,19 @@ impl TypeStore {
         let ty = self.get_type(&var);
         let vars = vec![var];
         ty.check_recursion(&vars, self)
+    }
+
+    pub fn set_type(&mut self, var: &TypeVariable, new_ty: Type) -> bool {
+        let ty = self.get_type(var);
+        let index = self.get_index(var);
+        if ty == new_ty {
+            return true;
+        }
+        if let Type::TypeArgument(_) = ty {
+            self.indices.insert(index, Type::Int);
+            return true;
+        } else {
+            return false;
+        }
     }
 }

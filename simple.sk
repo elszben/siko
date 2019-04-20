@@ -1,6 +1,9 @@
 module Main where
 
-funky_stuff a = a.2
+//funky_stuff :: (Int,Int) -> Int
+funky_stuff :: String -> Int
+funky_stuff a = 1
+
 /*
 get_tuple a = (1, True, funky_stuff, a)
 
