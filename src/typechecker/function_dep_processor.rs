@@ -1,4 +1,5 @@
 use crate::ir::expr::Expr;
+use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::program::Program;
 use crate::typechecker::common::DependencyGroup;
@@ -55,7 +56,7 @@ impl DependencyCollector {
 }
 
 impl Visitor for DependencyCollector {
-    fn visit(&mut self, expr: &Expr) {
+    fn visit(&mut self, _: ExprId, expr: &Expr) {
         match expr {
             Expr::StaticFunctionCall(id, _) => {
                 self.used_functions.insert(*id);
@@ -140,7 +141,11 @@ impl FunctionDependencyProcessor {
     pub fn process_functions(
         mut self,
         program: &Program,
-    ) -> (TypeStore, BTreeMap<FunctionId, FunctionTypeInfo>) {
+    ) -> (
+        TypeStore,
+        BTreeMap<FunctionId, FunctionTypeInfo>,
+        Vec<DependencyGroup>,
+    ) {
         self.collect_untyped_deps(program);
 
         let mut group_table = GroupTable::new();
@@ -203,11 +208,13 @@ impl FunctionDependencyProcessor {
             }
         }
 
+        /*
         for (index, group) in ordered_groups.iter().enumerate() {
             let funcs: Vec<_> = group.functions.iter().collect();
             println!("{} group {}", index, format_list(&funcs[..]));
         }
+        */
 
-        (self.type_store, self.function_type_info_map)
+        (self.type_store, self.function_type_info_map, ordered_groups)
     }
 }

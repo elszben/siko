@@ -4,52 +4,63 @@ use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::FunctionId;
 use crate::ir::program::Program;
 use crate::location_info::item::LocationId;
+use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
+use crate::typechecker::walker::walk_expr;
+use crate::typechecker::walker::Visitor;
 use crate::util::format_list;
 use std::cell::RefCell;
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-#[derive(Clone)]
-struct Substitution {
-    substitutions: Rc<RefCell<BTreeMap<usize, TypeVariable>>>,
+struct TypeVarCreator<'a> {
+    expr_processor: &'a mut ExprProcessor,
 }
 
-impl Substitution {
-    fn new() -> Substitution {
-        Substitution {
-            substitutions: Rc::new(RefCell::new(BTreeMap::new())),
+impl<'a> TypeVarCreator<'a> {
+    fn new(expr_processor: &'a mut ExprProcessor) -> TypeVarCreator<'a> {
+        TypeVarCreator {
+            expr_processor: expr_processor,
         }
     }
 }
 
-enum Constraint {
-    Int(TypeVariable),
-    String(TypeVariable),
-    Bool(TypeVariable),
-    FunctionResult {
-        body: TypeVariable,
-        result: TypeVariable,
-    },
-    StaticFunctionCall {
-        result: TypeVariable,
-        func_type: TypeVariable,
-        arg: TypeVariable,
-        substitutions: Substitution,
-    },
+impl<'a> Visitor for TypeVarCreator<'a> {
+    fn visit(&mut self, expr_id: ExprId, _: &Expr) {
+        self.expr_processor.create_type_var_for_expr(expr_id);
+    }
+}
+
+struct Unifier<'a> {
+    expr_processor: &'a mut ExprProcessor,
+}
+
+impl<'a> Unifier<'a> {
+    fn new(expr_processor: &'a mut ExprProcessor) -> Unifier<'a> {
+        Unifier {
+            expr_processor: expr_processor,
+        }
+    }
+}
+
+impl<'a> Visitor for Unifier<'a> {
+    fn visit(&mut self, expr_id: ExprId, expr: &Expr) {
+        unreachable!();
+        match expr {
+            _ => unimplemented!(),
+        }
+    }
 }
 
 pub struct ExprProcessor {
     type_store: TypeStore,
     expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
-    constraints: Vec<Constraint>,
 }
 
 impl ExprProcessor {
@@ -61,7 +72,6 @@ impl ExprProcessor {
             type_store: type_store,
             expression_type_var_map: BTreeMap::new(),
             function_type_info_map: function_type_info_map,
-            constraints: Vec::new(),
         }
     }
 
@@ -78,56 +88,22 @@ impl ExprProcessor {
             .expect("Type var for expr not found")
     }
 
-    pub fn process_expr_and_create_vars(&mut self, program: &Program) {
-        for (expr_id, expr_info) in &program.exprs {
-            //println!("Processing {} {}", expr_id, expr_info.expr);
-            self.create_type_var_for_expr(*expr_id);
-        }
-
-        for (expr_id, expr_info) in &program.exprs {
-            //println!("Creating constraint for {} {}", expr_id, expr_info.expr);
-            let c = match &expr_info.expr {
-                Expr::IntegerLiteral(_) => Constraint::Int(self.lookup_type_var_for_expr(expr_id)),
-                Expr::StringLiteral(_) => {
-                    Constraint::String(self.lookup_type_var_for_expr(expr_id))
-                }
-                Expr::BoolLiteral(_) => Constraint::Bool(self.lookup_type_var_for_expr(expr_id)),
-                _ => unreachable!(),
-            };
-            self.constraints.push(c);
-        }
-
-        for (id, info) in &self.function_type_info_map {
-            let body = if let Some(body) = info.body {
-                body
-            } else {
-                continue;
-            };
-            let body_var = self.lookup_type_var_for_expr(&body);
-            let c = Constraint::FunctionResult {
-                body: body_var,
-                result: info.result,
-            };
-            self.constraints.push(c);
+    pub fn process_untyped_dep_group(&mut self, program: &Program, group: &DependencyGroup) {
+        for function in &group.functions {
+            self.process_untyped_function(function, program);
         }
     }
 
-    pub fn check_constraints(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        for c in &self.constraints {
-            match c {
-                Constraint::Int(var) => {
-                    if !self.type_store.set_type(var, Type::Int) {
-                        unimplemented!()
-                    }
-                }
-                Constraint::FunctionResult { body, result } => {
-                    if !self.type_store.unify(body, result) {
-                        unimplemented!()
-                    }
-                }
-                _ => unimplemented!(),
-            }
-        }
+    pub fn process_untyped_function(&mut self, function_id: &FunctionId, program: &Program) {
+        let type_info = self
+            .function_type_info_map
+            .get(function_id)
+            .expect("Function type info not found");
+        let body = type_info.body.expect("body not found");
+        let mut type_var_creator = TypeVarCreator::new(self);
+        walk_expr(&body, program, &mut type_var_creator);
+        let mut unifier = Unifier::new(self);
+        walk_expr(&body, program, &mut unifier);
     }
 
     pub fn dump_everything(&self, program: &Program) {

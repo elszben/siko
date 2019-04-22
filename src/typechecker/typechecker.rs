@@ -43,19 +43,19 @@ impl Typechecker {
         let (type_store, function_type_info_map) =
             function_processor.process_functions(program, &mut errors);
 
-        let mut function_dep_processor =
+        let function_dep_processor =
             FunctionDependencyProcessor::new(type_store, function_type_info_map);
 
-        let (type_store, function_type_info_map) =
+        let (type_store, function_type_info_map, ordered_untyped_dep_groups) =
             function_dep_processor.process_functions(program);
 
         let mut expr_processor = ExprProcessor::new(type_store, function_type_info_map);
 
-        expr_processor.process_expr_and_create_vars(program);
+        for group in &ordered_untyped_dep_groups {
+            expr_processor.process_untyped_dep_group(program, group);
+        }
 
-        expr_processor.check_constraints(program, &mut errors);
-
-        expr_processor.dump_everything(program);
+        // expr_processor.dump_everything(program);
 
         self.check_main(program, &mut errors);
 

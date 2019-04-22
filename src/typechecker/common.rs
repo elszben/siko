@@ -5,11 +5,10 @@ use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
-use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fmt;
-use std::rc::Rc;
 
+#[derive(Clone)]
 pub struct DependencyGroup {
     pub functions: BTreeSet<FunctionId>,
 }
@@ -65,31 +64,6 @@ impl fmt::Display for FunctionTypeInfo {
         vars.push(self.result);
         let ss: Vec<_> = vars.iter().map(|i| format!("{}", i)).collect();
         write!(f, "{} = {}", self.function_type, ss.join(" -> "))
-    }
-}
-
-#[derive(Clone)]
-pub struct ProgressChecker {
-    data: Rc<RefCell<bool>>,
-}
-
-impl ProgressChecker {
-    pub fn new() -> ProgressChecker {
-        ProgressChecker {
-            data: Rc::new(RefCell::new(false)),
-        }
-    }
-
-    pub fn set(&self) {
-        let mut d = self.data.borrow_mut();
-        *d = true;
-    }
-
-    pub fn get_and_unset(&self) -> bool {
-        let mut d = self.data.borrow_mut();
-        let r = *d;
-        *d = false;
-        r
     }
 }
 

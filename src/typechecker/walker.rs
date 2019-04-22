@@ -3,18 +3,18 @@ use crate::ir::expr::ExprId;
 use crate::ir::program::Program;
 
 pub trait Visitor {
-    fn visit(&mut self, expr: &Expr);
+    fn visit(&mut self, expr_id: ExprId, expr: &Expr);
 }
 
 pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
     let expr = program.get_expr(expr_id);
     match expr {
-        Expr::StaticFunctionCall(id, args) => {
+        Expr::StaticFunctionCall(_, args) => {
             for arg in args {
                 walk_expr(arg, program, visitor);
             }
         }
-        Expr::LambdaFunction(id, args) => {
+        Expr::LambdaFunction(_, args) => {
             for arg in args {
                 walk_expr(arg, program, visitor);
             }
@@ -57,5 +57,5 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
             walk_expr(lhs, program, visitor);
         }
     }
-    visitor.visit(expr);
+    visitor.visit(*expr_id, expr);
 }

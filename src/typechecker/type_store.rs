@@ -1,5 +1,4 @@
 use super::type_variable::TypeVariable;
-use crate::typechecker::common::ProgressChecker;
 use crate::typechecker::types::Type;
 use crate::util::Counter;
 use std::collections::BTreeMap;
@@ -21,7 +20,6 @@ pub struct TypeStore {
     var_counter: Counter,
     index_counter: Counter,
     arg_counter: Counter,
-    pub progress_checker: ProgressChecker,
 }
 
 impl TypeStore {
@@ -32,7 +30,6 @@ impl TypeStore {
             var_counter: Counter::new(),
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
-            progress_checker: ProgressChecker::new(),
         }
     }
 
@@ -86,80 +83,6 @@ impl TypeStore {
         }
     }
 
-    fn reshape_inner(
-        &mut self,
-        target: &TypeVariable,
-        source: &TypeVariable,
-        arg_map: &mut BTreeMap<usize, TypeVariable>,
-    ) -> bool {
-        let target_type = self.get_type(target);
-        let source_type = self.get_type(source);
-
-        let index1 = self.get_index(target);
-        let index2 = self.get_index(source);
-        /*
-        println!(
-            "Unify vars t1:({}),{:?},{} t2:({}),{:?},{}",
-            target, target_type, index1.id, source, source_type, index2.id,
-        );
-        */
-        if index1 == index2 {
-            return true;
-        }
-
-        if let Type::TypeArgument(arg_index) = source_type {
-            match arg_map.get(&arg_index).cloned() {
-                Some(v) => {
-                    return self.reshape_inner(target, &v, arg_map);
-                }
-                None => {
-                    arg_map.insert(arg_index, *target);
-                    return true;
-                }
-            }
-        }
-
-        match (&target_type, &source_type) {
-            (Type::Int, Type::Int) => {}
-            (Type::String, Type::String) => {}
-            (Type::Bool, Type::Bool) => {}
-            (Type::TypeArgument(_), _) => {
-                self.progress_checker.set();
-                let copied_source = self.clone_type_var(*source);
-                self.merge(&copied_source, target);
-            }
-            (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
-                if type_vars1.len() != type_vars2.len() {
-                    return false;
-                } else {
-                    for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.reshape_inner(v1, v2, arg_map) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            (Type::Function(f1), Type::Function(f2)) => {
-                if !self.reshape_inner(&f1.from, &f2.from, arg_map) {
-                    return false;
-                }
-                if !self.reshape_inner(&f1.to, &f2.to, arg_map) {
-                    return false;
-                }
-            }
-            _ => {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn reshape(&mut self, target: &TypeVariable, source: &TypeVariable) -> bool {
-        let mut arg_map = BTreeMap::new();
-
-        return self.reshape_inner(target, source, &mut arg_map);
-    }
-
     pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
@@ -180,15 +103,12 @@ impl TypeStore {
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
             (Type::TypeArgument(_), Type::TypeArgument(_)) => {
-                self.progress_checker.set();
                 self.merge(primary, secondary);
             }
             (Type::TypeArgument(_), _) => {
-                self.progress_checker.set();
                 self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {
-                self.progress_checker.set();
                 self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
@@ -212,7 +132,6 @@ impl TypeStore {
             }
             (Type::TupleFieldIndexable, Type::TupleFieldIndexable) => {
                 self.merge(primary, secondary);
-                self.progress_checker.set();
             }
             _ => {
                 return false;
