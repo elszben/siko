@@ -149,12 +149,13 @@ impl<'a> Visitor for Unifier<'a> {
                         break;
                     }
                 }
+                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
                 if failed {
                     let function_type_string = self
                         .expr_processor
                         .type_store
                         .get_resolved_type_string(&orig_function_type_var);
-                    let location = self.program.get_expr_location(&expr_id);
                     let arg_type_strings: Vec<_> = orig_arg_vars
                         .iter()
                         .map(|arg_var| {
@@ -170,6 +171,14 @@ impl<'a> Visitor for Unifier<'a> {
                         function_type_string,
                     );
                     self.errors.push(err);
+                } else {
+                    self.expr_processor.unify_variables(
+                        &expr_var,
+                        &function_type_var,
+                        location,
+                        location,
+                        self.errors,
+                    );
                 }
             }
             Expr::ArgRef(arg_ref) => {
