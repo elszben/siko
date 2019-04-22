@@ -1,12 +1,26 @@
 use crate::ir::expr::ExprId;
+use crate::ir::function::FunctionId;
 use crate::location_info::item::LocationId;
 use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::rc::Rc;
+
+pub struct DependencyGroup {
+    pub functions: BTreeSet<FunctionId>,
+}
+
+impl DependencyGroup {
+    pub fn new() -> DependencyGroup {
+        DependencyGroup {
+            functions: BTreeSet::new(),
+        }
+    }
+}
 
 pub struct FunctionSignatureLocation {
     pub arg_locations: Vec<LocationId>,

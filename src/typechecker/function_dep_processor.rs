@@ -1,21 +1,9 @@
 use crate::ir::expr::Expr;
-use crate::ir::expr::ExprId;
-use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
-use crate::ir::function::FunctionInfo;
-use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program;
-use crate::ir::types::TypeSignature;
-use crate::ir::types::TypeSignatureId;
-use crate::location_info::item::LocationId;
-use crate::typechecker::common::create_general_function_type;
-use crate::typechecker::common::FunctionSignatureLocation;
+use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
-use crate::typechecker::error::TypecheckError;
-use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
-use crate::typechecker::type_variable::TypeVariable;
-use crate::typechecker::types::Type;
 use crate::typechecker::walker::walk_expr;
 use crate::typechecker::walker::Visitor;
 use crate::util::format_list;
@@ -23,7 +11,6 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 struct UntypedFunctionDependency {
-    name: String,
     untyped_deps: BTreeSet<FunctionId>,
 }
 
@@ -51,18 +38,6 @@ impl GroupTable {
             if *group_id == id1 {
                 *group_id = id2;
             }
-        }
-    }
-}
-
-pub struct DependencyGroup {
-    pub functions: BTreeSet<FunctionId>,
-}
-
-impl DependencyGroup {
-    fn new() -> DependencyGroup {
-        DependencyGroup {
-            functions: BTreeSet::new(),
         }
     }
 }
@@ -133,7 +108,6 @@ impl FunctionDependencyProcessor {
                 self.untyped_deps.insert(
                     *id,
                     UntypedFunctionDependency {
-                        name: type_info.displayed_name.clone(),
                         untyped_deps: untyped_deps,
                     },
                 );
@@ -176,12 +150,9 @@ impl FunctionDependencyProcessor {
         }
 
         for (id, d) in &self.untyped_deps {
-            let items: Vec<_> = d.untyped_deps.iter().collect();
-            //println!("{} {} untyped deps {}", id, d.name, format_list(&items[..]));
             for dep in &d.untyped_deps {
                 let mut visited = BTreeSet::new();
                 if self.depends_on(dep, id, &mut visited) {
-                    //   println!("Calls me {}", dep);
                     group_table.merge(*id, *dep);
                 }
             }
