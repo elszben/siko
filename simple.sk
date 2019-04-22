@@ -1,5 +1,8 @@
 module Main where
 
+plus :: Int -> Int -> Int
+plus a b = "a"
+
 factorial n = if n < 2 then 1 else n * factorial (n-1)
 
 main = factorial 1

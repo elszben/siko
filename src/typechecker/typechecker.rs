@@ -55,6 +55,8 @@ impl Typechecker {
             expr_processor.process_untyped_dep_group(program, group, &mut errors);
         }
 
+        expr_processor.check_typed_functions(program, &mut errors);
+
         //expr_processor.dump_everything(program);
 
         self.check_main(program, &mut errors);

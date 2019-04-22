@@ -280,6 +280,43 @@ impl ExprProcessor {
         self.unify_variables(&body_var, &result_var, body_location, body_location, errors);
     }
 
+    pub fn check_typed_functions(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
+        let typed_functions: Vec<_> = self
+            .function_type_info_map
+            .iter()
+            .filter(|(_, type_info)| type_info.signature_location.is_some())
+            .map(|(id, _)| *id)
+            .collect();
+        for id in typed_functions {
+            self.check_typed_function(&id, program, errors);
+        }
+    }
+
+    fn check_typed_function(
+        &mut self,
+        function_id: &FunctionId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let type_info = self
+            .function_type_info_map
+            .get(function_id)
+            .expect("Function type info not found");
+        let body = if let Some(body) = type_info.body {
+            body
+        } else {
+            return;
+        };
+        let result_var = type_info.result;
+        let mut type_var_creator = TypeVarCreator::new(self);
+        walk_expr(&body, program, &mut type_var_creator);
+        let mut unifier = Unifier::new(self, program, errors, None);
+        walk_expr(&body, program, &mut unifier);
+        let body_var = self.lookup_type_var_for_expr(&body);
+        let body_location = program.get_expr_location(&body);
+        self.unify_variables(&result_var, &body_var, body_location, body_location, errors);
+    }
+
     pub fn dump_everything(&self, program: &Program) {
         for (id, info) in &self.function_type_info_map {
             println!(
