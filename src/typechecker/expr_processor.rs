@@ -11,14 +11,38 @@ use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
 use crate::util::format_list;
+use std::cell::RefCell;
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
+use std::rc::Rc;
+
+#[derive(Clone)]
+struct Substitution {
+    substitutions: Rc<RefCell<BTreeMap<usize, TypeVariable>>>,
+}
+
+impl Substitution {
+    fn new() -> Substitution {
+        Substitution {
+            substitutions: Rc::new(RefCell::new(BTreeMap::new())),
+        }
+    }
+}
 
 enum Constraint {
     Int(TypeVariable),
     String(TypeVariable),
     Bool(TypeVariable),
-    FunctionResult(TypeVariable, TypeVariable),
+    FunctionResult {
+        body: TypeVariable,
+        result: TypeVariable,
+    },
+    StaticFunctionCall {
+        result: TypeVariable,
+        func_type: TypeVariable,
+        arg: TypeVariable,
+        substitutions: Substitution,
+    },
 }
 
 pub struct ExprProcessor {
@@ -56,13 +80,13 @@ impl ExprProcessor {
 
     pub fn process_expr_and_create_vars(&mut self, program: &Program) {
         for (expr_id, expr_info) in &program.exprs {
-            println!("Processing {} {}", expr_id, expr_info.expr);
+            //println!("Processing {} {}", expr_id, expr_info.expr);
             self.create_type_var_for_expr(*expr_id);
         }
 
         for (expr_id, expr_info) in &program.exprs {
-            println!("Creating constraint for {} {}", expr_id, expr_info.expr);
-            let c = match expr_info.expr {
+            //println!("Creating constraint for {} {}", expr_id, expr_info.expr);
+            let c = match &expr_info.expr {
                 Expr::IntegerLiteral(_) => Constraint::Int(self.lookup_type_var_for_expr(expr_id)),
                 Expr::StringLiteral(_) => {
                     Constraint::String(self.lookup_type_var_for_expr(expr_id))
@@ -80,7 +104,10 @@ impl ExprProcessor {
                 continue;
             };
             let body_var = self.lookup_type_var_for_expr(&body);
-            let c = Constraint::FunctionResult(body_var, info.result);
+            let c = Constraint::FunctionResult {
+                body: body_var,
+                result: info.result,
+            };
             self.constraints.push(c);
         }
     }
@@ -93,7 +120,7 @@ impl ExprProcessor {
                         unimplemented!()
                     }
                 }
-                Constraint::FunctionResult(body, result) => {
+                Constraint::FunctionResult { body, result } => {
                     if !self.type_store.unify(body, result) {
                         unimplemented!()
                     }

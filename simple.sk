@@ -1,11 +1,17 @@
 module Main where
 
-//funky_stuff :: (Int,Int) -> Int
-funky_stuff :: String -> Int
-funky_stuff a = 1
+id1 a = id2 a
+id2 a = id3 a
+id3 a = id4 a
+id4 a = id5 a
+id5 a = id6 a
+id6 a = id3 a
+id7 a = id6 a
+id8 a = do
+        id7 a
+        id9 a
+id9 a = id10 a
+id10 a = id8 a
 
-/*
-get_tuple a = (1, True, funky_stuff, a)
-
-main = ((get_tuple 5).2) 5
-*/
+id11 a = id12 a
+id12 a = a

@@ -18,8 +18,8 @@ use crate::typechecker::types::Type;
 use std::collections::BTreeMap;
 
 pub struct FunctionProcessor {
-    pub type_store: TypeStore,
-    pub function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
+    type_store: TypeStore,
+    function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
 }
 
 impl FunctionProcessor {
@@ -271,6 +271,7 @@ impl FunctionProcessor {
                 },
             }
         }
+
         (self.type_store, self.function_type_info_map)
     }
 }

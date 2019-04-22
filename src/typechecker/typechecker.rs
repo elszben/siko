@@ -4,6 +4,7 @@ use crate::ir::function::FunctionInfo;
 use crate::ir::program::Program;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::expr_processor::ExprProcessor;
+use crate::typechecker::function_dep_processor::FunctionDependencyProcessor;
 use crate::typechecker::function_processor::FunctionProcessor;
 
 pub struct Typechecker {}
@@ -41,6 +42,12 @@ impl Typechecker {
 
         let (type_store, function_type_info_map) =
             function_processor.process_functions(program, &mut errors);
+
+        let mut function_dep_processor =
+            FunctionDependencyProcessor::new(type_store, function_type_info_map);
+
+        let (type_store, function_type_info_map) =
+            function_dep_processor.process_functions(program);
 
         let mut expr_processor = ExprProcessor::new(type_store, function_type_info_map);
 
