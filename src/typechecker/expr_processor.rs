@@ -1,22 +1,18 @@
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
-use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::FunctionId;
 use crate::ir::program::Program;
 use crate::location_info::item::LocationId;
 use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::error::TypecheckError;
-use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
 use crate::typechecker::walker::walk_expr;
 use crate::typechecker::walker::Visitor;
 use crate::util::format_list;
-use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::rc::Rc;
 
 struct TypeVarCreator<'a> {
     expr_processor: &'a mut ExprProcessor,
@@ -38,21 +34,175 @@ impl<'a> Visitor for TypeVarCreator<'a> {
 
 struct Unifier<'a> {
     expr_processor: &'a mut ExprProcessor,
+    program: &'a Program,
+    errors: &'a mut Vec<TypecheckError>,
+    group: Option<&'a DependencyGroup>,
 }
 
 impl<'a> Unifier<'a> {
-    fn new(expr_processor: &'a mut ExprProcessor) -> Unifier<'a> {
+    fn new(
+        expr_processor: &'a mut ExprProcessor,
+        program: &'a Program,
+        errors: &'a mut Vec<TypecheckError>,
+        group: Option<&'a DependencyGroup>,
+    ) -> Unifier<'a> {
         Unifier {
             expr_processor: expr_processor,
+            program: program,
+            errors: errors,
+            group: group,
         }
+    }
+}
+
+impl<'a> Unifier<'a> {
+    fn get_function_type_var(&mut self, function_id: &FunctionId) -> TypeVariable {
+        let type_info = self
+            .expr_processor
+            .function_type_info_map
+            .get(function_id)
+            .expect("Type info not found");
+        if let Some(group) = self.group {
+            if group.functions.contains(function_id) {
+                return type_info.function_type;
+            }
+        }
+        self.expr_processor
+            .type_store
+            .clone_type_var(type_info.function_type)
+    }
+
+    fn check_literal(&mut self, expr_id: ExprId, ty: Type) {
+        let literal_var = self.expr_processor.type_store.add_type(ty);
+        let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+        let location = self.program.get_expr_location(&expr_id);
+        self.expr_processor
+            .unify_variables(&var, &literal_var, location, location, self.errors);
     }
 }
 
 impl<'a> Visitor for Unifier<'a> {
     fn visit(&mut self, expr_id: ExprId, expr: &Expr) {
-        unreachable!();
         match expr {
-            _ => unimplemented!(),
+            Expr::IntegerLiteral(_) => self.check_literal(expr_id, Type::Int),
+            Expr::StringLiteral(_) => self.check_literal(expr_id, Type::String),
+            Expr::BoolLiteral(_) => self.check_literal(expr_id, Type::Bool),
+            Expr::FloatLiteral(_) => self.check_literal(expr_id, Type::Float),
+            Expr::If(cond, true_branch, false_branch) => {
+                let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
+                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                let cond_var = self.expr_processor.lookup_type_var_for_expr(cond);
+                let cond_location = self.program.get_expr_location(cond);
+                let true_var = self.expr_processor.lookup_type_var_for_expr(true_branch);
+                let true_location = self.program.get_expr_location(true_branch);
+                let false_var = self.expr_processor.lookup_type_var_for_expr(false_branch);
+                let false_location = self.program.get_expr_location(false_branch);
+                self.expr_processor.unify_variables(
+                    &bool_var,
+                    &cond_var,
+                    cond_location,
+                    cond_location,
+                    self.errors,
+                );
+                self.expr_processor.unify_variables(
+                    &true_var,
+                    &false_var,
+                    true_location,
+                    false_location,
+                    self.errors,
+                );
+                self.expr_processor.unify_variables(
+                    &true_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
+            Expr::StaticFunctionCall(function_id, args) => {
+                let orig_function_type_var = self.get_function_type_var(function_id);
+                let mut function_type_var = orig_function_type_var;
+                let orig_arg_vars: Vec<_> = args
+                    .iter()
+                    .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
+                    .collect();
+                let mut arg_vars = orig_arg_vars.clone();
+                let mut failed = false;
+                while !arg_vars.is_empty() {
+                    if let Type::Function(func_type) =
+                        self.expr_processor.type_store.get_type(&function_type_var)
+                    {
+                        if !self
+                            .expr_processor
+                            .type_store
+                            .unify(&func_type.from, arg_vars.first().unwrap())
+                        {
+                            failed = true;
+                            break;
+                        } else {
+                            function_type_var = func_type.to;
+                            arg_vars.remove(0);
+                        }
+                    } else {
+                        failed = true;
+                        break;
+                    }
+                }
+                if failed {
+                    let function_type_string = self
+                        .expr_processor
+                        .type_store
+                        .get_resolved_type_string(&orig_function_type_var);
+                    let location = self.program.get_expr_location(&expr_id);
+                    let arg_type_strings: Vec<_> = orig_arg_vars
+                        .iter()
+                        .map(|arg_var| {
+                            self.expr_processor
+                                .type_store
+                                .get_resolved_type_string(arg_var)
+                        })
+                        .collect();
+                    let arguments = format_list(&arg_type_strings[..]);
+                    let err = TypecheckError::FunctionArgumentMismatch(
+                        location,
+                        arguments,
+                        function_type_string,
+                    );
+                    self.errors.push(err);
+                }
+            }
+            Expr::ArgRef(arg_ref) => {
+                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                let type_info = self
+                    .expr_processor
+                    .function_type_info_map
+                    .get(&arg_ref.id)
+                    .expect("Type info not found");
+                let arg_var = type_info.args[arg_ref.index];
+                self.expr_processor.unify_variables(
+                    &var,
+                    &arg_var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
+            Expr::Do(items) => {
+                let do_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let do_location = self.program.get_expr_location(&expr_id);
+                let last_item = items[items.len() - 1];
+                let last_item_var = self.expr_processor.lookup_type_var_for_expr(&last_item);
+                self.expr_processor.unify_variables(
+                    &do_var,
+                    &last_item_var,
+                    do_location,
+                    do_location,
+                    self.errors,
+                );
+            }
+            _ => panic!("Unifier: processing {} is not implemented", expr),
         }
     }
 }
@@ -88,22 +238,37 @@ impl ExprProcessor {
             .expect("Type var for expr not found")
     }
 
-    pub fn process_untyped_dep_group(&mut self, program: &Program, group: &DependencyGroup) {
+    pub fn process_untyped_dep_group(
+        &mut self,
+        program: &Program,
+        group: &DependencyGroup,
+        errors: &mut Vec<TypecheckError>,
+    ) {
         for function in &group.functions {
-            self.process_untyped_function(function, program);
+            self.process_untyped_function(function, program, errors, group);
         }
     }
 
-    pub fn process_untyped_function(&mut self, function_id: &FunctionId, program: &Program) {
+    pub fn process_untyped_function(
+        &mut self,
+        function_id: &FunctionId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+        group: &DependencyGroup,
+    ) {
         let type_info = self
             .function_type_info_map
             .get(function_id)
             .expect("Function type info not found");
         let body = type_info.body.expect("body not found");
+        let result_var = type_info.result;
         let mut type_var_creator = TypeVarCreator::new(self);
         walk_expr(&body, program, &mut type_var_creator);
-        let mut unifier = Unifier::new(self);
+        let mut unifier = Unifier::new(self, program, errors, Some(group));
         walk_expr(&body, program, &mut unifier);
+        let body_var = self.lookup_type_var_for_expr(&body);
+        let body_location = program.get_expr_location(&body);
+        self.unify_variables(&body_var, &result_var, body_location, body_location, errors);
     }
 
     pub fn dump_everything(&self, program: &Program) {
@@ -125,6 +290,27 @@ impl ExprProcessor {
                 expr_info.expr,
                 self.type_store.get_resolved_type_string(&var)
             );
+        }
+    }
+
+    fn unify_variables(
+        &mut self,
+        expected: &TypeVariable,
+        found: &TypeVariable,
+        expected_location: LocationId,
+        found_location: LocationId,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        if !self.type_store.unify(&expected, &found) {
+            let expected_type = self.type_store.get_resolved_type_string(&expected);
+            let found_type = self.type_store.get_resolved_type_string(&found);
+            let err = TypecheckError::TypeMismatch(
+                found_location,
+                expected_location,
+                expected_type,
+                found_type,
+            );
+            errors.push(err);
         }
     }
 }

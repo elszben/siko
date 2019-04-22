@@ -52,10 +52,10 @@ impl Typechecker {
         let mut expr_processor = ExprProcessor::new(type_store, function_type_info_map);
 
         for group in &ordered_untyped_dep_groups {
-            expr_processor.process_untyped_dep_group(program, group);
+            expr_processor.process_untyped_dep_group(program, group, &mut errors);
         }
 
-        // expr_processor.dump_everything(program);
+        //expr_processor.dump_everything(program);
 
         self.check_main(program, &mut errors);
 

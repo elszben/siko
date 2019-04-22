@@ -1,17 +1,6 @@
 module Main where
 
-id1 a = id2 a
-id2 a = id3 a
-id3 a = id4 a
-id4 a = id5 a
-id5 a = id6 a
-id6 a = id3 a
-id7 a = id6 a
-id8 a = do
-        id7 a
-        id9 a
-id9 a = id10 a
-id10 a = id8 a
+id a = a
+factorial n = if n < 2 then 1 else n * factorial (n-1)
 
-id11 a = id12 a
-id12 a = a
+main = factorial 4
