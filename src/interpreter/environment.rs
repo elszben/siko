@@ -1,0 +1,65 @@
+use crate::interpreter::value::Value;
+use crate::ir::expr::ExprId;
+use crate::ir::expr::FunctionArgumentRef;
+use crate::ir::function::FunctionId;
+use std::collections::BTreeMap;
+
+#[derive(Debug)]
+pub struct Environment<'a> {
+    function_id: FunctionId,
+    args: Vec<Value>,
+    variables: BTreeMap<ExprId, Value>,
+    parent: Option<&'a Environment<'a>>,
+}
+
+impl<'a> Environment<'a> {
+    pub fn new(function_id: FunctionId, args: Vec<Value>) -> Environment<'a> {
+        Environment {
+            function_id: function_id,
+            args: args,
+            variables: BTreeMap::new(),
+            parent: None,
+        }
+    }
+
+    pub fn add(&mut self, var: ExprId, value: Value) {
+        self.variables.insert(var, value);
+    }
+
+    pub fn get_value(&self, var: &ExprId) -> Value {
+        if let Some(value) = self.variables.get(var) {
+            return value.clone();
+        } else {
+            if let Some(parent) = self.parent {
+                parent.get_value(var)
+            } else {
+                panic!("Value {} not found", var);
+            }
+        }
+    }
+
+    pub fn block_child(parent: &'a Environment<'a>) -> Environment<'a> {
+        Environment {
+            function_id: parent.function_id,
+            args: parent.args.clone(),
+            variables: BTreeMap::new(),
+            parent: Some(parent),
+        }
+    }
+
+    pub fn get_arg(&self, arg_ref: &FunctionArgumentRef) -> Value {
+        if self.function_id == arg_ref.id {
+            return self.args[arg_ref.index].clone();
+        } else {
+            if let Some(parent) = self.parent {
+                return parent.get_arg(arg_ref);
+            } else {
+                unreachable!()
+            }
+        }
+    }
+
+    pub fn get_arg_by_index(&self, index: usize) -> Value {
+        return self.args[index].clone();
+    }
+}

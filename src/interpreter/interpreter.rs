@@ -1,134 +1,14 @@
 use crate::constants;
-use crate::constants::BuiltinOperator;
 use crate::error::Error;
 use crate::error::ErrorContext;
+use crate::interpreter::environment::Environment;
+use crate::interpreter::value::Callable;
+use crate::interpreter::value::Value;
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
-use crate::ir::expr::FunctionArgumentRef;
-use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
-use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program;
-use std::collections::BTreeMap;
-use std::fmt;
-
-#[derive(Debug, Clone)]
-pub struct Callable {
-    function_id: FunctionId,
-    values: Vec<Value>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Value {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    String(String),
-    Tuple(Vec<Value>),
-    Callable(Callable),
-}
-
-impl Value {
-    fn as_int(&self) -> i64 {
-        match self {
-            Value::Int(i) => *i,
-            _ => unreachable!(),
-        }
-    }
-
-    fn as_bool(&self) -> bool {
-        match self {
-            Value::Bool(b) => *b,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Value::Int(v) => write!(f, "{}", v),
-            Value::Float(v) => write!(f, "{}", v),
-            Value::Bool(v) => write!(f, "{}", v),
-            Value::String(v) => write!(f, "{}", v),
-            Value::Tuple(vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
-                write!(f, "({})", ss.join(", "))
-            }
-            Value::Callable(_) => write!(f, "<closure>"),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Environment<'a> {
-    function_id: FunctionId,
-    args: Vec<Value>,
-    variables: BTreeMap<ExprId, Value>,
-    parent: Option<&'a Environment<'a>>,
-}
-
-impl<'a> Environment<'a> {
-    fn new(function_id: FunctionId, args: Vec<Value>) -> Environment<'a> {
-        Environment {
-            function_id: function_id,
-            args: args,
-            variables: BTreeMap::new(),
-            parent: None,
-        }
-    }
-
-    fn add(&mut self, var: ExprId, value: Value) {
-        self.variables.insert(var, value);
-    }
-
-    fn get_value(&self, var: &ExprId) -> Value {
-        if let Some(value) = self.variables.get(var) {
-            return value.clone();
-        } else {
-            if let Some(parent) = self.parent {
-                parent.get_value(var)
-            } else {
-                panic!("Value {} not found", var);
-            }
-        }
-    }
-
-    fn child(
-        parent: &'a Environment<'a>,
-        args: Vec<Value>,
-        function_id: FunctionId,
-    ) -> Environment<'a> {
-        Environment {
-            function_id: function_id,
-            args: args,
-            variables: BTreeMap::new(),
-            parent: Some(parent),
-        }
-    }
-
-    fn block_child(parent: &'a Environment<'a>) -> Environment<'a> {
-        Environment {
-            function_id: parent.function_id,
-            args: parent.args.clone(),
-            variables: BTreeMap::new(),
-            parent: Some(parent),
-        }
-    }
-
-    fn get_arg(&self, arg_ref: &FunctionArgumentRef) -> Value {
-        if self.function_id == arg_ref.id {
-            return self.args[arg_ref.index].clone();
-        } else {
-            if let Some(parent) = self.parent {
-                return parent.get_arg(arg_ref);
-            } else {
-                unreachable!()
-            }
-        }
-    }
-}
 
 pub struct Interpreter<'a> {
     error_context: ErrorContext<'a>,
@@ -257,32 +137,32 @@ impl<'a> Interpreter<'a> {
     ) -> Value {
         match (module, name) {
             ("Prelude", "op_add") => {
-                let l = environment.args[0].as_int();
-                let r = environment.args[1].as_int();
+                let l = environment.get_arg_by_index(0).as_int();
+                let r = environment.get_arg_by_index(1).as_int();
                 return Value::Int(l + r);
             }
             ("Prelude", "op_sub") => {
-                let l = environment.args[0].as_int();
-                let r = environment.args[1].as_int();
+                let l = environment.get_arg_by_index(0).as_int();
+                let r = environment.get_arg_by_index(1).as_int();
                 return Value::Int(l - r);
             }
             ("Prelude", "op_mul") => {
-                let l = environment.args[0].as_int();
-                let r = environment.args[1].as_int();
+                let l = environment.get_arg_by_index(0).as_int();
+                let r = environment.get_arg_by_index(1).as_int();
                 return Value::Int(l * r);
             }
             ("Prelude", "op_lessthan") => {
-                let l = environment.args[0].as_int();
-                let r = environment.args[1].as_int();
+                let l = environment.get_arg_by_index(0).as_int();
+                let r = environment.get_arg_by_index(1).as_int();
                 return Value::Bool(l < r);
             }
             ("Prelude", "op_equals") => {
-                let l = environment.args[0].as_int();
-                let r = environment.args[1].as_int();
+                let l = environment.get_arg_by_index(0).as_int();
+                let r = environment.get_arg_by_index(1).as_int();
                 return Value::Bool(l == r);
             }
             ("Std.Util", "assert") => {
-                let v = environment.args[0].as_bool();
+                let v = environment.get_arg_by_index(0).as_bool();
                 if !v {
                     let current_expr = current_expr.expect("No current expr");
                     let location_id = program.get_expr_location(&current_expr);

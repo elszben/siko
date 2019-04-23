@@ -2,7 +2,7 @@ use crate::compiler::config::Config;
 use crate::compiler::file_manager::FileManager;
 use crate::error::Error;
 use crate::error::ErrorContext;
-use crate::interpreter::Interpreter;
+use crate::interpreter::interpreter::Interpreter;
 use crate::location_info::filepath::FilePath;
 use crate::location_info::location_info::LocationInfo;
 use crate::name_resolution::resolver::Resolver;
