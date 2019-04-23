@@ -2,7 +2,6 @@ use crate::ir::expr::ExprId;
 use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
-use crate::syntax::function::FunctionId as AstFunctionId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -73,26 +72,6 @@ pub enum FunctionInfo {
     NamedFunction(NamedFunctionInfo),
     RecordConstructor(RecordConstructorInfo),
     VariantConstructor(VariantConstructorInfo),
-}
-
-impl FunctionInfo {
-    pub fn body(&self) -> ExprId {
-        match self {
-            FunctionInfo::Lambda(i) => i.body,
-            FunctionInfo::NamedFunction(i) => i.body.expect("Body does not exist").clone(),
-            FunctionInfo::RecordConstructor(_) => unreachable!(),
-            FunctionInfo::VariantConstructor(_) => unreachable!(),
-        }
-    }
-
-    pub fn location(&self) -> LocationId {
-        match self {
-            FunctionInfo::Lambda(i) => i.location_id,
-            FunctionInfo::NamedFunction(i) => i.location_id,
-            FunctionInfo::RecordConstructor(_) => unreachable!(),
-            FunctionInfo::VariantConstructor(_) => unreachable!(),
-        }
-    }
 }
 
 impl fmt::Display for FunctionInfo {

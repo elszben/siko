@@ -180,29 +180,9 @@ impl TypeStore {
         self.add_type(new_ty)
     }
 
-    pub fn dump(&self) {
-        for (var, _) in &self.variables {
-            println!("{} => {}", var, self.get_resolved_type_string(var));
-        }
-    }
-
     pub fn is_recursive(&self, var: TypeVariable) -> bool {
         let ty = self.get_type(&var);
         let vars = vec![var];
         ty.check_recursion(&vars, self)
-    }
-
-    pub fn set_type(&mut self, var: &TypeVariable, new_ty: Type) -> bool {
-        let ty = self.get_type(var);
-        let index = self.get_index(var);
-        if ty == new_ty {
-            return true;
-        }
-        if let Type::TypeArgument(_) = ty {
-            self.indices.insert(index, Type::Int);
-            return true;
-        } else {
-            return false;
-        }
     }
 }

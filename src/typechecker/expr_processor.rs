@@ -444,6 +444,7 @@ impl ExprProcessor {
         self.unify_variables(&result_var, &body_var, body_location, body_location, errors);
     }
 
+    #[allow(unused)]
     pub fn dump_expression_types(&self, program: &Program) {
         for (expr_id, expr_info) in &program.exprs {
             let var = self.lookup_type_var_for_expr(expr_id);

@@ -443,7 +443,7 @@ impl Resolver {
         program: &Program,
         ir_program: &mut IrProgram,
         record_id: &RecordId,
-        ir_typedef_id: TypeDefId,
+        _: TypeDefId,
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
@@ -452,7 +452,7 @@ impl Resolver {
         for field in &record.fields {
             type_signature_ids.push(field.type_signature_id);
         }
-        let result = process_type_signatures(
+        let _ = process_type_signatures(
             &record.type_args[..],
             &type_signature_ids[..],
             program,
@@ -461,6 +461,7 @@ impl Resolver {
             record.location_id,
             errors,
         );
+        // TODO
     }
 
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {

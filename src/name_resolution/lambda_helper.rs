@@ -40,8 +40,8 @@ impl LambdaHelper {
             let arg_index = self.captures.len();
             let lambda_arg_ref = FunctionArgumentRef::new(self.function_id, arg_index);
             let updated_ref = match &r {
-                Expr::ExprValue(id) => Expr::LambdaCapturedArgRef(lambda_arg_ref),
-                Expr::ArgRef(arg_ref) => Expr::LambdaCapturedArgRef(lambda_arg_ref),
+                Expr::ExprValue(_) => Expr::LambdaCapturedArgRef(lambda_arg_ref),
+                Expr::ArgRef(_) => Expr::LambdaCapturedArgRef(lambda_arg_ref),
                 _ => panic!("Unexpected name ref {:?}", r),
             };
             //println!("Captured variable {:?}", updated_ref);

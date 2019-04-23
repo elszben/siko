@@ -21,8 +21,3 @@ pub fn format_list<T: fmt::Display>(items: &[T]) -> String {
     let ss: Vec<_> = items.iter().map(|i| format!("{}", i)).collect();
     format!("[{}]", ss.join(", "))
 }
-
-pub fn format_list_simple<T: fmt::Display>(items: &[T]) -> String {
-    let ss: Vec<_> = items.iter().map(|i| format!("{}", i)).collect();
-    format!("{}", ss.join(", "))
-}

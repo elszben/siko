@@ -7,7 +7,6 @@ use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::walker::walk_expr;
 use crate::typechecker::walker::Visitor;
-use crate::util::format_list;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
