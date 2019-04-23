@@ -1,6 +1,8 @@
 module Main where
 
-boo a b = b b
+doit = do
+        a <- plus 5
+        a "a"
 
 plus :: Int -> Int -> Int
 plus a b = (a,b).0

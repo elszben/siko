@@ -314,6 +314,30 @@ impl<'a> Visitor for Unifier<'a> {
                     TypecheckError::TypeMismatch(location, location, expected_type, found_type);
                 self.errors.push(err);
             }
+            Expr::Bind(_, rhs) => {
+                let rhs_var = self.expr_processor.lookup_type_var_for_expr(rhs);
+                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                self.expr_processor.unify_variables(
+                    &rhs_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
+            Expr::ExprValue(expr_ref) => {
+                let expr_ref_var = self.expr_processor.lookup_type_var_for_expr(expr_ref);
+                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                self.expr_processor.unify_variables(
+                    &expr_ref_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
             _ => panic!("Unifier: processing {} is not implemented", expr),
         }
     }
@@ -445,7 +469,7 @@ impl ExprProcessor {
     }
 
     pub fn check_recursive_types(&self, errors: &mut Vec<TypecheckError>) {
-        for (id, info) in &self.function_type_info_map {
+        for (_, info) in &self.function_type_info_map {
             if self.type_store.is_recursive(info.function_type) {
                 let err = TypecheckError::RecursiveType(info.location_id);
                 errors.push(err);
