@@ -121,6 +121,7 @@ impl FunctionProcessor {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
         body: Option<ExprId>,
+        location_id: LocationId,
     ) {
         let mut arg_map = BTreeMap::new();
         let mut signature_arg_locations = Vec::new();
@@ -174,6 +175,7 @@ impl FunctionProcessor {
                     return_value_var,
                     func_type_var,
                     body,
+                    location_id,
                 )
             }
             _ => {
@@ -199,6 +201,7 @@ impl FunctionProcessor {
                     func_type_var,
                     func_type_var,
                     body,
+                    location_id,
                 )
             }
         };
@@ -212,6 +215,7 @@ impl FunctionProcessor {
         id: FunctionId,
         function: &Function,
         body: ExprId,
+        location_id: LocationId,
     ) {
         let mut args = Vec::new();
 
@@ -228,6 +232,7 @@ impl FunctionProcessor {
             result,
             func_type_var,
             Some(body),
+            location_id,
         );
         self.function_type_info_map.insert(id, function_type_info);
     }
@@ -254,11 +259,18 @@ impl FunctionProcessor {
                             program,
                             errors,
                             i.body,
+                            i.location_id,
                         );
                     }
                     None => match i.body {
                         Some(body) => {
-                            self.register_untyped_function(displayed_name, *id, function, body);
+                            self.register_untyped_function(
+                                displayed_name,
+                                *id,
+                                function,
+                                body,
+                                i.location_id,
+                            );
                         }
                         None => {
                             let err = TypecheckError::UntypedExternFunction(

@@ -230,6 +230,7 @@ pub fn process_expr(
                 body: ir_lambda_body,
                 host_info: local_lambda_helper.host_function(),
                 index: local_lambda_helper.get_lambda_index(),
+                location_id: location_id,
             };
 
             let ir_function = IrFunction {

@@ -34,6 +34,7 @@ pub struct FunctionTypeInfo {
     pub result: TypeVariable,
     pub function_type: TypeVariable,
     pub body: Option<ExprId>,
+    pub location_id: LocationId,
 }
 
 impl FunctionTypeInfo {
@@ -45,6 +46,7 @@ impl FunctionTypeInfo {
         result: TypeVariable,
         function_type: TypeVariable,
         body: Option<ExprId>,
+        location_id: LocationId,
     ) -> FunctionTypeInfo {
         FunctionTypeInfo {
             displayed_name: displayed_name,
@@ -54,6 +56,7 @@ impl FunctionTypeInfo {
             result: result,
             function_type: function_type,
             body: body,
+            location_id: location_id,
         }
     }
 }

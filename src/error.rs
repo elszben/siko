@@ -418,6 +418,11 @@ impl Error {
                                 "Main".yellow()
                             );
                         }
+                        TypecheckError::RecursiveType(id) => {
+                            println!("{} function type is recursive", error.red(),);
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

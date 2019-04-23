@@ -6,5 +6,6 @@ pub enum TypecheckError {
     FunctionArgAndSignatureMismatch(String, usize, usize, LocationId),
     TypeMismatch(LocationId, LocationId, String, String),
     FunctionArgumentMismatch(LocationId, String, String),
+    RecursiveType(LocationId),
     MainNotFound,
 }

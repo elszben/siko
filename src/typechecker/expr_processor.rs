@@ -444,6 +444,15 @@ impl ExprProcessor {
         }
     }
 
+    pub fn check_recursive_types(&self, errors: &mut Vec<TypecheckError>) {
+        for (id, info) in &self.function_type_info_map {
+            if self.type_store.is_recursive(info.function_type) {
+                let err = TypecheckError::RecursiveType(info.location_id);
+                errors.push(err);
+            }
+        }
+    }
+
     fn unify_variables(
         &mut self,
         expected: &TypeVariable,

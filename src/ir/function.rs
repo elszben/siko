@@ -36,6 +36,7 @@ pub struct LambdaInfo {
     pub body: ExprId,
     pub host_info: String,
     pub index: usize,
+    pub location_id: LocationId,
 }
 
 impl fmt::Display for LambdaInfo {
@@ -79,6 +80,15 @@ impl FunctionInfo {
         match self {
             FunctionInfo::Lambda(i) => i.body,
             FunctionInfo::NamedFunction(i) => i.body.expect("Body does not exist").clone(),
+            FunctionInfo::RecordConstructor(_) => unreachable!(),
+            FunctionInfo::VariantConstructor(_) => unreachable!(),
+        }
+    }
+
+    pub fn location(&self) -> LocationId {
+        match self {
+            FunctionInfo::Lambda(i) => i.location_id,
+            FunctionInfo::NamedFunction(i) => i.location_id,
             FunctionInfo::RecordConstructor(_) => unreachable!(),
             FunctionInfo::VariantConstructor(_) => unreachable!(),
         }
