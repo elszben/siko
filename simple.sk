@@ -1,5 +1,7 @@
 module Main where
 
+boo a b = b b
+
 plus :: Int -> Int -> Int
 plus a b = (a,b).0
 

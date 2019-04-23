@@ -3,6 +3,7 @@ use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::program::Program;
 use crate::location_info::item::LocationId;
+use crate::typechecker::common::create_general_function_type;
 use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::error::TypecheckError;
@@ -175,6 +176,65 @@ impl<'a> Visitor for Unifier<'a> {
                     self.expr_processor.unify_variables(
                         &expr_var,
                         &function_type_var,
+                        location,
+                        location,
+                        self.errors,
+                    );
+                }
+            }
+            Expr::DynamicFunctionCall(func_expr, args) => {
+                let mut gen_args = Vec::new();
+                let (gen_func, gen_result) = create_general_function_type(
+                    args.len(),
+                    &mut gen_args,
+                    &mut self.expr_processor.type_store,
+                );
+                let mut failed = false;
+                let func_expr_var = self.expr_processor.lookup_type_var_for_expr(func_expr);
+                let arg_vars: Vec<_> = args
+                    .iter()
+                    .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
+                    .collect();
+                if !self
+                    .expr_processor
+                    .type_store
+                    .unify(&func_expr_var, &gen_func)
+                {
+                    failed = true;
+                } else {
+                    for (arg, gen_arg) in arg_vars.iter().zip(gen_args.iter()) {
+                        if !self.expr_processor.type_store.unify(arg, gen_arg) {
+                            failed = true;
+                            break;
+                        }
+                    }
+                }
+                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                if failed {
+                    let function_type_string = self
+                        .expr_processor
+                        .type_store
+                        .get_resolved_type_string(&gen_func);
+                    let arg_type_strings: Vec<_> = arg_vars
+                        .iter()
+                        .map(|arg_var| {
+                            self.expr_processor
+                                .type_store
+                                .get_resolved_type_string(arg_var)
+                        })
+                        .collect();
+                    let arguments = format_list(&arg_type_strings[..]);
+                    let err = TypecheckError::FunctionArgumentMismatch(
+                        location,
+                        arguments,
+                        function_type_string,
+                    );
+                    self.errors.push(err);
+                } else {
+                    self.expr_processor.unify_variables(
+                        &expr_var,
+                        &gen_result,
                         location,
                         location,
                         self.errors,
@@ -360,17 +420,7 @@ impl ExprProcessor {
         self.unify_variables(&result_var, &body_var, body_location, body_location, errors);
     }
 
-    pub fn dump_everything(&self, program: &Program) {
-        for (id, info) in &self.function_type_info_map {
-            println!(
-                "{}/{}: {}",
-                id,
-                info.displayed_name,
-                self.type_store
-                    .get_resolved_type_string(&info.function_type)
-            );
-        }
-
+    pub fn dump_expression_types(&self, program: &Program) {
         for (expr_id, expr_info) in &program.exprs {
             let var = self.lookup_type_var_for_expr(expr_id);
             println!(
@@ -382,6 +432,18 @@ impl ExprProcessor {
         }
     }
 
+    pub fn dump_function_types(&self) {
+        for (id, info) in &self.function_type_info_map {
+            println!(
+                "{}/{}: {}",
+                id,
+                info.displayed_name,
+                self.type_store
+                    .get_resolved_type_string(&info.function_type)
+            );
+        }
+    }
+
     fn unify_variables(
         &mut self,
         expected: &TypeVariable,
@@ -389,7 +451,7 @@ impl ExprProcessor {
         expected_location: LocationId,
         found_location: LocationId,
         errors: &mut Vec<TypecheckError>,
-    ) {
+    ) -> bool {
         if !self.type_store.unify(&expected, &found) {
             let expected_type = self.type_store.get_resolved_type_string(&expected);
             let found_type = self.type_store.get_resolved_type_string(&found);
@@ -400,6 +462,9 @@ impl ExprProcessor {
                 found_type,
             );
             errors.push(err);
+            false
+        } else {
+            true
         }
     }
 }
