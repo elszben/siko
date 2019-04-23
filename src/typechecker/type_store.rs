@@ -130,9 +130,6 @@ impl TypeStore {
                     return false;
                 }
             }
-            (Type::TupleFieldIndexable, Type::TupleFieldIndexable) => {
-                self.merge(primary, secondary);
-            }
             _ => {
                 return false;
             }

@@ -1,6 +1,5 @@
 module Main where
 
-
 plus :: Int -> Int -> Int
 plus a b = (a,b).0
 

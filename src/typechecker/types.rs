@@ -15,7 +15,6 @@ pub enum Type {
     Function(FunctionType),
     TypeArgument(usize),
     FixedTypeArgument(usize, String),
-    TupleFieldIndexable,
 }
 
 impl Type {
@@ -70,7 +69,6 @@ impl Type {
                     .expect("Type argument not found during clone");
                 Type::TypeArgument(*new_index)
             }
-            Type::TupleFieldIndexable => Type::TupleFieldIndexable,
         }
     }
 
@@ -104,7 +102,6 @@ impl Type {
                 args.push(*index);
             }
             Type::FixedTypeArgument(index, _) => args.push(*index),
-            Type::TupleFieldIndexable => {}
         }
     }
 
@@ -135,7 +132,6 @@ impl Type {
             }
             Type::TypeArgument(index) => format!("t{}", index),
             Type::FixedTypeArgument(_, name) => format!("{}", name),
-            Type::TupleFieldIndexable => format!("<tuple>"),
         }
     }
 
@@ -176,7 +172,6 @@ impl Type {
             }
             Type::TypeArgument(..) => false,
             Type::FixedTypeArgument(..) => false,
-            Type::TupleFieldIndexable => false,
         }
     }
 }
@@ -196,7 +191,6 @@ impl fmt::Display for Type {
             Type::Function(func_type) => write!(f, "{}", func_type),
             Type::TypeArgument(index) => write!(f, "t{}", index),
             Type::FixedTypeArgument(_, name) => write!(f, "{}", name),
-            Type::TupleFieldIndexable => write!(f, "<tuple>"),
         }
     }
 }
