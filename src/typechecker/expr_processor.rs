@@ -211,6 +211,49 @@ impl<'a> Visitor for Unifier<'a> {
                     self.errors,
                 );
             }
+            Expr::Tuple(items) => {
+                let vars: Vec<_> = items
+                    .iter()
+                    .map(|i| self.expr_processor.lookup_type_var_for_expr(i))
+                    .collect();
+                let tuple_ty = Type::Tuple(vars);
+                let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
+                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                self.expr_processor.unify_variables(
+                    &tuple_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
+            Expr::TupleFieldAccess(index, tuple_expr) => {
+                let tuple_var = self.expr_processor.lookup_type_var_for_expr(tuple_expr);
+                let tuple_ty = self.expr_processor.type_store.get_type(&tuple_var);
+                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                if let Type::Tuple(items) = tuple_ty {
+                    if items.len() > *index {
+                        self.expr_processor.unify_variables(
+                            &items[*index],
+                            &var,
+                            location,
+                            location,
+                            self.errors,
+                        );
+                        return;
+                    }
+                }
+                let expected_type = format!("<tuple with at least {} item(s)>", index + 1);
+                let found_type = self
+                    .expr_processor
+                    .type_store
+                    .get_resolved_type_string(&tuple_var);
+                let err =
+                    TypecheckError::TypeMismatch(location, location, expected_type, found_type);
+                self.errors.push(err);
+            }
             _ => panic!("Unifier: processing {} is not implemented", expr),
         }
     }
