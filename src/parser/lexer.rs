@@ -386,6 +386,7 @@ impl Lexer {
                     '(' => Token::LParen,
                     ')' => Token::RParen,
                     ';' => Token::Semicolon,
+                    '%' => Token::Formatter,
                     _ => {
                         let err = LexerError::UnsupportedCharacter(
                             c,

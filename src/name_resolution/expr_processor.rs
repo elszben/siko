@@ -486,5 +486,23 @@ pub fn process_expr(
             let ir_expr = IrExpr::TupleFieldAccess(*index, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
         }
+        Expr::Formatter(fmt, items) => {
+            let ir_items: Vec<IrExprId> = items
+                .iter()
+                .map(|id| {
+                    process_expr(
+                        *id,
+                        program,
+                        module,
+                        environment,
+                        ir_program,
+                        errors,
+                        lambda_helper,
+                    )
+                })
+                .collect();
+            let ir_expr = IrExpr::Formatter(fmt.clone(), ir_items);
+            return add_expr(ir_expr, id, ir_program, program);
+        }
     }
 }

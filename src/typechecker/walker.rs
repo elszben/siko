@@ -56,6 +56,11 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
         Expr::TupleFieldAccess(_, lhs) => {
             walk_expr(lhs, program, visitor);
         }
+        Expr::Formatter(_, items) => {
+            for item in items {
+                walk_expr(item, program, visitor);
+            }
+        }
     }
     visitor.visit(*expr_id, expr);
 }

@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
-    fn parse_list1_in_parens<T>(
+    pub fn parse_list1_in_parens<T>(
         &mut self,
         parse_fn: fn(&mut Parser) -> Result<T, Error>,
     ) -> Result<Vec<T>, Error> {

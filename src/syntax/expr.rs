@@ -30,6 +30,7 @@ pub enum Expr {
     Bind(String, ExprId),
     FieldAccess(String, ExprId),
     TupleFieldAccess(usize, ExprId),
+    Formatter(String, Vec<ExprId>),
 }
 
 impl fmt::Display for Expr {
@@ -59,6 +60,7 @@ impl fmt::Display for Expr {
             Expr::TupleFieldAccess(index, expr) => {
                 write!(f, "TupleFieldAccess({}, {})", index, expr)
             }
+            Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
         }
     }
 }

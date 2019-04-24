@@ -119,9 +119,17 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
         }
         Token::StringLiteral(s) => {
             parser.advance()?;
-            let expr = Expr::StringLiteral(s);
-            let id = parser.add_expr(expr, start_index);
-            id
+            if parser.current(TokenKind::Formatter) {
+                parser.expect(TokenKind::Formatter)?;
+                let items = parser.parse_list1_in_parens(|p| parse_ops(p))?;
+                let expr = Expr::Formatter(s, items);
+                let id = parser.add_expr(expr, start_index);
+                id
+            } else {
+                let expr = Expr::StringLiteral(s);
+                let id = parser.add_expr(expr, start_index);
+                id
+            }
         }
         Token::LParen => {
             return parse_paren_expr(parser);

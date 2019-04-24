@@ -72,6 +72,7 @@ pub enum Expr {
     LambdaCapturedArgRef(FunctionArgumentRef),
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
     TupleFieldAccess(usize, ExprId),
+    Formatter(String, Vec<ExprId>),
 }
 
 impl fmt::Display for Expr {
@@ -105,6 +106,7 @@ impl fmt::Display for Expr {
             Expr::TupleFieldAccess(index, expr) => {
                 write!(f, "TupleFieldAccess({}, {})", index, expr)
             }
+            Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
         }
     }
 }
