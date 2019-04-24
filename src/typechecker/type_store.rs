@@ -150,7 +150,17 @@ impl TypeStore {
             return format!("<recursive type>");
         }
         let ty = self.get_type(var);
-        ty.as_string(self, false)
+        let mut vars = Vec::new();
+        let mut args = Vec::new();
+        ty.collect(&mut vars, &mut args, self);
+        let mut type_args = BTreeMap::new();
+        let mut next_char = 'a' as u32;
+        for arg in args {
+            let c = std::char::from_u32(next_char).expect("Invalid char");
+            type_args.insert(arg, format!("{}", c));
+            next_char += 1;
+        }
+        ty.as_string(self, false, &type_args)
     }
 
     pub fn get_new_type_var(&mut self) -> TypeVariable {

@@ -105,7 +105,12 @@ impl Type {
         }
     }
 
-    pub fn as_string(&self, type_store: &TypeStore, need_parens: bool) -> String {
+    pub fn as_string(
+        &self,
+        type_store: &TypeStore,
+        need_parens: bool,
+        type_args: &BTreeMap<usize, String>,
+    ) -> String {
         match self {
             Type::Int => format!("Int"),
             Type::Float => format!("Float"),
@@ -117,20 +122,23 @@ impl Type {
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store, false)
+                        ty.as_string(type_store, false, type_args)
                     })
                     .collect();
                 format!("({})", ss.join(", "))
             }
             Type::Function(func_type) => {
-                let func_type_str = func_type.as_string(type_store);
+                let func_type_str = func_type.as_string(type_store, type_args);
                 if need_parens {
                     format!("({})", func_type_str)
                 } else {
                     func_type_str
                 }
             }
-            Type::TypeArgument(index) => format!("t{}", index),
+            Type::TypeArgument(index) => format!(
+                "{}",
+                type_args.get(index).expect("readable type arg not found")
+            ),
             Type::FixedTypeArgument(_, name) => format!("{}", name),
         }
     }

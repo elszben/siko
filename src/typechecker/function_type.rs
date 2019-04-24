@@ -1,6 +1,7 @@
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
+use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -33,9 +34,13 @@ impl FunctionType {
         }
     }
 
-    pub fn as_string(&self, type_store: &TypeStore) -> String {
-        let from = type_store.get_type(&self.from).as_string(type_store, true);
-        let to = type_store.get_type(&self.to).as_string(type_store, true);
+    pub fn as_string(&self, type_store: &TypeStore, type_args: &BTreeMap<usize, String>) -> String {
+        let from = type_store
+            .get_type(&self.from)
+            .as_string(type_store, true, type_args);
+        let to = type_store
+            .get_type(&self.to)
+            .as_string(type_store, true, type_args);
         format!("{} -> {}", from, to)
     }
 }

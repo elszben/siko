@@ -1,12 +1,7 @@
 module Main where
 
-doit = do
-        a <- plus 5
-        a "a"
+boo a b c d e f g = 5
 
-plus :: Int -> Int -> Int
-plus a b = (a,b).0
+a = boo
 
-factorial n = if n < 2 then 1 else n * factorial (n-1)
-
-main = factorial 1
+main = a 3 2 
