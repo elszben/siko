@@ -115,7 +115,7 @@ impl Compiler {
 
         let value = interpreter.run(&ir_program);
 
-        println!("Result {}", value);
+        //println!("Result {}", value);
         Ok(())
     }
 

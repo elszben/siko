@@ -57,7 +57,7 @@ impl Typechecker {
 
         expr_processor.check_typed_functions(program, &mut errors);
 
-        expr_processor.dump_function_types();
+        // expr_processor.dump_function_types();
 
         expr_processor.check_recursive_types(&mut errors);
 
