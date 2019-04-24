@@ -30,19 +30,34 @@ impl<'a> Interpreter<'a> {
     ) -> Value {
         match callable {
             Value::Callable(mut callable) => {
-                let func_info = program.get_function(&callable.function_id);
                 callable.values.extend(args);
-                if func_info.arg_locations.len() > callable.values.len() {
-                    Value::Callable(callable)
-                } else {
-                    assert_eq!(func_info.arg_locations.len(), (callable.values.len()));
-                    let mut environment = Environment::new(callable.function_id, callable.values);
-                    return self.execute(
-                        program,
-                        callable.function_id,
-                        &mut environment,
-                        Some(expr_id),
-                    );
+                loop {
+                    let func_info = program.get_function(&callable.function_id);
+                    let needed_arg_count = func_info.arg_locations.len();
+                    if needed_arg_count > callable.values.len() {
+                        return Value::Callable(callable);
+                    } else {
+                        let rest = callable.values.split_off(needed_arg_count);
+                        let mut call_args = Vec::new();
+                        std::mem::swap(&mut call_args, &mut callable.values);
+                        let mut environment = Environment::new(callable.function_id, call_args);
+                        let result = self.execute(
+                            program,
+                            callable.function_id,
+                            &mut environment,
+                            Some(expr_id),
+                        );
+                        if !rest.is_empty() {
+                            if let Value::Callable(new_callable) = result {
+                                callable = new_callable;
+                                callable.values.extend(rest);
+                            } else {
+                                unreachable!()
+                            }
+                        } else {
+                            return result;
+                        }
+                    }
                 }
             }
             _ => unreachable!(),
@@ -170,6 +185,16 @@ impl<'a> Interpreter<'a> {
                     err.report_error(&self.error_context);
                     panic!("Abort not implemented");
                 }
+                return Value::Tuple(vec![]);
+            }
+            ("Std.IO", "print") => {
+                let v = environment.get_arg_by_index(0).as_string();
+                print!("{}", v);
+                return Value::Tuple(vec![]);
+            }
+            ("Std.IO", "println") => {
+                let v = environment.get_arg_by_index(0).as_string();
+                println!("{}", v);
                 return Value::Tuple(vec![]);
             }
             _ => {

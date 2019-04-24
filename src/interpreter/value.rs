@@ -31,6 +31,13 @@ impl Value {
             _ => unreachable!(),
         }
     }
+
+    pub fn as_string(&self) -> String {
+        match self {
+            Value::String(s) => s.clone(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl fmt::Display for Value {

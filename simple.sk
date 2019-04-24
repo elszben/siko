@@ -1,7 +1,5 @@
 module Main where
 
-boo a b c d e f g = 5
+import Std.IO
 
-a = boo
-
-main = a 3 2 
+main = println "Hello world"

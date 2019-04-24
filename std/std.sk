@@ -3,6 +3,9 @@ module Std.IO where
 print :: String -> ()
 print msg = extern
 
+println :: String -> ()
+println msg = extern
+
 module Std.Util where
 
 assert :: Bool -> ()
