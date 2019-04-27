@@ -57,7 +57,6 @@ impl fmt::Display for FieldAccessInfo {
 #[derive(Debug, Clone)]
 pub enum Expr {
     StaticFunctionCall(FunctionId, Vec<ExprId>),
-    LambdaFunction(FunctionId, Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
     If(ExprId, ExprId, ExprId),
     Tuple(Vec<ExprId>),
@@ -69,7 +68,6 @@ pub enum Expr {
     Bind(String, ExprId),
     ArgRef(FunctionArgumentRef),
     ExprValue(ExprId),
-    LambdaCapturedArgRef(FunctionArgumentRef),
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
@@ -80,9 +78,6 @@ impl fmt::Display for Expr {
         match self {
             Expr::StaticFunctionCall(id, args) => {
                 write!(f, "StaticFunctionCall({}, {})", id, format_list(args))
-            }
-            Expr::LambdaFunction(id, args) => {
-                write!(f, "LambdaFunction({}, {})", id, format_list(args))
             }
             Expr::DynamicFunctionCall(id_expr, args) => {
                 write!(f, "DynamicFunctionCall({}, {})", id_expr, format_list(args))
@@ -99,7 +94,6 @@ impl fmt::Display for Expr {
             Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
             Expr::ArgRef(v) => write!(f, "{}", v),
             Expr::ExprValue(id) => write!(f, "ExprValue({})", id),
-            Expr::LambdaCapturedArgRef(v) => write!(f, "LambdaCaptured({})", v),
             Expr::FieldAccess(accesses, expr) => {
                 write!(f, "FieldAccess({}, {})", format_list(accesses), expr)
             }

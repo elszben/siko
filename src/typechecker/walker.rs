@@ -14,11 +14,6 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
                 walk_expr(arg, program, visitor);
             }
         }
-        Expr::LambdaFunction(_, args) => {
-            for arg in args {
-                walk_expr(arg, program, visitor);
-            }
-        }
         Expr::DynamicFunctionCall(func_expr, args) => {
             walk_expr(func_expr, program, visitor);
             for arg in args {
@@ -49,7 +44,6 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
         }
         Expr::ArgRef(_) => {}
         Expr::ExprValue(_) => {}
-        Expr::LambdaCapturedArgRef(_) => {}
         Expr::FieldAccess(_, lhs) => {
             walk_expr(lhs, program, visitor);
         }

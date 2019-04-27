@@ -247,7 +247,15 @@ impl FunctionProcessor {
             match &function.info {
                 FunctionInfo::RecordConstructor(_) => {}
                 FunctionInfo::VariantConstructor(_) => {}
-                FunctionInfo::Lambda(_) => {}
+                FunctionInfo::Lambda(i) => {
+                    self.register_untyped_function(
+                        displayed_name,
+                        *id,
+                        function,
+                        i.body,
+                        i.location_id,
+                    );
+                }
                 FunctionInfo::NamedFunction(i) => match i.type_signature {
                     Some(type_signature) => {
                         self.register_typed_function(

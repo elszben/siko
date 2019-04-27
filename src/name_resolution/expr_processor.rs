@@ -245,7 +245,7 @@ pub fn process_expr(
                 .into_iter()
                 .map(|expr| add_expr(expr, id, ir_program, program))
                 .collect();
-            let ir_expr = IrExpr::LambdaFunction(ir_lambda_id, captured_lambda_args);
+            let ir_expr = IrExpr::StaticFunctionCall(ir_lambda_id, captured_lambda_args);
             return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::FunctionCall(id_expr_id, args) => {

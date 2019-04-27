@@ -125,6 +125,8 @@ impl TokenKind {
         match self {
             TokenKind::LParen => format!("("),
             TokenKind::RParen => format!(")"),
+            TokenKind::Equal => format!("="),
+            TokenKind::Op(BuiltinOperator::Arrow) => format!("->"),
             _ => {
                 let name = format!("{:?}", self);
                 let name = name.to_lowercase();

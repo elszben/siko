@@ -2,4 +2,8 @@ module Main where
 
 import Std.IO
 
-main = println "Hello world {} {}\nm" % (5,6)
+main = do
+        a <- 4
+        b <- \x -> x + a
+        c <- b 4
+        print "{}" % (c)

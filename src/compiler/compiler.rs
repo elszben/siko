@@ -113,7 +113,7 @@ impl Compiler {
         typechecker.check(&ir_program)?;
         let mut interpreter = Interpreter::new(self.context());
 
-        let value = interpreter.run(&ir_program);
+        interpreter.run(&ir_program);
 
         //println!("Result {}", value);
         Ok(())
