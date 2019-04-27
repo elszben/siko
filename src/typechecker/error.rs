@@ -8,4 +8,5 @@ pub enum TypecheckError {
     FunctionArgumentMismatch(LocationId, String, String),
     RecursiveType(LocationId),
     MainNotFound,
+    InvalidFormatString(LocationId),
 }

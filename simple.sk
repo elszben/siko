@@ -2,4 +2,4 @@ module Main where
 
 import Std.IO
 
-main = println "Hello world" % (5)
+main = println "Hello world {} {}\nm" % (5,6)

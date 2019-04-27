@@ -338,6 +338,14 @@ impl<'a> Visitor for Unifier<'a> {
                     self.errors,
                 );
             }
+            Expr::Formatter(fmt, args) => {
+                let subs: Vec<_> = fmt.split("{}").collect();
+                if subs.len() != args.len() + 1 {
+                    let location = self.program.get_expr_location(&expr_id);
+                    let err = TypecheckError::InvalidFormatString(location);
+                    self.errors.push(err);
+                }
+            }
             _ => panic!("Unifier: processing {} is not implemented", expr),
         }
     }
@@ -457,6 +465,7 @@ impl ExprProcessor {
         }
     }
 
+    #[allow(unused)]
     pub fn dump_function_types(&self) {
         for (id, info) in &self.function_type_info_map {
             println!(

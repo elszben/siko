@@ -419,7 +419,12 @@ impl Error {
                             );
                         }
                         TypecheckError::RecursiveType(id) => {
-                            println!("{} function type is recursive", error.red(),);
+                            println!("{} function type is recursive", error.red());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::InvalidFormatString(id) => {
+                            println!("{} invalid format string", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }

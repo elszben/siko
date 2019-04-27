@@ -9,6 +9,7 @@ use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::program::Program;
+use std::fmt::Write;
 
 pub struct Interpreter<'a> {
     error_context: ErrorContext<'a>,
@@ -137,6 +138,21 @@ impl<'a> Interpreter<'a> {
                 } else {
                     unreachable!()
                 }
+            }
+            Expr::Formatter(fmt, args) => {
+                let subs: Vec<_> = fmt.split("{}").collect();
+                let values: Vec<_> = args
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment))
+                    .collect();
+                let mut result = String::new();
+                for (index, sub) in subs.iter().enumerate() {
+                    write!(result, "{}", sub).unwrap();
+                    if values.len() > index {
+                        write!(result, "{}", values[index]).unwrap();
+                    }
+                }
+                return Value::String(result);
             }
             _ => panic!("{} eval is not implemented", expr),
         }
