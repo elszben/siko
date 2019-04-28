@@ -46,18 +46,16 @@ impl Typechecker {
         let function_dep_processor =
             FunctionDependencyProcessor::new(type_store, function_type_info_map);
 
-        let (type_store, function_type_info_map, ordered_untyped_dep_groups) =
+        let (type_store, function_type_info_map, ordered_dep_groups) =
             function_dep_processor.process_functions(program);
 
         let mut expr_processor = ExprProcessor::new(type_store, function_type_info_map);
 
-        for group in &ordered_untyped_dep_groups {
-            expr_processor.process_untyped_dep_group(program, group, &mut errors);
+        for group in &ordered_dep_groups {
+            expr_processor.process_dep_group(program, group, &mut errors);
         }
 
-        expr_processor.check_typed_functions(program, &mut errors);
-
-        // expr_processor.dump_function_types();
+        expr_processor.dump_function_types();
 
         expr_processor.check_recursive_types(&mut errors);
 

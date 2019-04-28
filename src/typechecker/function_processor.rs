@@ -220,7 +220,7 @@ impl FunctionProcessor {
         let mut args = Vec::new();
 
         let (func_type_var, result) = create_general_function_type(
-            function.arg_locations.len(),
+            function.arg_locations.len() + function.implicit_arg_count,
             &mut args,
             &mut self.type_store,
         );

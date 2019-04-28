@@ -92,3 +92,12 @@ pub struct Function {
     pub implicit_arg_count: usize,
     pub info: FunctionInfo,
 }
+
+impl Function {
+    pub fn is_lambda(&self) -> bool {
+        match self.info {
+            FunctionInfo::Lambda(_) => true,
+            _ => false,
+        }
+    }
+}

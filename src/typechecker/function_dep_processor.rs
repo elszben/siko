@@ -7,6 +7,7 @@ use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::walker::walk_expr;
 use crate::typechecker::walker::Visitor;
+use crate::util::format_list;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -83,6 +84,36 @@ impl FunctionDependencyProcessor {
         }
     }
 
+    fn collect_typed_deps(&mut self, program: &Program) -> Vec<DependencyGroup> {
+        let mut groups = Vec::new();
+        for (id, type_info) in &self.function_type_info_map {
+            if type_info.signature_location.is_none() {
+                continue;
+            }
+            let body = if let Some(body) = type_info.body {
+                body
+            } else {
+                continue;
+            };
+            let mut collector = DependencyCollector::new();
+            walk_expr(&body, program, &mut collector);
+            let deps: Vec<_> = collector.used_functions.into_iter().collect();
+            let mut deps: BTreeSet<_> = deps
+                .iter()
+                .filter(|dep_id| {
+                    let dep_func = program.functions.get(dep_id).expect("Function not found");
+                    dep_func.is_lambda()
+                })
+                .map(|id| *id)
+                .collect();
+            deps.insert(*id);
+            let mut group = DependencyGroup::new();
+            group.functions = deps;
+            groups.push(group);
+        }
+        groups
+    }
+
     fn collect_untyped_deps(&mut self, program: &Program) {
         for (id, type_info) in &self.function_type_info_map {
             if type_info.signature_location.is_some() {
@@ -100,7 +131,6 @@ impl FunctionDependencyProcessor {
                             .function_type_info_map
                             .get(dep_id)
                             .expect("type info not found");
-
                         dep_info.signature_location.is_none()
                     })
                     .map(|id| *id)
@@ -207,12 +237,13 @@ impl FunctionDependencyProcessor {
             }
         }
 
-        /*
+        let typed_groups = self.collect_typed_deps(program);
+        ordered_groups.extend(typed_groups);
+
         for (index, group) in ordered_groups.iter().enumerate() {
             let funcs: Vec<_> = group.functions.iter().collect();
             println!("{} group {}", index, format_list(&funcs[..]));
         }
-        */
 
         (self.type_store, self.function_type_info_map, ordered_groups)
     }

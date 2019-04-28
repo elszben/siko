@@ -37,7 +37,7 @@ struct Unifier<'a> {
     expr_processor: &'a mut ExprProcessor,
     program: &'a Program,
     errors: &'a mut Vec<TypecheckError>,
-    group: Option<&'a DependencyGroup>,
+    group: &'a DependencyGroup,
 }
 
 impl<'a> Unifier<'a> {
@@ -45,7 +45,7 @@ impl<'a> Unifier<'a> {
         expr_processor: &'a mut ExprProcessor,
         program: &'a Program,
         errors: &'a mut Vec<TypecheckError>,
-        group: Option<&'a DependencyGroup>,
+        group: &'a DependencyGroup,
     ) -> Unifier<'a> {
         Unifier {
             expr_processor: expr_processor,
@@ -63,10 +63,8 @@ impl<'a> Unifier<'a> {
             .function_type_info_map
             .get(function_id)
             .expect("Type info not found");
-        if let Some(group) = self.group {
-            if group.functions.contains(function_id) {
-                return type_info.function_type;
-            }
+        if self.group.functions.contains(function_id) {
+            return type_info.function_type;
         }
         self.expr_processor
             .type_store
@@ -244,12 +242,18 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::ArgRef(arg_ref) => {
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
+                let func = self.program.get_function(&arg_ref.id);
+                let index = if arg_ref.captured {
+                    arg_ref.index
+                } else {
+                    func.implicit_arg_count + arg_ref.index
+                };
                 let type_info = self
                     .expr_processor
                     .function_type_info_map
                     .get(&arg_ref.id)
                     .expect("Type info not found");
-                let arg_var = type_info.args[arg_ref.index];
+                let arg_var = type_info.args[index];
                 self.expr_processor.unify_variables(
                     &var,
                     &arg_var,
@@ -382,18 +386,18 @@ impl ExprProcessor {
             .expect("Type var for expr not found")
     }
 
-    pub fn process_untyped_dep_group(
+    pub fn process_dep_group(
         &mut self,
         program: &Program,
         group: &DependencyGroup,
         errors: &mut Vec<TypecheckError>,
     ) {
         for function in &group.functions {
-            self.process_untyped_function(function, program, errors, group);
+            self.process_function(function, program, errors, group);
         }
     }
 
-    pub fn process_untyped_function(
+    pub fn process_function(
         &mut self,
         function_id: &FunctionId,
         program: &Program,
@@ -408,44 +412,7 @@ impl ExprProcessor {
         let result_var = type_info.result;
         let mut type_var_creator = TypeVarCreator::new(self);
         walk_expr(&body, program, &mut type_var_creator);
-        let mut unifier = Unifier::new(self, program, errors, Some(group));
-        walk_expr(&body, program, &mut unifier);
-        let body_var = self.lookup_type_var_for_expr(&body);
-        let body_location = program.get_expr_location(&body);
-        self.unify_variables(&body_var, &result_var, body_location, body_location, errors);
-    }
-
-    pub fn check_typed_functions(&mut self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        let typed_functions: Vec<_> = self
-            .function_type_info_map
-            .iter()
-            .filter(|(_, type_info)| type_info.signature_location.is_some())
-            .map(|(id, _)| *id)
-            .collect();
-        for id in typed_functions {
-            self.check_typed_function(&id, program, errors);
-        }
-    }
-
-    fn check_typed_function(
-        &mut self,
-        function_id: &FunctionId,
-        program: &Program,
-        errors: &mut Vec<TypecheckError>,
-    ) {
-        let type_info = self
-            .function_type_info_map
-            .get(function_id)
-            .expect("Function type info not found");
-        let body = if let Some(body) = type_info.body {
-            body
-        } else {
-            return;
-        };
-        let result_var = type_info.result;
-        let mut type_var_creator = TypeVarCreator::new(self);
-        walk_expr(&body, program, &mut type_var_creator);
-        let mut unifier = Unifier::new(self, program, errors, None);
+        let mut unifier = Unifier::new(self, program, errors, group);
         walk_expr(&body, program, &mut unifier);
         let body_var = self.lookup_type_var_for_expr(&body);
         let body_location = program.get_expr_location(&body);
