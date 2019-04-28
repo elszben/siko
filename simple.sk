@@ -3,7 +3,7 @@ module Main where
 import Std.IO
 
 main = do
-        a <- 4
+        a <- 3
         b <- \x -> x + a
-        c <- b 4
-        print "{}" % (c)
+        c <- b 1
+        print "viii {}" % (c)

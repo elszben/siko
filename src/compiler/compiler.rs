@@ -110,7 +110,7 @@ impl Compiler {
 
         let mut typechecker = Typechecker::new();
 
-        typechecker.check(&ir_program)?;
+        // typechecker.check(&ir_program)?;
         let mut interpreter = Interpreter::new(self.context());
 
         interpreter.run(&ir_program);

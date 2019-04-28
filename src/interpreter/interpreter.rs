@@ -34,14 +34,19 @@ impl<'a> Interpreter<'a> {
                 callable.values.extend(args);
                 loop {
                     let func_info = program.get_function(&callable.function_id);
-                    let needed_arg_count = func_info.arg_locations.len();
+                    let needed_arg_count =
+                        func_info.arg_locations.len() + func_info.implicit_arg_count;
                     if needed_arg_count > callable.values.len() {
                         return Value::Callable(callable);
                     } else {
                         let rest = callable.values.split_off(needed_arg_count);
                         let mut call_args = Vec::new();
                         std::mem::swap(&mut call_args, &mut callable.values);
-                        let mut environment = Environment::new(callable.function_id, call_args);
+                        let mut environment = Environment::new(
+                            callable.function_id,
+                            call_args,
+                            func_info.implicit_arg_count,
+                        );
                         let result = self.execute(
                             program,
                             callable.function_id,
@@ -61,7 +66,7 @@ impl<'a> Interpreter<'a> {
                     }
                 }
             }
-            _ => unreachable!(),
+            _ => panic!("Cannot call {:?}", callable),
         }
     }
 
@@ -72,7 +77,7 @@ impl<'a> Interpreter<'a> {
         environment: &mut Environment,
     ) -> Value {
         let expr = program.get_expr(&expr_id);
-        // println!("Eval {}", expr);
+        //println!("Eval {}", expr);
         match expr {
             Expr::IntegerLiteral(v) => Value::Int(*v),
             Expr::StringLiteral(v) => Value::String(v.clone()),
@@ -242,6 +247,9 @@ impl<'a> Interpreter<'a> {
                     );
                 }
             },
+            FunctionInfo::Lambda(info) => {
+                return self.eval_expr(program, info.body, environment);
+            }
             _ => unimplemented!(),
         }
     }
@@ -253,7 +261,7 @@ impl<'a> Interpreter<'a> {
                     if info.module == constants::MAIN_MODULE
                         && info.name == constants::MAIN_FUNCTION
                     {
-                        let mut environment = Environment::new(*id, vec![]);
+                        let mut environment = Environment::new(*id, vec![], 0);
                         return self.execute(program, *id, &mut environment, None);
                     }
                 }

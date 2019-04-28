@@ -10,15 +10,21 @@ pub struct Environment<'a> {
     args: Vec<Value>,
     variables: BTreeMap<ExprId, Value>,
     parent: Option<&'a Environment<'a>>,
+    captured_arg_count: usize,
 }
 
 impl<'a> Environment<'a> {
-    pub fn new(function_id: FunctionId, args: Vec<Value>) -> Environment<'a> {
+    pub fn new(
+        function_id: FunctionId,
+        args: Vec<Value>,
+        captured_arg_count: usize,
+    ) -> Environment<'a> {
         Environment {
             function_id: function_id,
             args: args,
             variables: BTreeMap::new(),
             parent: None,
+            captured_arg_count: captured_arg_count,
         }
     }
 
@@ -44,12 +50,18 @@ impl<'a> Environment<'a> {
             args: parent.args.clone(),
             variables: BTreeMap::new(),
             parent: Some(parent),
+            captured_arg_count: parent.captured_arg_count,
         }
     }
 
     pub fn get_arg(&self, arg_ref: &FunctionArgumentRef) -> Value {
         if self.function_id == arg_ref.id {
-            return self.args[arg_ref.index].clone();
+            let index = if arg_ref.captured {
+                arg_ref.index
+            } else {
+                arg_ref.index + self.captured_arg_count
+            };
+            return self.args[index].clone();
         } else {
             if let Some(parent) = self.parent {
                 return parent.get_arg(arg_ref);

@@ -233,15 +233,17 @@ pub fn process_expr(
                 location_id: location_id,
             };
 
+            let captures = local_lambda_helper.captures();
+
             let ir_function = IrFunction {
                 id: ir_lambda_id,
                 arg_locations: args.iter().map(|arg| arg.1).collect(),
+                implicit_arg_count: captures.len(),
                 info: FunctionInfo::Lambda(lambda_info),
             };
             ir_program.add_function(ir_lambda_id, ir_function);
 
-            let captured_lambda_args: Vec<_> = local_lambda_helper
-                .captures()
+            let captured_lambda_args: Vec<_> = captures
                 .into_iter()
                 .map(|expr| add_expr(expr, id, ir_program, program))
                 .collect();

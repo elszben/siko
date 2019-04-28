@@ -31,7 +31,7 @@ impl<'a> Environment<'a> {
     pub fn add_arg(&mut self, var: String, function_id: FunctionId, index: usize) {
         self.variables.insert(
             var,
-            NamedRef::FunctionArg(FunctionArgumentRef::new(function_id, index)),
+            NamedRef::FunctionArg(FunctionArgumentRef::new(false, function_id, index)),
         );
     }
 

@@ -89,5 +89,6 @@ impl fmt::Display for FunctionInfo {
 pub struct Function {
     pub id: FunctionId,
     pub arg_locations: Vec<LocationId>,
+    pub implicit_arg_count: usize,
     pub info: FunctionInfo,
 }

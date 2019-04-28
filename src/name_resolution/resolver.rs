@@ -116,6 +116,7 @@ impl Resolver {
                         .iter()
                         .map(|field| field.location_id)
                         .collect(),
+                    implicit_arg_count: 0,
                     info: FunctionInfo::RecordConstructor(record_ctor_info),
                 };
                 ir_program.add_function(ir_ctor_id, ir_ctor_function);
@@ -349,6 +350,7 @@ impl Resolver {
         let ir_function = IrFunction {
             id: ir_function_id,
             arg_locations: function.args.iter().map(|arg| arg.1).collect(),
+            implicit_arg_count: 0,
             info: FunctionInfo::NamedFunction(named_info),
         };
         ir_program.add_function(ir_function_id, ir_function);
@@ -411,6 +413,7 @@ impl Resolver {
                                 ir_program.get_type_signature_location(&item.type_signature_id)
                             })
                             .collect(),
+                        implicit_arg_count: 0,
                         info: FunctionInfo::VariantConstructor(variant_ctor_info),
                     };
                     ir_program.add_function(ir_ctor_id, ir_ctor_function);

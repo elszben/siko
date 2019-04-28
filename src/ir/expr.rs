@@ -7,13 +7,15 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct FunctionArgumentRef {
+    pub captured: bool,
     pub id: FunctionId,
     pub index: usize,
 }
 
 impl FunctionArgumentRef {
-    pub fn new(id: FunctionId, index: usize) -> FunctionArgumentRef {
+    pub fn new(captured: bool, id: FunctionId, index: usize) -> FunctionArgumentRef {
         FunctionArgumentRef {
+            captured: captured,
             id: id,
             index: index,
         }

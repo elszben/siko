@@ -38,7 +38,7 @@ impl LambdaHelper {
         };
         if level < self.level {
             let arg_index = self.captures.len();
-            let lambda_arg_ref = FunctionArgumentRef::new(self.function_id, arg_index);
+            let lambda_arg_ref = FunctionArgumentRef::new(true, self.function_id, arg_index);
             let updated_ref = match &r {
                 Expr::ExprValue(_) => Expr::ArgRef(lambda_arg_ref),
                 Expr::ArgRef(_) => Expr::ArgRef(lambda_arg_ref),
