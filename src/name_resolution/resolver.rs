@@ -326,6 +326,7 @@ impl Resolver {
                 host_function,
                 LambdaHelper::new_counter(),
                 ir_function_id,
+                ir_function_id,
             );
             let body_id = process_expr(
                 id,

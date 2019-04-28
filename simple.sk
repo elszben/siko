@@ -4,6 +4,13 @@ import Std.IO
 
 main = do
         a <- 3
+        b <- \x -> \z -> x + a
+        c <- b 1 2
+        print "viii {}" % (c)
+
+main2 :: ()
+main2 = do
+        a <- 3
         b <- \x -> x + a
         c <- b 1
         print "viii {}" % (c)

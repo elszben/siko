@@ -209,11 +209,13 @@ pub fn process_expr(
                 );
                 errors.push(err);
             }
+
             let mut local_lambda_helper = LambdaHelper::new(
                 environment.level(),
-                lambda_helper.host_function(),
+                lambda_helper.host_function_name(),
                 lambda_helper.clone_counter(),
                 ir_lambda_id,
+                lambda_helper.host_function(),
             );
 
             let ir_lambda_body = process_expr(
@@ -228,7 +230,8 @@ pub fn process_expr(
 
             let lambda_info = LambdaInfo {
                 body: ir_lambda_body,
-                host_info: local_lambda_helper.host_function(),
+                host_info: local_lambda_helper.host_function_name(),
+                host_function: local_lambda_helper.host_function(),
                 index: local_lambda_helper.get_lambda_index(),
                 location_id: location_id,
             };

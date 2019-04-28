@@ -34,6 +34,7 @@ impl fmt::Display for NamedFunctionInfo {
 pub struct LambdaInfo {
     pub body: ExprId,
     pub host_info: String,
+    pub host_function: FunctionId,
     pub index: usize,
     pub location_id: LocationId,
 }
@@ -94,10 +95,10 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn is_lambda(&self) -> bool {
-        match self.info {
-            FunctionInfo::Lambda(_) => true,
-            _ => false,
+    pub fn get_lambda_host(&self) -> Option<FunctionId> {
+        match &self.info {
+            FunctionInfo::Lambda(i) => Some(i.host_function),
+            _ => None,
         }
     }
 }

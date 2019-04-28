@@ -10,24 +10,27 @@ use std::rc::Rc;
 pub struct LambdaHelper {
     captures: Vec<Expr>,
     level: usize,
-    host_function: String,
+    host_function_name: String,
     counter: Rc<RefCell<Counter>>,
     function_id: FunctionId,
+    host_function_id: FunctionId,
 }
 
 impl LambdaHelper {
     pub fn new(
         level: usize,
-        host_function: String,
+        host_function_name: String,
         counter: Rc<RefCell<Counter>>,
         function_id: FunctionId,
+        host_function_id: FunctionId,
     ) -> LambdaHelper {
         LambdaHelper {
             captures: Vec::new(),
             level: level,
-            host_function: host_function,
+            host_function_name: host_function_name,
             counter: counter,
             function_id: function_id,
+            host_function_id: host_function_id,
         }
     }
 
@@ -56,8 +59,12 @@ impl LambdaHelper {
         self.captures.clone()
     }
 
-    pub fn host_function(&self) -> String {
-        self.host_function.clone()
+    pub fn host_function_name(&self) -> String {
+        self.host_function_name.clone()
+    }
+
+    pub fn host_function(&self) -> FunctionId {
+        self.host_function_id
     }
 
     pub fn get_lambda_index(&self) -> usize {
