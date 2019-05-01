@@ -77,7 +77,7 @@ impl<'a> Interpreter<'a> {
         environment: &mut Environment,
     ) -> Value {
         let expr = program.get_expr(&expr_id);
-        println!("Eval {}", expr);
+        //println!("Eval {} {}", expr_id, expr);
         match expr {
             Expr::IntegerLiteral(v) => Value::Int(*v),
             Expr::StringLiteral(v) => Value::String(v.clone()),

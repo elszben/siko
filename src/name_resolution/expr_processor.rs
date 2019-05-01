@@ -31,7 +31,7 @@ fn resolve_item_path(
     path: &str,
     module: &Module,
     environment: &Environment,
-    lambda_helper: &mut LambdaHelper,
+    lambda_helper: LambdaHelper,
     program: &Program,
     ir_program: &mut IrProgram,
     id: ExprId,
@@ -185,7 +185,7 @@ pub fn process_expr(
     environment: &mut Environment,
     ir_program: &mut IrProgram,
     errors: &mut Vec<ResolverError>,
-    lambda_helper: &mut LambdaHelper,
+    lambda_helper: LambdaHelper,
 ) -> IrExprId {
     let expr = program.get_expr(&id);
     let location_id = program.get_expr_location(&id);
@@ -210,12 +210,13 @@ pub fn process_expr(
                 errors.push(err);
             }
 
-            let mut local_lambda_helper = LambdaHelper::new(
+            let local_lambda_helper = LambdaHelper::new(
                 environment.level(),
                 lambda_helper.host_function_name(),
                 lambda_helper.clone_counter(),
                 ir_lambda_id,
                 lambda_helper.host_function(),
+                Some(lambda_helper),
             );
 
             let ir_lambda_body = process_expr(
@@ -225,7 +226,7 @@ pub fn process_expr(
                 &mut environment,
                 ir_program,
                 errors,
-                &mut local_lambda_helper,
+                local_lambda_helper.clone(),
             );
 
             let lambda_info = LambdaInfo {
@@ -264,7 +265,7 @@ pub fn process_expr(
                         environment,
                         ir_program,
                         errors,
-                        lambda_helper,
+                        lambda_helper.clone(),
                     )
                 })
                 .collect();
@@ -305,7 +306,7 @@ pub fn process_expr(
                             &path,
                             module,
                             environment,
-                            lambda_helper,
+                            lambda_helper.clone(),
                             program,
                             ir_program,
                             id,
@@ -331,7 +332,7 @@ pub fn process_expr(
                         environment,
                         ir_program,
                         errors,
-                        lambda_helper,
+                        lambda_helper.clone(),
                     );
                     let ir_expr = IrExpr::DynamicFunctionCall(id_expr, ir_args);
                     return add_expr(ir_expr, id, ir_program, program);
@@ -347,7 +348,7 @@ pub fn process_expr(
                 environment,
                 ir_program,
                 errors,
-                lambda_helper,
+                lambda_helper.clone(),
             );
             let ir_true_branch = process_expr(
                 *true_branch,
@@ -356,7 +357,7 @@ pub fn process_expr(
                 environment,
                 ir_program,
                 errors,
-                lambda_helper,
+                lambda_helper.clone(),
             );
             let ir_false_branch = process_expr(
                 *false_branch,
@@ -365,7 +366,7 @@ pub fn process_expr(
                 environment,
                 ir_program,
                 errors,
-                lambda_helper,
+                lambda_helper.clone(),
             );
             let ir_expr = IrExpr::If(ir_cond, ir_true_branch, ir_false_branch);
             return add_expr(ir_expr, id, ir_program, program);
@@ -381,7 +382,7 @@ pub fn process_expr(
                         environment,
                         ir_program,
                         errors,
-                        lambda_helper,
+                        lambda_helper.clone(),
                     )
                 })
                 .collect();
@@ -436,7 +437,7 @@ pub fn process_expr(
                         environment,
                         ir_program,
                         errors,
-                        lambda_helper,
+                        lambda_helper.clone(),
                     )
                 })
                 .collect();
@@ -502,7 +503,7 @@ pub fn process_expr(
                         environment,
                         ir_program,
                         errors,
-                        lambda_helper,
+                        lambda_helper.clone(),
                     )
                 })
                 .collect();

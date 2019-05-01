@@ -56,6 +56,7 @@ impl Typechecker {
         }
 
         //expr_processor.dump_function_types();
+        //expr_processor.dump_expression_types(program);
 
         expr_processor.check_recursive_types(&mut errors);
 

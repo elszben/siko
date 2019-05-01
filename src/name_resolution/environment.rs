@@ -3,7 +3,7 @@ use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::FunctionId;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum NamedRef {
     FunctionArg(FunctionArgumentRef),
     ExprValue(ExprId),

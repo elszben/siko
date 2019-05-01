@@ -321,12 +321,13 @@ impl Resolver {
                 errors.push(err);
             }
             let host_function = format!("{}/{}", module.name, function.name);
-            let mut lambda_helper = LambdaHelper::new(
+            let lambda_helper = LambdaHelper::new(
                 0,
                 host_function,
                 LambdaHelper::new_counter(),
                 ir_function_id,
                 ir_function_id,
+                None,
             );
             let body_id = process_expr(
                 id,
@@ -335,7 +336,7 @@ impl Resolver {
                 &mut environment,
                 ir_program,
                 errors,
-                &mut lambda_helper,
+                lambda_helper,
             );
             body = Some(body_id);
         }

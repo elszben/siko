@@ -5,7 +5,7 @@ use crate::syntax::expr::ExprId as AstExprId;
 use crate::util::format_list;
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FunctionArgumentRef {
     pub captured: bool,
     pub id: FunctionId,
