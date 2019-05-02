@@ -130,6 +130,20 @@ impl TypeStore {
                     return false;
                 }
             }
+            (Type::Named(_, id1, type_vars1), Type::Named(_, id2, type_vars2)) => {
+                if id1 != id2 {
+                    return false;
+                }
+                if type_vars1.len() != type_vars2.len() {
+                    return false;
+                } else {
+                    for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
+                        if !self.unify(v1, v2) {
+                            return false;
+                        }
+                    }
+                }
+            }
             _ => {
                 return false;
             }

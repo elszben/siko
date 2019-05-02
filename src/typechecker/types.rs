@@ -1,5 +1,6 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
+use crate::ir::types::TypeDefId;
 use crate::typechecker::type_store::TypeStore;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -15,6 +16,7 @@ pub enum Type {
     Function(FunctionType),
     TypeArgument(usize),
     FixedTypeArgument(usize, String),
+    Named(String, TypeDefId, Vec<TypeVariable>),
 }
 
 impl Type {
@@ -69,6 +71,13 @@ impl Type {
                     .expect("Type argument not found during clone");
                 Type::TypeArgument(*new_index)
             }
+            Type::Named(name, id, typevars) => {
+                let typevars: Vec<_> = typevars
+                    .iter()
+                    .map(|var| Type::clone_type_var(var, vars, args, type_store))
+                    .collect();
+                Type::Named(name.clone(), id.clone(), typevars)
+            }
         }
     }
 
@@ -102,6 +111,13 @@ impl Type {
                 args.push(*index);
             }
             Type::FixedTypeArgument(index, _) => args.push(*index),
+            Type::Named(_, _, type_vars) => {
+                for var in type_vars {
+                    vars.push(*var);
+                    let ty = type_store.get_type(var);
+                    ty.collect(vars, args, type_store);
+                }
+            }
         }
     }
 
@@ -140,6 +156,16 @@ impl Type {
                 type_args.get(index).expect("readable type arg not found")
             ),
             Type::FixedTypeArgument(_, name) => format!("{}", name),
+            Type::Named(name, _, type_vars) => {
+                let ss: Vec<_> = type_vars
+                    .iter()
+                    .map(|var| {
+                        let ty = type_store.get_type(var);
+                        ty.as_string(type_store, false, type_args)
+                    })
+                    .collect();
+                format!("{} {}", name, ss.join(" "))
+            }
         }
     }
 
@@ -180,6 +206,14 @@ impl Type {
             }
             Type::TypeArgument(..) => false,
             Type::FixedTypeArgument(..) => false,
+            Type::Named(_, _, type_vars) => {
+                for var in type_vars {
+                    if check_sub_var(var, vars, type_store) {
+                        return true;
+                    }
+                }
+                false
+            }
         }
     }
 }
@@ -199,6 +233,10 @@ impl fmt::Display for Type {
             Type::Function(func_type) => write!(f, "{}", func_type),
             Type::TypeArgument(index) => write!(f, "t{}", index),
             Type::FixedTypeArgument(_, name) => write!(f, "{}", name),
+            Type::Named(name, _, types) => {
+                let ss: Vec<_> = types.iter().map(|t| format!("{}", t)).collect();
+                write!(f, "{} {}", name, ss.join(" "))
+            }
         }
     }
 }

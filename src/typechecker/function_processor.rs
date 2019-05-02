@@ -100,14 +100,24 @@ impl FunctionProcessor {
                 });
                 return (*var, location_id);
             }
-            TypeSignature::Named(..) => {
-                let ty = Type::Nothing;
+            TypeSignature::Named(name, id, items) => {
+                let items: Vec<_> = items
+                    .iter()
+                    .map(|i| {
+                        self.process_type_signature(
+                            i,
+                            program,
+                            arg_map,
+                            signature_arg_locations,
+                            arg_count,
+                        )
+                    })
+                    .map(|(i, _)| i)
+                    .collect();
+                let ty = Type::Named(name.clone(), *id, items);
                 return (self.type_store.add_type(ty), location_id);
             }
-            TypeSignature::Variant(..) => {
-                let ty = Type::Nothing;
-                return (self.type_store.add_type(ty), location_id);
-            }
+            TypeSignature::Variant(..) => unreachable!(),
         }
     }
 

@@ -1,10 +1,14 @@
 module Main where
 
+data Option a = Some a | None
+
 import Std.IO
 
-main = do
-        a <- 3
-        b <- \x -> \z -> x + a
-        c <- b 3 2
-        print "viii {}" % (c)
+get a :: a -> Option a 
+get a = extern
+
+set :: Option String -> ()
+set a = extern
+
+main = set (get 3)
 

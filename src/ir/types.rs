@@ -18,7 +18,7 @@ pub enum TypeSignature {
     Tuple(Vec<TypeSignatureId>),
     Function(TypeSignatureId, TypeSignatureId),
     TypeArgument(usize, String),
-    Named(TypeDefId, Vec<TypeSignatureId>),
+    Named(String, TypeDefId, Vec<TypeSignatureId>),
     Variant(String, Vec<TypeSignatureId>),
 }
 

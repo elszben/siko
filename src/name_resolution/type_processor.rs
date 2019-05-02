@@ -102,7 +102,11 @@ fn process_type_signature(
                                                 errors.push(err);
                                                 return None;
                                             }
-                                            IrTypeSignature::Named(ir_typedef_id, named_arg_ids)
+                                            IrTypeSignature::Named(
+                                                adt.name.clone(),
+                                                ir_typedef_id,
+                                                named_arg_ids,
+                                            )
                                         }
                                         TypeDef::Record(_) => unreachable!(),
                                     }
@@ -125,7 +129,11 @@ fn process_type_signature(
                                                 errors.push(err);
                                                 return None;
                                             }
-                                            IrTypeSignature::Named(ir_typedef_id, named_arg_ids)
+                                            IrTypeSignature::Named(
+                                                record.name.clone(),
+                                                ir_typedef_id,
+                                                named_arg_ids,
+                                            )
                                         }
                                     }
                                 }

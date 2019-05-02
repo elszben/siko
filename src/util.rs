@@ -19,5 +19,5 @@ impl Counter {
 
 pub fn format_list<T: fmt::Display>(items: &[T]) -> String {
     let ss: Vec<_> = items.iter().map(|i| format!("{}", i)).collect();
-    format!("[{}]", ss.join(", "))
+    format!("{}", ss.join(", "))
 }
