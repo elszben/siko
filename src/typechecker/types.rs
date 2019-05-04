@@ -216,6 +216,37 @@ impl Type {
             }
         }
     }
+
+    pub fn debug_dump(&self, type_store: &TypeStore) -> String {
+        match self {
+            Type::Int => format!("Int"),
+            Type::Float => format!("Float"),
+            Type::Bool => format!("Bool"),
+            Type::String => format!("String"),
+            Type::Nothing => format!("!"),
+            Type::Tuple(type_vars) => {
+                let ss: Vec<_> = type_vars
+                    .iter()
+                    .map(|var| type_store.debug_var(var))
+                    .collect();
+                format!("({})", ss.join(", "))
+            }
+            Type::Function(func_type) => {
+                let from = type_store.debug_var(&func_type.from);
+                let to = type_store.debug_var(&func_type.to);
+                format!("{} -> {}", from, to)
+            }
+            Type::TypeArgument(index) => format!("type_arg{}", index),
+            Type::FixedTypeArgument(index, n) => format!("fixed_type_arg({}){}", n, index),
+            Type::Named(n, id, type_vars) => {
+                let ss: Vec<_> = type_vars
+                    .iter()
+                    .map(|var| type_store.debug_var(var))
+                    .collect();
+                format!("named({},{}({}))", n, id, ss.join(", "))
+            }
+        }
+    }
 }
 
 impl fmt::Display for Type {

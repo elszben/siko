@@ -88,7 +88,6 @@ impl<'a> Unifier<'a> {
 
 impl<'a> Visitor for Unifier<'a> {
     fn visit(&mut self, expr_id: ExprId, expr: &Expr) {
-        println!("checking {} {}", expr_id, expr);
         match expr {
             Expr::IntegerLiteral(_) => self.check_literal(expr_id, Type::Int),
             Expr::StringLiteral(_) => self.check_literal(expr_id, Type::String),
@@ -129,20 +128,19 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::StaticFunctionCall(function_id, args) => {
                 let orig_function_type_var = self.get_function_type_var(function_id);
                 let mut function_type_var = orig_function_type_var;
+                let ty = self.expr_processor.type_store.debug_var(&function_type_var);
+                println!("ORIG {}", ty);
                 let orig_arg_vars: Vec<_> = args
                     .iter()
                     .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
                     .collect();
                 let mut arg_vars = orig_arg_vars.clone();
                 let mut failed = false;
-                self.print_type("orig_func", &orig_function_type_var);
                 while !arg_vars.is_empty() {
                     if let Type::Function(func_type) =
                         self.expr_processor.type_store.get_type(&function_type_var)
                     {
                         let first_arg = arg_vars.first().unwrap();
-                        self.print_type("first arg", first_arg);
-                        self.print_type("from", &func_type.from);
                         if !self
                             .expr_processor
                             .type_store
@@ -151,8 +149,6 @@ impl<'a> Visitor for Unifier<'a> {
                             failed = true;
                             break;
                         } else {
-                            self.print_type("from2", &func_type.from);
-                            self.print_type("to", &func_type.to);
                             function_type_var = func_type.to;
                             arg_vars.remove(0);
                         }
@@ -184,8 +180,6 @@ impl<'a> Visitor for Unifier<'a> {
                     );
                     self.errors.push(err);
                 } else {
-                    self.print_type("exprvar", &expr_var);
-                    self.print_type("func", &function_type_var);
                     self.expr_processor.unify_variables(
                         &expr_var,
                         &function_type_var,

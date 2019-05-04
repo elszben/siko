@@ -219,13 +219,11 @@ impl FunctionProcessor {
                             program,
                             &mut arg_map,
                         );
-                        println!("item arg {}", arg_var);
                         let r = self.type_store.unify(&arg_var, &args[index]);
                         assert!(r);
                     }
                     let mut type_args: Vec<_> = Vec::new();
                     for arg in &adt.type_args {
-                        println!("looking for {} in {:?}", arg, arg_map);
                         let var = match arg_map.get(arg) {
                             Some(v) => *v,
                             None => self.type_store.get_new_type_var(),
@@ -236,7 +234,7 @@ impl FunctionProcessor {
                     let result_type_var = self.type_store.add_type(result_type);
                     let r = self.type_store.unify(&result, &result_type_var);
                     assert!(r);
-                    let ty = self.type_store.get_resolved_type_string(&func_type_var);
+                    let ty = self.type_store.debug_var(&func_type_var);
                     println!("FULL {}", ty);
                     let type_info = FunctionTypeInfo::new(
                         format!("{}/{}_ctor", adt.name, variant.name),

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeIndex {
-    id: usize,
+    pub id: usize,
 }
 
 impl TypeIndex {
@@ -66,7 +66,7 @@ impl TypeStore {
         self.variables.insert(type_var, index);
     }
 
-    fn get_index(&self, var: &TypeVariable) -> TypeIndex {
+    pub fn get_index(&self, var: &TypeVariable) -> TypeIndex {
         self.variables
             .get(var)
             .expect("invalid type variable")
@@ -217,5 +217,16 @@ impl TypeStore {
             let ty = self.indices.get(idx).unwrap();
             println!("{} {} {}", var, idx.id, ty);
         }
+    }
+
+    #[allow(unused)]
+    pub fn debug_var(&self, var: &TypeVariable) -> String {
+        let ty = self.get_type(var);
+        format!(
+            "{}:{}({})",
+            var,
+            self.get_index(var).id,
+            ty.debug_dump(self)
+        )
     }
 }
