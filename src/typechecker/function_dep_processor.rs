@@ -99,7 +99,7 @@ impl FunctionDependencyProcessor {
                             .function_type_info_map
                             .get(dep_id)
                             .expect("type info not found");
-                        dep_info.signature_location.is_none()
+                        !dep_info.typed
                     })
                     .map(|id| *id)
                     .collect();

@@ -92,10 +92,10 @@ fn process_type_signature(
                                         .expect("TypeDef not found");
                                     match ir_adt {
                                         TypeDef::Adt(adt) => {
-                                            if adt.type_arg_count != named_arg_ids.len() {
+                                            if adt.type_args.len() != named_arg_ids.len() {
                                                 let err = ResolverError::IncorrectTypeArgumentCount(
                                                     name.clone(),
-                                                    adt.type_arg_count,
+                                                    adt.type_args.len(),
                                                     named_arg_ids.len(),
                                                     location_id,
                                                 );

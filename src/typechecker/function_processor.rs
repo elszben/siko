@@ -2,13 +2,11 @@ use crate::ir::expr::ExprId;
 use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
-use crate::ir::function::NamedFunctionInfo;
 use crate::ir::program::Program;
 use crate::ir::types::TypeSignature;
 use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::typechecker::common::create_general_function_type;
-use crate::typechecker::common::FunctionSignatureLocation;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
@@ -35,62 +33,38 @@ impl FunctionProcessor {
         type_signature_id: &TypeSignatureId,
         program: &Program,
         arg_map: &mut BTreeMap<usize, TypeVariable>,
-        signature_arg_locations: &mut Vec<LocationId>,
-        arg_count: usize,
-    ) -> (TypeVariable, LocationId) {
+    ) -> TypeVariable {
         let type_signature = program.get_type_signature(type_signature_id);
-        let location_id = program.get_type_signature_location(type_signature_id);
         match type_signature {
             TypeSignature::Bool => {
                 let ty = Type::Bool;
-                return (self.type_store.add_type(ty), location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Int => {
                 let ty = Type::Int;
-                return (self.type_store.add_type(ty), location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::String => {
                 let ty = Type::String;
-                return (self.type_store.add_type(ty), location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Nothing => {
                 let ty = Type::Nothing;
-                return (self.type_store.add_type(ty), location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Tuple(items) => {
                 let items: Vec<_> = items
                     .iter()
-                    .map(|i| {
-                        self.process_type_signature(
-                            i,
-                            program,
-                            arg_map,
-                            signature_arg_locations,
-                            arg_count,
-                        )
-                    })
-                    .map(|(i, _)| i)
+                    .map(|i| self.process_type_signature(i, program, arg_map))
                     .collect();
                 let ty = Type::Tuple(items);
-                return (self.type_store.add_type(ty), location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Function(from, to) => {
-                let (from_var, _) =
-                    self.process_type_signature(from, program, arg_map, signature_arg_locations, 0);
-                let (to_var, _) = self.process_type_signature(
-                    to,
-                    program,
-                    arg_map,
-                    signature_arg_locations,
-                    if arg_count > 0 { arg_count - 1 } else { 0 },
-                );
-                if arg_count > 0 {
-                    let from_location_id = program.get_type_signature_location(from);
-                    signature_arg_locations.push(from_location_id);
-                }
-                let to_location_id = program.get_type_signature_location(to);
+                let from_var = self.process_type_signature(from, program, arg_map);
+                let to_var = self.process_type_signature(to, program, arg_map);
                 let ty = Type::Function(FunctionType::new(from_var, to_var));
-                return (self.type_store.add_type(ty), to_location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::TypeArgument(index, name) => {
                 let var = arg_map.entry(*index).or_insert_with(|| {
@@ -98,24 +72,15 @@ impl FunctionProcessor {
                     let ty = Type::FixedTypeArgument(arg, name.clone());
                     self.type_store.add_type(ty)
                 });
-                return (*var, location_id);
+                return *var;
             }
             TypeSignature::Named(name, id, items) => {
                 let items: Vec<_> = items
                     .iter()
-                    .map(|i| {
-                        self.process_type_signature(
-                            i,
-                            program,
-                            arg_map,
-                            signature_arg_locations,
-                            arg_count,
-                        )
-                    })
-                    .map(|(i, _)| i)
+                    .map(|i| self.process_type_signature(i, program, arg_map))
                     .collect();
                 let ty = Type::Named(name.clone(), *id, items);
-                return (self.type_store.add_type(ty), location_id);
+                return self.type_store.add_type(ty);
             }
             TypeSignature::Variant(..) => unreachable!(),
         }
@@ -124,8 +89,8 @@ impl FunctionProcessor {
     fn register_typed_function(
         &mut self,
         displayed_name: String,
-        named_info: &NamedFunctionInfo,
-        arg_locations: Vec<LocationId>,
+        name: &String,
+        arg_count: usize,
         type_signature_id: TypeSignatureId,
         function_id: FunctionId,
         program: &Program,
@@ -134,14 +99,7 @@ impl FunctionProcessor {
         location_id: LocationId,
     ) {
         let mut arg_map = BTreeMap::new();
-        let mut signature_arg_locations = Vec::new();
-        let (func_type_var, return_location_id) = self.process_type_signature(
-            &type_signature_id,
-            program,
-            &mut arg_map,
-            &mut signature_arg_locations,
-            arg_locations.len(),
-        );
+        let func_type_var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
         /*
         println!(
             "Registering named function {} {} with type {}",
@@ -155,33 +113,23 @@ impl FunctionProcessor {
             Type::Function(func_type) => {
                 let mut signature_vars = Vec::new();
                 func_type.get_arg_types(&self.type_store, &mut signature_vars);
-                if signature_vars.len() < arg_locations.len() {
+                if signature_vars.len() < arg_count {
                     let err = TypecheckError::FunctionArgAndSignatureMismatch(
-                        named_info.name.clone(),
-                        arg_locations.len(),
+                        name.clone(),
+                        arg_count,
                         signature_vars.len(),
                         program.get_type_signature_location(&type_signature_id),
                     );
                     errors.push(err);
                     return;
                 }
-                let signature_location = FunctionSignatureLocation {
-                    return_location_id: return_location_id,
-                    arg_locations: signature_arg_locations,
-                };
-
-                let arg_vars: Vec<_> = signature_vars
-                    .iter()
-                    .take(arg_locations.len())
-                    .cloned()
-                    .collect();
+                let arg_vars: Vec<_> = signature_vars.iter().take(arg_count).cloned().collect();
 
                 let return_value_var = func_type.get_return_type(&self.type_store, arg_vars.len());
                 FunctionTypeInfo::new(
                     displayed_name,
                     arg_vars,
-                    Some(signature_location),
-                    arg_locations,
+                    true,
                     return_value_var,
                     func_type_var,
                     body,
@@ -189,25 +137,20 @@ impl FunctionProcessor {
                 )
             }
             _ => {
-                if arg_locations.len() > 0 {
+                if arg_count > 0 {
                     let err = TypecheckError::FunctionArgAndSignatureMismatch(
                         displayed_name,
-                        arg_locations.len(),
+                        arg_count,
                         0,
                         program.get_type_signature_location(&type_signature_id),
                     );
                     errors.push(err);
                     return;
                 }
-                let signature_location = FunctionSignatureLocation {
-                    return_location_id: return_location_id,
-                    arg_locations: vec![],
-                };
                 FunctionTypeInfo::new(
-                    named_info.name.clone(),
+                    name.clone(),
                     vec![],
-                    Some(signature_location),
-                    arg_locations,
+                    true,
                     func_type_var,
                     func_type_var,
                     body,
@@ -237,8 +180,7 @@ impl FunctionProcessor {
         let function_type_info = FunctionTypeInfo::new(
             name,
             args,
-            None,
-            function.arg_locations.clone(),
+            false,
             result,
             func_type_var,
             Some(body),
@@ -256,7 +198,69 @@ impl FunctionProcessor {
             let displayed_name = format!("{}", function.info);
             match &function.info {
                 FunctionInfo::RecordConstructor(_) => {}
-                FunctionInfo::VariantConstructor(_) => {}
+                FunctionInfo::VariantConstructor(i) => {
+                    let adt = program.get_adt(&i.type_id);
+                    let variant = &adt.variants[i.index];
+                    let location_id =
+                        program.get_type_signature_location(&variant.type_signature_id);
+
+                    let mut args = Vec::new();
+
+                    let (func_type_var, result) = create_general_function_type(
+                        variant.items.len(),
+                        &mut args,
+                        &mut self.type_store,
+                    );
+
+                    let mut arg_map = BTreeMap::new();
+                    for (index, item) in variant.items.iter().enumerate() {
+                        let arg_var = self.process_type_signature(
+                            &item.type_signature_id,
+                            program,
+                            &mut arg_map,
+                        );
+                        println!("item arg {}", arg_var);
+                        let r = self.type_store.unify(&arg_var, &args[index]);
+                        assert!(r);
+                    }
+                    let mut type_args: Vec<_> = Vec::new();
+                    for arg in &adt.type_args {
+                        println!("looking for {} in {:?}", arg, arg_map);
+                        let var = match arg_map.get(arg) {
+                            Some(v) => *v,
+                            None => self.type_store.get_new_type_var(),
+                        };
+                        type_args.push(var);
+                    }
+                    let result_type = Type::Named(adt.name.clone(), i.type_id, type_args);
+                    let result_type_var = self.type_store.add_type(result_type);
+                    let r = self.type_store.unify(&result, &result_type_var);
+                    assert!(r);
+                    let ty = self.type_store.get_resolved_type_string(&func_type_var);
+                    println!("FULL {}", ty);
+                    let type_info = FunctionTypeInfo::new(
+                        format!("{}/{}_ctor", adt.name, variant.name),
+                        args,
+                        true,
+                        result_type_var,
+                        func_type_var,
+                        None,
+                        location_id,
+                    );
+                    self.function_type_info_map.insert(*id, type_info);
+                    /*self.register_typed_function(
+                        adt.name.clone(),
+                        &variant.name,
+                        function.arg_locations.clone(),
+                        variant.type_signature_id,
+                        *id,
+                        program,
+                        errors,
+                        None,
+                        location_id,
+                    );
+                    */
+                }
                 FunctionInfo::Lambda(i) => {
                     self.register_untyped_function(
                         displayed_name,
@@ -270,8 +274,8 @@ impl FunctionProcessor {
                     Some(type_signature) => {
                         self.register_typed_function(
                             displayed_name,
-                            i,
-                            function.arg_locations.clone(),
+                            &i.name,
+                            function.arg_locations.len(),
                             type_signature,
                             *id,
                             program,

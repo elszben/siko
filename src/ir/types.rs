@@ -71,7 +71,7 @@ pub struct Adt {
     pub name: String,
     pub ast_adt_id: AstAdtId,
     pub id: TypeDefId,
-    pub type_arg_count: usize,
+    pub type_args: Vec<usize>,
     pub variants: Vec<Variant>,
 }
 

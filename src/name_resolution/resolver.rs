@@ -157,7 +157,7 @@ impl Resolver {
                     name: adt.name.clone(),
                     ast_adt_id: *adt_id,
                     id: ir_typedef_id,
-                    type_arg_count: adt.type_args.len(),
+                    type_args: (0..adt.type_args.len()).collect(),
                     variants: Vec::new(),
                 };
                 let typedef = TypeDef::Adt(ir_adt);
@@ -406,6 +406,7 @@ impl Resolver {
                     let ir_ctor_id = ir_program.get_function_id();
                     let variant_ctor_info = VariantConstructorInfo {
                         type_id: ir_typedef_id,
+                        index: index,
                     };
                     let ir_ctor_function = IrFunction {
                         id: ir_ctor_id,

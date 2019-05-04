@@ -167,6 +167,7 @@ impl TypeStore {
         let mut vars = Vec::new();
         let mut args = Vec::new();
         ty.collect(&mut vars, &mut args, self);
+        args.dedup();
         let mut type_args = BTreeMap::new();
         let mut next_char = 'a' as u32;
         for arg in args {
@@ -208,5 +209,13 @@ impl TypeStore {
         let ty = self.get_type(&var);
         let vars = vec![var];
         ty.check_recursion(&vars, self)
+    }
+
+    #[allow(unused)]
+    pub fn dump(&self) {
+        for (var, idx) in &self.variables {
+            let ty = self.indices.get(idx).unwrap();
+            println!("{} {} {}", var, idx.id, ty);
+        }
     }
 }

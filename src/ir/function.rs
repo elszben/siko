@@ -59,11 +59,12 @@ impl fmt::Display for RecordConstructorInfo {
 #[derive(Debug, Clone)]
 pub struct VariantConstructorInfo {
     pub type_id: TypeDefId,
+    pub index: usize,
 }
 
 impl fmt::Display for VariantConstructorInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.type_id)
+        write!(f, "{}/{}", self.type_id, self.index)
     }
 }
 

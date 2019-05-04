@@ -1,14 +1,17 @@
 module Main where
 
 data Option a = Some a | None
+data Option2 a = Some2 a | None2
 
 import Std.IO
 
 get a :: a -> Option a 
-get a = extern
-
+get a = do
+    b <- Some 6
+    b
+/*
 set :: Option String -> ()
 set a = extern
 
-main = set (get 3)
-
+main = 5//set (get 3)
+*/

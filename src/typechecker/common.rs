@@ -21,16 +21,10 @@ impl DependencyGroup {
     }
 }
 
-pub struct FunctionSignatureLocation {
-    pub arg_locations: Vec<LocationId>,
-    pub return_location_id: LocationId,
-}
-
 pub struct FunctionTypeInfo {
     pub displayed_name: String,
     pub args: Vec<TypeVariable>,
-    pub signature_location: Option<FunctionSignatureLocation>,
-    pub arg_locations: Vec<LocationId>,
+    pub typed: bool,
     pub result: TypeVariable,
     pub function_type: TypeVariable,
     pub body: Option<ExprId>,
@@ -41,8 +35,7 @@ impl FunctionTypeInfo {
     pub fn new(
         displayed_name: String,
         args: Vec<TypeVariable>,
-        signature_location: Option<FunctionSignatureLocation>,
-        arg_locations: Vec<LocationId>,
+        typed: bool,
         result: TypeVariable,
         function_type: TypeVariable,
         body: Option<ExprId>,
@@ -51,8 +44,7 @@ impl FunctionTypeInfo {
         FunctionTypeInfo {
             displayed_name: displayed_name,
             args: args,
-            signature_location: signature_location,
-            arg_locations: arg_locations,
+            typed: typed,
             result: result,
             function_type: function_type,
             body: body,

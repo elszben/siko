@@ -3,6 +3,7 @@ use crate::ir::expr::ExprId;
 use crate::ir::expr::ExprInfo;
 use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
+use crate::ir::types::Adt;
 use crate::ir::types::TypeDef;
 use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeInfo;
@@ -104,5 +105,13 @@ impl Program {
 
     pub fn add_typedef(&mut self, id: TypeDefId, typedef: TypeDef) {
         self.typedefs.insert(id, typedef);
+    }
+
+    pub fn get_adt(&self, id: &TypeDefId) -> &Adt {
+        if let TypeDef::Adt(adt) = self.typedefs.get(id).expect("TypeDefId not found") {
+            adt
+        } else {
+            unreachable!()
+        }
     }
 }
