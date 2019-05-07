@@ -128,8 +128,6 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::StaticFunctionCall(function_id, args) => {
                 let orig_function_type_var = self.get_function_type_var(function_id);
                 let mut function_type_var = orig_function_type_var;
-                let ty = self.expr_processor.type_store.debug_var(&function_type_var);
-                println!("ORIG {}", ty);
                 let orig_arg_vars: Vec<_> = args
                     .iter()
                     .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))

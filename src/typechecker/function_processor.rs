@@ -234,8 +234,6 @@ impl FunctionProcessor {
                     let result_type_var = self.type_store.add_type(result_type);
                     let r = self.type_store.unify(&result, &result_type_var);
                     assert!(r);
-                    let ty = self.type_store.debug_var(&func_type_var);
-                    println!("FULL {}", ty);
                     let type_info = FunctionTypeInfo::new(
                         format!("{}/{}_ctor", adt.name, variant.name),
                         args,
@@ -246,18 +244,6 @@ impl FunctionProcessor {
                         location_id,
                     );
                     self.function_type_info_map.insert(*id, type_info);
-                    /*self.register_typed_function(
-                        adt.name.clone(),
-                        &variant.name,
-                        function.arg_locations.clone(),
-                        variant.type_signature_id,
-                        *id,
-                        program,
-                        errors,
-                        None,
-                        location_id,
-                    );
-                    */
                 }
                 FunctionInfo::Lambda(i) => {
                     self.register_untyped_function(

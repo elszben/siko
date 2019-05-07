@@ -1,8 +1,10 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
 use crate::ir::types::TypeDefId;
+use crate::typechecker::type_store::TypeIndex;
 use crate::typechecker::type_store::TypeStore;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -24,14 +26,17 @@ impl Type {
         type_var: &TypeVariable,
         vars: &BTreeMap<TypeVariable, TypeVariable>,
         args: &BTreeMap<usize, usize>,
+        indices: &BTreeMap<TypeIndex, TypeIndex>,
         type_store: &mut TypeStore,
     ) -> TypeVariable {
         let new_var = vars
             .get(type_var)
             .expect("Type variable not found during clone");
-        let ty = type_store.get_type(type_var);
-        let ty = ty.clone_type(vars, args, type_store);
-        type_store.add_var_and_type(*new_var, ty);
+        let old_index = type_store.get_index(type_var);
+        let new_index = indices.get(&old_index).expect("type index not found");
+        let old_type = type_store.get_type(type_var);
+        let new_ty = old_type.clone_type(vars, args, indices, type_store);
+        type_store.add_var_and_type(*new_var, new_ty, *new_index);
         *new_var
     }
 
@@ -39,6 +44,7 @@ impl Type {
         &self,
         vars: &BTreeMap<TypeVariable, TypeVariable>,
         args: &BTreeMap<usize, usize>,
+        indices: &BTreeMap<TypeIndex, TypeIndex>,
         type_store: &mut TypeStore,
     ) -> Type {
         match self {
@@ -50,13 +56,13 @@ impl Type {
             Type::Tuple(typevars) => {
                 let typevars: Vec<_> = typevars
                     .iter()
-                    .map(|var| Type::clone_type_var(var, vars, args, type_store))
+                    .map(|var| Type::clone_type_var(var, vars, args, indices, type_store))
                     .collect();
                 Type::Tuple(typevars)
             }
             Type::Function(func_type) => {
-                let from = Type::clone_type_var(&func_type.from, vars, args, type_store);
-                let to = Type::clone_type_var(&func_type.to, vars, args, type_store);
+                let from = Type::clone_type_var(&func_type.from, vars, args, indices, type_store);
+                let to = Type::clone_type_var(&func_type.to, vars, args, indices, type_store);
                 Type::Function(FunctionType::new(from, to))
             }
             Type::TypeArgument(index) => {
@@ -74,7 +80,7 @@ impl Type {
             Type::Named(name, id, typevars) => {
                 let typevars: Vec<_> = typevars
                     .iter()
-                    .map(|var| Type::clone_type_var(var, vars, args, type_store))
+                    .map(|var| Type::clone_type_var(var, vars, args, indices, type_store))
                     .collect();
                 Type::Named(name.clone(), id.clone(), typevars)
             }
@@ -83,8 +89,9 @@ impl Type {
 
     pub fn collect(
         &self,
-        vars: &mut Vec<TypeVariable>,
-        args: &mut Vec<usize>,
+        vars: &mut BTreeSet<TypeVariable>,
+        args: &mut BTreeSet<usize>,
+        indices: &mut BTreeSet<TypeIndex>,
         type_store: &TypeStore,
     ) {
         match self {
@@ -95,27 +102,32 @@ impl Type {
             Type::Nothing => {}
             Type::Tuple(type_vars) => {
                 for var in type_vars {
-                    vars.push(*var);
+                    vars.insert(*var);
+                    indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, type_store);
+                    ty.collect(vars, args, indices, type_store);
                 }
             }
             Type::Function(func_type) => {
                 for var in &[func_type.from, func_type.to] {
-                    vars.push(*var);
+                    vars.insert(*var);
+                    indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, type_store);
+                    ty.collect(vars, args, indices, type_store);
                 }
             }
             Type::TypeArgument(index) => {
-                args.push(*index);
+                args.insert(*index);
             }
-            Type::FixedTypeArgument(index, _) => args.push(*index),
+            Type::FixedTypeArgument(index, _) => {
+                args.insert(*index);
+            }
             Type::Named(_, _, type_vars) => {
                 for var in type_vars {
-                    vars.push(*var);
+                    vars.insert(*var);
+                    indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, type_store);
+                    ty.collect(vars, args, indices, type_store);
                 }
             }
         }

@@ -2,6 +2,7 @@ use super::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
 use crate::util::Counter;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeIndex {
@@ -60,8 +61,7 @@ impl TypeStore {
         type_var
     }
 
-    pub fn add_var_and_type(&mut self, type_var: TypeVariable, ty: Type) {
-        let index = self.allocate_index();
+    pub fn add_var_and_type(&mut self, type_var: TypeVariable, ty: Type, index: TypeIndex) {
         self.indices.insert(index, ty);
         self.variables.insert(type_var, index);
     }
@@ -164,10 +164,10 @@ impl TypeStore {
             return format!("<recursive type>");
         }
         let ty = self.get_type(var);
-        let mut vars = Vec::new();
-        let mut args = Vec::new();
-        ty.collect(&mut vars, &mut args, self);
-        args.dedup();
+        let mut vars = BTreeSet::new();
+        let mut args = BTreeSet::new();
+        let mut indices = BTreeSet::new();
+        ty.collect(&mut vars, &mut args, &mut indices, self);
         let mut type_args = BTreeMap::new();
         let mut next_char = 'a' as u32;
         for arg in args {
@@ -185,18 +185,23 @@ impl TypeStore {
     }
 
     pub fn clone_type(&mut self, ty: &Type) -> Type {
-        let mut vars = Vec::new();
-        let mut args = Vec::new();
-        ty.collect(&mut vars, &mut args, self);
+        let mut vars = BTreeSet::new();
+        let mut args = BTreeSet::new();
+        let mut indices = BTreeSet::new();
+        ty.collect(&mut vars, &mut args, &mut indices, self);
         let mut var_map = BTreeMap::new();
         let mut arg_map = BTreeMap::new();
+        let mut index_map = BTreeMap::new();
         for var in vars {
             var_map.insert(var, self.allocate_var());
         }
         for arg in args {
             arg_map.insert(arg, self.get_unique_type_arg());
         }
-        ty.clone_type(&var_map, &arg_map, self)
+        for index in indices {
+            index_map.insert(index, self.allocate_index());
+        }
+        ty.clone_type(&var_map, &arg_map, &index_map, self)
     }
 
     pub fn clone_type_var(&mut self, var: TypeVariable) -> TypeVariable {
