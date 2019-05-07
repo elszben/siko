@@ -31,6 +31,7 @@ pub enum Expr {
     FieldAccess(String, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
+    Case(ExprId),
 }
 
 impl fmt::Display for Expr {
@@ -61,6 +62,7 @@ impl fmt::Display for Expr {
                 write!(f, "TupleFieldAccess({}, {})", index, expr)
             }
             Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
+            Expr::Case(body) => write!(f, "Case({})", body),
         }
     }
 }

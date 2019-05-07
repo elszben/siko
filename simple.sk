@@ -8,4 +8,6 @@ import Std.IO
 get a :: a -> Option a 
 get a = Some a
 
-main = print "{}" % (get 3)
+main = case get 3 of
+        Some a -> 5
+        None -> 4

@@ -76,6 +76,26 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
     Ok(id)
 }
 
+fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
+    let start_index = parser.get_index();
+    parser.expect(TokenKind::KeywordCase)?;
+    let body = parser.parse_expr()?;
+    parser.expect(TokenKind::KeywordOf)?;
+    loop {
+        let pattern = parser.parse_expr()?;
+        parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
+        let pattern = parser.parse_expr()?;
+        parser.expect(TokenKind::EndOfItem)?;
+        if parser.current(TokenKind::EndOfBlock) {
+            break;
+        }
+    }
+    let expr = Expr::Case(body);
+    let id = parser.add_expr(expr, start_index);
+    parser.expect(TokenKind::EndOfBlock)?;
+    Ok(id)
+}
+
 fn parse_if(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     parser.expect(TokenKind::KeywordIf)?;
@@ -142,6 +162,9 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
         }
         Token::Lambda => {
             return parse_lambda(parser);
+        }
+        Token::KeywordCase => {
+            return parse_case(parser);
         }
         _ => {
             return report_unexpected_token(parser, format!("expression"));

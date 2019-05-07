@@ -134,6 +134,8 @@ impl Lexer {
             "as" => Token::KeywordAs,
             "extern" => Token::KeywordExtern,
             "hiding" => Token::KeywordHiding,
+            "case" => Token::KeywordCase,
+            "of" => Token::KeywordOf,
             _ => match identifier.parse::<i64>() {
                 Ok(i) => Token::IntegerLiteral(i),
                 Err(_) => {
@@ -526,7 +528,9 @@ fn process_item(
             }
         }
         iterator.result.push(info.clone());
-        if info.token.kind() == TokenKind::KeywordWhere || info.token.kind() == TokenKind::KeywordDo
+        if info.token.kind() == TokenKind::KeywordWhere
+            || info.token.kind() == TokenKind::KeywordDo
+            || info.token.kind() == TokenKind::KeywordOf
         {
             iterator.advance();
             process_block(iterator, info, false, file_path)?;
