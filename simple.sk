@@ -6,12 +6,6 @@ data Option2 a = Some2 a | None2
 import Std.IO
 
 get a :: a -> Option a 
-get a = do
-    b <- Some 6
-    b
-/*
-set :: Option String -> ()
-set a = extern
+get a = Some a
 
-main = 5//set (get 3)
-*/
+main = print "{}" % (get 3)

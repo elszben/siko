@@ -1,4 +1,5 @@
 use crate::ir::function::FunctionId;
+use crate::ir::types::TypeDefId;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -15,6 +16,7 @@ pub enum Value {
     String(String),
     Tuple(Vec<Value>),
     Callable(Callable),
+    Variant(TypeDefId, usize, Vec<Value>),
 }
 
 impl Value {
@@ -52,6 +54,10 @@ impl fmt::Display for Value {
                 write!(f, "({})", ss.join(", "))
             }
             Value::Callable(_) => write!(f, "<closure>"),
+            Value::Variant(id, index, vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "V([{}/{}]{})", id, index, ss.join(", "))
+            }
         }
     }
 }

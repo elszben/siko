@@ -250,6 +250,16 @@ impl<'a> Interpreter<'a> {
             FunctionInfo::Lambda(info) => {
                 return self.eval_expr(program, info.body, environment);
             }
+            FunctionInfo::VariantConstructor(info) => {
+                let adt = program.get_adt(&info.type_id);
+                let variant = &adt.variants[info.index];
+                let mut values = Vec::new();
+                for index in 0..variant.items.len() {
+                    let v = environment.get_arg_by_index(index);
+                    values.push(v);
+                }
+                return Value::Variant(info.type_id, info.index, values);
+            }
             _ => unimplemented!(),
         }
     }
