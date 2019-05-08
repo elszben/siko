@@ -197,7 +197,50 @@ impl FunctionProcessor {
         for (id, function) in &program.functions {
             let displayed_name = format!("{}", function.info);
             match &function.info {
-                FunctionInfo::RecordConstructor(_) => {}
+                FunctionInfo::RecordConstructor(i) => {
+                    let record = program.get_record(&i.type_id);
+
+                    let mut args = Vec::new();
+
+                    let (func_type_var, result) = create_general_function_type(
+                        record.fields.len(),
+                        &mut args,
+                        &mut self.type_store,
+                    );
+
+                    let mut arg_map = BTreeMap::new();
+                    for (index, field) in record.fields.iter().enumerate() {
+                        let arg_var = self.process_type_signature(
+                            &field.type_signature_id,
+                            program,
+                            &mut arg_map,
+                        );
+                        let r = self.type_store.unify(&arg_var, &args[index]);
+                        assert!(r);
+                    }
+                    let mut type_args: Vec<_> = Vec::new();
+                    for arg in &record.type_args {
+                        let var = match arg_map.get(arg) {
+                            Some(v) => *v,
+                            None => self.type_store.get_new_type_var(),
+                        };
+                        type_args.push(var);
+                    }
+                    let result_type = Type::Named(record.name.clone(), i.type_id, type_args);
+                    let result_type_var = self.type_store.add_type(result_type);
+                    let r = self.type_store.unify(&result, &result_type_var);
+                    assert!(r);
+                    let type_info = FunctionTypeInfo::new(
+                        format!("{}_ctor", record.name),
+                        args,
+                        true,
+                        result_type_var,
+                        func_type_var,
+                        None,
+                        record.location_id,
+                    );
+                    self.function_type_info_map.insert(*id, type_info);
+                }
                 FunctionInfo::VariantConstructor(i) => {
                     let adt = program.get_adt(&i.type_id);
                     let variant = &adt.variants[i.index];

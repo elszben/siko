@@ -8,6 +8,7 @@ use crate::ir::function::VariantConstructorInfo;
 use crate::ir::program::Program as IrProgram;
 use crate::ir::types::Adt;
 use crate::ir::types::Record;
+use crate::ir::types::RecordField as IrRecordField;
 use crate::ir::types::TypeDef;
 use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeSignature;
@@ -123,11 +124,11 @@ impl Resolver {
 
                 let ir_record = Record {
                     name: record.name.clone(),
-                    ast_record_id: *record_id,
                     id: ir_typedef_id,
-                    type_arg_count: record.type_args.len(),
+                    type_args: (0..record.type_args.len()).collect(),
                     fields: Vec::new(),
                     constructor: ir_ctor_id,
+                    location_id: record.location_id,
                 };
                 let typedef = TypeDef::Record(ir_record);
                 ir_program.add_typedef(ir_typedef_id, typedef);
@@ -449,7 +450,7 @@ impl Resolver {
         program: &Program,
         ir_program: &mut IrProgram,
         record_id: &RecordId,
-        _: TypeDefId,
+        ir_typedef_id: TypeDefId,
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
@@ -458,7 +459,7 @@ impl Resolver {
         for field in &record.fields {
             type_signature_ids.push(field.type_signature_id);
         }
-        let _ = process_type_signatures(
+        let result = process_type_signatures(
             &record.type_args[..],
             &type_signature_ids[..],
             program,
@@ -467,7 +468,26 @@ impl Resolver {
             record.location_id,
             errors,
         );
-        // TODO
+
+        if errors.is_empty() {
+            let mut ir_fields = Vec::new();
+            for (index, field) in record.fields.iter().enumerate() {
+                let ir_typesignature_id = result[index].expect("type signature missing");
+                let ir_field = IrRecordField {
+                    name: field.name.clone(),
+                    type_signature_id: ir_typesignature_id,
+                };
+                ir_fields.push(ir_field);
+            }
+
+            let ir_record = ir_program
+                .typedefs
+                .get_mut(&ir_typedef_id)
+                .expect("Adt not found");
+            if let TypeDef::Record(record) = ir_record {
+                record.fields = ir_fields;
+            }
+        }
     }
 
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {

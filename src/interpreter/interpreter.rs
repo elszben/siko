@@ -260,6 +260,15 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::Variant(info.type_id, info.index, values);
             }
+            FunctionInfo::RecordConstructor(info) => {
+                let record = program.get_record(&info.type_id);
+                let mut values = Vec::new();
+                for index in 0..record.fields.len() {
+                    let v = environment.get_arg_by_index(index);
+                    values.push(v);
+                }
+                return Value::Record(info.type_id, values);
+            }
             _ => unimplemented!(),
         }
     }

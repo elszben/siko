@@ -443,7 +443,7 @@ impl ExprProcessor {
     pub fn dump_function_types(&self) {
         for (id, info) in &self.function_type_info_map {
             if info.body.is_none() {
-                continue;
+                // continue;
             }
             println!(
                 "{}/{}: {}",

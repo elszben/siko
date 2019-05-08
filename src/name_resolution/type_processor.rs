@@ -119,10 +119,10 @@ fn process_type_signature(
                                     match ir_record {
                                         TypeDef::Adt(_) => unreachable!(),
                                         TypeDef::Record(record) => {
-                                            if record.type_arg_count != named_arg_ids.len() {
+                                            if record.type_args.len() != named_arg_ids.len() {
                                                 let err = ResolverError::IncorrectTypeArgumentCount(
                                                     name.clone(),
-                                                    record.type_arg_count,
+                                                    record.type_args.len(),
                                                     named_arg_ids.len(),
                                                     location_id,
                                                 );

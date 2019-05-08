@@ -18,6 +18,7 @@ pub enum Value {
     Tuple(Vec<Value>),
     Callable(Callable),
     Variant(TypeDefId, usize, Vec<Value>),
+    Record(TypeDefId, Vec<Value>),
 }
 
 impl Value {
@@ -57,7 +58,12 @@ impl Value {
                 let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
                 let adt = program.get_adt(id);
                 let variant = &adt.variants[*index];
-                format!("{} {}", variant.name, ss.join(", "))
+                format!("{} {}", variant.name, ss.join(" "))
+            }
+            Value::Record(id, vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
+                let record = program.get_record(id);
+                format!("{} {}", record.name, ss.join(" "))
             }
         }
     }
@@ -78,6 +84,10 @@ impl fmt::Display for Value {
             Value::Variant(id, index, vs) => {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
                 write!(f, "V([{}/{}]{})", id, index, ss.join(", "))
+            }
+            Value::Record(id, vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "R([{}]{})", id, ss.join(", "))
             }
         }
     }

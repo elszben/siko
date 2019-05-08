@@ -4,6 +4,7 @@ use crate::ir::expr::ExprInfo;
 use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
 use crate::ir::types::Adt;
+use crate::ir::types::Record;
 use crate::ir::types::TypeDef;
 use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeInfo;
@@ -110,6 +111,14 @@ impl Program {
     pub fn get_adt(&self, id: &TypeDefId) -> &Adt {
         if let TypeDef::Adt(adt) = self.typedefs.get(id).expect("TypeDefId not found") {
             adt
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn get_record(&self, id: &TypeDefId) -> &Record {
+        if let TypeDef::Record(record) = self.typedefs.get(id).expect("TypeDefId not found") {
+            record
         } else {
             unreachable!()
         }

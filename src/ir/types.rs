@@ -46,11 +46,11 @@ pub struct RecordField {
 #[derive(Debug, Clone)]
 pub struct Record {
     pub name: String,
-    pub ast_record_id: AstRecordId,
     pub id: TypeDefId,
-    pub type_arg_count: usize,
+    pub type_args: Vec<usize>,
     pub fields: Vec<RecordField>,
     pub constructor: FunctionId,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
