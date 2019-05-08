@@ -43,28 +43,35 @@ impl Value {
         }
     }
 
-    pub fn debug(&self, program: &Program) -> String {
-        match self {
+    pub fn debug(&self, program: &Program, inner: bool) -> String {
+        let mut parens_needed = false;
+        let v = match self {
             Value::Int(v) => format!("{}", v),
             Value::Float(v) => format!("{}", v),
             Value::Bool(v) => format!("{}", v),
             Value::String(v) => format!("{}", v),
             Value::Tuple(vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program, true)).collect();
                 format!("({})", ss.join(", "))
             }
             Value::Callable(_) => format!("<closure>"),
             Value::Variant(id, index, vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
+                parens_needed = !vs.is_empty();
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program, true)).collect();
                 let adt = program.get_adt(id);
                 let variant = &adt.variants[*index];
                 format!("{} {}", variant.name, ss.join(" "))
             }
             Value::Record(id, vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program, true)).collect();
                 let record = program.get_record(id);
                 format!("{} {}", record.name, ss.join(" "))
             }
+        };
+        if inner && parens_needed {
+            format!("({})", v)
+        } else {
+            v
         }
     }
 }
