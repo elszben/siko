@@ -1,4 +1,5 @@
 use crate::ir::function::FunctionId;
+use crate::ir::program::Program;
 use crate::ir::types::TypeDefId;
 use std::fmt;
 
@@ -38,6 +39,26 @@ impl Value {
         match self {
             Value::String(s) => s.clone(),
             _ => unreachable!(),
+        }
+    }
+
+    pub fn debug(&self, program: &Program) -> String {
+        match self {
+            Value::Int(v) => format!("{}", v),
+            Value::Float(v) => format!("{}", v),
+            Value::Bool(v) => format!("{}", v),
+            Value::String(v) => format!("{}", v),
+            Value::Tuple(vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
+                format!("({})", ss.join(", "))
+            }
+            Value::Callable(_) => format!("<closure>"),
+            Value::Variant(id, index, vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program)).collect();
+                let adt = program.get_adt(id);
+                let variant = &adt.variants[*index];
+                format!("{} {}", variant.name, ss.join(", "))
+            }
         }
     }
 }

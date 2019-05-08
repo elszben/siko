@@ -3,11 +3,14 @@ module Main where
 data Option a = Some a | None
 data Option2 a = Some2 a | None2
 
+data Person a = { a :: String, thing :: a}
+
 import Std.IO
 
 get a :: a -> Option a 
 get a = Some a
 
-main = case get 3 of
-        Some a -> 5
-        None -> 4
+get_person a :: a -> Person a
+get_person a = Person "a" a
+
+main = 5

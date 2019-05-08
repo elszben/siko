@@ -152,9 +152,9 @@ impl<'a> Interpreter<'a> {
                     .collect();
                 let mut result = String::new();
                 for (index, sub) in subs.iter().enumerate() {
-                    write!(result, "{}", sub).unwrap();
+                    result += sub;
                     if values.len() > index {
-                        write!(result, "{}", values[index]).unwrap();
+                        result += &values[index].debug(program);
                     }
                 }
                 return Value::String(result);
@@ -209,12 +209,12 @@ impl<'a> Interpreter<'a> {
                 return Value::Tuple(vec![]);
             }
             ("Std.IO", "print") => {
-                let v = environment.get_arg_by_index(0).as_string();
+                let v = environment.get_arg_by_index(0).debug(program);
                 print!("{}", v);
                 return Value::Tuple(vec![]);
             }
             ("Std.IO", "println") => {
-                let v = environment.get_arg_by_index(0).as_string();
+                let v = environment.get_arg_by_index(0).debug(program);
                 println!("{}", v);
                 return Value::Tuple(vec![]);
             }
