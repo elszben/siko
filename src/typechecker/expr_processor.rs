@@ -2,10 +2,12 @@ use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::program::Program;
+use crate::ir::types::TypeDefId;
 use crate::location_info::item::LocationId;
 use crate::typechecker::common::create_general_function_type;
 use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
+use crate::typechecker::common::RecordFieldAccessorInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
@@ -66,9 +68,8 @@ impl<'a> Unifier<'a> {
         if self.group.functions.contains(function_id) {
             return type_info.function_type;
         }
-        self.expr_processor
-            .type_store
-            .clone_type_var(type_info.function_type)
+        let mut context = self.expr_processor.type_store.create_clone_context();
+        TypeStore::clone_type_var(type_info.function_type, &mut context)
     }
 
     fn check_literal(&mut self, expr_id: ExprId, ty: Type) {
@@ -357,7 +358,25 @@ impl<'a> Visitor for Unifier<'a> {
                     self.errors.push(err);
                 }
             }
-            _ => panic!("Unifier: processing {} is not implemented", expr),
+            Expr::FieldAccess(infos, record_expr) => {
+                for info in infos {
+                    /*
+                    let record = self.program.get_record(&info.record_id);
+                    let field = &record.fields[info.index];
+                    let mut type_args: Vec<_> = Vec::new();
+                    let mut arg_map = BTreeMap::new();
+                    for arg in &record.type_args {
+                        let var = arg_map
+                            .entry(arg)
+                            .or_insert_with(|| self.expr_processor.type_store.get_new_type_var());
+                        type_args.push(*var);
+                    }
+                    let result_type = Type::Named(record.name.clone(), info.record_id, type_args);
+                    let result_type_var = self.expr_processor.type_store.add_type(result_type);
+                    let field_type = field.type_signature_id
+                    */
+                }
+            }
         }
     }
 }
@@ -366,17 +385,20 @@ pub struct ExprProcessor {
     type_store: TypeStore,
     expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
+    record_info_map: BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
 }
 
 impl ExprProcessor {
     pub fn new(
         type_store: TypeStore,
         function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
+        record_info_map: BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
     ) -> ExprProcessor {
         ExprProcessor {
             type_store: type_store,
             expression_type_var_map: BTreeMap::new(),
             function_type_info_map: function_type_info_map,
+            record_info_map: record_info_map,
         }
     }
 

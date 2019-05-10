@@ -4,6 +4,67 @@ use crate::util::Counter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+pub struct CloneContext<'a> {
+    vars: BTreeMap<TypeVariable, TypeVariable>,
+    args: BTreeMap<usize, usize>,
+    indices: BTreeMap<TypeIndex, TypeIndex>,
+    pub type_store: &'a mut TypeStore,
+}
+
+impl<'a> CloneContext<'a> {
+    pub fn new(type_store: &'a mut TypeStore) -> CloneContext<'a> {
+        CloneContext {
+            vars: BTreeMap::new(),
+            args: BTreeMap::new(),
+            indices: BTreeMap::new(),
+            type_store: type_store,
+        }
+    }
+
+    pub fn var(&mut self, var: TypeVariable) -> TypeVariable {
+        CloneContext::build_var(self.type_store, &mut self.vars, var)
+    }
+
+    pub fn arg(&mut self, arg: usize) -> usize {
+        CloneContext::build_arg(self.type_store, &mut self.args, arg)
+    }
+
+    pub fn index(&mut self, index: TypeIndex) -> TypeIndex {
+        CloneContext::build_index(self.type_store, &mut self.indices, index)
+    }
+
+    fn build_var(
+        type_store: &mut TypeStore,
+        vars: &mut BTreeMap<TypeVariable, TypeVariable>,
+        var: TypeVariable,
+    ) -> TypeVariable {
+        let new_var = vars.entry(var).or_insert_with(|| type_store.allocate_var());
+        *new_var
+    }
+
+    fn build_arg(
+        type_store: &mut TypeStore,
+        args: &mut BTreeMap<usize, usize>,
+        arg: usize,
+    ) -> usize {
+        let new_arg = args
+            .entry(arg)
+            .or_insert_with(|| type_store.get_unique_type_arg());
+        *new_arg
+    }
+
+    fn build_index(
+        type_store: &mut TypeStore,
+        indices: &mut BTreeMap<TypeIndex, TypeIndex>,
+        index: TypeIndex,
+    ) -> TypeIndex {
+        let new_index = indices
+            .entry(index)
+            .or_insert_with(|| type_store.allocate_index());
+        *new_index
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeIndex {
     pub id: usize,
@@ -184,30 +245,14 @@ impl TypeStore {
         var
     }
 
-    pub fn clone_type(&mut self, ty: &Type) -> Type {
-        let mut vars = BTreeSet::new();
-        let mut args = BTreeSet::new();
-        let mut indices = BTreeSet::new();
-        ty.collect(&mut vars, &mut args, &mut indices, self);
-        let mut var_map = BTreeMap::new();
-        let mut arg_map = BTreeMap::new();
-        let mut index_map = BTreeMap::new();
-        for var in vars {
-            var_map.insert(var, self.allocate_var());
-        }
-        for arg in args {
-            arg_map.insert(arg, self.get_unique_type_arg());
-        }
-        for index in indices {
-            index_map.insert(index, self.allocate_index());
-        }
-        ty.clone_type(&var_map, &arg_map, &index_map, self)
+    pub fn create_clone_context(&mut self) -> CloneContext {
+        CloneContext::new(self)
     }
 
-    pub fn clone_type_var(&mut self, var: TypeVariable) -> TypeVariable {
-        let ty = self.get_type(&var);
-        let new_ty = self.clone_type(&ty);
-        self.add_type(new_ty)
+    pub fn clone_type_var(var: TypeVariable, context: &mut CloneContext) -> TypeVariable {
+        let ty = context.type_store.get_type(&var);
+        let new_ty = ty.clone_type(context);
+        context.type_store.add_type(new_ty)
     }
 
     pub fn is_recursive(&self, var: TypeVariable) -> bool {

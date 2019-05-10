@@ -8,6 +8,11 @@ use crate::typechecker::types::Type;
 use std::collections::BTreeSet;
 use std::fmt;
 
+pub struct RecordFieldAccessorInfo {
+    pub record_type: TypeVariable,
+    pub field_types: Vec<TypeVariable>,
+}
+
 #[derive(Clone)]
 pub struct DependencyGroup {
     pub functions: BTreeSet<FunctionId>,

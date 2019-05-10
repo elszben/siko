@@ -160,7 +160,6 @@ fn process_field_access(
                         let access = FieldAccessInfo {
                             record_id: record_field.ir_typedef_id,
                             index: record_field.index,
-                            name: name.clone(),
                         };
                         accesses.push(access);
                     }

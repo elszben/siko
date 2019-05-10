@@ -43,16 +43,11 @@ impl fmt::Display for ExprId {
 pub struct FieldAccessInfo {
     pub record_id: TypeDefId,
     pub index: usize,
-    pub name: String,
 }
 
 impl fmt::Display for FieldAccessInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "FieldAccessInfo{}:{}({})",
-            self.record_id, self.index, self.name
-        )
+        write!(f, "FieldAccessInfo{}:{}", self.record_id, self.index)
     }
 }
 

@@ -3,7 +3,7 @@ module Main where
 data Option a = Some a | None
 data Option2 a = Some2 a | None2
 
-data Person a = { a :: String, thing :: a, thing2:: a}
+data Person a = { a :: String, thing :: a, thing2 :: a }
 
 import Std.IO
 
@@ -16,3 +16,4 @@ get_person a = Person "a" a a
 main = do
     a <- get_person (get 5)
     println "{}" % (a)
+    a.thing

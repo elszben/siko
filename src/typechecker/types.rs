@@ -1,6 +1,7 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
 use crate::ir::types::TypeDefId;
+use crate::typechecker::type_store::CloneContext;
 use crate::typechecker::type_store::TypeIndex;
 use crate::typechecker::type_store::TypeStore;
 use std::collections::BTreeMap;
@@ -22,31 +23,19 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn clone_type_var(
-        type_var: &TypeVariable,
-        vars: &BTreeMap<TypeVariable, TypeVariable>,
-        args: &BTreeMap<usize, usize>,
-        indices: &BTreeMap<TypeIndex, TypeIndex>,
-        type_store: &mut TypeStore,
-    ) -> TypeVariable {
-        let new_var = vars
-            .get(type_var)
-            .expect("Type variable not found during clone");
-        let old_index = type_store.get_index(type_var);
-        let new_index = indices.get(&old_index).expect("type index not found");
-        let old_type = type_store.get_type(type_var);
-        let new_ty = old_type.clone_type(vars, args, indices, type_store);
-        type_store.add_var_and_type(*new_var, new_ty, *new_index);
-        *new_var
+    pub fn clone_type_var(type_var: &TypeVariable, context: &mut CloneContext) -> TypeVariable {
+        let new_var = context.var(*type_var);
+        let old_index = context.type_store.get_index(type_var);
+        let new_index = context.index(old_index);
+        let old_type = context.type_store.get_type(type_var);
+        let new_ty = old_type.clone_type(context);
+        context
+            .type_store
+            .add_var_and_type(new_var, new_ty, new_index);
+        new_var
     }
 
-    pub fn clone_type(
-        &self,
-        vars: &BTreeMap<TypeVariable, TypeVariable>,
-        args: &BTreeMap<usize, usize>,
-        indices: &BTreeMap<TypeIndex, TypeIndex>,
-        type_store: &mut TypeStore,
-    ) -> Type {
+    pub fn clone_type(&self, context: &mut CloneContext) -> Type {
         match self {
             Type::Int => self.clone(),
             Type::Float => self.clone(),
@@ -56,31 +45,27 @@ impl Type {
             Type::Tuple(typevars) => {
                 let typevars: Vec<_> = typevars
                     .iter()
-                    .map(|var| Type::clone_type_var(var, vars, args, indices, type_store))
+                    .map(|var| Type::clone_type_var(var, context))
                     .collect();
                 Type::Tuple(typevars)
             }
             Type::Function(func_type) => {
-                let from = Type::clone_type_var(&func_type.from, vars, args, indices, type_store);
-                let to = Type::clone_type_var(&func_type.to, vars, args, indices, type_store);
+                let from = Type::clone_type_var(&func_type.from, context);
+                let to = Type::clone_type_var(&func_type.to, context);
                 Type::Function(FunctionType::new(from, to))
             }
             Type::TypeArgument(index) => {
-                let new_index = args
-                    .get(index)
-                    .expect("Type argument not found during clone");
-                Type::TypeArgument(*new_index)
+                let new_index = context.arg(*index);
+                Type::TypeArgument(new_index)
             }
             Type::FixedTypeArgument(index, _) => {
-                let new_index = args
-                    .get(index)
-                    .expect("Type argument not found during clone");
-                Type::TypeArgument(*new_index)
+                let new_index = context.arg(*index);
+                Type::TypeArgument(new_index)
             }
             Type::Named(name, id, typevars) => {
                 let typevars: Vec<_> = typevars
                     .iter()
-                    .map(|var| Type::clone_type_var(var, vars, args, indices, type_store))
+                    .map(|var| Type::clone_type_var(var, context))
                     .collect();
                 Type::Named(name.clone(), id.clone(), typevars)
             }
