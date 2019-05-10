@@ -1,7 +1,5 @@
 use crate::ir::function::FunctionId;
 use crate::location_info::item::LocationId;
-use crate::syntax::data::AdtId as AstAdtId;
-use crate::syntax::data::RecordId as AstRecordId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -69,7 +67,6 @@ pub struct Variant {
 #[derive(Debug, Clone)]
 pub struct Adt {
     pub name: String,
-    pub ast_adt_id: AstAdtId,
     pub id: TypeDefId,
     pub type_args: Vec<usize>,
     pub variants: Vec<Variant>,

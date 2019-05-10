@@ -135,7 +135,7 @@ fn add_expr(
 ) -> IrExprId {
     let expr_id = ir_program.get_expr_id();
     let location_id = program.get_expr_location(&ast_id);
-    let expr_info = IrExprInfo::new(ir_expr, ast_id, location_id);
+    let expr_info = IrExprInfo::new(ir_expr, location_id);
     ir_program.add_expr(expr_id, expr_info);
     expr_id
 }

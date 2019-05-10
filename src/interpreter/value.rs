@@ -36,13 +36,6 @@ impl Value {
         }
     }
 
-    pub fn as_string(&self) -> String {
-        match self {
-            Value::String(s) => s.clone(),
-            _ => unreachable!(),
-        }
-    }
-
     pub fn debug(&self, program: &Program, inner: bool) -> String {
         let mut parens_needed = false;
         let v = match self {

@@ -1,18 +1,20 @@
 module Main where
-
+/*
 data Option a = Some a | None
 data Option2 a = Some2 a | None2
-
-data Person a = { a :: String, thing :: a, thing2 :: a }
+*/
+//data Person a = { a :: String, thing :: a/*, thing2 :: a*/ }
+data Person a = { a :: String, thing :: a/*, thing2 :: a*/ }
 
 import Std.IO
-
+/*
 get a :: a -> Option a 
 get a = Some a
-
-get_person a :: a -> Person a
-get_person a = Person "a" a a
+*/
+get_person :: String -> Person String
+get_person a = Person a a
 
 main = do
-    a <- get_person (get 5)
-    println "{}" % (a.thing)
+    a <- get_person "a"
+    a.thing + 1
+  //  println "{}" % (a.thing)

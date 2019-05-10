@@ -156,7 +156,6 @@ impl Resolver {
                 let ir_typedef_id = ir_program.get_typedef_id();
                 let ir_adt = Adt {
                     name: adt.name.clone(),
-                    ast_adt_id: *adt_id,
                     id: ir_typedef_id,
                     type_args: (0..adt.type_args.len()).collect(),
                     variants: Vec::new(),

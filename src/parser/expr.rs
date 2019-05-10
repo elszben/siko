@@ -82,9 +82,9 @@ fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
     let body = parser.parse_expr()?;
     parser.expect(TokenKind::KeywordOf)?;
     loop {
-        let pattern = parser.parse_expr()?;
+        let _pattern = parser.parse_expr()?;
         parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
-        let pattern = parser.parse_expr()?;
+        let _pattern = parser.parse_expr()?;
         parser.expect(TokenKind::EndOfItem)?;
         if parser.current(TokenKind::EndOfBlock) {
             break;

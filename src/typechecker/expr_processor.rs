@@ -69,8 +69,8 @@ impl<'a> Unifier<'a> {
         if self.group.functions.contains(function_id) {
             return type_info.function_type;
         }
-        let mut context = self.expr_processor.type_store.create_clone_context();
-        TypeStore::clone_type_var(type_info.function_type, &mut context)
+        let mut context = self.expr_processor.type_store.create_clone_context(false);
+        context.clone_var(type_info.function_type)
     }
 
     fn check_literal(&mut self, expr_id: ExprId, ty: Type) {
@@ -366,7 +366,7 @@ impl<'a> Visitor for Unifier<'a> {
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
                 let mut matches: Vec<(RecordFieldAccessorInfo, FieldAccessInfo)> = Vec::new();
-                for (index, info) in infos.iter().enumerate() {
+                for info in infos {
                     let access_info = self
                         .expr_processor
                         .record_info_map
@@ -409,12 +409,10 @@ impl<'a> Visitor for Unifier<'a> {
                     1 => {
                         let (access_info, field_info) = &matches[0];
                         let mut clone_context =
-                            self.expr_processor.type_store.create_clone_context();
-                        let record_type_var =
-                            TypeStore::clone_type_var(access_info.record_type, &mut clone_context);
+                            self.expr_processor.type_store.create_clone_context(false);
+                        let record_type_var = clone_context.clone_var(access_info.record_type);
                         let field_type_var = access_info.field_types[field_info.index];
-                        let field_type_var =
-                            TypeStore::clone_type_var(field_type_var, &mut clone_context);
+                        let field_type_var = clone_context.clone_var(field_type_var);
                         self.expr_processor.unify_variables(
                             &record_expr_var,
                             &record_type_var,

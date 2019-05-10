@@ -9,7 +9,6 @@ use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::program::Program;
-use std::fmt::Write;
 
 pub struct Interpreter<'a> {
     error_context: ErrorContext<'a>,
@@ -283,7 +282,6 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::Record(info.type_id, values);
             }
-            _ => unimplemented!(),
         }
     }
 
