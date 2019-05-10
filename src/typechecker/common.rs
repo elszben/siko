@@ -8,6 +8,7 @@ use crate::typechecker::types::Type;
 use std::collections::BTreeSet;
 use std::fmt;
 
+#[derive(Debug, Clone)]
 pub struct RecordFieldAccessorInfo {
     pub record_type: TypeVariable,
     pub field_types: Vec<TypeVariable>,

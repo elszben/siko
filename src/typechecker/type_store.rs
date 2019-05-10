@@ -4,12 +4,6 @@ use crate::util::Counter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Mode {
-    Normal,
-    Test,
-}
-
 pub struct CloneContext<'a> {
     vars: BTreeMap<TypeVariable, TypeVariable>,
     args: BTreeMap<usize, usize>,
@@ -150,7 +144,7 @@ impl TypeStore {
         }
     }
 
-    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable, mode: Mode) -> bool {
+    pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
 
@@ -170,36 +164,30 @@ impl TypeStore {
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
             (Type::TypeArgument(_), Type::TypeArgument(_)) => {
-                if mode == Mode::Normal {
-                    self.merge(primary, secondary);
-                }
+                self.merge(primary, secondary);
             }
             (Type::TypeArgument(_), _) => {
-                if mode == Mode::Normal {
-                    self.merge(secondary, primary);
-                }
+                self.merge(secondary, primary);
             }
             (_, Type::TypeArgument(_)) => {
-                if mode == Mode::Normal {
-                    self.merge(primary, secondary);
-                }
+                self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
                 if type_vars1.len() != type_vars2.len() {
                     return false;
                 } else {
                     for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.unify(v1, v2, mode) {
+                        if !self.unify(v1, v2) {
                             return false;
                         }
                     }
                 }
             }
             (Type::Function(f1), Type::Function(f2)) => {
-                if !self.unify(&f1.from, &f2.from, mode) {
+                if !self.unify(&f1.from, &f2.from) {
                     return false;
                 }
-                if !self.unify(&f1.to, &f2.to, mode) {
+                if !self.unify(&f1.to, &f2.to) {
                     return false;
                 }
             }
@@ -211,7 +199,7 @@ impl TypeStore {
                     return false;
                 } else {
                     for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
-                        if !self.unify(v1, v2, mode) {
+                        if !self.unify(v1, v2) {
                             return false;
                         }
                     }
@@ -264,6 +252,13 @@ impl TypeStore {
     pub fn clone_type_var(var: TypeVariable, context: &mut CloneContext) -> TypeVariable {
         let ty = context.type_store.get_type(&var);
         let new_ty = ty.clone_type(context);
+        context.type_store.add_type(new_ty)
+    }
+
+    pub fn clone_type_var_simple(&mut self, var: TypeVariable) -> TypeVariable {
+        let mut context = self.create_clone_context();
+        let ty = context.type_store.get_type(&var);
+        let new_ty = ty.clone_type(&mut context);
         context.type_store.add_type(new_ty)
     }
 

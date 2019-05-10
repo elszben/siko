@@ -12,7 +12,6 @@ use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::common::RecordFieldAccessorInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
-use crate::typechecker::type_store::Mode;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
@@ -224,7 +223,7 @@ impl FunctionProcessor {
                             program,
                             &mut arg_map,
                         );
-                        let r = self.type_store.unify(&arg_var, &args[index], Mode::Normal);
+                        let r = self.type_store.unify(&arg_var, &args[index]);
                         assert!(r);
                     }
                     let mut type_args: Vec<_> = Vec::new();
@@ -237,9 +236,7 @@ impl FunctionProcessor {
                     }
                     let result_type = Type::Named(record.name.clone(), i.type_id, type_args);
                     let result_type_var = self.type_store.add_type(result_type);
-                    let r = self
-                        .type_store
-                        .unify(&result, &result_type_var, Mode::Normal);
+                    let r = self.type_store.unify(&result, &result_type_var);
                     assert!(r);
                     let type_info = FunctionTypeInfo::new(
                         format!("{}_ctor", record.name),
@@ -278,7 +275,7 @@ impl FunctionProcessor {
                             program,
                             &mut arg_map,
                         );
-                        let r = self.type_store.unify(&arg_var, &args[index], Mode::Normal);
+                        let r = self.type_store.unify(&arg_var, &args[index]);
                         assert!(r);
                     }
                     let mut type_args: Vec<_> = Vec::new();
@@ -291,9 +288,7 @@ impl FunctionProcessor {
                     }
                     let result_type = Type::Named(adt.name.clone(), i.type_id, type_args);
                     let result_type_var = self.type_store.add_type(result_type);
-                    let r = self
-                        .type_store
-                        .unify(&result, &result_type_var, Mode::Normal);
+                    let r = self.type_store.unify(&result, &result_type_var);
                     assert!(r);
                     let type_info = FunctionTypeInfo::new(
                         format!("{}/{}_ctor", adt.name, variant.name),

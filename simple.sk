@@ -4,7 +4,6 @@ data Option a = Some a | None
 data Option2 a = Some2 a | None2
 
 data Person a = { a :: String, thing :: a, thing2 :: a }
-data Person2 a = { a :: String, thing :: a, thing2 :: a }
 
 import Std.IO
 
@@ -14,11 +13,6 @@ get a = Some a
 get_person a :: a -> Person a
 get_person a = Person "a" a a
 
-ambi a = (5).thing
-
-/*
 main = do
     a <- get_person (get 5)
-    println "{}" % (a)
-    a.thing
-*/
+    println "{}" % (a.thing)

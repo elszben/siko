@@ -1,5 +1,6 @@
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
+use crate::ir::expr::FieldAccessInfo;
 use crate::ir::function::FunctionId;
 use crate::ir::program::Program;
 use crate::ir::types::TypeDefId;
@@ -9,7 +10,6 @@ use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::common::RecordFieldAccessorInfo;
 use crate::typechecker::error::TypecheckError;
-use crate::typechecker::type_store::Mode;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
@@ -141,11 +141,11 @@ impl<'a> Visitor for Unifier<'a> {
                         self.expr_processor.type_store.get_type(&function_type_var)
                     {
                         let first_arg = arg_vars.first().unwrap();
-                        if !self.expr_processor.type_store.unify(
-                            &func_type.from,
-                            first_arg,
-                            Mode::Normal,
-                        ) {
+                        if !self
+                            .expr_processor
+                            .type_store
+                            .unify(&func_type.from, first_arg)
+                        {
                             failed = true;
                             break;
                         } else {
@@ -205,16 +205,12 @@ impl<'a> Visitor for Unifier<'a> {
                 if !self
                     .expr_processor
                     .type_store
-                    .unify(&func_expr_var, &gen_func, Mode::Normal)
+                    .unify(&func_expr_var, &gen_func)
                 {
                     failed = true;
                 } else {
                     for (arg, gen_arg) in arg_vars.iter().zip(gen_args.iter()) {
-                        if !self
-                            .expr_processor
-                            .type_store
-                            .unify(arg, gen_arg, Mode::Normal)
-                        {
+                        if !self.expr_processor.type_store.unify(arg, gen_arg) {
                             failed = true;
                             break;
                         }
@@ -364,30 +360,38 @@ impl<'a> Visitor for Unifier<'a> {
                 }
             }
             Expr::FieldAccess(infos, record_expr) => {
-                let mut valid_type_count = 0;
                 let mut possible_records = Vec::new();
                 let mut all_records = Vec::new();
                 let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr);
+                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
-                for info in infos {
+                let mut matches: Vec<(RecordFieldAccessorInfo, FieldAccessInfo)> = Vec::new();
+                for (index, info) in infos.iter().enumerate() {
                     let access_info = self
                         .expr_processor
                         .record_info_map
                         .get(&info.record_id)
                         .expect("field access info not found");
-
                     let record = self.program.get_record(&info.record_id);
                     all_records.push(record.name.clone());
-                    if self.expr_processor.type_store.unify(
-                        &access_info.record_type,
-                        &record_expr_var,
-                        Mode::Test,
-                    ) {
+                    let test_record_expr_var = self
+                        .expr_processor
+                        .type_store
+                        .clone_type_var_simple(record_expr_var);
+                    let test_record_var = self
+                        .expr_processor
+                        .type_store
+                        .clone_type_var_simple(access_info.record_type);
+                    if self
+                        .expr_processor
+                        .type_store
+                        .unify(&test_record_expr_var, &test_record_var)
+                    {
                         possible_records.push(record.name.clone());
-                        valid_type_count += 1;
+                        matches.push((access_info.clone(), info.clone()));
                     }
                 }
-                match valid_type_count {
+                match matches.len() {
                     0 => {
                         let expected_type = format!("{}", all_records.join(" or "));
                         let found_type = self
@@ -402,7 +406,30 @@ impl<'a> Visitor for Unifier<'a> {
                         );
                         self.errors.push(err);
                     }
-                    1 => unimplemented!(),
+                    1 => {
+                        let (access_info, field_info) = &matches[0];
+                        let mut clone_context =
+                            self.expr_processor.type_store.create_clone_context();
+                        let record_type_var =
+                            TypeStore::clone_type_var(access_info.record_type, &mut clone_context);
+                        let field_type_var = access_info.field_types[field_info.index];
+                        let field_type_var =
+                            TypeStore::clone_type_var(field_type_var, &mut clone_context);
+                        self.expr_processor.unify_variables(
+                            &record_expr_var,
+                            &record_type_var,
+                            location,
+                            location,
+                            self.errors,
+                        );
+                        self.expr_processor.unify_variables(
+                            &expr_var,
+                            &field_type_var,
+                            location,
+                            location,
+                            self.errors,
+                        );
+                    }
                     _ => {
                         let err = TypecheckError::AmbiguousFieldAccess(location, possible_records);
                         self.errors.push(err);
@@ -526,7 +553,7 @@ impl ExprProcessor {
         found_location: LocationId,
         errors: &mut Vec<TypecheckError>,
     ) -> bool {
-        if !self.type_store.unify(&expected, &found, Mode::Normal) {
+        if !self.type_store.unify(&expected, &found) {
             let expected_type = self.type_store.get_resolved_type_string(&expected);
             let found_type = self.type_store.get_resolved_type_string(&found);
             let err = TypecheckError::TypeMismatch(

@@ -159,7 +159,21 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::String(result);
             }
-            _ => panic!("{} eval is not implemented", expr),
+            Expr::FieldAccess(infos, record_expr) => {
+                let record = self.eval_expr(program, *record_expr, environment);
+                let (id, values) = if let Value::Record(id, values) = record {
+                    (id, values)
+                } else {
+                    unreachable!()
+                };
+                for info in infos {
+                    if info.record_id != id {
+                        continue;
+                    }
+                    return values[info.index].clone();
+                }
+                unreachable!()
+            }
         }
     }
 
