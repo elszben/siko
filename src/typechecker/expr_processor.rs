@@ -9,6 +9,7 @@ use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::common::RecordFieldAccessorInfo;
 use crate::typechecker::error::TypecheckError;
+use crate::typechecker::type_store::Mode;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
 use crate::typechecker::types::Type;
@@ -140,11 +141,11 @@ impl<'a> Visitor for Unifier<'a> {
                         self.expr_processor.type_store.get_type(&function_type_var)
                     {
                         let first_arg = arg_vars.first().unwrap();
-                        if !self
-                            .expr_processor
-                            .type_store
-                            .unify(&func_type.from, first_arg)
-                        {
+                        if !self.expr_processor.type_store.unify(
+                            &func_type.from,
+                            first_arg,
+                            Mode::Normal,
+                        ) {
                             failed = true;
                             break;
                         } else {
@@ -204,12 +205,16 @@ impl<'a> Visitor for Unifier<'a> {
                 if !self
                     .expr_processor
                     .type_store
-                    .unify(&func_expr_var, &gen_func)
+                    .unify(&func_expr_var, &gen_func, Mode::Normal)
                 {
                     failed = true;
                 } else {
                     for (arg, gen_arg) in arg_vars.iter().zip(gen_args.iter()) {
-                        if !self.expr_processor.type_store.unify(arg, gen_arg) {
+                        if !self
+                            .expr_processor
+                            .type_store
+                            .unify(arg, gen_arg, Mode::Normal)
+                        {
                             failed = true;
                             break;
                         }
@@ -494,7 +499,7 @@ impl ExprProcessor {
         found_location: LocationId,
         errors: &mut Vec<TypecheckError>,
     ) -> bool {
-        if !self.type_store.unify(&expected, &found) {
+        if !self.type_store.unify(&expected, &found, Mode::Normal) {
             let expected_type = self.type_store.get_resolved_type_string(&expected);
             let found_type = self.type_store.get_resolved_type_string(&found);
             let err = TypecheckError::TypeMismatch(
