@@ -428,6 +428,15 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::AmbiguousFieldAccess(id, records) => {
+                            println!(
+                                "{} ambiguous field access, record type could be {}",
+                                error.red(),
+                                format_list(records).yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

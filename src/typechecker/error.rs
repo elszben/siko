@@ -9,4 +9,5 @@ pub enum TypecheckError {
     RecursiveType(LocationId),
     MainNotFound,
     InvalidFormatString(LocationId),
+    AmbiguousFieldAccess(LocationId, Vec<String>),
 }

@@ -364,22 +364,33 @@ impl<'a> Visitor for Unifier<'a> {
                 }
             }
             Expr::FieldAccess(infos, record_expr) => {
+                let mut valid_type_count = 0;
+                let mut records = Vec::new();
                 for info in infos {
-                    /*
-                    let record = self.program.get_record(&info.record_id);
-                    let field = &record.fields[info.index];
-                    let mut type_args: Vec<_> = Vec::new();
-                    let mut arg_map = BTreeMap::new();
-                    for arg in &record.type_args {
-                        let var = arg_map
-                            .entry(arg)
-                            .or_insert_with(|| self.expr_processor.type_store.get_new_type_var());
-                        type_args.push(*var);
+                    let access_info = self
+                        .expr_processor
+                        .record_info_map
+                        .get(&info.record_id)
+                        .expect("field access info not found");
+                    let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr);
+                    if self.expr_processor.type_store.unify(
+                        &access_info.record_type,
+                        &record_expr_var,
+                        Mode::Test,
+                    ) {
+                        let record = self.program.get_record(&info.record_id);
+                        records.push(record.name.clone());
+                        valid_type_count += 1;
                     }
-                    let result_type = Type::Named(record.name.clone(), info.record_id, type_args);
-                    let result_type_var = self.expr_processor.type_store.add_type(result_type);
-                    let field_type = field.type_signature_id
-                    */
+                }
+                match valid_type_count {
+                    0 => unimplemented!(),
+                    1 => unimplemented!(),
+                    _ => {
+                        let location = self.program.get_expr_location(&expr_id);
+                        let err = TypecheckError::AmbiguousFieldAccess(location, records);
+                        self.errors.push(err);
+                    }
                 }
             }
         }
