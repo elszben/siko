@@ -14,7 +14,7 @@ get a = Some a
 get_person a :: a -> Person a
 get_person a = Person "a" a a
 
-ambi a = a.thing
+ambi a = (5).thing
 
 /*
 main = do
