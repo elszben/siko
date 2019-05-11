@@ -40,6 +40,7 @@ pub struct Record {
     pub type_args: Vec<(String, LocationId)>,
     pub fields: Vec<RecordField>,
     pub location_id: LocationId,
+    pub external: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

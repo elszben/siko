@@ -221,15 +221,28 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::Tuple(vec![]);
             }
-            ("Std.IO", "print") => {
+            ("Prelude", "print") => {
                 let v = environment.get_arg_by_index(0).debug(program, false);
                 print!("{}", v);
                 return Value::Tuple(vec![]);
             }
-            ("Std.IO", "println") => {
+            ("Prelude", "println") => {
                 let v = environment.get_arg_by_index(0).debug(program, false);
                 println!("{}", v);
                 return Value::Tuple(vec![]);
+            }
+            ("Main", "empty") => {
+                return Value::List(vec![]);
+            }
+            ("Main", "insert") => {
+                let list = environment.get_arg_by_index(0);
+                let item = environment.get_arg_by_index(1);
+                if let Value::List(mut vs) = list {
+                    vs.push(item);
+                    return Value::List(vs);
+                } else {
+                    unreachable!();
+                }
             }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);

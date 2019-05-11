@@ -1,20 +1,22 @@
 module Main where
 
-data Option a = Some a | None
-/*data Option2 a = Some2 a | None2
-*/
-//data Person a = { a :: String, thing :: a/*, thing2 :: a*/ }
-data Person a = { a :: String, thing :: Option a/*, thing2 :: a*/ }
+data Foo = {a::String,b::String}
 
-import Std.IO
-/*
-get a :: a -> Option a 
-get a = Some a
-*/
+data List a = extern
+
+empty a :: List a
+empty = extern
+
+insert a :: List a -> a -> List a
+insert l e = extern
+
+data Person a = { a :: String, thing :: Option a }
+
 get_person :: String -> Person String
 get_person a = Person a None
 
 main = do
-    a <- get_person "b"
-  //  a.thing + 1
-    println "{}" % (a.thing)
+    a <- empty
+    a <- insert a "b"
+    a <- insert a "f"
+    println "{}" % (a)

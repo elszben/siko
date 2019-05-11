@@ -554,6 +554,10 @@ impl<'a> Parser<'a> {
     ) -> Result<Record, Error> {
         let mut fields = Vec::new();
         loop {
+            if self.current(TokenKind::RCurly) {
+                self.expect(TokenKind::RCurly)?;
+                break;
+            }
             let record_field = self.parse_record_field()?;
             fields.push(record_field);
             let mut found = false;
@@ -577,6 +581,7 @@ impl<'a> Parser<'a> {
             type_args: type_args,
             fields: fields,
             location_id: location_id,
+            external: false,
         };
         Ok(record)
     }
@@ -608,6 +613,19 @@ impl<'a> Parser<'a> {
         if self.current(TokenKind::LCurly) {
             self.expect(TokenKind::LCurly)?;
             let record = self.parse_record(name, args, start_index)?;
+            Ok(Data::Record(record))
+        } else if self.current(TokenKind::KeywordExtern) {
+            self.expect(TokenKind::KeywordExtern)?;
+            let end_index = self.get_index();
+            let location_id = self.get_location_id(start_index, end_index);
+            let record = Record {
+                name: name,
+                id: self.program.get_record_id(),
+                type_args: args,
+                fields: Vec::new(),
+                location_id: location_id,
+                external: true,
+            };
             Ok(Data::Record(record))
         } else {
             let mut variants = Vec::new();

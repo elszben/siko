@@ -297,6 +297,7 @@ impl Resolver {
                 module,
                 ty.location_id,
                 errors,
+                false,
             );
 
             if !result.is_empty() {
@@ -384,6 +385,7 @@ impl Resolver {
             module,
             adt.location_id,
             errors,
+            false,
         );
 
         if errors.is_empty() {
@@ -466,6 +468,7 @@ impl Resolver {
             module,
             record.location_id,
             errors,
+            record.external,
         );
 
         if errors.is_empty() {

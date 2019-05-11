@@ -274,7 +274,7 @@ impl Error {
                         }
                         ResolverError::RecordFieldNotUnique(record_name, item_name, id) => {
                             println!(
-                                "{} item name {} is not unique in record {}",
+                                "{} field name {} is not unique in record {}",
                                 error.red(),
                                 item_name.yellow(),
                                 record_name.yellow()

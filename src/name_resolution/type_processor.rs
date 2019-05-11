@@ -221,6 +221,7 @@ pub fn process_type_signatures(
     module: &Module,
     location_id: LocationId,
     errors: &mut Vec<ResolverError>,
+    external: bool,
 ) -> Vec<Option<IrTypeSignatureId>> {
     let mut result = Vec::new();
     let mut type_args = BTreeMap::new();
@@ -260,7 +261,7 @@ pub fn process_type_signatures(
         }
     }
 
-    if !unused.is_empty() {
+    if !unused.is_empty() && !external {
         let err = ResolverError::UnusedTypeArgument(unused, location_id);
         errors.push(err);
     }

@@ -19,6 +19,7 @@ pub enum Value {
     Callable(Callable),
     Variant(TypeDefId, usize, Vec<Value>),
     Record(TypeDefId, Vec<Value>),
+    List(Vec<Value>),
 }
 
 impl Value {
@@ -60,6 +61,10 @@ impl Value {
                 let record = program.get_record(id);
                 format!("{} {}", record.name, ss.join(" "))
             }
+            Value::List(vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| v.debug(program, true)).collect();
+                format!("[{}]", ss.join(", "))
+            }
         };
         if inner && parens_needed {
             format!("({})", v)
@@ -88,6 +93,10 @@ impl fmt::Display for Value {
             Value::Record(id, vs) => {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
                 write!(f, "R([{}]{})", id, ss.join(", "))
+            }
+            Value::List(vs) => {
+                let ss: Vec<_> = vs.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", ss.join(", "))
             }
         }
     }

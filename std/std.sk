@@ -1,11 +1,3 @@
-module Std.IO where
-
-print :: String -> ()
-print msg = extern
-
-println :: String -> ()
-println msg = extern
-
 module Std.Util where
 
 assert :: Bool -> ()
@@ -39,3 +31,11 @@ op_equals a b = extern
 
 op_notequals :: Int -> Int -> Bool
 op_notequals a b = extern
+
+print :: String -> ()
+print msg = extern
+
+println :: String -> ()
+println msg = extern
+
+data Option a = Some a | None
