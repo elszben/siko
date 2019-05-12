@@ -39,3 +39,11 @@ println :: String -> ()
 println msg = extern
 
 data Option a = Some a | None
+
+data List a = extern
+
+empty a :: List a
+empty = extern
+
+insert a :: List a -> a -> List a
+insert list item = extern

@@ -3,7 +3,8 @@ use crate::location_info::location::Location;
 
 #[derive(Debug, Clone)]
 pub enum Token {
-    Identifier(String),
+    VarIdentifier(String),
+    TypeIdentifier(String),
     StringLiteral(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
@@ -32,8 +33,10 @@ pub enum Token {
     Semicolon,
     Pipe,
     Lambda,
+    Dot,
     DoubleDot,
     Formatter,
+    WildCard,
     EndOfItem,
     EndOfBlock,
     EndOfModule,
@@ -50,7 +53,8 @@ impl Token {
 
     pub fn kind(&self) -> TokenKind {
         match self {
-            Token::Identifier(..) => TokenKind::Identifier,
+            Token::VarIdentifier(..) => TokenKind::VarIdentifier,
+            Token::TypeIdentifier(..) => TokenKind::TypeIdentifier,
             Token::StringLiteral(..) => TokenKind::StringLiteral,
             Token::IntegerLiteral(..) => TokenKind::IntegerLiteral,
             Token::FloatLiteral(..) => TokenKind::FloatLiteral,
@@ -79,8 +83,10 @@ impl Token {
             Token::Semicolon => TokenKind::Semicolon,
             Token::Pipe => TokenKind::Pipe,
             Token::Lambda => TokenKind::Lambda,
+            Token::Dot => TokenKind::Dot,
             Token::DoubleDot => TokenKind::DoubleDot,
             Token::Formatter => TokenKind::Formatter,
+            Token::WildCard => TokenKind::WildCard,
             Token::EndOfItem => TokenKind::EndOfItem,
             Token::EndOfBlock => TokenKind::EndOfBlock,
             Token::EndOfModule => TokenKind::EndOfModule,
@@ -90,7 +96,8 @@ impl Token {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenKind {
-    Identifier,
+    VarIdentifier,
+    TypeIdentifier,
     StringLiteral,
     IntegerLiteral,
     FloatLiteral,
@@ -119,8 +126,10 @@ pub enum TokenKind {
     Semicolon,
     Pipe,
     Lambda,
+    Dot,
     DoubleDot,
     Formatter,
+    WildCard,
     EndOfItem,
     EndOfBlock,
     EndOfModule,
@@ -129,6 +138,8 @@ pub enum TokenKind {
 impl TokenKind {
     pub fn nice_name(&self) -> String {
         match self {
+            TokenKind::TypeIdentifier => format!("type name"),
+            TokenKind::VarIdentifier => format!("var name"),
             TokenKind::LParen => format!("("),
             TokenKind::RParen => format!(")"),
             TokenKind::Equal => format!("="),

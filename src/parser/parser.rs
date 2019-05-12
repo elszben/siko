@@ -133,15 +133,19 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn identifier(&mut self, item: &str, simple: bool) -> Result<String, Error> {
+    pub fn type_identifier(&mut self, item: &str) -> Result<String, Error> {
         let token_info = self.peek().expect("Ran out of tokens");
-        if let Token::Identifier(i) = token_info.token {
-            if simple && i.contains(".") {
-                let reason = ParserErrorReason::Custom {
-                    msg: format!("invalid identifier as {}", item),
-                };
-                return report_parser_error(self, reason)?;
-            }
+        if let Token::TypeIdentifier(i) = token_info.token {
+            self.advance()?;
+            return Ok(i);
+        } else {
+            return report_unexpected_token(self, item.to_string());
+        }
+    }
+
+    pub fn var_identifier(&mut self, item: &str) -> Result<String, Error> {
+        let token_info = self.peek().expect("Ran out of tokens");
+        if let Token::VarIdentifier(i) = token_info.token {
             self.advance()?;
             return Ok(i);
         } else {
@@ -180,9 +184,9 @@ impl<'a> Parser<'a> {
         let mut args = Vec::new();
         loop {
             if let Some(item) = self.peek() {
-                if item.token.kind() == TokenKind::Identifier {
+                if item.token.kind() == TokenKind::VarIdentifier {
                     let start_index = self.get_index();
-                    let arg = self.identifier("lambda arg", true)?;
+                    let arg = self.var_identifier("lambda arg")?;
                     let end_index = self.get_index();
                     let location_id = self.get_location_id(start_index, end_index);
                     args.push((arg, location_id));
@@ -252,11 +256,11 @@ impl<'a> Parser<'a> {
     fn parse_args(&mut self) -> Result<Vec<(String, LocationId)>, Error> {
         let mut items = Vec::new();
         while !self.is_done() {
-            if !self.current(TokenKind::Identifier) {
+            if !self.current(TokenKind::VarIdentifier) {
                 break;
             }
             let start_index = self.get_index();
-            let item = self.identifier("argument", true)?;
+            let item = self.var_identifier("argument")?;
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
             items.push((item, location_id));
@@ -351,14 +355,23 @@ impl<'a> Parser<'a> {
                     let id = self.add_type_signature(TypeSignature::Nothing, start_index);
                     return Ok(id);
                 }
-                Token::Identifier(_) => {
-                    let name = self.identifier("type", false)?;
+                Token::TypeIdentifier(_) => {
+                    let name = self.type_identifier("type")?;
                     let mut args = Vec::new();
                     loop {
                         match self.current_kind() {
-                            TokenKind::Identifier => {
+                            TokenKind::TypeIdentifier => {
                                 let arg_start_index = self.get_index();
-                                let arg = self.identifier("type", false)?;
+                                let arg = self.type_identifier("type")?;
+                                let arg = self.add_type_signature(
+                                    TypeSignature::Named(arg, Vec::new()),
+                                    arg_start_index,
+                                );
+                                args.push(arg);
+                            }
+                            TokenKind::VarIdentifier => {
+                                let arg_start_index = self.get_index();
+                                let arg = self.var_identifier("type")?;
                                 let arg = self.add_type_signature(
                                     TypeSignature::Named(arg, Vec::new()),
                                     arg_start_index,
@@ -382,6 +395,13 @@ impl<'a> Parser<'a> {
                     let id = self.add_type_signature(ty, start_index);
                     return Ok(id);
                 }
+                Token::VarIdentifier(_) => {
+                    let name = self.var_identifier("type")?;
+                    let args = Vec::new();
+                    let ty = TypeSignature::Named(name, args);
+                    let id = self.add_type_signature(ty, start_index);
+                    return Ok(id);
+                }
                 _ => {
                     return report_unexpected_token(self, format!("type signature"));
                 }
@@ -394,7 +414,7 @@ impl<'a> Parser<'a> {
 
     fn parse_fn(&mut self, id: FunctionId) -> Result<Function, Error> {
         let mut start_index = self.get_index();
-        let name = self.identifier("function name", true)?;
+        let name = self.var_identifier("function name")?;
         let mut name = name;
         let mut args = self.parse_args()?;
         let mut function_type = None;
@@ -414,7 +434,7 @@ impl<'a> Parser<'a> {
                 });
                 self.expect(TokenKind::EndOfItem)?;
                 start_index = self.get_index();
-                name = self.identifier("function name", true)?;
+                name = self.var_identifier("function name")?;
                 args = self.parse_args()?;
             }
         }
@@ -450,7 +470,7 @@ impl<'a> Parser<'a> {
             parser.expect(TokenKind::DoubleDot)?;
             EIMember::All
         } else {
-            let name = parser.identifier("variant", true)?;
+            let name = parser.type_identifier("variant")?;
             EIMember::Specific(name)
         };
         let end_index = parser.get_index();
@@ -464,7 +484,7 @@ impl<'a> Parser<'a> {
 
     fn parse_export_import_item(parser: &mut Parser) -> Result<EIItemInfo, Error> {
         let start_index = parser.get_index();
-        let name = parser.identifier("exported item", true)?;
+        let name = parser.type_identifier("exported item")?;
         let item = if parser.current(TokenKind::LParen) {
             let members = parser.parse_list0_in_parens(Parser::parse_export_import_data_member)?;
             let group = EIGroup {
@@ -486,7 +506,7 @@ impl<'a> Parser<'a> {
 
     fn parse_hidden_item(parser: &mut Parser) -> Result<HiddenItem, Error> {
         let start_index = parser.get_index();
-        let name = parser.identifier("hidden item", true)?;
+        let name = parser.type_identifier("hidden item")?;
         let end_index = parser.get_index();
         let location_id = parser.get_location_id(start_index, end_index);
         Ok(HiddenItem {
@@ -498,7 +518,7 @@ impl<'a> Parser<'a> {
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordImport)?;
-        let name = self.identifier("module name", false)?;
+        let name = self.type_identifier("module name")?;
         let import_kind = if self.current(TokenKind::KeywordHiding) {
             self.expect(TokenKind::KeywordHiding)?;
             let items = self.parse_list1_in_parens(Parser::parse_hidden_item)?;
@@ -509,7 +529,7 @@ impl<'a> Parser<'a> {
             if let Some(as_token) = self.peek() {
                 if let Token::KeywordAs = as_token.token {
                     self.advance()?;
-                    let name = self.identifier("alternative name", true)?;
+                    let name = self.type_identifier("alternative name")?;
                     alternative_name = Some(name);
                 }
             }
@@ -532,7 +552,7 @@ impl<'a> Parser<'a> {
 
     fn parse_record_field(&mut self) -> Result<RecordField, Error> {
         let start_index = self.get_index();
-        let name = self.identifier("record field name", true)?;
+        let name = self.var_identifier("record field name")?;
         self.expect(TokenKind::KeywordDoubleColon)?;
         let type_signature_id = self.parse_function_type(false)?;
         let end_index = self.get_index();
@@ -588,7 +608,7 @@ impl<'a> Parser<'a> {
 
     fn parse_variant(&mut self) -> Result<VariantId, Error> {
         let variant_start_index = self.get_index();
-        let name = self.identifier("variant", true)?;
+        let name = self.type_identifier("variant")?;
         self.restore(variant_start_index);
         let type_signature_id = self.parse_function_type(true)?;
         let end_index = self.get_index();
@@ -607,7 +627,7 @@ impl<'a> Parser<'a> {
     fn parse_data(&mut self) -> Result<Data, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordData)?;
-        let name = self.identifier("type", true)?;
+        let name = self.type_identifier("type")?;
         let args = self.parse_args()?;
         self.expect(TokenKind::Equal)?;
         if self.current(TokenKind::LCurly) {
@@ -661,10 +681,24 @@ impl<'a> Parser<'a> {
         Ok(export_list)
     }
 
+    fn parse_module_name(&mut self) -> Result<String, Error> {
+        let mut name = String::new();
+        loop {
+            let n = self.type_identifier("module name")?;
+            name += &n;
+            if self.current(TokenKind::Dot) {
+                self.expect(TokenKind::Dot)?;
+            } else {
+                break;
+            }
+        }
+        Ok(name)
+    }
+
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
-        let name = self.identifier("module name", false)?;
+        let name = self.parse_module_name()?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let export_list = self.parse_export_import_list()?;

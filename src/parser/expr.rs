@@ -46,7 +46,7 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
         if let Some(first) = parser.peek() {
             if let Some(second) = parser.lookahead(1) {
                 match first.token {
-                    Token::Identifier(i) => {
+                    Token::VarIdentifier(i) => {
                         if second.token.kind() == TokenKind::Op(BuiltinOperator::Bind) {
                             bind_var = Some(i);
                             parser.advance()?;
@@ -113,8 +113,8 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let token_info = parser.peek().expect("Ran out of tokens");
     let id = match token_info.token {
-        Token::Identifier(..) => {
-            let path = parser.identifier("identifier", false)?;
+        Token::VarIdentifier(..) => {
+            let path = parser.var_identifier("identifier")?;
             let expr = Expr::Path(path);
             let id = parser.add_expr(expr, start_index);
             id
@@ -180,7 +180,7 @@ fn parse_primary(parser: &mut Parser) -> Result<ExprId, Error> {
     loop {
         match parser.current_kind() {
             TokenKind::Op(BuiltinOperator::Not)
-            | TokenKind::Identifier
+            | TokenKind::VarIdentifier
             | TokenKind::IntegerLiteral
             | TokenKind::BoolLiteral
             | TokenKind::StringLiteral
@@ -321,45 +321,45 @@ fn parse_composition(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let mut left = parse_primary(parser)?;
     loop {
-        if let Some((op, _)) = parser.consume_op(&[BuiltinOperator::Composition]) {
-            if let Some(next) = parser.peek() {
-                match next.token {
-                    Token::Identifier(_) => {
-                        let field_name = parser.identifier("field name", false)?;
-                        let subs: Vec<_> = field_name.split(".").collect();
-                        for sub in subs {
-                            let expr = match sub.parse::<usize>() {
+        if let Some(dot_token) = parser.peek() {
+            if dot_token.token.kind() == TokenKind::Dot {
+                parser.expect(TokenKind::Dot)?;
+                if let Some(next) = parser.peek() {
+                    match next.token {
+                        Token::VarIdentifier(_) => {
+                            let field_name = parser.var_identifier("field name")?;
+                            let expr = match field_name.parse::<usize>() {
                                 Ok(n) => Expr::TupleFieldAccess(n, left),
-                                Err(_) => Expr::FieldAccess(sub.to_string(), left),
+                                Err(_) => Expr::FieldAccess(field_name, left),
                             };
                             let id = parser.add_expr(expr, start_index);
                             left = id;
+                            continue;
                         }
-                        continue;
+                        Token::IntegerLiteral(id) => {
+                            parser.advance()?;
+                            let expr = Expr::TupleFieldAccess(id as usize, left);
+                            let id = parser.add_expr(expr, start_index);
+                            left = id;
+                            continue;
+                        }
+                        _ => {
+                            let function_id_expr = Expr::Builtin(BuiltinOperator::Composition);
+                            let function_id_expr_id =
+                                parser.add_expr(function_id_expr, start_index);
+                            let right = parse_primary(parser)?;
+                            let expr = Expr::FunctionCall(function_id_expr_id, vec![left, right]);
+                            let id = parser.add_expr(expr, start_index);
+                            left = id;
+                            continue;
+                        }
                     }
-                    Token::IntegerLiteral(id) => {
-                        parser.advance()?;
-                        let expr = Expr::TupleFieldAccess(id as usize, left);
-                        let id = parser.add_expr(expr, start_index);
-                        left = id;
-                        continue;
-                    }
-                    _ => {
-                        println!("next {:?}", next);
-                        let function_id_expr = Expr::Builtin(op);
-                        let function_id_expr_id = parser.add_expr(function_id_expr, start_index);
-                        let right = parse_primary(parser)?;
-                        let expr = Expr::FunctionCall(function_id_expr_id, vec![left, right]);
-                        let id = parser.add_expr(expr, start_index);
-                        left = id;
-                        continue;
-                    }
+                } else {
+                    return report_unexpected_token(parser, format!("expression"));
                 }
             } else {
-                return report_unexpected_token(parser, format!("expression"));
+                break;
             }
-        } else {
-            break;
         }
     }
     Ok(left)

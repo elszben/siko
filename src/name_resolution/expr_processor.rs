@@ -38,85 +38,47 @@ fn resolve_item_path(
     errors: &mut Vec<ResolverError>,
     location_id: LocationId,
 ) -> PathResolveResult {
-    let subs: Vec<_> = path.split(".").collect();
-    if subs.len() == 1 {
-        if let Some((named_ref, level)) = environment.get_ref(path) {
-            let ir_expr = lambda_helper.process_named_ref(named_ref.clone(), level);
+    if let Some((named_ref, level)) = environment.get_ref(path) {
+        let ir_expr = lambda_helper.process_named_ref(named_ref.clone(), level);
+        let ir_expr_id = add_expr(ir_expr, id, ir_program, program);
+        return PathResolveResult::VariableRef(ir_expr_id);
+    }
+    if let Some(items) = module.imported_items.get(path) {
+        if items.len() > 1 {
+            let err = ResolverError::AmbiguousName(path.to_string(), location_id);
+            errors.push(err);
+            let ir_expr = IrExpr::Tuple(vec![]);
             let ir_expr_id = add_expr(ir_expr, id, ir_program, program);
             return PathResolveResult::VariableRef(ir_expr_id);
-        }
-    }
-    match module.imported_items.get(path) {
-        Some(items) => {
-            if items.len() > 1 {
-                let err = ResolverError::AmbiguousName(path.to_string(), location_id);
-                errors.push(err);
-                let ir_expr = IrExpr::Tuple(vec![]);
-                let ir_expr_id = add_expr(ir_expr, id, ir_program, program);
-                return PathResolveResult::VariableRef(ir_expr_id);
-            } else {
-                let item = &items[0];
-                match item.item {
-                    Item::Function(_, ir_function_id) => {
-                        return PathResolveResult::FunctionRef(ir_function_id);
-                    }
-                    Item::Record(_, ir_typedef_id) => {
-                        let ir_typedef = ir_program
-                            .typedefs
-                            .get(&ir_typedef_id)
-                            .expect("Record not found");
-                        if let TypeDef::Record(ir_record) = ir_typedef {
-                            return PathResolveResult::FunctionRef(ir_record.constructor);
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                    Item::Variant(_, _, ir_typedef_id, index) => {
-                        let ir_typedef = ir_program
-                            .typedefs
-                            .get(&ir_typedef_id)
-                            .expect("Adt not found");
-                        if let TypeDef::Adt(ir_adt) = ir_typedef {
-                            return PathResolveResult::FunctionRef(
-                                ir_adt.variants[index].constructor,
-                            );
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                    _ => {}
+        } else {
+            let item = &items[0];
+            match item.item {
+                Item::Function(_, ir_function_id) => {
+                    return PathResolveResult::FunctionRef(ir_function_id);
                 }
-            }
-        }
-        None => {
-            let subs: Vec<_> = path.split(".").collect();
-            let first = &subs[0];
-            if let Some((named_ref, level)) = environment.get_ref(first) {
-                let ir_expr = lambda_helper.process_named_ref(named_ref.clone(), level);
-                let mut ir_expr_id = add_expr(ir_expr, id, ir_program, program);
-                for sub in subs[1..].iter() {
-                    match sub.parse::<usize>() {
-                        Ok(index) => {
-                            let ir_expr = IrExpr::TupleFieldAccess(index, ir_expr_id);
-                            let next = add_expr(ir_expr, id, ir_program, program);
-                            ir_expr_id = next;
-                        }
-                        Err(_) => {
-                            let next = process_field_access(
-                                id,
-                                program,
-                                module,
-                                ir_program,
-                                errors,
-                                sub.to_string(),
-                                ir_expr_id,
-                                location_id,
-                            );
-                            ir_expr_id = next;
-                        }
+                Item::Record(_, ir_typedef_id) => {
+                    let ir_typedef = ir_program
+                        .typedefs
+                        .get(&ir_typedef_id)
+                        .expect("Record not found");
+                    if let TypeDef::Record(ir_record) = ir_typedef {
+                        return PathResolveResult::FunctionRef(ir_record.constructor);
+                    } else {
+                        unreachable!()
                     }
                 }
-                return PathResolveResult::VariableRef(ir_expr_id);
+                Item::Variant(_, _, ir_typedef_id, index) => {
+                    let ir_typedef = ir_program
+                        .typedefs
+                        .get(&ir_typedef_id)
+                        .expect("Adt not found");
+                    if let TypeDef::Adt(ir_adt) = ir_typedef {
+                        return PathResolveResult::FunctionRef(ir_adt.variants[index].constructor);
+                    } else {
+                        unreachable!()
+                    }
+                }
+                _ => {}
             }
         }
     }

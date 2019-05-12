@@ -231,10 +231,10 @@ impl<'a> Interpreter<'a> {
                 println!("{}", v);
                 return Value::Tuple(vec![]);
             }
-            ("Main", "empty") => {
+            ("Prelude", "empty") => {
                 return Value::List(vec![]);
             }
-            ("Main", "insert") => {
+            ("Prelude", "insert") => {
                 let list = environment.get_arg_by_index(0);
                 let item = environment.get_arg_by_index(1);
                 if let Value::List(mut vs) = list {

@@ -79,7 +79,7 @@ impl Lexer {
 
     fn is_identifier(c: char) -> bool {
         match c {
-            'a'...'z' | 'A'...'Z' | '0'...'9' | '_' | '.' => true,
+            'a'...'z' | 'A'...'Z' | '0'...'9' | '_' => true,
             _ => false,
         }
     }
@@ -118,7 +118,7 @@ impl Lexer {
     }
 
     fn collect_identifier(&mut self) -> Result<(), LexerError> {
-        let (mut identifier, mut span) = self.collect(|c| Lexer::is_identifier(c))?;
+        let (identifier, span) = self.collect(|c| Lexer::is_identifier(c))?;
 
         let t = match identifier.as_ref() {
             "where" => Token::KeywordWhere,
@@ -137,48 +137,13 @@ impl Lexer {
             "case" => Token::KeywordCase,
             "of" => Token::KeywordOf,
             _ => match identifier.parse::<i64>() {
-                Ok(i) => Token::IntegerLiteral(i),
+                Ok(v) => Token::IntegerLiteral(v),
                 Err(_) => {
-                    if identifier.contains("..") {
-                        let err = LexerError::InvalidIdentifier(
-                            identifier.clone(),
-                            LocationInfo {
-                                file_path: self.file_path.clone(),
-                                location: Location::new(self.line_index, span),
-                            },
-                        );
-                        return Err(err);
-                    }
-                    let mut could_be_float = true;
-
-                    if identifier.starts_with(".") {
-                        could_be_float = false;
-                        let mut comp_span = span.clone();
-                        comp_span.end = comp_span.start + 1;
-                        span.start += 1;
-                        identifier.remove(0);
-                        let comp = Token::Op(BuiltinOperator::Composition);
-                        self.add_token(comp, comp_span);
-                        if identifier.is_empty() {
-                            return Ok(());
-                        }
-                    }
-
-                    if identifier.ends_with(".") {
-                        could_be_float = false;
-                        identifier.pop();
-                        span.end -= 1;
-                        self.index -= 1;
-                        self.line_offset -= 1;
-                    }
-
-                    if identifier.contains(".") && could_be_float {
-                        match identifier.parse::<f64>() {
-                            Ok(f) => Token::FloatLiteral(f),
-                            Err(_) => Token::Identifier(identifier),
-                        }
+                    let first = identifier.chars().next().expect("empty identifer");
+                    if first.is_uppercase() {
+                        Token::TypeIdentifier(identifier)
                     } else {
-                        Token::Identifier(identifier)
+                        Token::VarIdentifier(identifier)
                     }
                 }
             },
@@ -210,6 +175,7 @@ impl Lexer {
             "<-" => Token::Op(BuiltinOperator::Bind),
             "->" => Token::Op(BuiltinOperator::Arrow),
             "::" => Token::KeywordDoubleColon,
+            "." => Token::Dot,
             ".." => Token::DoubleDot,
             _ => {
                 return Err(Error::lexer_err(
@@ -410,7 +376,35 @@ impl Lexer {
         process_program(&mut token_iterator, &self.file_path)?;
         let mut result = token_iterator.result;
         result.pop();
-        Ok(result)
+
+        let mut index = 0;
+
+        let mut new_result = Vec::new();
+
+        while index < result.len() {
+            if let Token::IntegerLiteral(v1) = result[index].token {
+                if index + 2 < result.len() {
+                    if let Token::Dot = result[index + 1].token {
+                        let t2 = &result[index + 2];
+                        if let Token::IntegerLiteral(v2) = t2.token {
+                            let v = format!("{}.{}", v1, v2);
+                            let v: f64 = v.parse().expect("Float parse error");
+                            let mut new_token = result[index].clone();
+                            new_token.token = Token::FloatLiteral(v);
+                            new_token.location.span.end = t2.location.span.end;
+                            new_result.push(new_token);
+                            index += 3;
+                            continue;
+                        }
+                    }
+                }
+            }
+            new_result.push(result[index].clone());
+            index += 1;
+            continue;
+        }
+
+        Ok(new_result)
     }
 }
 

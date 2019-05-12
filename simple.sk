@@ -1,22 +1,7 @@
 module Main where
 
-data Foo = {a::String,b::String}
+data Foo = { korte :: String, name :: (String, Int) }
 
-data List a = extern
+foo a = a.name.0
 
-empty a :: List a
-empty = extern
-
-insert a :: List a -> a -> List a
-insert l e = extern
-
-data Person a = { a :: String, thing :: Option a }
-
-get_person :: String -> Person String
-get_person a = Person a None
-
-main = do
-    a <- empty
-    a <- insert a "b"
-    a <- insert a "f"
-    println "{}" % (a)
+main = 5
