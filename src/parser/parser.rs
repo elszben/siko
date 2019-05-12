@@ -356,13 +356,13 @@ impl<'a> Parser<'a> {
                     return Ok(id);
                 }
                 Token::TypeIdentifier(_) => {
-                    let name = self.type_identifier("type")?;
+                    let name = self.parse_qualified_type_name()?;
                     let mut args = Vec::new();
                     loop {
                         match self.current_kind() {
                             TokenKind::TypeIdentifier => {
                                 let arg_start_index = self.get_index();
-                                let arg = self.type_identifier("type")?;
+                                let arg = self.parse_qualified_type_name()?;
                                 let arg = self.add_type_signature(
                                     TypeSignature::Named(arg, Vec::new()),
                                     arg_start_index,
@@ -484,7 +484,7 @@ impl<'a> Parser<'a> {
 
     fn parse_export_import_item(parser: &mut Parser) -> Result<EIItemInfo, Error> {
         let start_index = parser.get_index();
-        let name = parser.type_identifier("exported item")?;
+        let name = parser.any_identifier("item")?;
         let item = if parser.current(TokenKind::LParen) {
             let members = parser.parse_list0_in_parens(Parser::parse_export_import_data_member)?;
             let group = EIGroup {
@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
 
     fn parse_hidden_item(parser: &mut Parser) -> Result<HiddenItem, Error> {
         let start_index = parser.get_index();
-        let name = parser.type_identifier("hidden item")?;
+        let name = parser.any_identifier("hidden item")?;
         let end_index = parser.get_index();
         let location_id = parser.get_location_id(start_index, end_index);
         Ok(HiddenItem {
@@ -518,7 +518,7 @@ impl<'a> Parser<'a> {
     fn parse_import(&mut self, id: ImportId) -> Result<Import, Error> {
         let start_index = self.get_index();
         self.expect(TokenKind::KeywordImport)?;
-        let name = self.type_identifier("module name")?;
+        let name = self.parse_module_name()?;
         let import_kind = if self.current(TokenKind::KeywordHiding) {
             self.expect(TokenKind::KeywordHiding)?;
             let items = self.parse_list1_in_parens(Parser::parse_hidden_item)?;
@@ -687,6 +687,60 @@ impl<'a> Parser<'a> {
             let n = self.type_identifier("module name")?;
             name += &n;
             if self.current(TokenKind::Dot) {
+                name.push('.');
+                self.expect(TokenKind::Dot)?;
+            } else {
+                break;
+            }
+        }
+        Ok(name)
+    }
+
+    fn parse_qualified_type_name(&mut self) -> Result<String, Error> {
+        let mut name = String::new();
+        loop {
+            let n = self.type_identifier("type name")?;
+            name += &n;
+            if self.current(TokenKind::Dot) {
+                name.push('.');
+                self.expect(TokenKind::Dot)?;
+            } else {
+                break;
+            }
+        }
+        Ok(name)
+    }
+
+    fn any_identifier(&mut self, name: &str) -> Result<String, Error> {
+        match self.current_kind() {
+            TokenKind::TypeIdentifier => {
+                return self.type_identifier(name);
+            }
+            _ => {
+                return self.var_identifier(name);
+            }
+        }
+    }
+
+    pub fn parse_qualified_name(&mut self) -> Result<String, Error> {
+        let mut name = String::new();
+        loop {
+            match self.current_kind() {
+                TokenKind::TypeIdentifier => {
+                    let n = self.type_identifier("type name")?;
+                    name += &n;
+                }
+                TokenKind::VarIdentifier => {
+                    let n = self.var_identifier("var name")?;
+                    name += &n;
+                    break;
+                }
+                _ => {
+                    break;
+                }
+            }
+            if self.current(TokenKind::Dot) {
+                name.push('.');
                 self.expect(TokenKind::Dot)?;
             } else {
                 break;

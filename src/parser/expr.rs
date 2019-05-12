@@ -113,6 +113,12 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let token_info = parser.peek().expect("Ran out of tokens");
     let id = match token_info.token {
+        Token::TypeIdentifier(..) => {
+            let path = parser.parse_qualified_name()?;
+            let expr = Expr::Path(path);
+            let id = parser.add_expr(expr, start_index);
+            id
+        }
         Token::VarIdentifier(..) => {
             let path = parser.var_identifier("identifier")?;
             let expr = Expr::Path(path);
