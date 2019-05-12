@@ -10,6 +10,9 @@ use crate::parser::token::TokenKind;
 use crate::syntax::expr::Case;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
+use crate::syntax::pattern::Pattern;
+use crate::syntax::pattern::PatternId;
+use crate::syntax::program::Program;
 
 fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
@@ -77,6 +80,17 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
     Ok(id)
 }
 
+fn convert_pattern(expr_id: ExprId, parser: &mut Parser) -> Result<PatternId, Error> {
+    let program = parser.get_program();
+    let pattern_id = program.get_pattern_id();
+    let expr = program.get_expr(&expr_id);
+    let location = program.get_expr_location(&expr_id);
+    match expr {
+        _ => return Err(Error::parse_err_by_id(format!("invalid pattern"), location)),
+    }
+    Ok(pattern_id)
+}
+
 fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     parser.expect(TokenKind::KeywordCase)?;
@@ -84,8 +98,8 @@ fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
     parser.expect(TokenKind::KeywordOf)?;
     let mut cases = Vec::new();
     loop {
-        let _pattern = parser.parse_expr()?;
-        let pattern_id = parser.get_program().get_pattern_id();
+        let pattern_expr = parser.parse_expr()?;
+        let pattern_id = convert_pattern(pattern_expr, parser)?;
         parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
         let case_body = parser.parse_expr()?;
         parser.expect(TokenKind::EndOfItem)?;
