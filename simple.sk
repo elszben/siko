@@ -6,4 +6,11 @@ data Foo  = { korte :: Main.Boo, name :: (String, Int) }
 
 foo a = a.name.0
 
-main = Prelude.None
+plus1 a = a + 1
+plus2 a = a + 2
+
+main = do
+       a <- 0
+       f <- plus1 . (plus2)
+       a <- f a
+       println "{}" % (a)
