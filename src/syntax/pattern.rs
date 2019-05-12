@@ -1,3 +1,4 @@
+use crate::syntax::expr::ExprId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -16,4 +17,6 @@ pub enum Pattern {
     Binding(String),
     Tuple(Vec<PatternId>),
     Constructor(String, Vec<PatternId>),
+    Guarded(PatternId, ExprId),
+    Wildcard,
 }

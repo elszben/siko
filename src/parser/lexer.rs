@@ -136,6 +136,7 @@ impl Lexer {
             "hiding" => Token::KeywordHiding,
             "case" => Token::KeywordCase,
             "of" => Token::KeywordOf,
+            "_" => Token::Wildcard,
             _ => match identifier.parse::<i64>() {
                 Ok(v) => Token::IntegerLiteral(v),
                 Err(_) => {

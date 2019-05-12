@@ -80,15 +80,71 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
     Ok(id)
 }
 
-fn convert_pattern(expr_id: ExprId, parser: &mut Parser) -> Result<PatternId, Error> {
-    let program = parser.get_program();
-    let pattern_id = program.get_pattern_id();
-    let expr = program.get_expr(&expr_id);
-    let location = program.get_expr_location(&expr_id);
-    match expr {
-        _ => return Err(Error::parse_err_by_id(format!("invalid pattern"), location)),
+fn parse_tuple_pattern(parser: &mut Parser) -> Result<PatternId, Error> {
+    let start_index = parser.get_index();
+    let res = parse_parens(parser, |p| parse_pattern(p), "<pattern>")?;
+    match res {
+        ParenParseResult::Single(t) => {
+            return Ok(t);
+        }
+        ParenParseResult::Tuple(ts) => {
+            let pattern = Pattern::Tuple(ts);
+            let id = parser.add_pattern(pattern, start_index);
+            return Ok(id);
+        }
     }
-    Ok(pattern_id)
+}
+
+fn parse_pattern(parser: &mut Parser) -> Result<PatternId, Error> {
+    match parser.current_kind() {
+        TokenKind::TypeIdentifier => {
+            let start_index = parser.get_index();
+            let name = parser.parse_qualified_type_name()?;
+            let mut args = Vec::new();
+            loop {
+                match parser.current_kind() {
+                    TokenKind::TypeIdentifier => {
+                        let arg_start_index = parser.get_index();
+                        let arg = parser.parse_qualified_type_name()?;
+                        let arg = parser
+                            .add_pattern(Pattern::Constructor(arg, Vec::new()), arg_start_index);
+                        args.push(arg);
+                    }
+                    TokenKind::VarIdentifier => {
+                        let arg_start_index = parser.get_index();
+                        let arg = parser.var_identifier("type")?;
+                        let arg = parser.add_pattern(Pattern::Binding(arg), arg_start_index);
+                        args.push(arg);
+                    }
+                    TokenKind::LParen => {
+                        let arg = parse_tuple_pattern(parser)?;
+                        args.push(arg);
+                    }
+                    _ => {
+                        break;
+                    }
+                }
+            }
+            let pattern = Pattern::Constructor(name, args);
+            let pattern_id = parser.add_pattern(pattern, start_index);
+            return Ok(pattern_id);
+        }
+        TokenKind::LParen => parse_tuple_pattern(parser),
+        TokenKind::Wildcard => {
+            parser.expect(TokenKind::Wildcard)?;
+            let start_index = parser.get_index();
+            let pattern = Pattern::Wildcard;
+            let pattern_id = parser.add_pattern(pattern, start_index);
+            return Ok(pattern_id);
+        }
+        _ => {
+            let start_index = parser.get_index();
+            let name = parser.var_identifier("pattern binding")?;
+            let pattern = Pattern::Binding(name);
+            let id = parser.add_pattern(pattern, start_index);
+            return Ok(id);
+        }
+    }
 }
 
 fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
@@ -98,8 +154,14 @@ fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
     parser.expect(TokenKind::KeywordOf)?;
     let mut cases = Vec::new();
     loop {
-        let pattern_expr = parser.parse_expr()?;
-        let pattern_id = convert_pattern(pattern_expr, parser)?;
+        let start_index = parser.get_index();
+        let mut pattern_id = parse_pattern(parser)?;
+        if parser.current(TokenKind::Pipe) {
+            parser.expect(TokenKind::Pipe)?;
+            let guard_expr = parser.parse_expr()?;
+            let pattern = Pattern::Guarded(pattern_id, guard_expr);
+            pattern_id = parser.add_pattern(pattern, start_index);
+        }
         parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
         let case_body = parser.parse_expr()?;
         parser.expect(TokenKind::EndOfItem)?;

@@ -39,6 +39,8 @@ use crate::syntax::import::ImportId;
 use crate::syntax::import::ImportKind;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
+use crate::syntax::pattern::Pattern;
+use crate::syntax::pattern::PatternId;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
@@ -307,6 +309,14 @@ impl<'a> Parser<'a> {
         self.program
             .add_type_signature(id, type_signature, location_id);
 
+        id
+    }
+
+    pub fn add_pattern(&mut self, pattern: Pattern, start_index: usize) -> PatternId {
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
+        let id = self.program.get_pattern_id();
+        self.program.add_pattern(id, pattern, location_id);
         id
     }
 
@@ -696,7 +706,7 @@ impl<'a> Parser<'a> {
         Ok(name)
     }
 
-    fn parse_qualified_type_name(&mut self) -> Result<String, Error> {
+    pub fn parse_qualified_type_name(&mut self) -> Result<String, Error> {
         let mut name = String::new();
         loop {
             let n = self.type_identifier("type name")?;
