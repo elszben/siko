@@ -471,6 +471,9 @@ pub fn process_expr(
             let ir_expr = IrExpr::Formatter(fmt.clone(), ir_items);
             return add_expr(ir_expr, id, ir_program, program);
         }
-        Expr::Case(_) => unimplemented!(),
+        Expr::CaseOf(_, _) => {
+            println!("Processing caseof {}", expr);
+            unimplemented!()
+        }
     }
 }

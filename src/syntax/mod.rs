@@ -4,5 +4,6 @@ pub mod expr;
 pub mod function;
 pub mod import;
 pub mod module;
+pub mod pattern;
 pub mod program;
 pub mod types;

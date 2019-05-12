@@ -1,16 +1,5 @@
 module Main(main) where
 
-data Boo = extern
-
-data Foo  = { korte :: Main.Boo, name :: (String, Int) }
-
-foo a = a.name.0
-
-plus1 a = a + 1
-plus2 a = a + 2
-
-main = do
-       a <- 0
-       f <- plus1 . (plus2)
-       a <- f a
-       println "{}" % (a)
+main = case Some 5 of
+          Some a -> a
+          None -> 0

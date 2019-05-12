@@ -1,5 +1,6 @@
 use crate::constants::BuiltinOperator;
 use crate::location_info::item::LocationId;
+use crate::syntax::pattern::PatternId;
 use crate::util::format_list;
 use std::fmt;
 
@@ -11,6 +12,18 @@ pub struct ExprId {
 impl fmt::Display for ExprId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "#{}", self.id)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Case {
+    pub pattern_id: PatternId,
+    pub body: ExprId,
+}
+
+impl fmt::Display for Case {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} -> {}", self.pattern_id, self.body)
     }
 }
 
@@ -31,7 +44,7 @@ pub enum Expr {
     FieldAccess(String, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
-    Case(ExprId),
+    CaseOf(ExprId, Vec<Case>),
 }
 
 impl fmt::Display for Expr {
@@ -62,7 +75,7 @@ impl fmt::Display for Expr {
                 write!(f, "TupleFieldAccess({}, {})", index, expr)
             }
             Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
-            Expr::Case(body) => write!(f, "Case({})", body),
+            Expr::CaseOf(body, cases) => write!(f, "CaseOf({}, {})", body, format_list(cases)),
         }
     }
 }

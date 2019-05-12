@@ -7,6 +7,7 @@ use crate::error::Error;
 use crate::parser::parser::Parser;
 use crate::parser::token::Token;
 use crate::parser::token::TokenKind;
+use crate::syntax::expr::Case;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 
@@ -81,16 +82,23 @@ fn parse_case(parser: &mut Parser) -> Result<ExprId, Error> {
     parser.expect(TokenKind::KeywordCase)?;
     let body = parser.parse_expr()?;
     parser.expect(TokenKind::KeywordOf)?;
+    let mut cases = Vec::new();
     loop {
         let _pattern = parser.parse_expr()?;
+        let pattern_id = parser.get_program().get_pattern_id();
         parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
-        let _pattern = parser.parse_expr()?;
+        let case_body = parser.parse_expr()?;
         parser.expect(TokenKind::EndOfItem)?;
+        let case = Case {
+            pattern_id: pattern_id,
+            body: case_body,
+        };
+        cases.push(case);
         if parser.current(TokenKind::EndOfBlock) {
             break;
         }
     }
-    let expr = Expr::Case(body);
+    let expr = Expr::CaseOf(body, cases);
     let id = parser.add_expr(expr, start_index);
     parser.expect(TokenKind::EndOfBlock)?;
     Ok(id)

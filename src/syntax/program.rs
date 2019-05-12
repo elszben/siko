@@ -13,6 +13,8 @@ use crate::syntax::function::FunctionId;
 use crate::syntax::import::ImportId;
 use crate::syntax::module::Module;
 use crate::syntax::module::ModuleId;
+use crate::syntax::pattern::Pattern;
+use crate::syntax::pattern::PatternId;
 use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
 use crate::util::Counter;
@@ -27,6 +29,7 @@ pub struct Program {
     pub variants: BTreeMap<VariantId, Variant>,
     pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
     pub type_signatures: BTreeMap<TypeSignatureId, (TypeSignature, LocationId)>,
+    pub patterns: BTreeMap<PatternId, (Pattern, LocationId)>,
     module_id: Counter,
     function_id: Counter,
     import_id: Counter,
@@ -36,6 +39,7 @@ pub struct Program {
     variant_id: Counter,
     record_id: Counter,
     record_field_id: Counter,
+    pattern_id: Counter,
 }
 
 impl Program {
@@ -48,6 +52,7 @@ impl Program {
             variants: BTreeMap::new(),
             exprs: BTreeMap::new(),
             type_signatures: BTreeMap::new(),
+            patterns: BTreeMap::new(),
             module_id: Counter::new(),
             function_id: Counter::new(),
             import_id: Counter::new(),
@@ -57,6 +62,7 @@ impl Program {
             variant_id: Counter::new(),
             record_id: Counter::new(),
             record_field_id: Counter::new(),
+            pattern_id: Counter::new(),
         }
     }
 
@@ -114,6 +120,12 @@ impl Program {
         }
     }
 
+    pub fn get_pattern_id(&mut self) -> PatternId {
+        PatternId {
+            id: self.pattern_id.next(),
+        }
+    }
+
     pub fn add_module(&mut self, id: ModuleId, module: Module) {
         self.modules.insert(id, module);
     }
@@ -130,6 +142,10 @@ impl Program {
     ) {
         self.type_signatures
             .insert(id, (type_signature, location_id));
+    }
+
+    pub fn add_pattern(&mut self, id: PatternId, pattern: Pattern, location_id: LocationId) {
+        self.patterns.insert(id, (pattern, location_id));
     }
 
     pub fn get_expr(&self, id: &ExprId) -> &Expr {
