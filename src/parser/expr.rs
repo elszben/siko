@@ -12,7 +12,6 @@ use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternId;
-use crate::syntax::program::Program;
 
 fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();

@@ -1,5 +1,6 @@
 use crate::constants::BuiltinOperator;
 use crate::constants::PRELUDE_NAME;
+use crate::ir::expr::Case as IrCase;
 use crate::ir::expr::Expr as IrExpr;
 use crate::ir::expr::ExprId as IrExprId;
 use crate::ir::expr::ExprInfo as IrExprInfo;
@@ -19,6 +20,8 @@ use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
+use crate::syntax::pattern::Pattern;
+use crate::syntax::pattern::PatternId;
 use crate::syntax::program::Program;
 use std::collections::BTreeSet;
 
@@ -138,6 +141,8 @@ fn process_field_access(
         }
     }
 }
+
+fn process_pattern(pattern_id: PatternId) {}
 
 pub fn process_expr(
     id: ExprId,
@@ -471,9 +476,36 @@ pub fn process_expr(
             let ir_expr = IrExpr::Formatter(fmt.clone(), ir_items);
             return add_expr(ir_expr, id, ir_program, program);
         }
-        Expr::CaseOf(_, _) => {
-            println!("Processing caseof {}", expr);
-            unimplemented!()
+        Expr::CaseOf(body_id, cases) => {
+            let ir_body_id = process_expr(
+                *body_id,
+                program,
+                module,
+                environment,
+                ir_program,
+                errors,
+                lambda_helper.clone(),
+            );
+            let mut ir_cases = Vec::new();
+            for case in cases {
+                process_pattern(case.pattern_id);
+                let ir_case_body_id = process_expr(
+                    case.body,
+                    program,
+                    module,
+                    environment,
+                    ir_program,
+                    errors,
+                    lambda_helper.clone(),
+                );
+                let ir_case = IrCase {
+                    pattern_id: 0,
+                    body: ir_case_body_id,
+                };
+                ir_cases.push(ir_case);
+            }
+            let ir_expr = IrExpr::CaseOf(ir_body_id, ir_cases);
+            return add_expr(ir_expr, id, ir_program, program);
         }
     }
 }

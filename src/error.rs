@@ -72,33 +72,18 @@ pub enum Error {
     IoError(IoError),
     LexerError(Vec<LexerError>),
     ParseError(String, FilePath, Location),
-    ParseErrorById(String, LocationId),
     ResolverError(Vec<ResolverError>),
     TypecheckError(Vec<TypecheckError>),
     RuntimeError(String, LocationId),
 }
 
 impl Error {
-    #[cfg(test)]
-    pub fn get_single_lexer(self) -> LexerError {
-        if let Error::LexerError(mut errs) = self {
-            assert_eq!(errs.len(), 1);
-            errs.pop().expect("err was empty")
-        } else {
-            unreachable!()
-        }
-    }
-
     pub fn lexer_err(s: String, file_path: FilePath, location: Location) -> LexerError {
         LexerError::General(s, file_path, location)
     }
 
     pub fn parse_err(s: String, file_path: FilePath, location: Location) -> Error {
         Error::ParseError(s, file_path, location)
-    }
-
-    pub fn parse_err_by_id(s: String, id: LocationId) -> Error {
-        Error::ParseErrorById(s, id)
     }
 
     pub fn resolve_err(errors: Vec<ResolverError>) -> Error {
@@ -161,28 +146,11 @@ impl Error {
                                 &location.location,
                             );
                         }
-                        LexerError::InvalidIdentifier(identifier, location) => {
-                            Error::report_error_base(
-                                &format!(
-                                    "{} invalid identifier {}",
-                                    error.red(),
-                                    identifier.yellow()
-                                ),
-                                file_manager,
-                                &location.file_path,
-                                &location.location,
-                            );
-                        }
                     }
                 }
             }
             Error::ParseError(msg, file_path, location) => {
                 Error::report_error_base(msg, file_manager, file_path, location);
-            }
-            Error::ParseErrorById(msg, id) => {
-                println!("{} {}", error.red(), msg);
-                let location_set = location_info.get_item_location(id);
-                print_location_set(file_manager, location_set);
             }
             Error::ResolverError(errs) => {
                 for err in errs {

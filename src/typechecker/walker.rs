@@ -55,6 +55,12 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
                 walk_expr(item, program, visitor);
             }
         }
+        Expr::CaseOf(body, cases) => {
+            walk_expr(body, program, visitor);
+            for case in cases {
+                walk_expr(&case.body, program, visitor);
+            }
+        }
     }
     visitor.visit(*expr_id, expr);
 }

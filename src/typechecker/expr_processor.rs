@@ -434,6 +434,7 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                 }
             }
+            Expr::CaseOf(body, cases) => {}
         }
     }
 }

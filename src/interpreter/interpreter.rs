@@ -173,6 +173,7 @@ impl<'a> Interpreter<'a> {
                 }
                 unreachable!()
             }
+            Expr::CaseOf(body, cases) => unimplemented!(),
         }
     }
 

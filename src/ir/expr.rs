@@ -51,6 +51,18 @@ impl fmt::Display for FieldAccessInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct Case {
+    pub pattern_id: i64,
+    pub body: ExprId,
+}
+
+impl fmt::Display for Case {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} -> {}", self.pattern_id, self.body)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     StaticFunctionCall(FunctionId, Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
@@ -67,6 +79,7 @@ pub enum Expr {
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
+    CaseOf(ExprId, Vec<Case>),
 }
 
 impl fmt::Display for Expr {
@@ -97,6 +110,7 @@ impl fmt::Display for Expr {
                 write!(f, "TupleFieldAccess({}, {})", index, expr)
             }
             Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
+            Expr::CaseOf(body, cases) => write!(f, "CaseOf({}, {})", body, format_list(cases)),
         }
     }
 }
