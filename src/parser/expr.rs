@@ -95,55 +95,106 @@ fn parse_tuple_pattern(parser: &mut Parser) -> Result<PatternId, Error> {
     }
 }
 
-fn parse_pattern(parser: &mut Parser) -> Result<PatternId, Error> {
-    match parser.current_kind() {
-        TokenKind::TypeIdentifier => {
+fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternId>, Error> {
+    let id = match parser.current_kind() {
+        TokenKind::LParen => {
+            let id = parse_tuple_pattern(parser)?;
+            id
+        }
+        TokenKind::IntegerLiteral => {
             let start_index = parser.get_index();
-            let name = parser.parse_qualified_type_name()?;
-            let mut args = Vec::new();
-            loop {
-                match parser.current_kind() {
-                    TokenKind::TypeIdentifier => {
-                        let arg_start_index = parser.get_index();
-                        let arg = parser.parse_qualified_type_name()?;
-                        let arg = parser
-                            .add_pattern(Pattern::Constructor(arg, Vec::new()), arg_start_index);
-                        args.push(arg);
-                    }
-                    TokenKind::VarIdentifier => {
-                        let arg_start_index = parser.get_index();
-                        let arg = parser.var_identifier("type")?;
-                        let arg = parser.add_pattern(Pattern::Binding(arg), arg_start_index);
-                        args.push(arg);
-                    }
-                    TokenKind::LParen => {
-                        let arg = parse_tuple_pattern(parser)?;
-                        args.push(arg);
-                    }
-                    _ => {
-                        break;
-                    }
-                }
+            let literal = parser.advance()?;
+            if let Token::IntegerLiteral(i) = literal.token {
+                let pattern = Pattern::IntegerLiteral(i);
+                let id = parser.add_pattern(pattern, start_index);
+                id
+            } else {
+                unreachable!()
             }
-            let pattern = Pattern::Constructor(name, args);
-            let pattern_id = parser.add_pattern(pattern, start_index);
-            return Ok(pattern_id);
         }
-        TokenKind::LParen => parse_tuple_pattern(parser),
-        TokenKind::Wildcard => {
-            parser.expect(TokenKind::Wildcard)?;
+        TokenKind::FloatLiteral => {
             let start_index = parser.get_index();
-            let pattern = Pattern::Wildcard;
-            let pattern_id = parser.add_pattern(pattern, start_index);
-            return Ok(pattern_id);
+            let literal = parser.advance()?;
+            if let Token::FloatLiteral(f) = literal.token {
+                let pattern = Pattern::FloatLiteral(f);
+                let id = parser.add_pattern(pattern, start_index);
+                id
+            } else {
+                unreachable!()
+            }
         }
-        _ => {
+        TokenKind::StringLiteral => {
+            let start_index = parser.get_index();
+            let literal = parser.advance()?;
+            if let Token::StringLiteral(s) = literal.token {
+                let pattern = Pattern::StringLiteral(s);
+                let id = parser.add_pattern(pattern, start_index);
+                id
+            } else {
+                unreachable!()
+            }
+        }
+        TokenKind::BoolLiteral => {
+            let start_index = parser.get_index();
+            let literal = parser.advance()?;
+            if let Token::BoolLiteral(b) = literal.token {
+                let pattern = Pattern::BoolLiteral(b);
+                let id = parser.add_pattern(pattern, start_index);
+                id
+            } else {
+                unreachable!()
+            }
+        }
+        TokenKind::VarIdentifier => {
             let start_index = parser.get_index();
             let name = parser.var_identifier("pattern binding")?;
             let pattern = Pattern::Binding(name);
             let id = parser.add_pattern(pattern, start_index);
-            return Ok(id);
+            id
         }
+        TokenKind::TypeIdentifier => {
+            if inner {
+                let start_index = parser.get_index();
+                let name = parser.parse_qualified_type_name()?;
+                let id = parser.add_pattern(Pattern::Constructor(name, Vec::new()), start_index);
+                id
+            } else {
+                let start_index = parser.get_index();
+                let name = parser.parse_qualified_type_name()?;
+                let mut args = Vec::new();
+                loop {
+                    let arg = match parse_sub_pattern(parser, true)? {
+                        Some(arg) => arg,
+                        None => {
+                            break;
+                        }
+                    };
+                    args.push(arg);
+                }
+                let pattern = Pattern::Constructor(name, args);
+                let id = parser.add_pattern(pattern, start_index);
+                id
+            }
+        }
+        TokenKind::Wildcard => {
+            let start_index = parser.get_index();
+            parser.expect(TokenKind::Wildcard)?;
+            let pattern = Pattern::Wildcard;
+            let id = parser.add_pattern(pattern, start_index);
+            id
+        }
+        _ => {
+            return Ok(None);
+        }
+    };
+    Ok(Some(id))
+}
+
+fn parse_pattern(parser: &mut Parser) -> Result<PatternId, Error> {
+    let id = parse_sub_pattern(parser, false)?;
+    match id {
+        Some(id) => Ok(id),
+        None => report_unexpected_token(parser, format!("<pattern>")),
     }
 }
 
