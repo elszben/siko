@@ -9,6 +9,9 @@ use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
 use crate::ir::function::LambdaInfo;
+use crate::ir::pattern::Pattern as IrPattern;
+use crate::ir::pattern::PatternId as IrPatternId;
+use crate::ir::pattern::PatternInfo as IrPatternInfo;
 use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeDef;
 use crate::location_info::item::LocationId;
@@ -23,6 +26,8 @@ use crate::syntax::expr::ExprId;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternId;
 use crate::syntax::program::Program;
+use crate::util::Counter;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 enum PathResolveResult {
@@ -142,7 +147,60 @@ fn process_field_access(
     }
 }
 
-fn process_pattern(pattern_id: PatternId) {}
+fn process_pattern(
+    case_expr_id: IrExprId,
+    binding_index: &mut Counter,
+    pattern_id: PatternId,
+    program: &Program,
+    ir_program: &mut IrProgram,
+    environment: &mut Environment,
+    bindings: &mut BTreeMap<String, Vec<LocationId>>,
+) -> IrPatternId {
+    let ir_pattern_id = ir_program.get_pattern_id();
+    let (pattern, location) = program
+        .patterns
+        .get(&pattern_id)
+        .expect("Pattern not found");
+    let ir_pattern = match pattern {
+        Pattern::Binding(name) => {
+            let locations = bindings.entry(name.clone()).or_insert_with(|| Vec::new());
+            locations.push(*location);
+            let index = binding_index.next();
+            environment.add_expr_value(name.clone(), case_expr_id, index);
+            IrPattern::Binding(name.clone(), index)
+        }
+        Pattern::Tuple(patterns) => {
+            let ids: Vec<_> = patterns
+                .iter()
+                .map(|id| {
+                    process_pattern(
+                        case_expr_id,
+                        binding_index,
+                        *id,
+                        program,
+                        ir_program,
+                        environment,
+                        bindings,
+                    )
+                })
+                .collect();
+            IrPattern::Tuple(ids)
+        }
+        Pattern::Constructor(name, patterns) => IrPattern::Wildcard,
+        Pattern::Guarded(pattern_id, guard_expr_id) => IrPattern::Wildcard,
+        Pattern::Wildcard => IrPattern::Wildcard,
+        Pattern::IntegerLiteral(v) => IrPattern::Wildcard,
+        Pattern::FloatLiteral(v) => IrPattern::Wildcard,
+        Pattern::StringLiteral(v) => IrPattern::Wildcard,
+        Pattern::BoolLiteral(v) => IrPattern::Wildcard,
+    };
+    let ir_pattern_info = IrPatternInfo {
+        pattern: ir_pattern,
+        location_id: *location,
+    };
+    ir_program.add_pattern(ir_pattern_id, ir_pattern_info);
+    ir_pattern_id
+}
 
 pub fn process_expr(
     id: ExprId,
@@ -420,7 +478,7 @@ pub fn process_expr(
                 errors,
                 lambda_helper,
             );
-            environment.add_expr_value(name.clone(), ir_expr_id);
+            environment.add_expr_value(name.clone(), ir_expr_id, 0);
             let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
         }
@@ -488,12 +546,23 @@ pub fn process_expr(
             );
             let mut ir_cases = Vec::new();
             for case in cases {
-                process_pattern(case.pattern_id);
+                let mut case_environment = Environment::child(environment);
+                let mut bindings = BTreeMap::new();
+                let mut binding_index = Counter::new();
+                process_pattern(
+                    ir_body_id,
+                    &mut binding_index,
+                    case.pattern_id,
+                    program,
+                    ir_program,
+                    &mut case_environment,
+                    &mut bindings,
+                );
                 let ir_case_body_id = process_expr(
                     case.body,
                     program,
                     module,
-                    environment,
+                    &mut case_environment,
                     ir_program,
                     errors,
                     lambda_helper.clone(),

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Copy)]
 pub enum NamedRef {
     FunctionArg(FunctionArgumentRef),
-    ExprValue(ExprId),
+    ExprValue(ExprId, usize),
 }
 
 pub struct Environment<'a> {
@@ -24,8 +24,8 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub fn add_expr_value(&mut self, var: String, id: ExprId) {
-        self.variables.insert(var, NamedRef::ExprValue(id));
+    pub fn add_expr_value(&mut self, var: String, id: ExprId, index: usize) {
+        self.variables.insert(var, NamedRef::ExprValue(id, index));
     }
 
     pub fn add_arg(&mut self, var: String, function_id: FunctionId, index: usize) {

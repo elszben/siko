@@ -1,7 +1,8 @@
 module Main(main) where
 
 main = case Some 5 of
-          Alma.Some (Some a (b, c)) | korte -> a
+          (6,a) -> b
+          Alma.Some (Some a (b, c)) | korte -> 4
           _ -> 6
           (5, 6, 7, (True, "a", 5.6,)) -> 4
           None -> 0

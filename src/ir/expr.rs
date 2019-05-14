@@ -75,7 +75,7 @@ pub enum Expr {
     Do(Vec<ExprId>),
     Bind(String, ExprId),
     ArgRef(FunctionArgumentRef),
-    ExprValue(ExprId),
+    ExprValue(ExprId, usize),
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
@@ -102,7 +102,7 @@ impl fmt::Display for Expr {
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
             Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
             Expr::ArgRef(v) => write!(f, "{}", v),
-            Expr::ExprValue(id) => write!(f, "ExprValue({})", id),
+            Expr::ExprValue(id, index) => write!(f, "ExprValue({}, {})", id, index),
             Expr::FieldAccess(accesses, expr) => {
                 write!(f, "FieldAccess({}, {})", format_list(accesses), expr)
             }

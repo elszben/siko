@@ -339,7 +339,7 @@ impl<'a> Visitor for Unifier<'a> {
                     self.errors,
                 );
             }
-            Expr::ExprValue(expr_ref) => {
+            Expr::ExprValue(expr_ref, _) => {
                 let expr_ref_var = self.expr_processor.lookup_type_var_for_expr(expr_ref);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);

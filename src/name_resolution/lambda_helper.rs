@@ -23,7 +23,7 @@ impl LambdaHelperInner {
             parent.process_named_ref(r, level)
         } else {
             match r {
-                NamedRef::ExprValue(expr_ref) => Expr::ExprValue(expr_ref),
+                NamedRef::ExprValue(expr_ref, index) => Expr::ExprValue(expr_ref, index),
                 NamedRef::FunctionArg(arg_ref) => Expr::ArgRef(arg_ref),
             }
         };
@@ -32,7 +32,7 @@ impl LambdaHelperInner {
             let arg_index = self.captures.len();
             let lambda_arg_ref = FunctionArgumentRef::new(true, self.function_id, arg_index);
             let updated_ref = match &r {
-                Expr::ExprValue(_) => Expr::ArgRef(lambda_arg_ref),
+                Expr::ExprValue(_, _) => Expr::ArgRef(lambda_arg_ref),
                 Expr::ArgRef(_) => Expr::ArgRef(lambda_arg_ref),
                 _ => panic!("Unexpected name ref {:?}", r),
             };

@@ -117,7 +117,7 @@ impl<'a> Interpreter<'a> {
                 environment.add(*id, value);
                 return Value::Tuple(vec![]);
             }
-            Expr::ExprValue(ref_expr_id) => {
+            Expr::ExprValue(ref_expr_id, _) => {
                 return environment.get_value(ref_expr_id);
             }
             Expr::If(cond, true_branch, false_branch) => {

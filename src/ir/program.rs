@@ -3,6 +3,9 @@ use crate::ir::expr::ExprId;
 use crate::ir::expr::ExprInfo;
 use crate::ir::function::Function;
 use crate::ir::function::FunctionId;
+use crate::ir::pattern::Pattern;
+use crate::ir::pattern::PatternId;
+use crate::ir::pattern::PatternInfo;
 use crate::ir::types::Adt;
 use crate::ir::types::Record;
 use crate::ir::types::TypeDef;
@@ -21,10 +24,12 @@ pub struct Program {
     pub exprs: BTreeMap<ExprId, ExprInfo>,
     pub functions: BTreeMap<FunctionId, Function>,
     pub typedefs: BTreeMap<TypeDefId, TypeDef>,
+    pub patterns: BTreeMap<PatternId, PatternInfo>,
     type_signature_id: Counter,
     expr_id: Counter,
     function_id: Counter,
     typedef_id: Counter,
+    pattern_id: Counter,
 }
 
 impl Program {
@@ -34,10 +39,12 @@ impl Program {
             exprs: BTreeMap::new(),
             functions: BTreeMap::new(),
             typedefs: BTreeMap::new(),
+            patterns: BTreeMap::new(),
             type_signature_id: Counter::new(),
             expr_id: Counter::new(),
             function_id: Counter::new(),
             typedef_id: Counter::new(),
+            pattern_id: Counter::new(),
         }
     }
 
@@ -122,5 +129,26 @@ impl Program {
         } else {
             unreachable!()
         }
+    }
+
+    pub fn get_pattern_id(&mut self) -> PatternId {
+        PatternId {
+            id: self.pattern_id.next(),
+        }
+    }
+
+    pub fn add_pattern(&mut self, id: PatternId, pattern_info: PatternInfo) {
+        self.patterns.insert(id, pattern_info);
+    }
+
+    pub fn get_pattern(&self, id: &PatternId) -> &Pattern {
+        &self.patterns.get(id).expect("Pattern not found").pattern
+    }
+
+    pub fn get_pattern_location(&self, id: &PatternId) -> LocationId {
+        self.patterns
+            .get(id)
+            .expect("Pattern not found")
+            .location_id
     }
 }

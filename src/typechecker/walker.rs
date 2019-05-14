@@ -43,7 +43,7 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
             walk_expr(rhs, program, visitor);
         }
         Expr::ArgRef(_) => {}
-        Expr::ExprValue(_) => {}
+        Expr::ExprValue(_, _) => {}
         Expr::FieldAccess(_, lhs) => {
             walk_expr(lhs, program, visitor);
         }
