@@ -147,14 +147,65 @@ fn process_field_access(
     }
 }
 
+fn resolve_pattern_type_constructor(
+    name: &String,
+    ir_program: &mut IrProgram,
+    module: &Module,
+    errors: &mut Vec<ResolverError>,
+    location_id: LocationId,
+    ids: Vec<IrPatternId>,
+) -> IrPattern {
+    if let Some(items) = module.imported_items.get(name) {
+        if items.len() > 1 {
+            let err = ResolverError::AmbiguousName(name.to_string(), location_id);
+            errors.push(err);
+            return IrPattern::Wildcard;
+        } else {
+            let item = &items[0];
+            match item.item {
+                Item::Function(_, _) => unreachable!(),
+                Item::Record(_, ir_typedef_id) => {
+                    let ir_typedef = ir_program
+                        .typedefs
+                        .get(&ir_typedef_id)
+                        .expect("Record not found");
+                    if let TypeDef::Record(..) = ir_typedef {
+                        return IrPattern::Constructor(ir_typedef_id, 0, ids);
+                    } else {
+                        unreachable!()
+                    }
+                }
+                Item::Variant(_, _, ir_typedef_id, index) => {
+                    let ir_typedef = ir_program
+                        .typedefs
+                        .get(&ir_typedef_id)
+                        .expect("Adt not found");
+                    if let TypeDef::Adt(..) = ir_typedef {
+                        return IrPattern::Constructor(ir_typedef_id, index, ids);
+                    } else {
+                        unreachable!()
+                    }
+                }
+                _ => {}
+            }
+        }
+    };
+    let err = ResolverError::UnknownTypeName(name.to_string(), location_id);
+    errors.push(err);
+    return IrPattern::Wildcard;
+}
+
 fn process_pattern(
     case_expr_id: IrExprId,
     binding_index: &mut Counter,
     pattern_id: PatternId,
     program: &Program,
     ir_program: &mut IrProgram,
+    module: &Module,
     environment: &mut Environment,
     bindings: &mut BTreeMap<String, Vec<LocationId>>,
+    errors: &mut Vec<ResolverError>,
+    lambda_helper: LambdaHelper,
 ) -> IrPatternId {
     let ir_pattern_id = ir_program.get_pattern_id();
     let (pattern, location) = program
@@ -179,20 +230,65 @@ fn process_pattern(
                         *id,
                         program,
                         ir_program,
+                        module,
                         environment,
                         bindings,
+                        errors,
+                        lambda_helper.clone(),
                     )
                 })
                 .collect();
             IrPattern::Tuple(ids)
         }
-        Pattern::Constructor(name, patterns) => IrPattern::Wildcard,
-        Pattern::Guarded(pattern_id, guard_expr_id) => IrPattern::Wildcard,
+        Pattern::Constructor(name, patterns) => {
+            let ids: Vec<_> = patterns
+                .iter()
+                .map(|id| {
+                    process_pattern(
+                        case_expr_id,
+                        binding_index,
+                        *id,
+                        program,
+                        ir_program,
+                        module,
+                        environment,
+                        bindings,
+                        errors,
+                        lambda_helper.clone(),
+                    )
+                })
+                .collect();
+            resolve_pattern_type_constructor(name, ir_program, module, errors, *location, ids)
+        }
+        Pattern::Guarded(pattern_id, guard_expr_id) => {
+            let ir_pattern_id = process_pattern(
+                case_expr_id,
+                binding_index,
+                *pattern_id,
+                program,
+                ir_program,
+                module,
+                environment,
+                bindings,
+                errors,
+                lambda_helper.clone(),
+            );
+            let ir_guard_expr_id = process_expr(
+                *guard_expr_id,
+                program,
+                module,
+                environment,
+                ir_program,
+                errors,
+                lambda_helper.clone(),
+            );
+            IrPattern::Guarded(ir_pattern_id, ir_guard_expr_id)
+        }
         Pattern::Wildcard => IrPattern::Wildcard,
-        Pattern::IntegerLiteral(v) => IrPattern::Wildcard,
-        Pattern::FloatLiteral(v) => IrPattern::Wildcard,
-        Pattern::StringLiteral(v) => IrPattern::Wildcard,
-        Pattern::BoolLiteral(v) => IrPattern::Wildcard,
+        Pattern::IntegerLiteral(v) => IrPattern::IntegerLiteral(*v),
+        Pattern::FloatLiteral(v) => IrPattern::FloatLiteral(*v),
+        Pattern::StringLiteral(v) => IrPattern::StringLiteral(v.clone()),
+        Pattern::BoolLiteral(v) => IrPattern::BoolLiteral(*v),
     };
     let ir_pattern_info = IrPatternInfo {
         pattern: ir_pattern,
@@ -555,8 +651,11 @@ pub fn process_expr(
                     case.pattern_id,
                     program,
                     ir_program,
+                    module,
                     &mut case_environment,
                     &mut bindings,
+                    errors,
+                    lambda_helper.clone(),
                 );
                 let ir_case_body_id = process_expr(
                     case.body,

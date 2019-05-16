@@ -1,4 +1,5 @@
 use crate::ir::expr::ExprId;
+use crate::ir::types::TypeDefId;
 use crate::location_info::item::LocationId;
 use std::fmt;
 
@@ -17,7 +18,7 @@ impl fmt::Display for PatternId {
 pub enum Pattern {
     Binding(String, usize),
     Tuple(Vec<PatternId>),
-    Constructor(String, Vec<PatternId>),
+    Constructor(TypeDefId, usize, Vec<PatternId>),
     Guarded(PatternId, ExprId),
     Wildcard,
     IntegerLiteral(i64),
