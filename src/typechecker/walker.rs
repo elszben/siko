@@ -39,7 +39,7 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
                 walk_expr(item, program, visitor);
             }
         }
-        Expr::Bind(_, rhs) => {
+        Expr::Bind(_, rhs, _) => {
             walk_expr(rhs, program, visitor);
         }
         Expr::ArgRef(_) => {}

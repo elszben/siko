@@ -1,4 +1,5 @@
 use crate::ir::function::FunctionId;
+use crate::ir::pattern::PatternId;
 use crate::ir::types::TypeDefId;
 use crate::location_info::item::LocationId;
 use crate::util::format_list;
@@ -52,7 +53,7 @@ impl fmt::Display for FieldAccessInfo {
 
 #[derive(Debug, Clone)]
 pub struct Case {
-    pub pattern_id: i64,
+    pub pattern_id: PatternId,
     pub body: ExprId,
 }
 
@@ -73,9 +74,9 @@ pub enum Expr {
     BoolLiteral(bool),
     StringLiteral(String),
     Do(Vec<ExprId>),
-    Bind(String, ExprId),
+    Bind(String, ExprId, PatternId),
     ArgRef(FunctionArgumentRef),
-    ExprValue(ExprId, usize),
+    ExprValue(ExprId, PatternId),
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
@@ -100,7 +101,7 @@ impl fmt::Display for Expr {
             Expr::BoolLiteral(v) => write!(f, "Bool({})", v),
             Expr::StringLiteral(v) => write!(f, "String({})", v),
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
-            Expr::Bind(t, expr) => write!(f, "Bind({}, {})", t, expr),
+            Expr::Bind(t, expr, pattern_id) => write!(f, "Bind({}, {}, {})", t, expr, pattern_id),
             Expr::ArgRef(v) => write!(f, "{}", v),
             Expr::ExprValue(id, index) => write!(f, "ExprValue({}, {})", id, index),
             Expr::FieldAccess(accesses, expr) => {

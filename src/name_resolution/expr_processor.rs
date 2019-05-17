@@ -216,9 +216,8 @@ fn process_pattern(
         Pattern::Binding(name) => {
             let locations = bindings.entry(name.clone()).or_insert_with(|| Vec::new());
             locations.push(*location);
-            let index = binding_index.next();
-            environment.add_expr_value(name.clone(), case_expr_id, index);
-            IrPattern::Binding(name.clone(), index)
+            environment.add_expr_value(name.clone(), case_expr_id, ir_pattern_id);
+            IrPattern::Binding(name.clone())
         }
         Pattern::Tuple(patterns) => {
             let ids: Vec<_> = patterns
@@ -574,8 +573,15 @@ pub fn process_expr(
                 errors,
                 lambda_helper,
             );
-            environment.add_expr_value(name.clone(), ir_expr_id, 0);
-            let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id);
+            let ir_pattern_id = ir_program.get_pattern_id();
+            let ir_pattern = IrPattern::Binding(name.clone());
+            let ir_pattern_info = IrPatternInfo {
+                pattern: ir_pattern,
+                location_id: location_id,
+            };
+            ir_program.add_pattern(ir_pattern_id, ir_pattern_info);
+            environment.add_expr_value(name.clone(), ir_expr_id, ir_pattern_id);
+            let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id, ir_pattern_id);
             return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::FieldAccess(name, expr_id) => {
@@ -645,7 +651,7 @@ pub fn process_expr(
                 let mut case_environment = Environment::child(environment);
                 let mut bindings = BTreeMap::new();
                 let mut binding_index = Counter::new();
-                process_pattern(
+                let pattern_id = process_pattern(
                     ir_body_id,
                     &mut binding_index,
                     case.pattern_id,
@@ -667,7 +673,7 @@ pub fn process_expr(
                     lambda_helper.clone(),
                 );
                 let ir_case = IrCase {
-                    pattern_id: 0,
+                    pattern_id: pattern_id,
                     body: ir_case_body_id,
                 };
                 ir_cases.push(ir_case);

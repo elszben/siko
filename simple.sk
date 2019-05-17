@@ -2,9 +2,16 @@ module Main(main) where
 
 korte = True
 
+main = case ("a", 5) of
+        (5, 6) -> print "nooo"
+        (a, 6) -> print "ezsem!"
+        (a, 5) -> print "fuckyeah{}" % (a)
+        (a, b) -> print "ezt se latod"
+
+/*
 main = case Some 5 of
-          (6,a) -> b
           Some (Some a (b, c)) | korte -> 4
           _ -> 6
           (5, 6, 7, (True, "a", 5.6,)) -> 4
           None -> 0
+*/

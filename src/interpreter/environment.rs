@@ -1,14 +1,14 @@
 use crate::interpreter::value::Value;
-use crate::ir::expr::ExprId;
 use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::FunctionId;
+use crate::ir::pattern::PatternId;
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct Environment<'a> {
     function_id: FunctionId,
     args: Vec<Value>,
-    variables: BTreeMap<ExprId, Value>,
+    variables: BTreeMap<PatternId, Value>,
     parent: Option<&'a Environment<'a>>,
     captured_arg_count: usize,
 }
@@ -28,11 +28,11 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub fn add(&mut self, var: ExprId, value: Value) {
+    pub fn add(&mut self, var: PatternId, value: Value) {
         self.variables.insert(var, value);
     }
 
-    pub fn get_value(&self, var: &ExprId) -> Value {
+    pub fn get_value(&self, var: &PatternId) -> Value {
         if let Some(value) = self.variables.get(var) {
             return value.clone();
         } else {

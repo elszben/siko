@@ -327,7 +327,7 @@ impl<'a> Visitor for Unifier<'a> {
                     TypecheckError::TypeMismatch(location, location, expected_type, found_type);
                 self.errors.push(err);
             }
-            Expr::Bind(_, rhs) => {
+            Expr::Bind(_, rhs, _) => {
                 let rhs_var = self.expr_processor.lookup_type_var_for_expr(rhs);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);

@@ -23,7 +23,7 @@ impl LambdaHelperInner {
             parent.process_named_ref(r, level)
         } else {
             match r {
-                NamedRef::ExprValue(expr_ref, index) => Expr::ExprValue(expr_ref, index),
+                NamedRef::ExprValue(expr_ref, pattern_id) => Expr::ExprValue(expr_ref, pattern_id),
                 NamedRef::FunctionArg(arg_ref) => Expr::ArgRef(arg_ref),
             }
         };

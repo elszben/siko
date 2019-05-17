@@ -8,6 +8,8 @@ use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
 use crate::ir::function::FunctionInfo;
+use crate::ir::pattern::Pattern;
+use crate::ir::pattern::PatternId;
 use crate::ir::program::Program;
 
 pub struct Interpreter<'a> {
@@ -69,6 +71,69 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn match_pattern(
+        &mut self,
+        pattern_id: &PatternId,
+        value: &Value,
+        program: &Program,
+        environment: &mut Environment,
+    ) -> bool {
+        let pattern = program.get_pattern(pattern_id);
+        match pattern {
+            Pattern::Binding(_) => {
+                environment.add(*pattern_id, value.clone());
+                return true;
+            }
+            Pattern::Tuple(ids) => match value {
+                Value::Tuple(vs) => {
+                    for (index, id) in ids.iter().enumerate() {
+                        let v = &vs[index];
+                        if !self.match_pattern(id, v, program, environment) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                _ => {
+                    return false;
+                }
+            },
+            Pattern::Constructor(..) => unimplemented!(),
+            Pattern::Guarded(..) => unimplemented!(),
+            Pattern::Wildcard => {
+                return true;
+            }
+            Pattern::IntegerLiteral(v) => {
+                let r = match value {
+                    Value::Int(vv) => v == vv,
+                    _ => false,
+                };
+                return r;
+            }
+            Pattern::FloatLiteral(v) => {
+                let r = match value {
+                    Value::Float(vv) => v == vv,
+                    _ => false,
+                };
+                return r;
+            }
+            Pattern::StringLiteral(v) => {
+                let r = match value {
+                    Value::String(vv) => v == vv,
+                    _ => false,
+                };
+                return r;
+            }
+            Pattern::BoolLiteral(v) => {
+                let r = match value {
+                    Value::Bool(vv) => v == vv,
+                    _ => false,
+                };
+                return r;
+            }
+        }
+    }
+
     fn eval_expr(
         &mut self,
         program: &Program,
@@ -112,13 +177,13 @@ impl<'a> Interpreter<'a> {
                 }
                 return result;
             }
-            Expr::Bind(_, id) => {
-                let value = self.eval_expr(program, *id, environment);
-                environment.add(*id, value);
+            Expr::Bind(_, expr_id, pattern_id) => {
+                let value = self.eval_expr(program, *expr_id, environment);
+                environment.add(*pattern_id, value);
                 return Value::Tuple(vec![]);
             }
-            Expr::ExprValue(ref_expr_id, _) => {
-                return environment.get_value(ref_expr_id);
+            Expr::ExprValue(_, pattern_id) => {
+                return environment.get_value(pattern_id);
             }
             Expr::If(cond, true_branch, false_branch) => {
                 let cond_value = self.eval_expr(program, *cond, environment);
@@ -173,7 +238,17 @@ impl<'a> Interpreter<'a> {
                 }
                 unreachable!()
             }
-            Expr::CaseOf(body, cases) => unimplemented!(),
+            Expr::CaseOf(body, cases) => {
+                let case_value = self.eval_expr(program, *body, environment);
+                for case in cases {
+                    let mut case_env = Environment::block_child(environment);
+                    if self.match_pattern(&case.pattern_id, &case_value, program, &mut case_env) {
+                        let val = self.eval_expr(program, case.body, &mut case_env);
+                        return val;
+                    }
+                }
+                unreachable!()
+            }
         }
     }
 

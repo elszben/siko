@@ -1,12 +1,13 @@
 use crate::ir::expr::ExprId;
 use crate::ir::expr::FunctionArgumentRef;
 use crate::ir::function::FunctionId;
+use crate::ir::pattern::PatternId;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum NamedRef {
     FunctionArg(FunctionArgumentRef),
-    ExprValue(ExprId, usize),
+    ExprValue(ExprId, PatternId),
 }
 
 pub struct Environment<'a> {
@@ -24,8 +25,9 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub fn add_expr_value(&mut self, var: String, id: ExprId, index: usize) {
-        self.variables.insert(var, NamedRef::ExprValue(id, index));
+    pub fn add_expr_value(&mut self, var: String, id: ExprId, pattern_id: PatternId) {
+        self.variables
+            .insert(var, NamedRef::ExprValue(id, pattern_id));
     }
 
     pub fn add_arg(&mut self, var: String, function_id: FunctionId, index: usize) {

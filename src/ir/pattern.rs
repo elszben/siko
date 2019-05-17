@@ -16,7 +16,7 @@ impl fmt::Display for PatternId {
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
-    Binding(String, usize),
+    Binding(String),
     Tuple(Vec<PatternId>),
     Constructor(TypeDefId, usize, Vec<PatternId>),
     Guarded(PatternId, ExprId),
