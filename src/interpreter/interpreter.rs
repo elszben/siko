@@ -98,35 +98,75 @@ impl<'a> Interpreter<'a> {
                     return false;
                 }
             },
-            Pattern::Constructor(..) => unimplemented!(),
-            Pattern::Guarded(..) => unimplemented!(),
+            Pattern::Record(p_type_id, p_ids) => match value {
+                Value::Record(type_id, vs) => {
+                    if type_id == p_type_id {
+                        for (index, p_id) in p_ids.iter().enumerate() {
+                            let v = &vs[index];
+                            if !self.match_pattern(p_id, v, program, environment) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                _ => {
+                    return false;
+                }
+            },
+            Pattern::Variant(p_type_id, p_index, p_ids) => match value {
+                Value::Variant(type_id, index, vs) => {
+                    if type_id == p_type_id && index == p_index {
+                        for (index, p_id) in p_ids.iter().enumerate() {
+                            let v = &vs[index];
+                            if !self.match_pattern(p_id, v, program, environment) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+                _ => {
+                    return false;
+                }
+            },
+            Pattern::Guarded(id, guard_expr_id) => {
+                if self.match_pattern(id, value, program, environment) {
+                    let guard_value = self.eval_expr(program, *guard_expr_id, environment);
+                    return guard_value.as_bool();
+                } else {
+                    return false;
+                }
+            }
             Pattern::Wildcard => {
                 return true;
             }
-            Pattern::IntegerLiteral(v) => {
+            Pattern::IntegerLiteral(p_v) => {
                 let r = match value {
-                    Value::Int(vv) => v == vv,
+                    Value::Int(v) => p_v == v,
                     _ => false,
                 };
                 return r;
             }
-            Pattern::FloatLiteral(v) => {
+            Pattern::FloatLiteral(p_v) => {
                 let r = match value {
-                    Value::Float(vv) => v == vv,
+                    Value::Float(v) => p_v == v,
                     _ => false,
                 };
                 return r;
             }
-            Pattern::StringLiteral(v) => {
+            Pattern::StringLiteral(p_v) => {
                 let r = match value {
-                    Value::String(vv) => v == vv,
+                    Value::String(v) => p_v == v,
                     _ => false,
                 };
                 return r;
             }
-            Pattern::BoolLiteral(v) => {
+            Pattern::BoolLiteral(p_v) => {
                 let r = match value {
-                    Value::Bool(vv) => v == vv,
+                    Value::Bool(v) => p_v == v,
                     _ => false,
                 };
                 return r;
@@ -285,6 +325,11 @@ impl<'a> Interpreter<'a> {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Bool(l == r);
+            }
+            ("Prelude", "op_notequals") => {
+                let l = environment.get_arg_by_index(0).as_int();
+                let r = environment.get_arg_by_index(1).as_int();
+                return Value::Bool(l != r);
             }
             ("Std.Util", "assert") => {
                 let v = environment.get_arg_by_index(0).as_bool();

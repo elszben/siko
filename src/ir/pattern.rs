@@ -18,7 +18,8 @@ impl fmt::Display for PatternId {
 pub enum Pattern {
     Binding(String),
     Tuple(Vec<PatternId>),
-    Constructor(TypeDefId, usize, Vec<PatternId>),
+    Record(TypeDefId, Vec<PatternId>),
+    Variant(TypeDefId, usize, Vec<PatternId>),
     Guarded(PatternId, ExprId),
     Wildcard,
     IntegerLiteral(i64),

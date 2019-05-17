@@ -170,7 +170,7 @@ fn resolve_pattern_type_constructor(
                         .get(&ir_typedef_id)
                         .expect("Record not found");
                     if let TypeDef::Record(..) = ir_typedef {
-                        return IrPattern::Constructor(ir_typedef_id, 0, ids);
+                        return IrPattern::Record(ir_typedef_id, ids);
                     } else {
                         unreachable!()
                     }
@@ -181,7 +181,7 @@ fn resolve_pattern_type_constructor(
                         .get(&ir_typedef_id)
                         .expect("Adt not found");
                     if let TypeDef::Adt(..) = ir_typedef {
-                        return IrPattern::Constructor(ir_typedef_id, index, ids);
+                        return IrPattern::Variant(ir_typedef_id, index, ids);
                     } else {
                         unreachable!()
                     }
