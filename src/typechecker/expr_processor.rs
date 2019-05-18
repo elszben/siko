@@ -10,7 +10,7 @@ use crate::location_info::item::LocationId;
 use crate::typechecker::common::create_general_function_type;
 use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
-use crate::typechecker::common::RecordFieldAccessorInfo;
+use crate::typechecker::common::RecordTypeInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
@@ -390,11 +390,11 @@ impl<'a> Visitor for Unifier<'a> {
                 let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr);
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
-                let mut matches: Vec<(RecordFieldAccessorInfo, FieldAccessInfo)> = Vec::new();
+                let mut matches: Vec<(RecordTypeInfo, FieldAccessInfo)> = Vec::new();
                 for info in infos {
-                    let access_info = self
+                    let record_type_info = self
                         .expr_processor
-                        .record_info_map
+                        .record_type_info_map
                         .get(&info.record_id)
                         .expect("field access info not found");
                     let record = self.program.get_record(&info.record_id);
@@ -406,14 +406,14 @@ impl<'a> Visitor for Unifier<'a> {
                     let test_record_var = self
                         .expr_processor
                         .type_store
-                        .clone_type_var_simple(access_info.record_type);
+                        .clone_type_var_simple(record_type_info.record_type);
                     if self
                         .expr_processor
                         .type_store
                         .unify(&test_record_expr_var, &test_record_var)
                     {
                         possible_records.push(record.name.clone());
-                        matches.push((access_info.clone(), info.clone()));
+                        matches.push((record_type_info.clone(), info.clone()));
                     }
                 }
                 match matches.len() {
@@ -432,11 +432,11 @@ impl<'a> Visitor for Unifier<'a> {
                         self.errors.push(err);
                     }
                     1 => {
-                        let (access_info, field_info) = &matches[0];
+                        let (record_type_info, field_info) = &matches[0];
                         let mut clone_context =
                             self.expr_processor.type_store.create_clone_context(false);
-                        let record_type_var = clone_context.clone_var(access_info.record_type);
-                        let field_type_var = access_info.field_types[field_info.index];
+                        let record_type_var = clone_context.clone_var(record_type_info.record_type);
+                        let field_type_var = record_type_info.field_types[field_info.index];
                         let field_type_var = clone_context.clone_var(field_type_var);
                         self.expr_processor.unify_variables(
                             &record_expr_var,
@@ -508,7 +508,41 @@ impl<'a> Visitor for Unifier<'a> {
                     self.errors,
                 );
             }
-            Pattern::Record(typedef_id, items) => {}
+            Pattern::Record(typedef_id, items) => {
+                let record_type_info = self
+                    .expr_processor
+                    .record_type_info_map
+                    .get(typedef_id)
+                    .expect("Record type info not found");
+                let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
+                let record_var = clone_context.clone_var(record_type_info.record_type);
+                let field_vars: Vec<_> = record_type_info
+                    .field_types
+                    .iter()
+                    .map(|v| clone_context.clone_var(*v))
+                    .collect();
+                let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
+                let location = self.program.get_pattern_location(&pattern_id);
+                self.expr_processor.unify_variables(
+                    &record_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+                for (index, item) in items.iter().enumerate() {
+                    let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
+                    let field_var = field_vars[index];
+                    let location = self.program.get_pattern_location(item);
+                    self.expr_processor.unify_variables(
+                        &field_var,
+                        &item_var,
+                        location,
+                        location,
+                        self.errors,
+                    );
+                }
+            }
             Pattern::Variant(typedef_id, index, items) => {}
             Pattern::Guarded(_, guard_expr_id) => {
                 let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
@@ -544,21 +578,21 @@ pub struct ExprProcessor {
     expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
     pattern_type_var_map: BTreeMap<PatternId, TypeVariable>,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
-    record_info_map: BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
+    record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
 }
 
 impl ExprProcessor {
     pub fn new(
         type_store: TypeStore,
         function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
-        record_info_map: BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
+        record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
     ) -> ExprProcessor {
         ExprProcessor {
             type_store: type_store,
             expression_type_var_map: BTreeMap::new(),
             pattern_type_var_map: BTreeMap::new(),
             function_type_info_map: function_type_info_map,
-            record_info_map: record_info_map,
+            record_type_info_map: record_type_info_map,
         }
     }
 

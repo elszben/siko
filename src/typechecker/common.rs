@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 #[derive(Debug, Clone)]
-pub struct RecordFieldAccessorInfo {
+pub struct RecordTypeInfo {
     pub record_type: TypeVariable,
     pub field_types: Vec<TypeVariable>,
 }

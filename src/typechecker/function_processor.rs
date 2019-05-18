@@ -9,7 +9,7 @@ use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use crate::typechecker::common::create_general_function_type;
 use crate::typechecker::common::FunctionTypeInfo;
-use crate::typechecker::common::RecordFieldAccessorInfo;
+use crate::typechecker::common::RecordTypeInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 pub struct FunctionProcessor {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
-    record_info_map: BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
+    record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
 }
 
 impl FunctionProcessor {
@@ -28,7 +28,7 @@ impl FunctionProcessor {
         FunctionProcessor {
             type_store: TypeStore::new(),
             function_type_info_map: BTreeMap::new(),
-            record_info_map: BTreeMap::new(),
+            record_type_info_map: BTreeMap::new(),
         }
     }
 
@@ -200,7 +200,7 @@ impl FunctionProcessor {
     ) -> (
         TypeStore,
         BTreeMap<FunctionId, FunctionTypeInfo>,
-        BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
+        BTreeMap<TypeDefId, RecordTypeInfo>,
     ) {
         for (id, function) in &program.functions {
             let displayed_name = format!("{}", function.info);
@@ -247,11 +247,12 @@ impl FunctionProcessor {
                         None,
                         record.location_id,
                     );
-                    let field_accessor_info = RecordFieldAccessorInfo {
+                    let record_type_info = RecordTypeInfo {
                         record_type: result_type_var,
                         field_types: args,
                     };
-                    self.record_info_map.insert(record.id, field_accessor_info);
+                    self.record_type_info_map
+                        .insert(record.id, record_type_info);
                     self.function_type_info_map.insert(*id, type_info);
                 }
                 FunctionInfo::VariantConstructor(i) => {
@@ -349,7 +350,7 @@ impl FunctionProcessor {
         (
             self.type_store,
             self.function_type_info_map,
-            self.record_info_map,
+            self.record_type_info_map,
         )
     }
 }

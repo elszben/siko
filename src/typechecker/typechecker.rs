@@ -40,7 +40,7 @@ impl Typechecker {
 
         let function_processor = FunctionProcessor::new();
 
-        let (type_store, function_type_info_map, record_info_map) =
+        let (type_store, function_type_info_map, record_type_info_map) =
             function_processor.process_functions(program, &mut errors);
 
         let function_dep_processor =
@@ -50,7 +50,7 @@ impl Typechecker {
             function_dep_processor.process_functions(program);
 
         let mut expr_processor =
-            ExprProcessor::new(type_store, function_type_info_map, record_info_map);
+            ExprProcessor::new(type_store, function_type_info_map, record_type_info_map);
 
         for group in &ordered_dep_groups {
             expr_processor.process_dep_group(program, group, &mut errors);

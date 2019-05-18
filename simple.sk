@@ -2,6 +2,13 @@ module Main(main) where
 
 korte = True
 
+data Foo a = { name :: a}
+
+main = case Foo "a" of
+        Foo "a" -> 5
+        Foo 4 -> 5
+
+/*
 main = do
     a <- (("a", 5,6), 6)
     ((a, _, _,), b) <- a
@@ -12,3 +19,4 @@ main2 = case Some (Some 5, 5) of
         Some (a, 6) | 6 > 0 -> ()
         Some (a, 5) | 5 == 6 -> print "hihinoo{}" % a
         Some (Some a, 5) | korte -> print "fuckyeah{}" % a
+*/
