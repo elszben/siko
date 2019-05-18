@@ -4,7 +4,7 @@ korte = True
 
 main = do
     a <- (("a", 5,6), 6)
-    ((a, _, _), b) <- a
+    ((a, _, _,), b) <- a
     print "{}" % a
 
 main2 = case Some (Some 5, 5) of

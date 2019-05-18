@@ -341,13 +341,24 @@ impl<'a> Visitor for Unifier<'a> {
                     TypecheckError::TypeMismatch(location, location, expected_type, found_type);
                 self.errors.push(err);
             }
-            Expr::Bind(_, rhs) => {
+            Expr::Bind(pattern_id, rhs) => {
+                let pattern_var = self.expr_processor.lookup_type_var_for_pattern(pattern_id);
                 let rhs_var = self.expr_processor.lookup_type_var_for_expr(rhs);
+                let pattern_location = self.program.get_pattern_location(pattern_id);
+                self.expr_processor.unify_variables(
+                    &pattern_var,
+                    &rhs_var,
+                    pattern_location,
+                    pattern_location,
+                    self.errors,
+                );
+                let tuple_ty = Type::Tuple(vec![]);
+                let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
                 self.expr_processor.unify_variables(
-                    &rhs_var,
                     &var,
+                    &tuple_var,
                     location,
                     location,
                     self.errors,
