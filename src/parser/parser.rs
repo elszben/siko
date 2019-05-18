@@ -126,13 +126,18 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn lookahead(&self, offset: usize) -> Option<TokenInfo> {
-        if self.index + offset >= self.tokens.len() {
-            None
-        } else {
-            let r = self.tokens[self.index + offset].clone();
-            Some(r)
+    pub fn irrefutable_pattern_follows(&self) -> bool {
+        let mut index = self.index;
+        while index < self.tokens.len() {
+            if self.tokens[index].token.kind() == TokenKind::KeywordDo {
+                return false;
+            }
+            if self.tokens[index].token.kind() == TokenKind::Op(BuiltinOperator::Bind) {
+                return true;
+            }
+            index += 1;
         }
+        false
     }
 
     pub fn type_identifier(&mut self, item: &str) -> Result<String, Error> {

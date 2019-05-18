@@ -217,9 +217,10 @@ impl<'a> Interpreter<'a> {
                 }
                 return result;
             }
-            Expr::Bind(_, expr_id, pattern_id) => {
+            Expr::Bind(pattern_id, expr_id) => {
                 let value = self.eval_expr(program, *expr_id, environment);
-                environment.add(*pattern_id, value);
+                let r = self.match_pattern(pattern_id, &value, program, environment);
+                assert!(r);
                 return Value::Tuple(vec![]);
             }
             Expr::ExprValue(_, pattern_id) => {

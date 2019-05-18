@@ -74,7 +74,7 @@ pub enum Expr {
     BoolLiteral(bool),
     StringLiteral(String),
     Do(Vec<ExprId>),
-    Bind(String, ExprId, PatternId),
+    Bind(PatternId, ExprId),
     ArgRef(FunctionArgumentRef),
     ExprValue(ExprId, PatternId),
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
@@ -101,7 +101,7 @@ impl fmt::Display for Expr {
             Expr::BoolLiteral(v) => write!(f, "Bool({})", v),
             Expr::StringLiteral(v) => write!(f, "String({})", v),
             Expr::Do(items) => write!(f, "Do({})", format_list(items)),
-            Expr::Bind(t, expr, pattern_id) => write!(f, "Bind({}, {}, {})", t, expr, pattern_id),
+            Expr::Bind(pattern_id, expr) => write!(f, "Bind({}, {})", pattern_id, expr),
             Expr::ArgRef(v) => write!(f, "{}", v),
             Expr::ExprValue(id, index) => write!(f, "ExprValue({}, {})", id, index),
             Expr::FieldAccess(accesses, expr) => {

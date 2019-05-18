@@ -26,7 +26,6 @@ use crate::syntax::expr::ExprId;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternId;
 use crate::syntax::program::Program;
-use crate::util::Counter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -197,7 +196,6 @@ fn resolve_pattern_type_constructor(
 
 fn process_pattern(
     case_expr_id: IrExprId,
-    binding_index: &mut Counter,
     pattern_id: PatternId,
     program: &Program,
     ir_program: &mut IrProgram,
@@ -225,7 +223,6 @@ fn process_pattern(
                 .map(|id| {
                     process_pattern(
                         case_expr_id,
-                        binding_index,
                         *id,
                         program,
                         ir_program,
@@ -245,7 +242,6 @@ fn process_pattern(
                 .map(|id| {
                     process_pattern(
                         case_expr_id,
-                        binding_index,
                         *id,
                         program,
                         ir_program,
@@ -262,7 +258,6 @@ fn process_pattern(
         Pattern::Guarded(pattern_id, guard_expr_id) => {
             let ir_pattern_id = process_pattern(
                 case_expr_id,
-                binding_index,
                 *pattern_id,
                 program,
                 ir_program,
@@ -563,7 +558,7 @@ pub fn process_expr(
             let ir_expr = IrExpr::Do(ir_items);
             return add_expr(ir_expr, id, ir_program, program);
         }
-        Expr::Bind(name, expr_id) => {
+        Expr::Bind(pattern_id, expr_id) => {
             let ir_expr_id = process_expr(
                 *expr_id,
                 program,
@@ -571,17 +566,21 @@ pub fn process_expr(
                 environment,
                 ir_program,
                 errors,
-                lambda_helper,
+                lambda_helper.clone(),
             );
-            let ir_pattern_id = ir_program.get_pattern_id();
-            let ir_pattern = IrPattern::Binding(name.clone());
-            let ir_pattern_info = IrPatternInfo {
-                pattern: ir_pattern,
-                location_id: location_id,
-            };
-            ir_program.add_pattern(ir_pattern_id, ir_pattern_info);
-            environment.add_expr_value(name.clone(), ir_expr_id, ir_pattern_id);
-            let ir_expr = IrExpr::Bind(name.clone(), ir_expr_id, ir_pattern_id);
+            let mut bindings = BTreeMap::new();
+            let ir_pattern_id = process_pattern(
+                ir_expr_id,
+                *pattern_id,
+                program,
+                ir_program,
+                module,
+                environment,
+                &mut bindings,
+                errors,
+                lambda_helper.clone(),
+            );
+            let ir_expr = IrExpr::Bind(ir_pattern_id, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::FieldAccess(name, expr_id) => {
@@ -650,10 +649,8 @@ pub fn process_expr(
             for case in cases {
                 let mut case_environment = Environment::child(environment);
                 let mut bindings = BTreeMap::new();
-                let mut binding_index = Counter::new();
                 let pattern_id = process_pattern(
                     ir_body_id,
-                    &mut binding_index,
                     case.pattern_id,
                     program,
                     ir_program,

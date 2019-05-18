@@ -40,7 +40,7 @@ pub enum Expr {
     BoolLiteral(bool),
     StringLiteral(String),
     Do(Vec<ExprId>),
-    Bind(String, ExprId),
+    Bind(PatternId, ExprId),
     FieldAccess(String, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),

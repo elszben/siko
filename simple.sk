@@ -2,17 +2,16 @@ module Main(main) where
 
 korte = True
 
+main = do
+    a <- ((0, 5,6), 6)
+    ((a, _, _), b) <- a
+    print "{}" % a
+
+/*
 main = case Some (Some 5, 5) of
         None (5, 6) -> print "nooo"
         Some (a, 6) -> print "ezsem!"
-        Some (a, 5) | 5 == 6 -> print "hihinoo{}" % (a)
-        Some (Some a, 5) | a != 6 -> print "fuckyeah{}" % (a)
+        Some (a, 5) | 5 == 6 -> print "hihinoo{}" % a
+        Some (Some a, 5) | a != 6 -> print "fuckyeah{}" % a
         (a, b) -> print "ezt se latod"
-
-/*
-main = case Some 5 of
-          Some (Some a (b, c)) | korte -> 4
-          _ -> 6
-          (5, 6, 7, (True, "a", 5.6,)) -> 4
-          None -> 0
 */

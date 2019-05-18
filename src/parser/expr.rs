@@ -44,26 +44,16 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
     parser.expect(TokenKind::KeywordDo)?;
     let mut exprs = Vec::new();
     loop {
-        let mut bind_var = None;
         let bind_start_index = parser.get_index();
-        if let Some(first) = parser.peek() {
-            if let Some(second) = parser.lookahead(1) {
-                match first.token {
-                    Token::VarIdentifier(i) => {
-                        if second.token.kind() == TokenKind::Op(BuiltinOperator::Bind) {
-                            bind_var = Some(i);
-                            parser.advance()?;
-                            parser.advance()?;
-                        }
-                    }
-                    _ => {}
-                }
-            }
+        let mut pattern_id = None;
+        if parser.irrefutable_pattern_follows() {
+            pattern_id = Some(parse_pattern(parser)?);
+            parser.expect(TokenKind::Op(BuiltinOperator::Bind))?;
         }
         let expr = parser.parse_expr()?;
         parser.expect(TokenKind::EndOfItem)?;
-        if let Some(bind_var) = bind_var {
-            let expr = Expr::Bind(bind_var, expr);
+        if let Some(pattern_id) = pattern_id {
+            let expr = Expr::Bind(pattern_id, expr);
             let id = parser.add_expr(expr, bind_start_index);
             exprs.push(id);
         } else {
@@ -281,7 +271,12 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
             parser.advance()?;
             if parser.current(TokenKind::Formatter) {
                 parser.expect(TokenKind::Formatter)?;
-                let items = parser.parse_list1_in_parens(|p| parse_ops(p))?;
+                let items = if parser.current(TokenKind::LParen) {
+                    parser.parse_list1_in_parens(|p| parse_ops(p))?
+                } else {
+                    let item = parser.parse_expr()?;
+                    vec![item]
+                };
                 let expr = Expr::Formatter(s, items);
                 let id = parser.add_expr(expr, start_index);
                 id
