@@ -11,6 +11,7 @@ use crate::typechecker::common::create_general_function_type;
 use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::common::RecordTypeInfo;
+use crate::typechecker::common::VariantTypeInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::type_store::TypeStore;
 use crate::typechecker::type_variable::TypeVariable;
@@ -543,7 +544,41 @@ impl<'a> Visitor for Unifier<'a> {
                     );
                 }
             }
-            Pattern::Variant(typedef_id, index, items) => {}
+            Pattern::Variant(typedef_id, index, items) => {
+                let variant_type_info = self
+                    .expr_processor
+                    .variant_type_info_map
+                    .get(&(*typedef_id, *index))
+                    .expect("Record type info not found");
+                let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
+                let variant_var = clone_context.clone_var(variant_type_info.variant_type);
+                let item_vars: Vec<_> = variant_type_info
+                    .item_types
+                    .iter()
+                    .map(|v| clone_context.clone_var(*v))
+                    .collect();
+                let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
+                let location = self.program.get_pattern_location(&pattern_id);
+                self.expr_processor.unify_variables(
+                    &variant_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+                for (index, item) in items.iter().enumerate() {
+                    let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
+                    let variant_item_var = item_vars[index];
+                    let location = self.program.get_pattern_location(item);
+                    self.expr_processor.unify_variables(
+                        &variant_item_var,
+                        &item_var,
+                        location,
+                        location,
+                        self.errors,
+                    );
+                }
+            }
             Pattern::Guarded(_, guard_expr_id) => {
                 let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
                 let guard_var = self.expr_processor.lookup_type_var_for_expr(guard_expr_id);
@@ -579,6 +614,7 @@ pub struct ExprProcessor {
     pattern_type_var_map: BTreeMap<PatternId, TypeVariable>,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
+    variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
 }
 
 impl ExprProcessor {
@@ -586,6 +622,7 @@ impl ExprProcessor {
         type_store: TypeStore,
         function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
         record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
+        variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     ) -> ExprProcessor {
         ExprProcessor {
             type_store: type_store,
@@ -593,6 +630,7 @@ impl ExprProcessor {
             pattern_type_var_map: BTreeMap::new(),
             function_type_info_map: function_type_info_map,
             record_type_info_map: record_type_info_map,
+            variant_type_info_map: variant_type_info_map,
         }
     }
 

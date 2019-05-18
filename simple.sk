@@ -4,9 +4,10 @@ korte = True
 
 data Foo a = { name :: a}
 
-main = case Foo "a" of
-        Foo "a" -> 5
-        Foo 4 -> 5
+main = case Some "a" of
+        //Foo "a" 5 -> 5
+        Some "a" -> 7
+        None 4 -> 5
 
 /*
 main = do

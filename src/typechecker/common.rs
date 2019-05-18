@@ -14,6 +14,12 @@ pub struct RecordTypeInfo {
     pub field_types: Vec<TypeVariable>,
 }
 
+#[derive(Debug, Clone)]
+pub struct VariantTypeInfo {
+    pub variant_type: TypeVariable,
+    pub item_types: Vec<TypeVariable>,
+}
+
 #[derive(Clone)]
 pub struct DependencyGroup {
     pub functions: BTreeSet<FunctionId>,

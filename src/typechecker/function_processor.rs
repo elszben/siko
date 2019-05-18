@@ -10,6 +10,7 @@ use crate::location_info::item::LocationId;
 use crate::typechecker::common::create_general_function_type;
 use crate::typechecker::common::FunctionTypeInfo;
 use crate::typechecker::common::RecordTypeInfo;
+use crate::typechecker::common::VariantTypeInfo;
 use crate::typechecker::error::TypecheckError;
 use crate::typechecker::function_type::FunctionType;
 use crate::typechecker::type_store::TypeStore;
@@ -21,6 +22,7 @@ pub struct FunctionProcessor {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
+    variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
 }
 
 impl FunctionProcessor {
@@ -29,6 +31,7 @@ impl FunctionProcessor {
             type_store: TypeStore::new(),
             function_type_info_map: BTreeMap::new(),
             record_type_info_map: BTreeMap::new(),
+            variant_type_info_map: BTreeMap::new(),
         }
     }
 
@@ -201,6 +204,7 @@ impl FunctionProcessor {
         TypeStore,
         BTreeMap<FunctionId, FunctionTypeInfo>,
         BTreeMap<TypeDefId, RecordTypeInfo>,
+        BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     ) {
         for (id, function) in &program.functions {
             let displayed_name = format!("{}", function.info);
@@ -293,13 +297,22 @@ impl FunctionProcessor {
                     assert!(r);
                     let type_info = FunctionTypeInfo::new(
                         format!("{}/{}_ctor", adt.name, variant.name),
-                        args,
+                        args.clone(),
                         true,
                         result_type_var,
                         func_type_var,
                         None,
                         location_id,
                     );
+
+                    let variant_type_info = VariantTypeInfo {
+                        variant_type: result_type_var,
+                        item_types: args,
+                    };
+
+                    self.variant_type_info_map
+                        .insert((i.type_id, i.index), variant_type_info);
+
                     self.function_type_info_map.insert(*id, type_info);
                 }
                 FunctionInfo::Lambda(i) => {
@@ -351,6 +364,7 @@ impl FunctionProcessor {
             self.type_store,
             self.function_type_info_map,
             self.record_type_info_map,
+            self.variant_type_info_map,
         )
     }
 }
