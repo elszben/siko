@@ -7,11 +7,9 @@ main = do
     ((a, _, _), b) <- a
     print "{}" % a
 
-/*
-main = case Some (Some 5, 5) of
+main2 = case Some (Some 5, 5) of
         None (5, 6) -> print "nooo"
         Some (a, 6) -> print "ezsem!"
         Some (a, 5) | 5 == 6 -> print "hihinoo{}" % a
-        Some (Some a, 5) | a != 6 -> print "fuckyeah{}" % a
+        Some (Some a, 5)  -> print "fuckyeah{}" % a
         (a, b) -> print "ezt se latod"
-*/

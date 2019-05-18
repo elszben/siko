@@ -153,6 +153,7 @@ fn resolve_pattern_type_constructor(
     errors: &mut Vec<ResolverError>,
     location_id: LocationId,
     ids: Vec<IrPatternId>,
+    irrefutable: bool,
 ) -> IrPattern {
     if let Some(items) = module.imported_items.get(name) {
         if items.len() > 1 {
@@ -175,14 +176,20 @@ fn resolve_pattern_type_constructor(
                     }
                 }
                 Item::Variant(_, _, ir_typedef_id, index) => {
-                    let ir_typedef = ir_program
-                        .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("Adt not found");
-                    if let TypeDef::Adt(..) = ir_typedef {
-                        return IrPattern::Variant(ir_typedef_id, index, ids);
+                    if irrefutable {
+                        let err = ResolverError::NotIrrefutablePattern(location_id);
+                        errors.push(err);
+                        return IrPattern::Wildcard;
                     } else {
-                        unreachable!()
+                        let ir_typedef = ir_program
+                            .typedefs
+                            .get(&ir_typedef_id)
+                            .expect("Adt not found");
+                        if let TypeDef::Adt(..) = ir_typedef {
+                            return IrPattern::Variant(ir_typedef_id, index, ids);
+                        } else {
+                            unreachable!()
+                        }
                     }
                 }
                 _ => {}
@@ -204,6 +211,7 @@ fn process_pattern(
     bindings: &mut BTreeMap<String, Vec<LocationId>>,
     errors: &mut Vec<ResolverError>,
     lambda_helper: LambdaHelper,
+    irrefutable: bool,
 ) -> IrPatternId {
     let ir_pattern_id = ir_program.get_pattern_id();
     let (pattern, location) = program
@@ -231,6 +239,7 @@ fn process_pattern(
                         bindings,
                         errors,
                         lambda_helper.clone(),
+                        irrefutable,
                     )
                 })
                 .collect();
@@ -250,10 +259,19 @@ fn process_pattern(
                         bindings,
                         errors,
                         lambda_helper.clone(),
+                        irrefutable,
                     )
                 })
                 .collect();
-            resolve_pattern_type_constructor(name, ir_program, module, errors, *location, ids)
+            resolve_pattern_type_constructor(
+                name,
+                ir_program,
+                module,
+                errors,
+                *location,
+                ids,
+                irrefutable,
+            )
         }
         Pattern::Guarded(pattern_id, guard_expr_id) => {
             let ir_pattern_id = process_pattern(
@@ -266,6 +284,7 @@ fn process_pattern(
                 bindings,
                 errors,
                 lambda_helper.clone(),
+                irrefutable,
             );
             let ir_guard_expr_id = process_expr(
                 *guard_expr_id,
@@ -279,10 +298,42 @@ fn process_pattern(
             IrPattern::Guarded(ir_pattern_id, ir_guard_expr_id)
         }
         Pattern::Wildcard => IrPattern::Wildcard,
-        Pattern::IntegerLiteral(v) => IrPattern::IntegerLiteral(*v),
-        Pattern::FloatLiteral(v) => IrPattern::FloatLiteral(*v),
-        Pattern::StringLiteral(v) => IrPattern::StringLiteral(v.clone()),
-        Pattern::BoolLiteral(v) => IrPattern::BoolLiteral(*v),
+        Pattern::IntegerLiteral(v) => {
+            if irrefutable {
+                let err = ResolverError::NotIrrefutablePattern(*location);
+                errors.push(err);
+                IrPattern::Wildcard
+            } else {
+                IrPattern::IntegerLiteral(*v)
+            }
+        }
+        Pattern::FloatLiteral(v) => {
+            if irrefutable {
+                let err = ResolverError::NotIrrefutablePattern(*location);
+                errors.push(err);
+                IrPattern::Wildcard
+            } else {
+                IrPattern::FloatLiteral(*v)
+            }
+        }
+        Pattern::StringLiteral(v) => {
+            if irrefutable {
+                let err = ResolverError::NotIrrefutablePattern(*location);
+                errors.push(err);
+                IrPattern::Wildcard
+            } else {
+                IrPattern::StringLiteral(v.clone())
+            }
+        }
+        Pattern::BoolLiteral(v) => {
+            if irrefutable {
+                let err = ResolverError::NotIrrefutablePattern(*location);
+                errors.push(err);
+                IrPattern::Wildcard
+            } else {
+                IrPattern::BoolLiteral(*v)
+            }
+        }
     };
     let ir_pattern_info = IrPatternInfo {
         pattern: ir_pattern,
@@ -579,6 +630,7 @@ pub fn process_expr(
                 &mut bindings,
                 errors,
                 lambda_helper.clone(),
+                true,
             );
             let ir_expr = IrExpr::Bind(ir_pattern_id, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
@@ -659,6 +711,7 @@ pub fn process_expr(
                     &mut bindings,
                     errors,
                     lambda_helper.clone(),
+                    false,
                 );
                 let ir_case_body_id = process_expr(
                     case.body,

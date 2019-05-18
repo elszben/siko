@@ -324,7 +324,12 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownFieldName(field_name, id) => {
-                            println!("{} unknown field name {}", error.red(), field_name.yellow(),);
+                            println!("{} unknown field name {}", error.red(), field_name.yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::NotIrrefutablePattern(id) => {
+                            println!("{} not irrefutable pattern", error.red(),);
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
