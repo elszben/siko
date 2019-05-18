@@ -32,6 +32,9 @@ op_equals a b = extern
 op_notequals :: Int -> Int -> Bool
 op_notequals a b = extern
 
+op_greaterthan :: Int -> Int -> Bool
+op_greaterthan a b = extern
+
 op_composition a b c :: (a -> b) -> (b -> c) -> a -> c
 op_composition f g x = g (f x)
 

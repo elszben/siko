@@ -79,10 +79,18 @@ impl<'a> Unifier<'a> {
         context.clone_var(type_info.function_type)
     }
 
-    fn check_literal(&mut self, expr_id: ExprId, ty: Type) {
+    fn check_literal_expr(&mut self, expr_id: ExprId, ty: Type) {
         let literal_var = self.expr_processor.type_store.add_type(ty);
         let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
         let location = self.program.get_expr_location(&expr_id);
+        self.expr_processor
+            .unify_variables(&var, &literal_var, location, location, self.errors);
+    }
+
+    fn check_literal_pattern(&mut self, pattern_id: PatternId, ty: Type) {
+        let literal_var = self.expr_processor.type_store.add_type(ty);
+        let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
+        let location = self.program.get_pattern_location(&pattern_id);
         self.expr_processor
             .unify_variables(&var, &literal_var, location, location, self.errors);
     }
@@ -97,10 +105,10 @@ impl<'a> Unifier<'a> {
 impl<'a> Visitor for Unifier<'a> {
     fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
         match expr {
-            Expr::IntegerLiteral(_) => self.check_literal(expr_id, Type::Int),
-            Expr::StringLiteral(_) => self.check_literal(expr_id, Type::String),
-            Expr::BoolLiteral(_) => self.check_literal(expr_id, Type::Bool),
-            Expr::FloatLiteral(_) => self.check_literal(expr_id, Type::Float),
+            Expr::IntegerLiteral(_) => self.check_literal_expr(expr_id, Type::Int),
+            Expr::StringLiteral(_) => self.check_literal_expr(expr_id, Type::String),
+            Expr::BoolLiteral(_) => self.check_literal_expr(expr_id, Type::Bool),
+            Expr::FloatLiteral(_) => self.check_literal_expr(expr_id, Type::Float),
             Expr::If(cond, true_branch, false_branch) => {
                 let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
@@ -440,11 +448,84 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                 }
             }
-            Expr::CaseOf(body, cases) => {}
+            Expr::CaseOf(body, cases) => {
+                let body_var = self.expr_processor.lookup_type_var_for_expr(&body);
+                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                for case in cases {
+                    let pattern_location = self.program.get_pattern_location(&case.pattern_id);
+                    let pattern_var = self
+                        .expr_processor
+                        .lookup_type_var_for_pattern(&case.pattern_id);
+                    self.expr_processor.unify_variables(
+                        &body_var,
+                        &pattern_var,
+                        pattern_location,
+                        pattern_location,
+                        self.errors,
+                    );
+                    let case_body_var = self.expr_processor.lookup_type_var_for_expr(&case.body);
+                    let case_body_location = self.program.get_expr_location(&case.body);
+                    self.expr_processor.unify_variables(
+                        &expr_var,
+                        &case_body_var,
+                        case_body_location,
+                        case_body_location,
+                        self.errors,
+                    );
+                }
+            }
         }
     }
 
-    fn visit_pattern(&mut self, pattern_id: PatternId, _: &Pattern) {}
+    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {
+        match pattern {
+            Pattern::Binding(_) => {}
+            Pattern::Tuple(items) => {
+                let vars: Vec<_> = items
+                    .iter()
+                    .map(|i| self.expr_processor.lookup_type_var_for_pattern(i))
+                    .collect();
+                let tuple_ty = Type::Tuple(vars);
+                let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
+                let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
+                let location = self.program.get_pattern_location(&pattern_id);
+                self.expr_processor.unify_variables(
+                    &tuple_var,
+                    &var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
+            Pattern::Record(typedef_id, items) => {}
+            Pattern::Variant(typedef_id, index, items) => {}
+            Pattern::Guarded(_, guard_expr_id) => {
+                let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
+                let guard_var = self.expr_processor.lookup_type_var_for_expr(guard_expr_id);
+                let location = self.program.get_expr_location(guard_expr_id);
+                self.expr_processor.unify_variables(
+                    &bool_var,
+                    &guard_var,
+                    location,
+                    location,
+                    self.errors,
+                );
+            }
+            Pattern::Wildcard => {}
+            Pattern::IntegerLiteral(_) => {
+                self.check_literal_pattern(pattern_id, Type::Int);
+            }
+            Pattern::FloatLiteral(_) => {
+                self.check_literal_pattern(pattern_id, Type::Float);
+            }
+            Pattern::StringLiteral(_) => {
+                self.check_literal_pattern(pattern_id, Type::String);
+            }
+            Pattern::BoolLiteral(_) => {
+                self.check_literal_pattern(pattern_id, Type::Bool);
+            }
+        }
+    }
 }
 
 pub struct ExprProcessor {
@@ -487,6 +568,13 @@ impl ExprProcessor {
             .expression_type_var_map
             .get(expr_id)
             .expect("Type var for expr not found")
+    }
+
+    pub fn lookup_type_var_for_pattern(&self, pattern_id: &PatternId) -> TypeVariable {
+        *self
+            .pattern_type_var_map
+            .get(pattern_id)
+            .expect("Type var for pattern not found")
     }
 
     pub fn process_dep_group(
