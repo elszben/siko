@@ -1,6 +1,8 @@
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::function::FunctionId;
+use crate::ir::pattern::Pattern;
+use crate::ir::pattern::PatternId;
 use crate::ir::program::Program;
 use crate::typechecker::common::DependencyGroup;
 use crate::typechecker::common::FunctionTypeInfo;
@@ -57,13 +59,17 @@ impl DependencyCollector {
 }
 
 impl Visitor for DependencyCollector {
-    fn visit(&mut self, _: ExprId, expr: &Expr) {
+    fn visit_expr(&mut self, _: ExprId, expr: &Expr) {
         match expr {
             Expr::StaticFunctionCall(id, _) => {
                 self.used_functions.insert(*id);
             }
             _ => {}
         }
+    }
+
+    fn visit_pattern(&mut self, _: PatternId, _: &Pattern) {
+        // do nothing
     }
 }
 

@@ -1,9 +1,12 @@
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
+use crate::ir::pattern::Pattern;
+use crate::ir::pattern::PatternId;
 use crate::ir::program::Program;
 
 pub trait Visitor {
-    fn visit(&mut self, expr_id: ExprId, expr: &Expr);
+    fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr);
+    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern);
 }
 
 pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
@@ -39,8 +42,9 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
                 walk_expr(item, program, visitor);
             }
         }
-        Expr::Bind(_, rhs) => {
+        Expr::Bind(bind_pattern, rhs) => {
             walk_expr(rhs, program, visitor);
+            walk_pattern(bind_pattern, program, visitor);
         }
         Expr::ArgRef(_) => {}
         Expr::ExprValue(_, _) => {}
@@ -59,8 +63,41 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
             walk_expr(body, program, visitor);
             for case in cases {
                 walk_expr(&case.body, program, visitor);
+                walk_pattern(&case.pattern_id, program, visitor);
             }
         }
     }
-    visitor.visit(*expr_id, expr);
+    visitor.visit_expr(*expr_id, expr);
+}
+
+fn walk_pattern(pattern_id: &PatternId, program: &Program, visitor: &mut Visitor) {
+    let pattern = program.get_pattern(pattern_id);
+    match pattern {
+        Pattern::Binding(_) => {}
+        Pattern::Tuple(items) => {
+            for item in items {
+                walk_pattern(item, program, visitor);
+            }
+        }
+        Pattern::Record(_, items) => {
+            for item in items {
+                walk_pattern(item, program, visitor);
+            }
+        }
+        Pattern::Variant(_, _, items) => {
+            for item in items {
+                walk_pattern(item, program, visitor);
+            }
+        }
+        Pattern::Guarded(id, expr_id) => {
+            walk_pattern(id, program, visitor);
+            walk_expr(expr_id, program, visitor);
+        }
+        Pattern::Wildcard => {}
+        Pattern::IntegerLiteral(_) => {}
+        Pattern::FloatLiteral(_) => {}
+        Pattern::StringLiteral(_) => {}
+        Pattern::BoolLiteral(_) => {}
+    }
+    visitor.visit_pattern(*pattern_id, pattern);
 }

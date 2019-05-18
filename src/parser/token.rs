@@ -144,6 +144,7 @@ impl TokenKind {
             TokenKind::LParen => format!("("),
             TokenKind::RParen => format!(")"),
             TokenKind::Equal => format!("="),
+            TokenKind::Op(BuiltinOperator::Bind) => format!("<-"),
             TokenKind::Op(BuiltinOperator::Arrow) => format!("->"),
             _ => {
                 let name = format!("{:?}", self);

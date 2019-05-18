@@ -2,6 +2,8 @@ use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::expr::FieldAccessInfo;
 use crate::ir::function::FunctionId;
+use crate::ir::pattern::Pattern;
+use crate::ir::pattern::PatternId;
 use crate::ir::program::Program;
 use crate::ir::types::TypeDefId;
 use crate::location_info::item::LocationId;
@@ -31,8 +33,12 @@ impl<'a> TypeVarCreator<'a> {
 }
 
 impl<'a> Visitor for TypeVarCreator<'a> {
-    fn visit(&mut self, expr_id: ExprId, _: &Expr) {
+    fn visit_expr(&mut self, expr_id: ExprId, _: &Expr) {
         self.expr_processor.create_type_var_for_expr(expr_id);
+    }
+
+    fn visit_pattern(&mut self, pattern_id: PatternId, _: &Pattern) {
+        self.expr_processor.create_type_var_for_pattern(pattern_id);
     }
 }
 
@@ -89,7 +95,7 @@ impl<'a> Unifier<'a> {
 }
 
 impl<'a> Visitor for Unifier<'a> {
-    fn visit(&mut self, expr_id: ExprId, expr: &Expr) {
+    fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
         match expr {
             Expr::IntegerLiteral(_) => self.check_literal(expr_id, Type::Int),
             Expr::StringLiteral(_) => self.check_literal(expr_id, Type::String),
@@ -437,11 +443,14 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::CaseOf(body, cases) => {}
         }
     }
+
+    fn visit_pattern(&mut self, pattern_id: PatternId, _: &Pattern) {}
 }
 
 pub struct ExprProcessor {
     type_store: TypeStore,
     expression_type_var_map: BTreeMap<ExprId, TypeVariable>,
+    pattern_type_var_map: BTreeMap<PatternId, TypeVariable>,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     record_info_map: BTreeMap<TypeDefId, RecordFieldAccessorInfo>,
 }
@@ -455,6 +464,7 @@ impl ExprProcessor {
         ExprProcessor {
             type_store: type_store,
             expression_type_var_map: BTreeMap::new(),
+            pattern_type_var_map: BTreeMap::new(),
             function_type_info_map: function_type_info_map,
             record_info_map: record_info_map,
         }
@@ -463,6 +473,12 @@ impl ExprProcessor {
     fn create_type_var_for_expr(&mut self, expr_id: ExprId) -> TypeVariable {
         let var = self.type_store.get_new_type_var();
         self.expression_type_var_map.insert(expr_id, var);
+        var
+    }
+
+    fn create_type_var_for_pattern(&mut self, pattern_id: PatternId) -> TypeVariable {
+        let var = self.type_store.get_new_type_var();
+        self.pattern_type_var_map.insert(pattern_id, var);
         var
     }
 
