@@ -260,6 +260,28 @@ impl<'a> Parser<'a> {
         Ok(items)
     }
 
+    pub fn parse_list0_in_curly_parens<T>(
+        &mut self,
+        parse_fn: fn(&mut Parser) -> Result<T, Error>,
+    ) -> Result<Vec<T>, Error> {
+        self.expect(TokenKind::LCurly)?;
+        let mut items = Vec::new();
+        loop {
+            if self.current(TokenKind::RCurly) {
+                break;
+            }
+            let item = parse_fn(self)?;
+            items.push(item);
+            if self.current(TokenKind::Comma) {
+                self.expect(TokenKind::Comma)?;
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RCurly)?;
+        Ok(items)
+    }
+
     fn parse_args(&mut self) -> Result<Vec<(String, LocationId)>, Error> {
         let mut items = Vec::new();
         while !self.is_done() {

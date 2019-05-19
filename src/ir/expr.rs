@@ -81,6 +81,8 @@ pub enum Expr {
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
     CaseOf(ExprId, Vec<Case>),
+    RecordInitialization(TypeDefId, Vec<ExprId>),
+    RecordUpdate(ExprId, PatternId, Vec<ExprId>),
 }
 
 impl fmt::Display for Expr {
@@ -112,6 +114,19 @@ impl fmt::Display for Expr {
             }
             Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
             Expr::CaseOf(body, cases) => write!(f, "CaseOf({}, {})", body, format_list(cases)),
+            Expr::RecordInitialization(type_id, items) => write!(
+                f,
+                "RecordInitialization({}, {})",
+                type_id,
+                format_list(items)
+            ),
+            Expr::RecordUpdate(expr_id, pattern_id, items) => write!(
+                f,
+                "RecordUpdate({}, {}, {})",
+                expr_id,
+                pattern_id,
+                format_list(items)
+            ),
         }
     }
 }

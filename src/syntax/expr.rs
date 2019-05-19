@@ -28,6 +28,18 @@ impl fmt::Display for Case {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordConstructionItem {
+    pub field_name: String,
+    pub body: ExprId,
+}
+
+impl fmt::Display for RecordConstructionItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} -> {}", self.field_name, self.body)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     Lambda(Vec<(String, LocationId)>, ExprId),
     FunctionCall(ExprId, Vec<ExprId>),
@@ -45,6 +57,8 @@ pub enum Expr {
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
     CaseOf(ExprId, Vec<Case>),
+    RecordInitialization(String, Vec<RecordConstructionItem>),
+    RecordUpdate(String, Vec<RecordConstructionItem>),
 }
 
 impl fmt::Display for Expr {
@@ -76,6 +90,12 @@ impl fmt::Display for Expr {
             }
             Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
             Expr::CaseOf(body, cases) => write!(f, "CaseOf({}, {})", body, format_list(cases)),
+            Expr::RecordInitialization(name, items) => {
+                write!(f, "RecordInitialization({}, {})", name, format_list(items))
+            }
+            Expr::RecordUpdate(name, items) => {
+                write!(f, "RecordUpdate({}, {})", name, format_list(items))
+            }
         }
     }
 }

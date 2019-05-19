@@ -2,20 +2,7 @@ module Main(main) where
 
 korte = True
 
-data Foo a = { name :: a}
+data Foo a = { name :: a, korte :: String}
 
-main = case Some "a" of
-        Foo "a" 5 -> 5
-
-/*
-main = do
-    a <- (("a", 5,6), 6)
-    ((a, _, _,), b) <- a
-    print "{}" % a
-
-main2 = case Some (Some 5, 5) of
-        None (5, 6) -> print "nooo"
-        Some (a, 6) | 6 > 0 -> ()
-        Some (a, 5) | 5 == 6 -> print "hihinoo{}" % a
-        Some (Some a, 5) | korte -> print "fuckyeah{}" % a
-*/
+main = Foo { name = "a",
+             korte = "a",}

@@ -443,6 +443,8 @@ impl<'a> Visitor for Unifier<'a> {
                     );
                 }
             }
+            Expr::RecordInitialization(type_id, items) => {}
+            Expr::RecordUpdate(expr_id, pattern_id, items) => {}
         }
     }
 

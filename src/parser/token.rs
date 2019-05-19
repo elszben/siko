@@ -143,6 +143,8 @@ impl TokenKind {
             TokenKind::Pipe => format!("|"),
             TokenKind::LParen => format!("("),
             TokenKind::RParen => format!(")"),
+            TokenKind::LCurly => format!("{{"),
+            TokenKind::RCurly => format!("}}"),
             TokenKind::Equal => format!("="),
             TokenKind::Op(BuiltinOperator::Bind) => format!("<-"),
             TokenKind::Op(BuiltinOperator::Arrow) => format!("->"),

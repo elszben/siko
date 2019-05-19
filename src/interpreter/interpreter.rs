@@ -290,6 +290,8 @@ impl<'a> Interpreter<'a> {
                 }
                 unreachable!()
             }
+            Expr::RecordInitialization(type_id, items) => unimplemented!(),
+            Expr::RecordUpdate(expr_id, pattern_id, items) => unimplemented!(),
         }
     }
 

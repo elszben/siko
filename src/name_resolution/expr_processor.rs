@@ -354,7 +354,7 @@ pub fn process_expr(
 ) -> IrExprId {
     let expr = program.get_expr(&id);
     let location_id = program.get_expr_location(&id);
-    //println!("Processing expr {} {}", id, expr);
+    println!("Processing expr {} {}", id, expr);
     match expr {
         Expr::Lambda(args, lambda_body) => {
             let ir_lambda_id = ir_program.get_function_id();
@@ -731,5 +731,7 @@ pub fn process_expr(
             let ir_expr = IrExpr::CaseOf(ir_body_id, ir_cases);
             return add_expr(ir_expr, id, ir_program, program);
         }
+        Expr::RecordInitialization(name, items) => unimplemented!(),
+        Expr::RecordUpdate(name, items) => unimplemented!(),
     }
 }

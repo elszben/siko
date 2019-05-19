@@ -10,6 +10,7 @@ use crate::parser::token::TokenKind;
 use crate::syntax::expr::Case;
 use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
+use crate::syntax::expr::RecordConstructionItem;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternId;
 
@@ -233,21 +234,56 @@ fn parse_if(parser: &mut Parser) -> Result<ExprId, Error> {
     Ok(id)
 }
 
+fn parse_record_construction_item(parser: &mut Parser) -> Result<RecordConstructionItem, Error> {
+    let field_name = parser.var_identifier("field name")?;
+    parser.expect(TokenKind::Equal)?;
+    let body = parser.parse_expr()?;
+    let item = RecordConstructionItem {
+        field_name: field_name,
+        body: body,
+    };
+    Ok(item)
+}
+
+fn record_construction(
+    parser: &mut Parser,
+    name: String,
+    start_index: usize,
+    initialization: bool,
+) -> Result<ExprId, Error> {
+    let items = parser.parse_list0_in_curly_parens(parse_record_construction_item)?;
+    let expr = if initialization {
+        Expr::RecordInitialization(name, items)
+    } else {
+        Expr::RecordUpdate(name, items)
+    };
+    let id = parser.add_expr(expr, start_index);
+    Ok(id)
+}
+
 fn parse_arg(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let token_info = parser.peek().expect("Ran out of tokens");
     let id = match token_info.token {
         Token::TypeIdentifier(..) => {
             let path = parser.parse_qualified_name()?;
-            let expr = Expr::Path(path);
-            let id = parser.add_expr(expr, start_index);
-            id
+            if parser.current(TokenKind::LCurly) {
+                return record_construction(parser, path, start_index, true);
+            } else {
+                let expr = Expr::Path(path);
+                let id = parser.add_expr(expr, start_index);
+                id
+            }
         }
         Token::VarIdentifier(..) => {
             let path = parser.var_identifier("identifier")?;
-            let expr = Expr::Path(path);
-            let id = parser.add_expr(expr, start_index);
-            id
+            if parser.current(TokenKind::LCurly) {
+                return record_construction(parser, path, start_index, false);
+            } else {
+                let expr = Expr::Path(path);
+                let id = parser.add_expr(expr, start_index);
+                id
+            }
         }
         Token::IntegerLiteral(n) => {
             parser.advance()?;
