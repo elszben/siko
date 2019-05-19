@@ -353,16 +353,12 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError::TypeMismatch(expected_id, found_id, expected, found) => {
+                        TypecheckError::TypeMismatch(id, expected, found) => {
                             println!("{} type mismatch in expression", error.red());
                             println!("Expected: {}", expected.yellow());
                             println!("Found:    {}", found.yellow());
-                            let location_set = location_info.get_item_location(expected_id);
+                            let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
-                            if expected_id != found_id {
-                                let location_set = location_info.get_item_location(found_id);
-                                print_location_set(file_manager, location_set);
-                            }
                         }
                         TypecheckError::FunctionArgumentMismatch(id, args, func) => {
                             println!("{} invalid argument(s)", error.red());
@@ -417,6 +413,28 @@ impl Error {
                                 error.red(),
                                 format_list(records).yellow()
                             );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::InvalidVariantPattern(id, name, expected, found) => {
+                            println!(
+                                "{} invalid {} variant pattern, argument count mismatch",
+                                error.red(),
+                                name.yellow()
+                            );
+                            println!("Expected:      {}", format!("{}", expected).yellow());
+                            println!("Found:         {}", format!("{}", found).yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::InvalidRecordPattern(id, name, expected, found) => {
+                            println!(
+                                "{} invalid {} record pattern, argument count mismatch",
+                                error.red(),
+                                name.yellow()
+                            );
+                            println!("Expected:      {}", format!("{}", expected).yellow());
+                            println!("Found:         {}", format!("{}", found).yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
