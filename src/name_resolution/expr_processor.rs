@@ -14,6 +14,7 @@ use crate::ir::pattern::PatternId as IrPatternId;
 use crate::ir::pattern::PatternInfo as IrPatternInfo;
 use crate::ir::program::Program as IrProgram;
 use crate::ir::types::TypeDef;
+use crate::ir::types::TypeDefId;
 use crate::location_info::item::LocationId;
 use crate::name_resolution::environment::Environment;
 use crate::name_resolution::error::ResolverError;
@@ -201,6 +202,47 @@ fn resolve_pattern_type_constructor(
     return IrPattern::Wildcard;
 }
 
+fn resolve_record_init_type(
+    name: &String,
+    ir_program: &mut IrProgram,
+    module: &Module,
+    errors: &mut Vec<ResolverError>,
+    location_id: LocationId,
+) -> Option<TypeDefId> {
+    if let Some(items) = module.imported_items.get(name) {
+        if items.len() > 1 {
+            let err = ResolverError::AmbiguousName(name.to_string(), location_id);
+            errors.push(err);
+            return None;
+        } else {
+            let item = &items[0];
+            match item.item {
+                Item::Function(_, _) => unreachable!(),
+                Item::Record(_, ir_typedef_id) => {
+                    let ir_typedef = ir_program
+                        .typedefs
+                        .get(&ir_typedef_id)
+                        .expect("Record not found");
+                    if let TypeDef::Record(..) = ir_typedef {
+                        return Some(ir_typedef_id);
+                    } else {
+                        unreachable!()
+                    }
+                }
+                Item::Variant(..) => {
+                    let err = ResolverError::NotRecordType(name.clone(), location_id);
+                    errors.push(err);
+                    return None;
+                }
+                _ => {}
+            }
+        }
+    };
+    let err = ResolverError::UnknownTypeName(name.to_string(), location_id);
+    errors.push(err);
+    return None;
+}
+
 fn process_pattern(
     case_expr_id: IrExprId,
     pattern_id: PatternId,
@@ -354,7 +396,7 @@ pub fn process_expr(
 ) -> IrExprId {
     let expr = program.get_expr(&id);
     let location_id = program.get_expr_location(&id);
-    println!("Processing expr {} {}", id, expr);
+    //println!("Processing expr {} {}", id, expr);
     match expr {
         Expr::Lambda(args, lambda_body) => {
             let ir_lambda_id = ir_program.get_function_id();
@@ -731,7 +773,32 @@ pub fn process_expr(
             let ir_expr = IrExpr::CaseOf(ir_body_id, ir_cases);
             return add_expr(ir_expr, id, ir_program, program);
         }
-        Expr::RecordInitialization(name, items) => unimplemented!(),
+        Expr::RecordInitialization(name, items) => {
+            if let Some(ir_type_id) =
+                resolve_record_init_type(name, ir_program, module, errors, location_id)
+            {
+                let ir_items: Vec<_> = items
+                    .iter()
+                    .map(|i| {
+                        let ir_body_id = process_expr(
+                            i.body,
+                            program,
+                            module,
+                            environment,
+                            ir_program,
+                            errors,
+                            lambda_helper.clone(),
+                        );
+                        ir_body_id
+                    })
+                    .collect();
+                let ir_expr = IrExpr::RecordInitialization(ir_type_id, ir_items);
+                return add_expr(ir_expr, id, ir_program, program);
+            } else {
+                let ir_expr = IrExpr::Tuple(vec![]);
+                return add_expr(ir_expr, id, ir_program, program);
+            }
+        }
         Expr::RecordUpdate(name, items) => unimplemented!(),
     }
 }

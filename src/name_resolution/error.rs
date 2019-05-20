@@ -24,4 +24,5 @@ pub enum ResolverError {
     UnusedHiddenItem(String, String, LocationId),
     UnknownFieldName(String, LocationId),
     NotIrrefutablePattern(LocationId),
+    NotRecordType(String, LocationId),
 }

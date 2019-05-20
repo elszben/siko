@@ -290,7 +290,13 @@ impl<'a> Interpreter<'a> {
                 }
                 unreachable!()
             }
-            Expr::RecordInitialization(type_id, items) => unimplemented!(),
+            Expr::RecordInitialization(type_id, items) => {
+                let values: Vec<_> = items
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment))
+                    .collect();
+                return Value::Record(*type_id, values);
+            }
             Expr::RecordUpdate(expr_id, pattern_id, items) => unimplemented!(),
         }
     }

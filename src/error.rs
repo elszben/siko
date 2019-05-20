@@ -333,6 +333,11 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::NotRecordType(name, id) => {
+                            println!("{} {} is not a record type", error.red(), name.yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

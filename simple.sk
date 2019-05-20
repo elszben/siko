@@ -4,5 +4,7 @@ korte = True
 
 data Foo a = { name :: a, korte :: String}
 
-main = Foo { name = "a",
-             korte = "a",}
+main = do
+    a <- Foo { name = "a",
+             korte = "ezakorte!",}
+    print "{}" % a.korte
