@@ -2,9 +2,9 @@ module Main(main) where
 
 korte = True
 
-data Foo a = { name :: a, korte :: String}
+data Foo a = { name :: a, korte :: String, szilva::Int}
 
 main = do
     a <- Foo { name = "a",
-             korte = "ezakorte!",}
+            name = "b"}
     print "{}" % a.korte

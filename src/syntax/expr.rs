@@ -31,6 +31,7 @@ impl fmt::Display for Case {
 pub struct RecordConstructionItem {
     pub field_name: String,
     pub body: ExprId,
+    pub location_id: LocationId,
 }
 
 impl fmt::Display for RecordConstructionItem {

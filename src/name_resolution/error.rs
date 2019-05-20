@@ -25,4 +25,7 @@ pub enum ResolverError {
     UnknownFieldName(String, LocationId),
     NotIrrefutablePattern(LocationId),
     NotRecordType(String, LocationId),
+    NoSuchField(String, String, LocationId),
+    MissingFields(Vec<String>, LocationId),
+    FieldsInitializedTwice(Vec<String>, LocationId),
 }

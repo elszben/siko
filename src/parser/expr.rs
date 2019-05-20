@@ -235,12 +235,16 @@ fn parse_if(parser: &mut Parser) -> Result<ExprId, Error> {
 }
 
 fn parse_record_construction_item(parser: &mut Parser) -> Result<RecordConstructionItem, Error> {
+    let start_index = parser.get_index();
     let field_name = parser.var_identifier("field name")?;
+    let end_index = parser.get_index();
     parser.expect(TokenKind::Equal)?;
+    let location_id = parser.get_location_id(start_index, end_index);
     let body = parser.parse_expr()?;
     let item = RecordConstructionItem {
         field_name: field_name,
         body: body,
+        location_id: location_id,
     };
     Ok(item)
 }

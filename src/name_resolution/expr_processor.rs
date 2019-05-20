@@ -777,9 +777,32 @@ pub fn process_expr(
             if let Some(ir_type_id) =
                 resolve_record_init_type(name, ir_program, module, errors, location_id)
             {
+                let record = ir_program.get_record(&ir_type_id).clone();
+                let mut unused_fields = BTreeSet::new();
+                let mut initialized_twice = BTreeSet::new();
+                for f in &record.fields {
+                    unused_fields.insert(f.name.clone());
+                }
                 let ir_items: Vec<_> = items
                     .iter()
                     .map(|i| {
+                        let mut found = false;
+                        for f in &record.fields {
+                            if f.name == i.field_name {
+                                found = true;
+                                if !unused_fields.remove(&f.name) {
+                                    initialized_twice.insert(f.name.clone());
+                                }
+                            }
+                        }
+                        if !found {
+                            let err = ResolverError::NoSuchField(
+                                record.name.clone(),
+                                i.field_name.clone(),
+                                i.location_id,
+                            );
+                            errors.push(err);
+                        }
                         let ir_body_id = process_expr(
                             i.body,
                             program,
@@ -792,6 +815,20 @@ pub fn process_expr(
                         ir_body_id
                     })
                     .collect();
+                if !unused_fields.is_empty() {
+                    let err = ResolverError::MissingFields(
+                        unused_fields.into_iter().collect(),
+                        location_id,
+                    );
+                    errors.push(err);
+                }
+                if !initialized_twice.is_empty() {
+                    let err = ResolverError::FieldsInitializedTwice(
+                        initialized_twice.into_iter().collect(),
+                        location_id,
+                    );
+                    errors.push(err);
+                }
                 let ir_expr = IrExpr::RecordInitialization(ir_type_id, ir_items);
                 return add_expr(ir_expr, id, ir_program, program);
             } else {

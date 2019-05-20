@@ -338,6 +338,34 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::NoSuchField(record, field_name, id) => {
+                            println!(
+                                "{} there is no field named {} in {}",
+                                error.red(),
+                                field_name.yellow(),
+                                record.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::MissingFields(missing_fields, id) => {
+                            println!(
+                                "{} missing initialization of the following field(s): {}",
+                                error.red(),
+                                format_list(missing_fields).yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::FieldsInitializedTwice(fields_initialized_twice, id) => {
+                            println!(
+                                "{} the following field(s) are initialized twice: {}",
+                                error.red(),
+                                format_list(fields_initialized_twice).yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
