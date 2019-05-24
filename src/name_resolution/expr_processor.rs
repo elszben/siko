@@ -5,6 +5,7 @@ use crate::ir::expr::Expr as IrExpr;
 use crate::ir::expr::ExprId as IrExprId;
 use crate::ir::expr::ExprInfo as IrExprInfo;
 use crate::ir::expr::FieldAccessInfo;
+use crate::ir::expr::RecordFieldValueExpr;
 use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
@@ -786,23 +787,26 @@ pub fn process_expr(
                 let ir_items: Vec<_> = items
                     .iter()
                     .map(|i| {
-                        let mut found = false;
-                        for f in &record.fields {
+                        let mut field_index = None;
+                        for (index,f) in record.fields.iter().enumerate() {
                             if f.name == i.field_name {
-                                found = true;
+                                field_index = Some(index);
                                 if !unused_fields.remove(&f.name) {
                                     initialized_twice.insert(f.name.clone());
                                 }
                             }
                         }
-                        if !found {
-                            let err = ResolverError::NoSuchField(
+                        let field_index = match field_index {
+                            None => { let err = ResolverError::NoSuchField(
                                 record.name.clone(),
                                 i.field_name.clone(),
                                 i.location_id,
                             );
                             errors.push(err);
-                        }
+                            0
+                            }
+                            Some(i) => i
+                        };
                         let ir_body_id = process_expr(
                             i.body,
                             program,
@@ -812,7 +816,11 @@ pub fn process_expr(
                             errors,
                             lambda_helper.clone(),
                         );
-                        ir_body_id
+                        let value_expr = RecordFieldValueExpr {
+                            expr_id : ir_body_id,
+                            index: field_index
+                        };
+                        value_expr
                     })
                     .collect();
                 if !unused_fields.is_empty() {
@@ -823,7 +831,7 @@ pub fn process_expr(
                     errors.push(err);
                 }
                 if !initialized_twice.is_empty() {
-                    let err = ResolverError::FieldsInitializedTwice(
+                    let err = ResolverError::FieldsInitializedMultipleTimes(
                         initialized_twice.into_iter().collect(),
                         location_id,
                     );

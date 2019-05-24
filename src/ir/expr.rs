@@ -64,6 +64,18 @@ impl fmt::Display for Case {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordFieldValueExpr {
+    pub expr_id: ExprId,
+    pub index: usize,
+}
+
+impl fmt::Display for RecordFieldValueExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} -> {}", self.expr_id, self.index)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     StaticFunctionCall(FunctionId, Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
@@ -81,7 +93,7 @@ pub enum Expr {
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
     CaseOf(ExprId, Vec<Case>),
-    RecordInitialization(TypeDefId, Vec<ExprId>),
+    RecordInitialization(TypeDefId, Vec<RecordFieldValueExpr>),
     RecordUpdate(ExprId, PatternId, Vec<ExprId>),
 }
 

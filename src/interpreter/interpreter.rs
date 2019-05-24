@@ -291,10 +291,14 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::RecordInitialization(type_id, items) => {
-                let values: Vec<_> = items
-                    .iter()
-                    .map(|e| self.eval_expr(program, *e, environment))
-                    .collect();
+                let mut values: Vec<_> = Vec::with_capacity(items.len());
+                for _ in 0..items.len() {
+                    values.push(Value::Bool(false));
+                }
+                for item in items {
+                    let value = self.eval_expr(program, item.expr_id, environment);
+                    values[item.index] = value;
+                }
                 return Value::Record(*type_id, values);
             }
             Expr::RecordUpdate(expr_id, pattern_id, items) => unimplemented!(),

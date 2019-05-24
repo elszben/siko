@@ -5,6 +5,6 @@ korte = True
 data Foo a = { name :: a, korte :: String, szilva::Int}
 
 main = do
-    a <- Foo { name = "a",
-            name = "b"}
+    a <- Foo { name = "name"
+            , szilva = "szilva", korte = "korte"}
     print "{}" % a.korte

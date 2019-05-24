@@ -27,5 +27,5 @@ pub enum ResolverError {
     NotRecordType(String, LocationId),
     NoSuchField(String, String, LocationId),
     MissingFields(Vec<String>, LocationId),
-    FieldsInitializedTwice(Vec<String>, LocationId),
+    FieldsInitializedMultipleTimes(Vec<String>, LocationId),
 }

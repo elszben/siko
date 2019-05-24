@@ -357,9 +357,12 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::FieldsInitializedTwice(fields_initialized_twice, id) => {
+                        ResolverError::FieldsInitializedMultipleTimes(
+                            fields_initialized_twice,
+                            id,
+                        ) => {
                             println!(
-                                "{} the following field(s) are initialized twice: {}",
+                                "{} the following field(s) are initialized multiple times: {}",
                                 error.red(),
                                 format_list(fields_initialized_twice).yellow(),
                             );
