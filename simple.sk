@@ -2,7 +2,9 @@ module Main(main) where
 
 korte = True
 
-data Foo a = { name :: a, korte :: String, szilva::Int}
+data Boo a = extern
+
+data Foo a = { name :: a, korte :: Boo a, szilva :: Boo a}
 
 main = do
     a <- Foo { name = "name"

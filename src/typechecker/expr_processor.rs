@@ -443,7 +443,40 @@ impl<'a> Visitor for Unifier<'a> {
                     );
                 }
             }
-            Expr::RecordInitialization(type_id, items) => {}
+            Expr::RecordInitialization(type_id, items) => {
+                let record_type_info = self
+                    .expr_processor
+                    .record_type_info_map
+                    .get(type_id)
+                    .expect("field access info not found");
+                let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
+                let mut field_vars: Vec<_> = record_type_info.field_types.clone();
+                for index in 0..field_vars.len() {
+                    let var = clone_context.clone_var(field_vars[index]);
+                    field_vars[index] = var;
+                }
+                let record_type_var = clone_context.clone_var(record_type_info.record_type);
+                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.program.get_expr_location(&expr_id);
+                self.expr_processor.unify_variables(
+                    &expr_var,
+                    &record_type_var,
+                    location,
+                    self.errors,
+                );
+                for (index, item) in items.iter().enumerate() {
+                    let field_type_var = field_vars[index];
+                    let field_expr_var =
+                        self.expr_processor.lookup_type_var_for_expr(&item.expr_id);
+                    let field_expr_location = self.program.get_expr_location(&item.expr_id);
+                    self.expr_processor.unify_variables(
+                        &field_type_var,
+                        &field_expr_var,
+                        field_expr_location,
+                        self.errors,
+                    );
+                }
+            }
             Expr::RecordUpdate(expr_id, pattern_id, items) => {}
         }
     }
