@@ -2,11 +2,11 @@ module Main(main) where
 
 korte = True
 
-data Boo a = extern
-
-data Foo a = { name :: a, korte :: Boo a, szilva :: Boo a}
+data Foo a = { name :: a, korte :: Int, szilva :: Int}
+data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 
 main = do
     a <- Foo { name = "name"
-            , szilva = "szilva", korte = "korte"}
+            , szilva = 5, korte = 3}
+    a <- a { korte = 4}
     print "{}" % a.korte

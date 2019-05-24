@@ -369,6 +369,15 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::NoRecordFoundWithFields(fields, id) => {
+                            println!(
+                                "{} no record found that has all the following field(s): {}",
+                                error.red(),
+                                format_list(fields).yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

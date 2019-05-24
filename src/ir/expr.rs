@@ -76,6 +76,18 @@ impl fmt::Display for RecordFieldValueExpr {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordUpdateInfo {
+    pub record_id: TypeDefId,
+    pub items: Vec<RecordFieldValueExpr>
+}
+
+impl fmt::Display for RecordUpdateInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} -> {}", self.record_id, format_list(&self.items))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     StaticFunctionCall(FunctionId, Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
@@ -94,7 +106,7 @@ pub enum Expr {
     Formatter(String, Vec<ExprId>),
     CaseOf(ExprId, Vec<Case>),
     RecordInitialization(TypeDefId, Vec<RecordFieldValueExpr>),
-    RecordUpdate(ExprId, PatternId, Vec<ExprId>),
+    RecordUpdate(ExprId, Vec<RecordUpdateInfo>),
 }
 
 impl fmt::Display for Expr {
@@ -132,11 +144,10 @@ impl fmt::Display for Expr {
                 type_id,
                 format_list(items)
             ),
-            Expr::RecordUpdate(expr_id, pattern_id, items) => write!(
+            Expr::RecordUpdate(expr_id,  items) => write!(
                 f,
-                "RecordUpdate({}, {}, {})",
+                "RecordUpdate({}, {})",
                 expr_id,
-                pattern_id,
                 format_list(items)
             ),
         }

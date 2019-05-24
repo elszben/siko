@@ -66,14 +66,17 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
                 walk_pattern(&case.pattern_id, program, visitor);
             }
         }
-        Expr::RecordInitialization(type_id, items) => {
+        Expr::RecordInitialization(_, items) => {
             for item in items {
                 walk_expr(&item.expr_id, program, visitor);
             }
         }
-        Expr::RecordUpdate(expr_id, pattern_id, items) => {
-            for item in items {
-                walk_expr(item, program, visitor);
+        Expr::RecordUpdate(record_expr_id, updates) => {
+            walk_expr(record_expr_id, program, visitor);
+            for update in updates {
+                for item in &update.items {
+                    walk_expr(&item.expr_id, program, visitor);
+                }
             }
         }
     }

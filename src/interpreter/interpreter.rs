@@ -293,7 +293,7 @@ impl<'a> Interpreter<'a> {
             Expr::RecordInitialization(type_id, items) => {
                 let mut values: Vec<_> = Vec::with_capacity(items.len());
                 for _ in 0..items.len() {
-                    values.push(Value::Bool(false));
+                    values.push(Value::Bool(false)); // dummy value
                 }
                 for item in items {
                     let value = self.eval_expr(program, item.expr_id, environment);
@@ -301,7 +301,21 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::Record(*type_id, values);
             }
-            Expr::RecordUpdate(expr_id, pattern_id, items) => unimplemented!(),
+            Expr::RecordUpdate(record_expr_id, updates) => {
+                let value = self.eval_expr(program, *record_expr_id, environment);
+                if let Value::Record(id, mut values) = value {
+                    for update in updates {
+                        if id == update.record_id {
+                            for item in &update.items {
+                                let value = self.eval_expr(program, item.expr_id, environment);
+                                values[item.index] = value;
+                            }
+                            return Value::Record(id, values);
+                        }
+                    }
+                }
+                unreachable!()
+            }
         }
     }
 

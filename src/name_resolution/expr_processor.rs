@@ -6,6 +6,7 @@ use crate::ir::expr::ExprId as IrExprId;
 use crate::ir::expr::ExprInfo as IrExprInfo;
 use crate::ir::expr::FieldAccessInfo;
 use crate::ir::expr::RecordFieldValueExpr;
+use crate::ir::expr::RecordUpdateInfo;
 use crate::ir::function::Function as IrFunction;
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::function::FunctionInfo;
@@ -112,18 +113,14 @@ fn add_expr(
 }
 
 fn process_field_access(
-    id: ExprId,
-    program: &Program,
     module: &Module,
-    ir_program: &mut IrProgram,
     errors: &mut Vec<ResolverError>,
     name: String,
-    ir_expr_id: IrExprId,
     location_id: LocationId,
-) -> IrExprId {
+) -> Vec<FieldAccessInfo> {
+    let mut accesses = Vec::new();
     match module.imported_members.get(&name) {
         Some(members) => {
-            let mut accesses = Vec::new();
             for member in members {
                 match &member.member {
                     DataMember::Variant(..) => {}
@@ -136,16 +133,13 @@ fn process_field_access(
                     }
                 }
             }
-            let ir_expr = IrExpr::FieldAccess(accesses, ir_expr_id);
-            return add_expr(ir_expr, id, ir_program, program);
         }
         None => {
             let err = ResolverError::UnknownFieldName(name.clone(), location_id);
             errors.push(err);
-            let ir_expr = IrExpr::Tuple(vec![]);
-            return add_expr(ir_expr, id, ir_program, program);
         }
     }
+    accesses
 }
 
 fn resolve_pattern_type_constructor(
@@ -688,16 +682,9 @@ pub fn process_expr(
                 errors,
                 lambda_helper,
             );
-            return process_field_access(
-                id,
-                program,
-                module,
-                ir_program,
-                errors,
-                name.to_string(),
-                ir_expr_id,
-                location_id,
-            );
+            let accesses = process_field_access(module, errors, name.to_string(), location_id);
+            let ir_expr = IrExpr::FieldAccess(accesses, ir_expr_id);
+            return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::TupleFieldAccess(index, expr_id) => {
             let ir_expr_id = process_expr(
@@ -788,7 +775,7 @@ pub fn process_expr(
                     .iter()
                     .map(|i| {
                         let mut field_index = None;
-                        for (index,f) in record.fields.iter().enumerate() {
+                        for (index, f) in record.fields.iter().enumerate() {
                             if f.name == i.field_name {
                                 field_index = Some(index);
                                 if !unused_fields.remove(&f.name) {
@@ -797,15 +784,16 @@ pub fn process_expr(
                             }
                         }
                         let field_index = match field_index {
-                            None => { let err = ResolverError::NoSuchField(
-                                record.name.clone(),
-                                i.field_name.clone(),
-                                i.location_id,
-                            );
-                            errors.push(err);
-                            0
+                            None => {
+                                let err = ResolverError::NoSuchField(
+                                    record.name.clone(),
+                                    i.field_name.clone(),
+                                    i.location_id,
+                                );
+                                errors.push(err);
+                                0
                             }
-                            Some(i) => i
+                            Some(i) => i,
                         };
                         let ir_body_id = process_expr(
                             i.body,
@@ -817,8 +805,8 @@ pub fn process_expr(
                             lambda_helper.clone(),
                         );
                         let value_expr = RecordFieldValueExpr {
-                            expr_id : ir_body_id,
-                            index: field_index
+                            expr_id: ir_body_id,
+                            index: field_index,
                         };
                         value_expr
                     })
@@ -844,6 +832,89 @@ pub fn process_expr(
                 return add_expr(ir_expr, id, ir_program, program);
             }
         }
-        Expr::RecordUpdate(name, items) => unimplemented!(),
+        Expr::RecordUpdate(name, items) => {
+            let record_expr_id = match resolve_item_path(
+                name,
+                module,
+                environment,
+                lambda_helper.clone(),
+                program,
+                ir_program,
+                id,
+                errors,
+                location_id,
+            ) {
+                PathResolveResult::FunctionRef(n) => {
+                    let ir_expr = IrExpr::StaticFunctionCall(n, vec![]);
+                    add_expr(ir_expr, id, ir_program, program)
+                }
+                PathResolveResult::VariableRef(ir_expr_id) => ir_expr_id,
+            };
+            let mut potential_type_ids = BTreeSet::new();
+            let mut access_list = Vec::new();
+            let mut names = BTreeSet::new();
+            let mut initialized_twice = BTreeSet::new();
+            let mut field_exprs = Vec::new();
+            for (index, item) in items.iter().enumerate() {
+                if !names.insert(item.field_name.clone()) {
+                    initialized_twice.insert(item.field_name.clone());
+                }
+                let accesses =
+                    process_field_access(module, errors, item.field_name.clone(), item.location_id);
+                if index == 0 {
+                    for access in &accesses {
+                        potential_type_ids.insert(access.record_id);
+                    }
+                } else {
+                    let current: BTreeSet<_> =
+                        accesses.iter().map(|access| access.record_id).collect();
+                    potential_type_ids =
+                        potential_type_ids.intersection(&current).cloned().collect();
+                }
+                access_list.push(accesses);
+                let ir_body_id = process_expr(
+                    item.body,
+                    program,
+                    module,
+                    environment,
+                    ir_program,
+                    errors,
+                    lambda_helper.clone(),
+                );
+                field_exprs.push(ir_body_id);
+            }
+            if potential_type_ids.is_empty() {
+                let names: Vec<_> = names.into_iter().collect();
+                let err = ResolverError::NoRecordFoundWithFields(names, location_id);
+                errors.push(err);
+            }
+            if !initialized_twice.is_empty() {
+                let err = ResolverError::FieldsInitializedMultipleTimes(
+                    initialized_twice.into_iter().collect(),
+                    location_id,
+                );
+                errors.push(err);
+            }
+            let mut updates: Vec<RecordUpdateInfo> = Vec::new();
+            for potential_type_id in potential_type_ids {
+                let mut update_items: Vec<RecordFieldValueExpr> = Vec::new();
+                for (index, accesses) in access_list.iter().enumerate() {
+                    for access in accesses {
+                        if access.record_id == potential_type_id {
+                            update_items.push(RecordFieldValueExpr {
+                                expr_id: field_exprs[index],
+                                index: access.index,
+                            });
+                        }
+                    }
+                }
+                updates.push(RecordUpdateInfo {
+                    record_id: potential_type_id,
+                    items: update_items,
+                });
+            }
+            let ir_expr = IrExpr::RecordUpdate(record_expr_id, updates);
+            return add_expr(ir_expr, id, ir_program, program);
+        }
     }
 }
