@@ -48,8 +48,15 @@ fn parse_do(parser: &mut Parser) -> Result<ExprId, Error> {
         let bind_start_index = parser.get_index();
         let mut pattern_id = None;
         if parser.irrefutable_pattern_follows() {
-            pattern_id = Some(parse_pattern(parser)?);
+            let mut inner_pattern_id = parse_pattern(parser)?;
+            if parser.current(TokenKind::KeywordDoubleColon) {
+                parser.expect(TokenKind::KeywordDoubleColon)?;
+                let type_signature_id = parser.parse_function_type(false, true)?;
+                let pattern = Pattern::Typed(inner_pattern_id, type_signature_id);
+                inner_pattern_id = parser.add_pattern(pattern, bind_start_index);
+            }
             parser.expect(TokenKind::Op(BuiltinOperator::Bind))?;
+            pattern_id = Some(inner_pattern_id);
         }
         let expr = parser.parse_expr()?;
         parser.expect(TokenKind::EndOfItem)?;

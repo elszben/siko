@@ -6,7 +6,7 @@ data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 
 main = do
-    a <- Foo { name = "name"
+    a  <- Foo { name = "name"
             , szilva = 5, korte = 3}
-    a <- a { korte = 4}
+    a <- a { name = 5}
     print "{}" % a.korte

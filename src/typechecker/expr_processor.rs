@@ -101,6 +101,21 @@ impl<'a> Unifier<'a> {
         let ty = self.expr_processor.type_store.get_resolved_type_string(var);
         println!("{}: {}", msg, ty);
     }
+
+    fn get_record_type_info(&mut self, record_id: &TypeDefId) -> RecordTypeInfo {
+        let mut record_type_info = self
+            .expr_processor
+            .record_type_info_map
+            .get(record_id)
+            .expect("record tyoe info not found")
+            .clone();
+        let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
+        record_type_info.record_type = clone_context.clone_var(record_type_info.record_type);
+        for field_type_var in &mut record_type_info.field_types {
+            *field_type_var = clone_context.clone_var(*field_type_var);
+        }
+        record_type_info
+    }
 }
 
 impl<'a> Visitor for Unifier<'a> {
@@ -359,28 +374,21 @@ impl<'a> Visitor for Unifier<'a> {
                 let location = self.program.get_expr_location(&expr_id);
                 let mut matches: Vec<(RecordTypeInfo, FieldAccessInfo)> = Vec::new();
                 for info in infos {
-                    let record_type_info = self
-                        .expr_processor
-                        .record_type_info_map
-                        .get(&info.record_id)
-                        .expect("field access info not found");
+                    let test_record_type_info = self.get_record_type_info(&info.record_id);
+                    let record_type_info = self.get_record_type_info(&info.record_id);
                     let record = self.program.get_record(&info.record_id);
                     all_records.push(record.name.clone());
                     let test_record_expr_var = self
                         .expr_processor
                         .type_store
                         .clone_type_var_simple(record_expr_var);
-                    let test_record_var = self
-                        .expr_processor
-                        .type_store
-                        .clone_type_var_simple(record_type_info.record_type);
                     if self
                         .expr_processor
                         .type_store
-                        .unify(&test_record_expr_var, &test_record_var)
+                        .unify(&test_record_expr_var, &test_record_type_info.record_type)
                     {
                         possible_records.push(record.name.clone());
-                        matches.push((record_type_info.clone(), info.clone()));
+                        matches.push((record_type_info, info.clone()));
                     }
                 }
                 match matches.len() {
@@ -395,14 +403,10 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                     1 => {
                         let (record_type_info, field_info) = &matches[0];
-                        let mut clone_context =
-                            self.expr_processor.type_store.create_clone_context(false);
-                        let record_type_var = clone_context.clone_var(record_type_info.record_type);
                         let field_type_var = record_type_info.field_types[field_info.index];
-                        let field_type_var = clone_context.clone_var(field_type_var);
                         self.expr_processor.unify_variables(
                             &record_expr_var,
-                            &record_type_var,
+                            &record_type_info.record_type,
                             location,
                             self.errors,
                         );
@@ -444,28 +448,17 @@ impl<'a> Visitor for Unifier<'a> {
                 }
             }
             Expr::RecordInitialization(type_id, items) => {
-                let record_type_info = self
-                    .expr_processor
-                    .record_type_info_map
-                    .get(type_id)
-                    .expect("field access info not found");
-                let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
-                let mut field_vars: Vec<_> = record_type_info.field_types.clone();
-                for index in 0..field_vars.len() {
-                    let var = clone_context.clone_var(field_vars[index]);
-                    field_vars[index] = var;
-                }
-                let record_type_var = clone_context.clone_var(record_type_info.record_type);
+                let record_type_info = self.get_record_type_info(type_id);
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
                 self.expr_processor.unify_variables(
                     &expr_var,
-                    &record_type_var,
+                    &record_type_info.record_type,
                     location,
                     self.errors,
                 );
                 for (index, item) in items.iter().enumerate() {
-                    let field_type_var = field_vars[index];
+                    let field_type_var = record_type_info.field_types[index];
                     let field_expr_var =
                         self.expr_processor.lookup_type_var_for_expr(&item.expr_id);
                     let field_expr_location = self.program.get_expr_location(&item.expr_id);
@@ -477,7 +470,62 @@ impl<'a> Visitor for Unifier<'a> {
                     );
                 }
             }
-            Expr::RecordUpdate(expr_id,  items) => {}
+            Expr::RecordUpdate(record_expr_id, record_updates) => {
+                let location_id = self.program.get_expr_location(&expr_id);
+                let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr_id);
+                let record_expr_type = self.expr_processor.type_store.get_type(&record_expr_var);
+                let real_record_type = if let Type::Named(_, id, _) = record_expr_type {
+                    Some(id)
+                } else {
+                    None
+                };
+                let mut expected_records = Vec::new();
+                let mut matching_update = None;
+                for record_update in record_updates {
+                    let record = self.program.get_record(&record_update.record_id);
+                    expected_records.push(record.name.clone());
+                    if let Some(id) = real_record_type {
+                        if record_update.record_id == id {
+                            matching_update = Some(record_update);
+                        }
+                    }
+                }
+                match matching_update {
+                    Some(update) => {
+                        let record_type_info = self.get_record_type_info(&update.record_id);
+                        self.expr_processor.unify_variables(
+                                &record_type_info.record_type,
+                                &record_expr_var,
+                                location_id,
+                                self.errors,
+                            );
+                        for field_update in &update.items {
+                            let field_var = record_type_info.field_types[field_update.index];
+                            let field_expr_var = self
+                                .expr_processor
+                                .lookup_type_var_for_expr(&field_update.expr_id);
+                            let field_expr_location =
+                                self.program.get_expr_location(&field_update.expr_id);
+                            self.expr_processor.unify_variables(
+                                &field_var,
+                                &field_expr_var,
+                                field_expr_location,
+                                self.errors,
+                            );
+                        }
+                    }
+                    None => {
+                        let expected_type = format!("{}", expected_records.join(" or "));
+                        let found_type = self
+                            .expr_processor
+                            .type_store
+                            .get_resolved_type_string(&record_expr_var);
+                        let err =
+                            TypecheckError::TypeMismatch(location_id, expected_type, found_type);
+                        self.errors.push(err);
+                    }
+                }
+            }
         }
     }
 
@@ -497,35 +545,28 @@ impl<'a> Visitor for Unifier<'a> {
                     .unify_variables(&tuple_var, &var, location, self.errors);
             }
             Pattern::Record(typedef_id, items) => {
-                let record_type_info = self
-                    .expr_processor
-                    .record_type_info_map
-                    .get(typedef_id)
-                    .expect("Record type info not found");
-                let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
-                let record_var = clone_context.clone_var(record_type_info.record_type);
-                let field_vars: Vec<_> = record_type_info
-                    .field_types
-                    .iter()
-                    .map(|v| clone_context.clone_var(*v))
-                    .collect();
+                let record_type_info = self.get_record_type_info(typedef_id);
                 let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
                 let location = self.program.get_pattern_location(&pattern_id);
-                self.expr_processor
-                    .unify_variables(&record_var, &var, location, self.errors);
-                if field_vars.len() != items.len() {
+                self.expr_processor.unify_variables(
+                    &record_type_info.record_type,
+                    &var,
+                    location,
+                    self.errors,
+                );
+                if record_type_info.field_types.len() != items.len() {
                     let record = self.program.get_record(typedef_id);
                     let err = TypecheckError::InvalidRecordPattern(
                         location,
                         record.name.clone(),
-                        field_vars.len(),
+                        record_type_info.field_types.len(),
                         items.len(),
                     );
                     self.errors.push(err);
                 } else {
                     for (index, item) in items.iter().enumerate() {
                         let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
-                        let field_var = field_vars[index];
+                        let field_var = record_type_info.field_types[index];
                         let location = self.program.get_pattern_location(item);
                         self.expr_processor.unify_variables(
                             &field_var,

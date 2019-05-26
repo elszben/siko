@@ -10,4 +10,5 @@ pub enum TypeSignature {
     Variant(String, Vec<TypeSignatureId>),
     Tuple(Vec<TypeSignatureId>),
     Function(TypeSignatureId, TypeSignatureId),
+    Wildcard,
 }

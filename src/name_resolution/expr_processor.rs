@@ -371,6 +371,21 @@ fn process_pattern(
                 IrPattern::BoolLiteral(*v)
             }
         }
+        Pattern::Typed(pattern_id, _) => {
+            let ir_pattern_id = process_pattern(
+                case_expr_id,
+                *pattern_id,
+                program,
+                ir_program,
+                module,
+                environment,
+                bindings,
+                errors,
+                lambda_helper.clone(),
+                irrefutable,
+            );
+            return ir_pattern_id;
+        }
     };
     let ir_pattern_info = IrPatternInfo {
         pattern: ir_pattern,

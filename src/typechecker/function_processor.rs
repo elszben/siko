@@ -90,6 +90,11 @@ impl FunctionProcessor {
                 return self.type_store.add_type(ty);
             }
             TypeSignature::Variant(..) => unreachable!(),
+            TypeSignature::Wildcard => {
+                let arg = self.type_store.get_unique_type_arg();
+                    let ty = Type::TypeArgument(arg);
+                    self.type_store.add_type(ty)
+            }
         }
     }
 

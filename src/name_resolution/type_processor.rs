@@ -13,6 +13,7 @@ use crate::syntax::types::TypeSignatureId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+
 fn process_type_signature(
     type_signature_id: &TypeSignatureId,
     program: &Program,
@@ -206,6 +207,7 @@ fn process_type_signature(
             };
             IrTypeSignature::Function(ir_from, ir_to)
         }
+        AstTypeSignature::Wildcard => IrTypeSignature::Wildcard,
     };
     let id = ir_program.get_type_signature_id();
     let type_info = TypeInfo::new(ir_type_signature, location_id);

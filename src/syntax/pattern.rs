@@ -1,4 +1,5 @@
 use crate::syntax::expr::ExprId;
+use crate::syntax::types::TypeSignatureId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -23,4 +24,5 @@ pub enum Pattern {
     FloatLiteral(f64),
     StringLiteral(String),
     BoolLiteral(bool),
+    Typed(PatternId, TypeSignatureId),
 }

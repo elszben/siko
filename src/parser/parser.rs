@@ -347,9 +347,13 @@ impl<'a> Parser<'a> {
         id
     }
 
-    fn parse_tuple_type(&mut self) -> Result<TypeSignatureId, Error> {
+    fn parse_tuple_type(&mut self, allow_wildcard: bool) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
-        let res = parse_parens(self, |p| p.parse_function_type(false), "<type>")?;
+        let res = if allow_wildcard {
+            parse_parens(self, |p| p.parse_function_type(false, true), "<type>")?
+        } else {
+            parse_parens(self, |p| p.parse_function_type(false, false), "<type>")?
+        };
         match res {
             ParenParseResult::Single(t) => {
                 return Ok(t);
@@ -362,30 +366,39 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_function_type(&mut self, parsing_variant: bool) -> Result<TypeSignatureId, Error> {
+    pub fn parse_function_type(
+        &mut self,
+        parsing_variant: bool,
+        allow_wildcard: bool,
+    ) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
-        let mut from = self.parse_type_part(parsing_variant)?;
+        let mut from = self.parse_type_part(parsing_variant, allow_wildcard)?;
         if let Some(next) = self.peek() {
             match next.token {
                 Token::Op(BuiltinOperator::Arrow) => {
                     self.advance()?;
-                    let to = self.parse_function_type(parsing_variant)?;
+                    let to = self.parse_function_type(parsing_variant, allow_wildcard)?;
                     let ty = TypeSignature::Function(from, to);
                     let ty = self.add_type_signature(ty, start_index);
                     from = ty;
                 }
+
                 _ => {}
             }
         }
         Ok(from)
     }
 
-    fn parse_type_part(&mut self, parsing_variant: bool) -> Result<TypeSignatureId, Error> {
+    fn parse_type_part(
+        &mut self,
+        parsing_variant: bool,
+        allow_wildcard: bool,
+    ) -> Result<TypeSignatureId, Error> {
         let start_index = self.get_index();
         match self.peek() {
             Some(token_info) => match token_info.token {
                 Token::LParen => {
-                    return self.parse_tuple_type();
+                    return self.parse_tuple_type(allow_wildcard);
                 }
                 Token::Op(BuiltinOperator::Not) => {
                     self.advance()?;
@@ -416,7 +429,7 @@ impl<'a> Parser<'a> {
                                 args.push(arg);
                             }
                             TokenKind::LParen => {
-                                let arg = self.parse_tuple_type()?;
+                                let arg = self.parse_tuple_type(allow_wildcard)?;
                                 args.push(arg);
                             }
                             _ => {
@@ -439,6 +452,19 @@ impl<'a> Parser<'a> {
                     let id = self.add_type_signature(ty, start_index);
                     return Ok(id);
                 }
+                Token::Wildcard => {
+                    if allow_wildcard {
+                        self.expect(TokenKind::Wildcard)?;
+                        let ty = TypeSignature::Wildcard;
+                        let ty = self.add_type_signature(ty, start_index);
+                        return Ok(ty);
+                    } else {
+                        let reason = ParserErrorReason::Custom {
+                            msg: format!("wildcard is not allowed in this context"),
+                        };
+                        return report_parser_error(self, reason);
+                    }
+                }
                 _ => {
                     return report_unexpected_token(self, format!("type signature"));
                 }
@@ -458,7 +484,7 @@ impl<'a> Parser<'a> {
         if let Some(next) = self.peek() {
             if next.token.kind() == TokenKind::KeywordDoubleColon {
                 self.advance()?;
-                let type_signature_id = self.parse_function_type(false)?;
+                let type_signature_id = self.parse_function_type(false, false)?;
                 let full_type_signature_id = self.program.get_type_signature_id();
                 let end_index = self.get_index();
                 let location_id = self.get_location_id(start_index, end_index);
@@ -591,7 +617,7 @@ impl<'a> Parser<'a> {
         let start_index = self.get_index();
         let name = self.var_identifier("record field name")?;
         self.expect(TokenKind::KeywordDoubleColon)?;
-        let type_signature_id = self.parse_function_type(false)?;
+        let type_signature_id = self.parse_function_type(false, false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
         let item = RecordField {
@@ -647,7 +673,7 @@ impl<'a> Parser<'a> {
         let variant_start_index = self.get_index();
         let name = self.type_identifier("variant")?;
         self.restore(variant_start_index);
-        let type_signature_id = self.parse_function_type(true)?;
+        let type_signature_id = self.parse_function_type(true, false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(variant_start_index, end_index);
         let id = self.program.get_variant_id();
