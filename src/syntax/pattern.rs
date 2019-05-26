@@ -1,5 +1,6 @@
 use crate::syntax::expr::ExprId;
 use crate::syntax::types::TypeSignatureId;
+use crate::location_info::item::LocationId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -14,6 +15,13 @@ impl fmt::Display for PatternId {
 }
 
 #[derive(Debug, Clone)]
+pub struct RecordFieldPattern {
+    pub name: String,
+    pub value: PatternId,
+    pub location_id: LocationId,
+}
+
+#[derive(Debug, Clone)]
 pub enum Pattern {
     Binding(String),
     Tuple(Vec<PatternId>),
@@ -25,4 +33,5 @@ pub enum Pattern {
     StringLiteral(String),
     BoolLiteral(bool),
     Typed(PatternId, TypeSignatureId),
+    Record(String, Vec<RecordFieldPattern>)
 }

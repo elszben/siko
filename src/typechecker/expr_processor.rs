@@ -494,11 +494,11 @@ impl<'a> Visitor for Unifier<'a> {
                     Some(update) => {
                         let record_type_info = self.get_record_type_info(&update.record_id);
                         self.expr_processor.unify_variables(
-                                &record_type_info.record_type,
-                                &record_expr_var,
-                                location_id,
-                                self.errors,
-                            );
+                            &record_type_info.record_type,
+                            &record_expr_var,
+                            location_id,
+                            self.errors,
+                        );
                         for field_update in &update.items {
                             let field_var = record_type_info.field_types[field_update.index];
                             let field_expr_var = self
@@ -513,6 +513,14 @@ impl<'a> Visitor for Unifier<'a> {
                                 self.errors,
                             );
                         }
+                        let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                        let location = self.program.get_expr_location(&expr_id);
+                        self.expr_processor.unify_variables(
+                            &expr_var,
+                            &record_type_info.record_type,
+                            location,
+                            self.errors,
+                        );
                     }
                     None => {
                         let expected_type = format!("{}", expected_records.join(" or "));

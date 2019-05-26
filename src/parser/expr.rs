@@ -12,8 +12,9 @@ use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::expr::RecordConstructionItem;
 use crate::syntax::pattern::Pattern;
-use crate::syntax::pattern::PatternId;
 
+use crate::syntax::pattern::PatternId;
+use crate::syntax::pattern::RecordFieldPattern;
 fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, Error> {
     let start_index = parser.get_index();
     let res = parse_parens(parser, |p| p.parse_expr(), " expression")?;
@@ -92,6 +93,25 @@ fn parse_tuple_pattern(parser: &mut Parser) -> Result<PatternId, Error> {
     }
 }
 
+fn parse_record_field_pattern(parser: &mut Parser) -> Result<RecordFieldPattern, Error> {
+    let start_index = parser.get_index();
+    let field_name = parser.var_identifier("field name")?;
+    let end_index = parser.get_index();
+    parser.expect(TokenKind::Equal)?;
+    let location_id = parser.get_location_id(start_index, end_index);
+    let value = parse_sub_pattern(parser, true)?;
+    if let Some(value) = value {
+        let item = RecordFieldPattern {
+            name: field_name,
+            value: value,
+            location_id: location_id,
+        };
+        Ok(item)
+    } else {
+        unimplemented!()
+    }
+}
+
 fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternId>, Error> {
     let id = match parser.current_kind() {
         TokenKind::LParen => {
@@ -158,19 +178,26 @@ fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternI
             } else {
                 let start_index = parser.get_index();
                 let name = parser.parse_qualified_type_name()?;
-                let mut args = Vec::new();
-                loop {
-                    let arg = match parse_sub_pattern(parser, true)? {
-                        Some(arg) => arg,
-                        None => {
-                            break;
-                        }
-                    };
-                    args.push(arg);
+                if parser.current(TokenKind::LCurly) {
+                    let items = parser.parse_list0_in_curly_parens(parse_record_field_pattern)?;
+                    let pattern = Pattern::Record(name, items);
+                    let id = parser.add_pattern(pattern, start_index);
+                    id
+                } else {
+                    let mut args = Vec::new();
+                    loop {
+                        let arg = match parse_sub_pattern(parser, true)? {
+                            Some(arg) => arg,
+                            None => {
+                                break;
+                            }
+                        };
+                        args.push(arg);
+                    }
+                    let pattern = Pattern::Constructor(name, args);
+                    let id = parser.add_pattern(pattern, start_index);
+                    id
                 }
-                let pattern = Pattern::Constructor(name, args);
-                let id = parser.add_pattern(pattern, start_index);
-                id
             }
         }
         TokenKind::Wildcard => {

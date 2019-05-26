@@ -8,5 +8,7 @@ data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 main = do
     a  <- Foo { name = "name"
             , szilva = 5, korte = 3}
-    a <- a { name = 5}
+    a <- a { name = "a"}
+    case a of
+        Foo {name= _, korte= _, szilva= b } -> 5
     print "{}" % a.korte

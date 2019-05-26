@@ -386,6 +386,9 @@ fn process_pattern(
             );
             return ir_pattern_id;
         }
+        Pattern::Record(_, _) => {
+            unimplemented!()
+        }
     };
     let ir_pattern_info = IrPatternInfo {
         pattern: ir_pattern,

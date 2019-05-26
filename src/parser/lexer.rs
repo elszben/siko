@@ -178,6 +178,7 @@ impl Lexer {
             "::" => Token::KeywordDoubleColon,
             "." => Token::Dot,
             ".." => Token::DoubleDot,
+            ":" => Token::Colon,
             _ => {
                 return Err(Error::lexer_err(
                     format!("Unsupported operator {}", operator),
