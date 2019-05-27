@@ -396,7 +396,7 @@ fn process_pattern(
                 for f in &record.fields {
                     unused_fields.insert(f.name.clone());
                 }
-                let ir_items: Vec<_> = items
+                let mut ir_items: Vec<_> = items
                     .iter()
                     .map(|i| {
                         let mut field_index = None;
@@ -432,7 +432,7 @@ fn process_pattern(
                             lambda_helper.clone(),
                             irrefutable,
                         );
-                        ir_pattern_id
+                        (field_index, ir_pattern_id)
                     })
                     .collect();
                 if !unused_fields.is_empty() {
@@ -449,6 +449,8 @@ fn process_pattern(
                     );
                     errors.push(err);
                 }
+                ir_items.sort_by(|a, b| a.0.cmp(&b.0));
+                let ir_items:Vec<_> = ir_items.into_iter().map(|i|i.1).collect();
                 IrPattern::Record(ir_type_id, ir_items)
             } else {
                 IrPattern::Wildcard
