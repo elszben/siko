@@ -10,5 +10,5 @@ main = do
             , szilva = 5, korte = 3}
     a <- a { name = "a"}
     case a of
-        Foo {name= _, korte= _, szilva= b } -> 5
-    print "{}" % a.korte
+        Foo {name= a, korte= _, szilva= b } -> print "{}" % a
+    

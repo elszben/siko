@@ -197,7 +197,7 @@ fn resolve_pattern_type_constructor(
     return IrPattern::Wildcard;
 }
 
-fn resolve_record_init_type(
+fn resolve_record_type(
     name: &String,
     ir_program: &mut IrProgram,
     module: &Module,
@@ -386,8 +386,73 @@ fn process_pattern(
             );
             return ir_pattern_id;
         }
-        Pattern::Record(_, _) => {
-            unimplemented!()
+        Pattern::Record(name, items) => {
+            if let Some(ir_type_id) =
+                resolve_record_type(name, ir_program, module, errors, *location)
+            {
+                let record = ir_program.get_record(&ir_type_id).clone();
+                let mut unused_fields = BTreeSet::new();
+                let mut initialized_twice = BTreeSet::new();
+                for f in &record.fields {
+                    unused_fields.insert(f.name.clone());
+                }
+                let ir_items: Vec<_> = items
+                    .iter()
+                    .map(|i| {
+                        let mut field_index = None;
+                        for (index, f) in record.fields.iter().enumerate() {
+                            if f.name == i.name {
+                                field_index = Some(index);
+                                if !unused_fields.remove(&f.name) {
+                                    initialized_twice.insert(f.name.clone());
+                                }
+                            }
+                        }
+                        let field_index = match field_index {
+                            None => {
+                                let err = ResolverError::NoSuchField(
+                                    record.name.clone(),
+                                    i.name.clone(),
+                                    i.location_id,
+                                );
+                                errors.push(err);
+                                0
+                            }
+                            Some(i) => i,
+                        };
+                        let ir_pattern_id = process_pattern(
+                            case_expr_id,
+                            i.value,
+                            program,
+                            ir_program,
+                            module,
+                            environment,
+                            bindings,
+                            errors,
+                            lambda_helper.clone(),
+                            irrefutable,
+                        );
+                        ir_pattern_id
+                    })
+                    .collect();
+                if !unused_fields.is_empty() {
+                    let err = ResolverError::MissingFields(
+                        unused_fields.into_iter().collect(),
+                        *location,
+                    );
+                    errors.push(err);
+                }
+                if !initialized_twice.is_empty() {
+                    let err = ResolverError::FieldsInitializedMultipleTimes(
+                        initialized_twice.into_iter().collect(),
+                        *location,
+                    );
+                    errors.push(err);
+                }
+                IrPattern::Record(ir_type_id, ir_items)
+            } else {
+                IrPattern::Wildcard
+            }
         }
     };
     let ir_pattern_info = IrPatternInfo {
@@ -781,7 +846,7 @@ pub fn process_expr(
         }
         Expr::RecordInitialization(name, items) => {
             if let Some(ir_type_id) =
-                resolve_record_init_type(name, ir_program, module, errors, location_id)
+                resolve_record_type(name, ir_program, module, errors, location_id)
             {
                 let record = ir_program.get_record(&ir_type_id).clone();
                 let mut unused_fields = BTreeSet::new();
