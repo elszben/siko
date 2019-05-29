@@ -1,10 +1,18 @@
 module Main(main) where
 
 korte = True
+/*
+class Eq a where
+    eq a :: a -> a -> Bool
 
+    ne a :: a -> a -> Bool
+    ne a a = not (eq a a)
+*/
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 
+main :: ()
+main :: ()
 main = do
     a  <- Foo { name = "name"
             , szilva = 5, korte = 3}

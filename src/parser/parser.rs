@@ -15,6 +15,8 @@ use crate::location_info::location_set::LocationSet;
 use crate::parser::token::Token;
 use crate::parser::token::TokenInfo;
 use crate::parser::token::TokenKind;
+use crate::syntax::class::Class;
+use crate::syntax::class::ClassMember;
 use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
 use crate::syntax::data::Record;
@@ -44,6 +46,11 @@ use crate::syntax::pattern::PatternId;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
+
+enum FunctionOrFunctionType {
+    Function(Function),
+    FunctionType(FunctionType),
+}
 
 pub struct Parser<'a> {
     file_path: FilePath,
@@ -475,7 +482,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_fn(&mut self, id: FunctionId) -> Result<Function, Error> {
+    pub fn parse_fn(&mut self, id: FunctionId) -> Result<Function, Error> {
         let mut start_index = self.get_index();
         let name = self.var_identifier("function name")?;
         let mut name = name;
@@ -525,6 +532,55 @@ impl<'a> Parser<'a> {
             location_id: location_id,
         };
         Ok(function)
+    }
+
+    fn parse_function_or_function_type(&mut self) -> Result<FunctionOrFunctionType, Error> {
+        let start_index = self.get_index();
+        let name = self.var_identifier("function name")?;
+        let name = name;
+        let args = self.parse_args()?;
+        if self.current(TokenKind::KeywordDoubleColon) {
+            self.advance()?;
+            let type_signature_id = self.parse_function_type(false, false)?;
+            let full_type_signature_id = self.program.get_type_signature_id();
+            let end_index = self.get_index();
+            let location_id = self.get_location_id(start_index, end_index);
+            let function_type = FunctionType {
+                name: name,
+                type_args: args,
+                full_type_signature_id: full_type_signature_id,
+                type_signature_id: type_signature_id,
+                location_id: location_id,
+            };
+            self.expect(TokenKind::EndOfItem)?;
+            Ok(FunctionOrFunctionType::FunctionType(function_type))
+        } else {
+            let end_index = self.get_index();
+            let location_id = self.get_location_id(start_index, end_index);
+            self.expect(TokenKind::Equal)?;
+            let body = if let Some(token) = self.peek() {
+                if token.token.kind() == TokenKind::KeywordExtern {
+                    self.expect(TokenKind::KeywordExtern)?;
+                    FunctionBody::Extern
+                } else {
+                    let body = self.parse_expr()?;
+                    FunctionBody::Expr(body)
+                }
+            } else {
+                unreachable!()
+            };
+            self.expect(TokenKind::EndOfItem)?;
+            let id = self.program.get_function_id();
+            let function = Function {
+                id: id,
+                name: name,
+                args: args,
+                body: body,
+                func_type: None,
+                location_id: location_id,
+            };
+            Ok(FunctionOrFunctionType::Function(function))
+        }
     }
 
     fn parse_export_import_data_member(parser: &mut Parser) -> Result<EIMemberInfo, Error> {
@@ -812,6 +868,19 @@ impl<'a> Parser<'a> {
         Ok(name)
     }
 
+    fn parse_class(&mut self) -> Result<(), Error> {
+        self.expect(TokenKind::KeywordClass)?;
+        let start_index = self.get_index();
+        let name = self.type_identifier("class name")?;
+        let argument = self.var_identifier("class argument")?;
+        self.expect(TokenKind::KeywordWhere)?;
+        loop {
+            let function_id = self.program.get_function_id();
+            let function = self.parse_fn(function_id)?;
+        }
+        Ok(())
+    }
+
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
@@ -843,14 +912,39 @@ impl<'a> Parser<'a> {
                             }
                         }
                     }
+                    TokenKind::KeywordClass => {
+                        self.parse_class()?;
+                    }
                     TokenKind::EndOfBlock => {
                         break;
                     }
                     _ => {
-                        let function_id = self.program.get_function_id();
-                        let function = self.parse_fn(function_id)?;
-                        module.functions.push(function_id);
-                        self.program.functions.insert(function_id, function);
+                        let function_or_type = self.parse_function_or_function_type()?;
+                        match function_or_type {
+                            FunctionOrFunctionType::Function(function) => {
+                                let function_id = function.id;
+                                module.functions.push(function_id);
+                                self.program.functions.insert(function_id, function);
+                            }
+                            FunctionOrFunctionType::FunctionType(function_type) => {
+                                let saved_index = self.get_index();
+                                let function = self.parse_function_or_function_type()?;
+                                if let FunctionOrFunctionType::Function(mut function) = function {
+                                    let function_id = function.id;
+                                    function.func_type = Some(function_type);
+                                    module.functions.push(function_id);
+                                    self.program.functions.insert(function_id, function);
+                                } else {
+                                    self.restore(saved_index);
+                                    let reason = ParserErrorReason::Custom {
+                                        msg: format!(
+                                            "Expected function definition, not function type"
+                                        ),
+                                    };
+                                    return report_parser_error(self, reason);
+                                }
+                            }
+                        }
                     }
                 }
             } else {
