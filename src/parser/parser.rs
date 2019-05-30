@@ -868,17 +868,56 @@ impl<'a> Parser<'a> {
         Ok(name)
     }
 
-    fn parse_class(&mut self) -> Result<(), Error> {
+    fn parse_class(&mut self, module: &mut Module) -> Result<Class, Error> {
         self.expect(TokenKind::KeywordClass)?;
         let start_index = self.get_index();
         let name = self.type_identifier("class name")?;
+        let end_index = self.get_index();
+        let class_location_id = self.get_location_id(start_index, end_index);
         let argument = self.var_identifier("class argument")?;
-        self.expect(TokenKind::KeywordWhere)?;
-        loop {
-            let function_id = self.program.get_function_id();
-            let function = self.parse_fn(function_id)?;
+        let mut members = Vec::new();
+        if self.current_kind() == TokenKind::KeywordWhere {
+            self.expect(TokenKind::KeywordWhere)?;
+            let mut prev_member_type: Option<FunctionType> = None;
+            while self.current_kind() != TokenKind::EndOfBlock {
+                let saved_index = self.get_index();
+                let function_or_type = self.parse_function_or_function_type()?;
+                match function_or_type {
+                    FunctionOrFunctionType::Function(mut function) => {
+                        let function_type = prev_member_type.take();
+                        if let Some(function_type) = function_type {
+                            let function_id = function.id;
+                            function.func_type = Some(function_type.clone());
+                            module.functions.push(function_id);
+                            self.program.functions.insert(function_id, function);
+                            let member = ClassMember {
+                                type_signature: function_type,
+                                function: Some(function_id),
+                            };
+                            members.push(member);
+                        } else {
+                            self.restore(saved_index);
+                            let reason = ParserErrorReason::Custom {
+                                msg: format!("Expected function type signature"),
+                            };
+                            return report_parser_error(self, reason);
+                        }
+                    }
+                    FunctionOrFunctionType::FunctionType(function_type) => {
+                        prev_member_type = Some(function_type);
+                    }
+                }
+            }
+            self.expect(TokenKind::EndOfBlock)?;
         }
-        Ok(())
+        self.expect(TokenKind::EndOfItem)?;
+        let class = Class {
+            name: name,
+            argument: argument,
+            members: members,
+            location_id: class_location_id,
+        };
+        Ok(class)
     }
 
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
@@ -913,7 +952,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     TokenKind::KeywordClass => {
-                        self.parse_class()?;
+                        let class = self.parse_class(&mut module)?;
                     }
                     TokenKind::EndOfBlock => {
                         break;
