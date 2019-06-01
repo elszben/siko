@@ -16,10 +16,11 @@ use crate::parser::token::Token;
 use crate::parser::token::TokenInfo;
 use crate::parser::token::TokenKind;
 use crate::syntax::class::Class;
-use crate::syntax::class::Instance;
-use crate::syntax::class::InstanceMember;
+
 use crate::syntax::class::ClassMember;
 use crate::syntax::class::Constraint;
+use crate::syntax::class::Instance;
+use crate::syntax::class::InstanceMember;
 use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
 use crate::syntax::data::Record;
@@ -36,7 +37,6 @@ use crate::syntax::expr::Expr;
 use crate::syntax::expr::ExprId;
 use crate::syntax::function::Function;
 use crate::syntax::function::FunctionBody;
-use crate::syntax::function::FunctionId;
 use crate::syntax::function::FunctionType;
 use crate::syntax::import::HiddenItem;
 use crate::syntax::import::Import;
@@ -534,6 +534,7 @@ impl<'a> Parser<'a> {
             let function_type = FunctionType {
                 name: name,
                 type_args: args,
+                constraints: constraints,
                 full_type_signature_id: full_type_signature_id,
                 type_signature_id: type_signature_id,
                 location_id: location_id,
@@ -937,23 +938,21 @@ impl<'a> Parser<'a> {
                 let saved_index = self.get_index();
                 let function_or_type = self.parse_function_or_function_type()?;
                 match function_or_type {
-                    FunctionOrFunctionType::Function(mut function) => {
-                            let function_id = function.id;
-                            module.functions.push(function_id);
-                            self.program.functions.insert(function_id, function);
-                            let member = InstanceMember {
-                                function: function_id,
-                            };
-                            members.push(member);
+                    FunctionOrFunctionType::Function(function) => {
+                        let function_id = function.id;
+                        module.functions.push(function_id);
+                        self.program.functions.insert(function_id, function);
+                        let member = InstanceMember {
+                            function: function_id,
+                        };
+                        members.push(member);
                     }
-                    FunctionOrFunctionType::FunctionType(function_type) => {
+                    FunctionOrFunctionType::FunctionType(_) => {
                         self.restore(saved_index);
-                                    let reason = ParserErrorReason::Custom {
-                                        msg: format!(
-                                            "Expected function definition, not function type"
-                                        ),
-                                    };
-                                    return report_parser_error(self, reason);
+                        let reason = ParserErrorReason::Custom {
+                            msg: format!("Expected function definition, not function type"),
+                        };
+                        return report_parser_error(self, reason);
                     }
                 }
             }

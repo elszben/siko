@@ -1,5 +1,6 @@
 use crate::location_info::item::LocationId;
 use crate::syntax::expr::ExprId;
+use crate::syntax::class::Constraint;
 use crate::syntax::types::TypeSignatureId;
 
 #[derive(Debug, Clone)]
@@ -12,6 +13,7 @@ pub enum FunctionBody {
 pub struct FunctionType {
     pub name: String,
     pub type_args: Vec<(String, LocationId)>,
+    pub constraints: Vec<Constraint>,
     pub full_type_signature_id: TypeSignatureId,
     pub type_signature_id: TypeSignatureId,
     pub location_id: LocationId,
