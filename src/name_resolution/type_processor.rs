@@ -142,6 +142,7 @@ fn process_type_signature(
                                     errors.push(err);
                                     return None;
                                 }
+                                Item::Class(_) => unimplemented!()
                             }
                         }
                         None => {

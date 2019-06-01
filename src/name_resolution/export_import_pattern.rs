@@ -122,6 +122,9 @@ fn match_item(name: &str, group: bool, item: &Item, program: &Program) -> bool {
             // cannot match on a single variant
             false
         }
+        Item::Class(_) => {
+            false
+        }
     }
 }
 

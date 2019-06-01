@@ -130,6 +130,7 @@ impl Resolver {
                     constructor: ir_ctor_id,
                     location_id: record.location_id,
                 };
+
                 let typedef = TypeDef::Record(ir_record);
                 ir_program.add_typedef(ir_typedef_id, typedef);
                 let items = module
@@ -197,6 +198,14 @@ impl Resolver {
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Function(function.id, ir_function_id));
             }
+            for class_id in &ast_module.classes {
+                let class = program.classes.get(class_id).expect("Class not found");
+                let items = module
+                    .items
+                    .entry(class.name.clone())
+                    .or_insert_with(|| Vec::new());
+                items.push(Item::Class(class.id));
+            }
         }
 
         for (_, module) in &self.modules {
@@ -221,6 +230,10 @@ impl Resolver {
                             Item::Variant(_, id, _, _) => {
                                 let variant = program.variants.get(id).expect("Variant not found");
                                 locations.push(variant.location_id);
+                            }
+                            Item::Class(id) => {
+                                let class = program.classes.get(id).expect("Class not found");
+                                locations.push(class.location_id);
                             }
                         }
                     }

@@ -906,6 +906,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(TokenKind::EndOfItem)?;
         let id = self.program.get_class_id();
+        module.classes.push(id);
         let class = Class {
             id: id,
             name: name,

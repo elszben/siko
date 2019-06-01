@@ -2,24 +2,16 @@ module Main(main) where
 
 korte = True
 
-class Eq a where
-    eq a :: a -> a -> Bool
-
-    ne a :: a -> a -> Bool
-    ne a b = not (eq a b)
-
 instance Eq Bool where
-    eq a b = extern
+    eb a b = extern
 
 instance (Eq a) => Eq List a where
-    eq a b = extern
+    ec a b = extern
 
 class (Alma a) => Eq2 a where
     eq a :: a -> a -> Bool
 
     ne a :: a -> a -> Bool
-
-class Foo b
 
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}

@@ -1,10 +1,11 @@
 use crate::ir::function::FunctionId as IrFunctionId;
 use crate::ir::types::TypeDefId;
-use crate::syntax::data::AdtId;
+use crate::syntax::class::ClassId;
 use crate::syntax::data::RecordFieldId;
 use crate::syntax::data::RecordId;
 use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
+use crate::syntax::data::AdtId;
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -12,6 +13,7 @@ pub enum Item {
     Record(RecordId, TypeDefId),
     Adt(AdtId, TypeDefId),
     Variant(AdtId, VariantId, TypeDefId, usize),
+    Class(ClassId),
 }
 
 #[derive(Debug, Clone)]
