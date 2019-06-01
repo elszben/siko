@@ -378,6 +378,15 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::NotAClassName(name, id) => {
+                            println!(
+                                "{} {} is not an imported type class",
+                                error.red(),
+                                name.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

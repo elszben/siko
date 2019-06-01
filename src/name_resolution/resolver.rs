@@ -26,6 +26,7 @@ use crate::name_resolution::item::Variant;
 use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::name_resolution::type_processor::process_type_signatures;
+use crate::syntax::class::ClassId as AstClassId;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
@@ -34,6 +35,7 @@ use crate::syntax::module::Module as AstModule;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -505,6 +507,41 @@ impl Resolver {
         }
     }
 
+    fn process_class(
+        &self,
+        program: &Program,
+        ir_program: &mut IrProgram,
+        class_id: &AstClassId,
+        module: &Module,
+        errors: &mut Vec<ResolverError>,
+    ) {
+        let class = program.classes.get(class_id).expect("Class not found");
+        for constraint in &class.constraints {
+            match module.imported_items.get(&constraint.class_name) {
+                Some(items) => {
+                    let item = &items[0];
+                    match item.item {
+                        Item::Class(constraint_class_id) => {}
+                        _ => {
+                            let err = ResolverError::NotAClassName(
+                                constraint.class_name.clone(),
+                                constraint.location_id,
+                            );
+                            errors.push(err);
+                        }
+                    }
+                }
+                None => {
+                    let err = ResolverError::NotAClassName(
+                        constraint.class_name.clone(),
+                        constraint.location_id,
+                    );
+                    errors.push(err);
+                }
+            }
+        }
+    }
+
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
         let mut errors = Vec::new();
 
@@ -553,6 +590,13 @@ impl Resolver {
                             &mut ir_program,
                             ast_record_id,
                             *ir_record_id,
+                            module,
+                            &mut errors,
+                        ),
+                        Item::Class(ast_class_id) => self.process_class(
+                            program,
+                            &mut ir_program,
+                            ast_class_id,
                             module,
                             &mut errors,
                         ),

@@ -8,8 +8,6 @@ module Main(main) where
 
 import BooM (korte, Boo)
 
-import BooM hiding (Boo)
-
 korte = True
 
 instance Eq Bool where
@@ -18,7 +16,7 @@ instance Eq Bool where
 instance (Eq a) => Eq List a where
     ec a b = extern
 
-class (Alma a) => Eq2 a where
+class (BooM.Boo a) => Eq2 a where
     eq a :: a -> a -> Bool
 
     ne a :: a -> a -> Bool
