@@ -122,8 +122,9 @@ fn match_item(name: &str, group: bool, item: &Item, program: &Program) -> bool {
             // cannot match on a single variant
             false
         }
-        Item::Class(_) => {
-            false
+        Item::Class(id) => {
+            let class = program.classes.get(&id).expect("Class not found");
+            class.name == name && !group
         }
     }
 }

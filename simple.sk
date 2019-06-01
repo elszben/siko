@@ -1,4 +1,14 @@
+module BooM(Boo, korte) where
+
+class Boo a
+
+korte = 5
+
 module Main(main) where
+
+import BooM (korte, Boo)
+
+import BooM hiding (Boo)
 
 korte = True
 
