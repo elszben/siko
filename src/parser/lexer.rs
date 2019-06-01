@@ -137,6 +137,7 @@ impl Lexer {
             "case" => Token::KeywordCase,
             "of" => Token::KeywordOf,
             "class" => Token::KeywordClass,
+            "instance" => Token::KeywordInstance,
             "_" => Token::Wildcard,
             _ => match identifier.parse::<i64>() {
                 Ok(v) => Token::IntegerLiteral(v),
@@ -180,6 +181,7 @@ impl Lexer {
             "." => Token::Dot,
             ".." => Token::DoubleDot,
             ":" => Token::Colon,
+            "=>" => Token::KeywordConstraint,
             _ => {
                 return Err(Error::lexer_err(
                     format!("Unsupported operator {}", operator),

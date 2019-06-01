@@ -6,10 +6,15 @@ class Eq a where
     eq a :: a -> a -> Bool
 
     ne a :: a -> a -> Bool
-    ne a a = not (eq a a)
+    ne a b = not (eq a b)
 
+instance Eq Bool where
+    eq a b = extern
 
-class Eq2 a where
+instance (Eq a) => Eq List a where
+    eq a b = extern
+
+class (Alma a) => Eq2 a where
     eq a :: a -> a -> Bool
 
     ne a :: a -> a -> Bool
@@ -18,6 +23,9 @@ class Foo b
 
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
+
+korteb  a :: (Eq a , Foo a) => a -> a
+korteb a = a
 
 main = do
     a  <- Foo { name = "name"

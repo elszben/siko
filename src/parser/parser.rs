@@ -16,7 +16,10 @@ use crate::parser::token::Token;
 use crate::parser::token::TokenInfo;
 use crate::parser::token::TokenKind;
 use crate::syntax::class::Class;
+use crate::syntax::class::Instance;
+use crate::syntax::class::InstanceMember;
 use crate::syntax::class::ClassMember;
+use crate::syntax::class::Constraint;
 use crate::syntax::data::Adt;
 use crate::syntax::data::Data;
 use crate::syntax::data::Record;
@@ -50,6 +53,20 @@ use crate::syntax::types::TypeSignatureId;
 enum FunctionOrFunctionType {
     Function(Function),
     FunctionType(FunctionType),
+}
+
+fn parse_class_constraint(parser: &mut Parser) -> Result<Constraint, Error> {
+    let start_index = parser.get_index();
+    let name = parser.parse_qualified_type_name()?;
+    let arg = parser.var_identifier("type arg")?;
+    let end_index = parser.get_index();
+    let location_id = parser.get_location_id(start_index, end_index);
+    let constraint = Constraint {
+        class_name: name,
+        arg: arg,
+        location_id: location_id,
+    };
+    Ok(constraint)
 }
 
 pub struct Parser<'a> {
@@ -140,6 +157,20 @@ impl<'a> Parser<'a> {
                 return false;
             }
             if self.tokens[index].token.kind() == TokenKind::Op(BuiltinOperator::Bind) {
+                return true;
+            }
+            index += 1;
+        }
+        false
+    }
+
+    fn constraint_follows(&self) -> bool {
+        let mut index = self.index;
+        while index < self.tokens.len() {
+            if self.tokens[index].token.kind() == TokenKind::EndOfItem {
+                return false;
+            }
+            if self.tokens[index].token.kind() == TokenKind::KeywordConstraint {
                 return true;
             }
             index += 1;
@@ -482,58 +513,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_fn(&mut self, id: FunctionId) -> Result<Function, Error> {
-        let mut start_index = self.get_index();
-        let name = self.var_identifier("function name")?;
-        let mut name = name;
-        let mut args = self.parse_args()?;
-        let mut function_type = None;
-        if let Some(next) = self.peek() {
-            if next.token.kind() == TokenKind::KeywordDoubleColon {
-                self.advance()?;
-                let type_signature_id = self.parse_function_type(false, false)?;
-                let full_type_signature_id = self.program.get_type_signature_id();
-                let end_index = self.get_index();
-                let location_id = self.get_location_id(start_index, end_index);
-                function_type = Some(FunctionType {
-                    name: name,
-                    type_args: args,
-                    full_type_signature_id: full_type_signature_id,
-                    type_signature_id: type_signature_id,
-                    location_id: location_id,
-                });
-                self.expect(TokenKind::EndOfItem)?;
-                start_index = self.get_index();
-                name = self.var_identifier("function name")?;
-                args = self.parse_args()?;
-            }
-        }
-        let end_index = self.get_index();
-        let location_id = self.get_location_id(start_index, end_index);
-        self.expect(TokenKind::Equal)?;
-        let body = if let Some(token) = self.peek() {
-            if token.token.kind() == TokenKind::KeywordExtern {
-                self.expect(TokenKind::KeywordExtern)?;
-                FunctionBody::Extern
-            } else {
-                let body = self.parse_expr()?;
-                FunctionBody::Expr(body)
-            }
-        } else {
-            unreachable!()
-        };
-        self.expect(TokenKind::EndOfItem)?;
-        let function = Function {
-            id: id,
-            name: name,
-            args: args,
-            body: body,
-            func_type: function_type,
-            location_id: location_id,
-        };
-        Ok(function)
-    }
-
     fn parse_function_or_function_type(&mut self) -> Result<FunctionOrFunctionType, Error> {
         let start_index = self.get_index();
         let name = self.var_identifier("function name")?;
@@ -541,6 +520,13 @@ impl<'a> Parser<'a> {
         let args = self.parse_args()?;
         if self.current(TokenKind::KeywordDoubleColon) {
             self.advance()?;
+            let constraints = if self.constraint_follows() {
+                let cs = self.parse_list1_in_parens(parse_class_constraint)?;
+                self.expect(TokenKind::KeywordConstraint)?;
+                cs
+            } else {
+                Vec::new()
+            };
             let type_signature_id = self.parse_function_type(false, false)?;
             let full_type_signature_id = self.program.get_type_signature_id();
             let end_index = self.get_index();
@@ -870,11 +856,18 @@ impl<'a> Parser<'a> {
 
     fn parse_class(&mut self, module: &mut Module) -> Result<Class, Error> {
         self.expect(TokenKind::KeywordClass)?;
+        let constraints = if self.current_kind() == TokenKind::LParen {
+            let cs = self.parse_list1_in_parens(parse_class_constraint)?;
+            self.expect(TokenKind::KeywordConstraint)?;
+            cs
+        } else {
+            Vec::new()
+        };
         let start_index = self.get_index();
         let name = self.type_identifier("class name")?;
         let end_index = self.get_index();
         let class_location_id = self.get_location_id(start_index, end_index);
-        let argument = self.var_identifier("class argument")?;
+        let arg = self.var_identifier("class argument")?;
         let mut members = Vec::new();
         if self.current_kind() == TokenKind::KeywordWhere {
             self.expect(TokenKind::KeywordWhere)?;
@@ -911,13 +904,72 @@ impl<'a> Parser<'a> {
             self.expect(TokenKind::EndOfBlock)?;
         }
         self.expect(TokenKind::EndOfItem)?;
+        let id = self.program.get_class_id();
         let class = Class {
+            id: id,
             name: name,
-            argument: argument,
+            arg: arg,
+            constraints: constraints,
             members: members,
             location_id: class_location_id,
         };
         Ok(class)
+    }
+
+    fn parse_instance(&mut self, module: &mut Module) -> Result<Instance, Error> {
+        self.expect(TokenKind::KeywordInstance)?;
+        let constraints = if self.current_kind() == TokenKind::LParen {
+            let cs = self.parse_list1_in_parens(parse_class_constraint)?;
+            self.expect(TokenKind::KeywordConstraint)?;
+            cs
+        } else {
+            Vec::new()
+        };
+        let start_index = self.get_index();
+        let name = self.type_identifier("class name")?;
+        let end_index = self.get_index();
+        let instance_location_id = self.get_location_id(start_index, end_index);
+        let type_signature_id = self.parse_function_type(false, false)?;
+        let mut members = Vec::new();
+        if self.current_kind() == TokenKind::KeywordWhere {
+            self.expect(TokenKind::KeywordWhere)?;
+            while self.current_kind() != TokenKind::EndOfBlock {
+                let saved_index = self.get_index();
+                let function_or_type = self.parse_function_or_function_type()?;
+                match function_or_type {
+                    FunctionOrFunctionType::Function(mut function) => {
+                            let function_id = function.id;
+                            module.functions.push(function_id);
+                            self.program.functions.insert(function_id, function);
+                            let member = InstanceMember {
+                                function: function_id,
+                            };
+                            members.push(member);
+                    }
+                    FunctionOrFunctionType::FunctionType(function_type) => {
+                        self.restore(saved_index);
+                                    let reason = ParserErrorReason::Custom {
+                                        msg: format!(
+                                            "Expected function definition, not function type"
+                                        ),
+                                    };
+                                    return report_parser_error(self, reason);
+                    }
+                }
+            }
+            self.expect(TokenKind::EndOfBlock)?;
+        }
+        self.expect(TokenKind::EndOfItem)?;
+        let id = self.program.get_instance_id();
+        let instance = Instance {
+            id: id,
+            name: name,
+            type_signature_id: type_signature_id,
+            constraints: constraints,
+            members: members,
+            location_id: instance_location_id,
+        };
+        Ok(instance)
     }
 
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, Error> {
@@ -953,6 +1005,11 @@ impl<'a> Parser<'a> {
                     }
                     TokenKind::KeywordClass => {
                         let class = self.parse_class(&mut module)?;
+                        self.program.add_class(class.id, class);
+                    }
+                    TokenKind::KeywordInstance => {
+                        let instance = self.parse_instance(&mut module)?;
+                        self.program.add_instance(instance.id, instance);
                     }
                     TokenKind::EndOfBlock => {
                         break;

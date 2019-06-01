@@ -1,12 +1,13 @@
 use crate::location_info::item::LocationId;
-use crate::syntax::data::AdtId;
+use crate::syntax::class::ClassId;
 use crate::syntax::data::RecordId;
 use crate::syntax::export_import::EIList;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
+use crate::syntax::data::AdtId;
 use std::collections::BTreeMap;
-
+ 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ModuleId {
     pub id: usize,
@@ -19,6 +20,7 @@ pub struct Module {
     pub functions: Vec<FunctionId>,
     pub records: Vec<RecordId>,
     pub adts: Vec<AdtId>,
+    pub classes: Vec<ClassId>,
     pub imports: BTreeMap<ImportId, Import>,
     pub location_id: LocationId,
     pub export_list: EIList,
@@ -32,6 +34,7 @@ impl Module {
             functions: Vec::new(),
             records: Vec::new(),
             adts: Vec::new(),
+            classes: Vec::new(),
             imports: BTreeMap::new(),
             location_id: location_id,
             export_list: export_list,

@@ -19,6 +19,10 @@ use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
 use crate::util::Counter;
 use std::collections::BTreeMap;
+use crate::syntax::class::ClassId;
+use crate::syntax::class::Class;
+use crate::syntax::class::Instance;
+use crate::syntax::class::InstanceId;
 
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -27,6 +31,8 @@ pub struct Program {
     pub records: BTreeMap<RecordId, Record>,
     pub adts: BTreeMap<AdtId, Adt>,
     pub variants: BTreeMap<VariantId, Variant>,
+    pub classes: BTreeMap<ClassId, Class>,
+    pub instances: BTreeMap<InstanceId, Instance>,
     pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
     pub type_signatures: BTreeMap<TypeSignatureId, (TypeSignature, LocationId)>,
     pub patterns: BTreeMap<PatternId, (Pattern, LocationId)>,
@@ -40,6 +46,8 @@ pub struct Program {
     record_id: Counter,
     record_field_id: Counter,
     pattern_id: Counter,
+    class_id: Counter,
+    instance_id: Counter,
 }
 
 impl Program {
@@ -50,6 +58,8 @@ impl Program {
             records: BTreeMap::new(),
             adts: BTreeMap::new(),
             variants: BTreeMap::new(),
+            classes: BTreeMap::new(),
+            instances: BTreeMap::new(),
             exprs: BTreeMap::new(),
             type_signatures: BTreeMap::new(),
             patterns: BTreeMap::new(),
@@ -63,6 +73,8 @@ impl Program {
             record_id: Counter::new(),
             record_field_id: Counter::new(),
             pattern_id: Counter::new(),
+            class_id: Counter::new(),
+            instance_id: Counter::new()
         }
     }
 
@@ -126,6 +138,18 @@ impl Program {
         }
     }
 
+pub fn get_class_id(&mut self) -> ClassId {
+        ClassId {
+            id: self.class_id.next(),
+        }
+    }
+
+    pub fn get_instance_id(&mut self) -> InstanceId {
+        InstanceId {
+            id: self.instance_id.next(),
+        }
+    }
+
     pub fn add_module(&mut self, id: ModuleId, module: Module) {
         self.modules.insert(id, module);
     }
@@ -147,6 +171,15 @@ impl Program {
     pub fn add_pattern(&mut self, id: PatternId, pattern: Pattern, location_id: LocationId) {
         self.patterns.insert(id, (pattern, location_id));
     }
+
+    pub fn add_class(&mut self, id: ClassId, class: Class) {
+        self.classes.insert(id, class);
+    }
+
+pub fn add_instance(&mut self, id: InstanceId, instance:Instance) {
+        self.instances.insert(id, instance);
+    }
+
 
     pub fn get_expr(&self, id: &ExprId) -> &Expr {
         &self.exprs.get(id).expect("Expr not found").0
