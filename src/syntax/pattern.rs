@@ -1,6 +1,6 @@
+use crate::location_info::item::LocationId;
 use crate::syntax::expr::ExprId;
 use crate::syntax::types::TypeSignatureId;
-use crate::location_info::item::LocationId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -33,5 +33,5 @@ pub enum Pattern {
     StringLiteral(String),
     BoolLiteral(bool),
     Typed(PatternId, TypeSignatureId),
-    Record(String, Vec<RecordFieldPattern>)
+    Record(String, Vec<RecordFieldPattern>),
 }

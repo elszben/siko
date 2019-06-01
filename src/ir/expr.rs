@@ -78,7 +78,7 @@ impl fmt::Display for RecordFieldValueExpr {
 #[derive(Debug, Clone)]
 pub struct RecordUpdateInfo {
     pub record_id: TypeDefId,
-    pub items: Vec<RecordFieldValueExpr>
+    pub items: Vec<RecordFieldValueExpr>,
 }
 
 impl fmt::Display for RecordUpdateInfo {
@@ -144,12 +144,9 @@ impl fmt::Display for Expr {
                 type_id,
                 format_list(items)
             ),
-            Expr::RecordUpdate(expr_id,  items) => write!(
-                f,
-                "RecordUpdate({}, {})",
-                expr_id,
-                format_list(items)
-            ),
+            Expr::RecordUpdate(expr_id, items) => {
+                write!(f, "RecordUpdate({}, {})", expr_id, format_list(items))
+            }
         }
     }
 }

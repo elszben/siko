@@ -1,4 +1,8 @@
 use crate::location_info::item::LocationId;
+use crate::syntax::class::Class;
+use crate::syntax::class::ClassId;
+use crate::syntax::class::Instance;
+use crate::syntax::class::InstanceId;
 use crate::syntax::data::Adt;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::Record;
@@ -19,10 +23,6 @@ use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
 use crate::util::Counter;
 use std::collections::BTreeMap;
-use crate::syntax::class::ClassId;
-use crate::syntax::class::Class;
-use crate::syntax::class::Instance;
-use crate::syntax::class::InstanceId;
 
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -74,7 +74,7 @@ impl Program {
             record_field_id: Counter::new(),
             pattern_id: Counter::new(),
             class_id: Counter::new(),
-            instance_id: Counter::new()
+            instance_id: Counter::new(),
         }
     }
 
@@ -138,7 +138,7 @@ impl Program {
         }
     }
 
-pub fn get_class_id(&mut self) -> ClassId {
+    pub fn get_class_id(&mut self) -> ClassId {
         ClassId {
             id: self.class_id.next(),
         }
@@ -176,10 +176,9 @@ pub fn get_class_id(&mut self) -> ClassId {
         self.classes.insert(id, class);
     }
 
-pub fn add_instance(&mut self, id: InstanceId, instance:Instance) {
+    pub fn add_instance(&mut self, id: InstanceId, instance: Instance) {
         self.instances.insert(id, instance);
     }
-
 
     pub fn get_expr(&self, id: &ExprId) -> &Expr {
         &self.exprs.get(id).expect("Expr not found").0

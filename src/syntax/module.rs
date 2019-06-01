@@ -1,13 +1,13 @@
 use crate::location_info::item::LocationId;
 use crate::syntax::class::ClassId;
+use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::export_import::EIList;
 use crate::syntax::function::FunctionId;
 use crate::syntax::import::Import;
 use crate::syntax::import::ImportId;
-use crate::syntax::data::AdtId;
 use std::collections::BTreeMap;
- 
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ModuleId {
     pub id: usize,

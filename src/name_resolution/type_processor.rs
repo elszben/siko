@@ -13,7 +13,6 @@ use crate::syntax::types::TypeSignatureId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-
 fn process_type_signature(
     type_signature_id: &TypeSignatureId,
     program: &Program,

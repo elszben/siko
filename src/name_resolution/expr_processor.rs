@@ -450,7 +450,7 @@ fn process_pattern(
                     errors.push(err);
                 }
                 ir_items.sort_by(|a, b| a.0.cmp(&b.0));
-                let ir_items:Vec<_> = ir_items.into_iter().map(|i|i.1).collect();
+                let ir_items: Vec<_> = ir_items.into_iter().map(|i| i.1).collect();
                 IrPattern::Record(ir_type_id, ir_items)
             } else {
                 IrPattern::Wildcard

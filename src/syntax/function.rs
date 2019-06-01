@@ -1,6 +1,6 @@
 use crate::location_info::item::LocationId;
-use crate::syntax::expr::ExprId;
 use crate::syntax::class::Constraint;
+use crate::syntax::expr::ExprId;
 use crate::syntax::types::TypeSignatureId;
 
 #[derive(Debug, Clone)]

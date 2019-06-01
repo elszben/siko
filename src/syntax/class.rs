@@ -1,7 +1,7 @@
 use crate::location_info::item::LocationId;
 use crate::syntax::function::FunctionId;
-use crate::syntax::types::TypeSignatureId;
 use crate::syntax::function::FunctionType;
+use crate::syntax::types::TypeSignatureId;
 
 #[derive(Debug, Clone)]
 pub struct Class {
