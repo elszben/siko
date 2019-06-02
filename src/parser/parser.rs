@@ -883,7 +883,6 @@ impl<'a> Parser<'a> {
                             if last.function.is_none() {
                                 let function_id = function.id;
                                 function.func_type = Some(last.type_signature.clone());
-                                module.functions.push(function_id);
                                 self.program.functions.insert(function_id, function);
                                 last.function = Some(function_id);
                                 continue;

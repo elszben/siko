@@ -207,6 +207,18 @@ impl Resolver {
                     .entry(class.name.clone())
                     .or_insert_with(|| Vec::new());
                 items.push(Item::Class(class.id, ir_class_id));
+                for member_id in &class.members {
+                    let ir_class_member_id = ir_program.get_class_member_id();
+                    let class_member = program
+                        .class_members
+                        .get(member_id)
+                        .expect("Class member not found");
+                    let items = module
+                        .items
+                        .entry(class_member.type_signature.name.clone())
+                        .or_insert_with(|| Vec::new());
+                    items.push(Item::ClassMember(class.id,* member_id, ir_class_member_id));
+                }
             }
         }
 

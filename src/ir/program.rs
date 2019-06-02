@@ -1,5 +1,6 @@
 use crate::ir::class::Class;
 use crate::ir::class::ClassId;
+use crate::ir::class::ClassMemberId;
 use crate::ir::expr::Expr;
 use crate::ir::expr::ExprId;
 use crate::ir::expr::ExprInfo;
@@ -33,6 +34,7 @@ pub struct Program {
     typedef_id: Counter,
     pattern_id: Counter,
     class_id: Counter,
+    class_member_id: Counter,
 }
 
 impl Program {
@@ -49,6 +51,7 @@ impl Program {
             typedef_id: Counter::new(),
             pattern_id: Counter::new(),
             class_id: Counter::new(),
+            class_member_id: Counter::new(),
         }
     }
 
@@ -79,6 +82,12 @@ impl Program {
     pub fn get_class_id(&mut self) -> ClassId {
         ClassId {
             id: self.class_id.next(),
+        }
+    }
+
+    pub fn get_class_member_id(&mut self) -> ClassMemberId {
+        ClassMemberId {
+            id: self.class_member_id.next(),
         }
     }
 

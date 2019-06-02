@@ -18,9 +18,9 @@ instance (Eq a) => Eq List a where
     ec a b = extern
 
 class (BooM.Boo a) => Eq2 a where
-    eq a :: a -> a -> Bool
+    feq a :: a -> a -> Bool
 
-    ne a :: a -> a -> Bool
+    fne a :: a -> a -> Bool
 
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}

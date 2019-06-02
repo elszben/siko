@@ -316,6 +316,9 @@ impl<'a> Interpreter<'a> {
                 }
                 unreachable!()
             }
+            Expr::ClassFunctionCall(..) => {
+                unimplemented!()
+            }
         }
     }
 

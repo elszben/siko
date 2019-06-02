@@ -1,5 +1,6 @@
 use crate::constants::BuiltinOperator;
 use crate::constants::PRELUDE_NAME;
+use crate::ir::class::ClassMemberId as IrClassMemberId;
 use crate::ir::expr::Case as IrCase;
 use crate::ir::expr::Expr as IrExpr;
 use crate::ir::expr::ExprId as IrExprId;
@@ -35,6 +36,7 @@ use std::collections::BTreeSet;
 enum PathResolveResult {
     VariableRef(IrExprId),
     FunctionRef(IrFunctionId),
+    ClassMemberRef(IrClassMemberId),
 }
 
 fn resolve_item_path(
@@ -88,7 +90,9 @@ fn resolve_item_path(
                         unreachable!()
                     }
                 }
-                Item::ClassMember(_, _, func_id) => unimplemented!(),
+                Item::ClassMember(_, _, ir_class_member_id) => {
+                    return PathResolveResult::ClassMemberRef(ir_class_member_id);
+                }
                 _ => {}
             }
         }
@@ -578,6 +582,10 @@ pub fn process_expr(
                         let ir_expr = IrExpr::DynamicFunctionCall(ir_id_expr_id, ir_args);
                         return add_expr(ir_expr, id, ir_program, program);
                     }
+                    PathResolveResult::ClassMemberRef(n) => {
+                    let ir_expr = IrExpr::ClassFunctionCall(n, vec![]);
+                    return add_expr(ir_expr, id, ir_program, program);
+                }
                 }
             } else {
                 if let Expr::Builtin(op) = id_expr {
@@ -695,6 +703,10 @@ pub fn process_expr(
                 }
                 PathResolveResult::VariableRef(ir_expr_id) => {
                     return ir_expr_id;
+                }
+                PathResolveResult::ClassMemberRef(n) => {
+                    let ir_expr = IrExpr::ClassFunctionCall(n, vec![]);
+                    return add_expr(ir_expr, id, ir_program, program);
                 }
             }
         }
@@ -935,6 +947,10 @@ pub fn process_expr(
                     add_expr(ir_expr, id, ir_program, program)
                 }
                 PathResolveResult::VariableRef(ir_expr_id) => ir_expr_id,
+                PathResolveResult::ClassMemberRef(n) => {
+                    let ir_expr = IrExpr::ClassFunctionCall(n, vec![]);
+                    add_expr(ir_expr, id, ir_program, program)
+                }
             };
             let mut potential_type_ids = BTreeSet::new();
             let mut access_list = Vec::new();
