@@ -1,6 +1,7 @@
 module BooM(Boo, korte) where
 
-class Boo a
+class Boo a where
+   boo :: Bool
 
 korte = 5
 

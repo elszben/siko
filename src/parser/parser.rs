@@ -869,41 +869,42 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let class_location_id = self.get_location_id(start_index, end_index);
         let arg = self.var_identifier("class argument")?;
-        let mut members = Vec::new();
+        let mut members: Vec<ClassMember> = Vec::new();
         if self.current_kind() == TokenKind::KeywordWhere {
             self.expect(TokenKind::KeywordWhere)?;
-            let mut prev_member_type: Option<FunctionType> = None;
             while self.current_kind() != TokenKind::EndOfBlock {
                 let saved_index = self.get_index();
                 let function_or_type = self.parse_function_or_function_type()?;
                 match function_or_type {
                     FunctionOrFunctionType::Function(mut function) => {
-                        let function_type = prev_member_type.take();
-                        if let Some(function_type) = function_type {
-                            let function_id = function.id;
-                            function.func_type = Some(function_type.clone());
-                            module.functions.push(function_id);
-                            self.program.functions.insert(function_id, function);
-                            let member_id = self.program.get_class_member_id();
-                            let location_id =function_type.location_id; 
-                            let member = ClassMember {
-                                id: member_id,
-                                type_signature: function_type,
-                                function: Some(function_id),
-                                location_id: location_id
-                            };
-                            self.program.add_class_member(member_id, member);
-                            members.push(member_id);
-                        } else {
-                            self.restore(saved_index);
-                            let reason = ParserErrorReason::Custom {
-                                msg: format!("Expected function type signature"),
-                            };
-                            return report_parser_error(self, reason);
+                        if !members.is_empty() {
+                            let len = members.len();
+                            let last = &mut members[len - 1];
+                            if last.function.is_none() {
+                                let function_id = function.id;
+                                function.func_type = Some(last.type_signature.clone());
+                                module.functions.push(function_id);
+                                self.program.functions.insert(function_id, function);
+                                last.function = Some(function_id);
+                                continue;
+                            }
                         }
+                        self.restore(saved_index);
+                        let reason = ParserErrorReason::Custom {
+                            msg: format!("Expected function type signature"),
+                        };
+                        return report_parser_error(self, reason);
                     }
                     FunctionOrFunctionType::FunctionType(function_type) => {
-                        prev_member_type = Some(function_type);
+                        let member_id = self.program.get_class_member_id();
+                        let location_id = function_type.location_id;
+                        let member = ClassMember {
+                            id: member_id,
+                            type_signature: function_type,
+                            function: None,
+                            location_id: location_id,
+                        };
+                        members.push(member);
                     }
                 }
             }
@@ -912,12 +913,17 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::EndOfItem)?;
         let id = self.program.get_class_id();
         module.classes.push(id);
+        let mut member_ids = Vec::new();
+        for member in members {
+            member_ids.push(member.id);
+            self.program.add_class_member(member.id, member);
+        }
         let class = Class {
             id: id,
             name: name,
             arg: arg,
             constraints: constraints,
-            members: members,
+            members: member_ids,
             location_id: class_location_id,
         };
         Ok(class)

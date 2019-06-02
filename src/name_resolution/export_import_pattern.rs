@@ -126,9 +126,7 @@ fn match_item(name: &str, group: bool, item: &Item, program: &Program) -> bool {
             let class = program.classes.get(&id).expect("Class not found");
             class.name == name && !group
         }
-        Item::ClassMember(_) => {
-            false
-        }
+        Item::ClassMember(_) => false,
     }
 }
 
@@ -226,6 +224,20 @@ pub fn check_item(
         }
     }
     if matched_item {
+        if let Item::Class(id) = item {
+            let class = program.classes.get(id).expect("Class not found");
+            for member_id in &class.members {
+                let class_member_item = Item::ClassMember(*member_id);
+                let class_member = program
+                    .class_members
+                    .get(member_id)
+                    .expect("Class member not found");
+                matched_items.insert(
+                    class_member.type_signature.name.to_string(),
+                    class_member_item,
+                );
+            }
+        }
         matched_items.insert(item_name.to_string(), item.clone());
     }
 }
