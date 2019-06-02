@@ -4,8 +4,10 @@ use crate::name_resolution::export_import_pattern::check_member;
 use crate::name_resolution::export_import_pattern::process_patterns;
 use crate::name_resolution::export_import_pattern::MemberPatternKind;
 use crate::name_resolution::module::Module;
+use crate::name_resolution::item::Item;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 pub fn process_exports(
     modules: &mut BTreeMap<String, Module>,
@@ -15,6 +17,7 @@ pub fn process_exports(
     for (module_name, module) in modules.iter_mut() {
         let mut exported_items = BTreeMap::new();
         let mut exported_members = BTreeMap::new();
+        let mut matched_classes = BTreeSet::new();
         let ast_module = program.modules.get(&module.id).expect("Module not found");
 
         let (mut item_patterns, mut member_patterns) = process_patterns(&ast_module.export_list);
@@ -29,7 +32,18 @@ pub fn process_exports(
                 item,
                 program,
                 &mut exported_items,
+                &mut matched_classes
             );
+        }
+
+        for (name, items) in &module.items {
+            assert_eq!(items.len(), 1);
+            let item = &items[0];
+            if let Item::ClassMember(class_id, _, _) = item {
+                if matched_classes.contains(class_id) {
+                    exported_items.insert(name.clone(), item.clone());
+                }
+            }
         }
 
         for pattern in item_patterns {

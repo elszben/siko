@@ -201,12 +201,13 @@ impl Resolver {
                 items.push(Item::Function(function.id, ir_function_id));
             }
             for class_id in &ast_module.classes {
+                let ir_class_id = ir_program.get_class_id();
                 let class = program.classes.get(class_id).expect("Class not found");
                 let items = module
                     .items
                     .entry(class.name.clone())
                     .or_insert_with(|| Vec::new());
-                items.push(Item::Class(class.id));
+                items.push(Item::Class(class.id, ir_class_id));
             }
         }
 
@@ -233,11 +234,11 @@ impl Resolver {
                                 let variant = program.variants.get(id).expect("Variant not found");
                                 locations.push(variant.location_id);
                             }
-                            Item::Class(id) => {
+                            Item::Class(id, _) => {
                                 let class = program.classes.get(id).expect("Class not found");
                                 locations.push(class.location_id);
                             }
-                            Item::ClassMember(id) => {
+                            Item::ClassMember(_, id, _) => {
                                 let class_member = program.class_members.get(id).expect("Classmember not found");
                                 locations.push(class_member.location_id);
                             }
@@ -527,7 +528,7 @@ impl Resolver {
                 Some(items) => {
                     let item = &items[0];
                     match item.item {
-                        Item::Class(constraint_class_id) => {}
+                        Item::Class(constraint_class_id, _) => {}
                         _ => {
                             let err = ResolverError::NotAClassName(
                                 constraint.class_name.clone(),
@@ -605,7 +606,7 @@ impl Resolver {
                             module,
                             &mut errors,
                         ),
-                        Item::Class(ast_class_id) => self.process_class(
+                        Item::Class(ast_class_id, _) => self.process_class(
                             program,
                             &mut ir_program,
                             ast_class_id,

@@ -88,7 +88,9 @@ fn resolve_item_path(
                         unreachable!()
                     }
                 }
-                Item::ClassMember(_) => unimplemented!(),
+                Item::ClassMember(_, _, func_id) => {
+                        unimplemented!()
+                },
                 _ => {}
             }
         }

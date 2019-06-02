@@ -3,6 +3,7 @@ use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use std::fmt;
+use crate::ir::class::ClassId;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FunctionId {
@@ -68,12 +69,27 @@ impl fmt::Display for VariantConstructorInfo {
     }
 }
 
+
+#[derive(Debug, Clone)]
+pub struct ClassMemberInfo {
+    pub class_id: ClassId,
+    pub index: usize,
+}
+
+impl fmt::Display for ClassMemberInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}/{}", self.class_id, self.index)
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub enum FunctionInfo {
     Lambda(LambdaInfo),
     NamedFunction(NamedFunctionInfo),
     RecordConstructor(RecordConstructorInfo),
     VariantConstructor(VariantConstructorInfo),
+    ClassMember(ClassMemberInfo)
 }
 
 impl fmt::Display for FunctionInfo {
@@ -83,6 +99,7 @@ impl fmt::Display for FunctionInfo {
             FunctionInfo::NamedFunction(i) => write!(f, "{}", i),
             FunctionInfo::RecordConstructor(i) => write!(f, "{}", i),
             FunctionInfo::VariantConstructor(i) => write!(f, "{}", i),
+            FunctionInfo::ClassMember(i) => write!(f, "{}", i),
         }
     }
 }

@@ -11,6 +11,7 @@ use crate::name_resolution::module::Module;
 use crate::syntax::import::ImportKind;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum ImportMode {
@@ -188,6 +189,7 @@ pub fn process_imports(
                     let (mut item_patterns, mut member_patterns) = process_patterns(items);
 
                     let mut local_imported_items = BTreeMap::new();
+                    let mut matched_classes = BTreeSet::new();
 
                     for (item_name, item) in &source_module.exported_items {
                         check_item(
@@ -197,7 +199,16 @@ pub fn process_imports(
                             item,
                             program,
                             &mut local_imported_items,
+                            &mut matched_classes,
                         );
+                    }
+
+            for (name, item) in &source_module.exported_items {
+            if let Item::ClassMember(class_id, _, _) = item {
+                if matched_classes.contains(&class_id) {
+                    local_imported_items.insert(name.clone(), item.clone());
+                }
+            }
                     }
 
                     for (name, item) in local_imported_items {

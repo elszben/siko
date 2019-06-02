@@ -6,6 +6,8 @@ use crate::syntax::export_import::EIList;
 use crate::syntax::export_import::EIMember;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use crate::syntax::class::ClassId;
 
 #[derive(Debug)]
 pub struct ItemPattern {
@@ -122,11 +124,11 @@ fn match_item(name: &str, group: bool, item: &Item, program: &Program) -> bool {
             // cannot match on a single variant
             false
         }
-        Item::Class(id) => {
+        Item::Class(id, _) => {
             let class = program.classes.get(&id).expect("Class not found");
             class.name == name && !group
         }
-        Item::ClassMember(_) => false,
+        Item::ClassMember(_, _, _) => false,
     }
 }
 
@@ -181,6 +183,7 @@ pub fn check_item(
     item: &Item,
     program: &Program,
     matched_items: &mut BTreeMap<String, Item>,
+    matched_classes: &mut BTreeSet<ClassId>
 ) {
     let mut matched_item = false;
     for pattern in item_patterns.iter_mut() {
@@ -224,19 +227,8 @@ pub fn check_item(
         }
     }
     if matched_item {
-        if let Item::Class(id) = item {
-            let class = program.classes.get(id).expect("Class not found");
-            for member_id in &class.members {
-                let class_member_item = Item::ClassMember(*member_id);
-                let class_member = program
-                    .class_members
-                    .get(member_id)
-                    .expect("Class member not found");
-                matched_items.insert(
-                    class_member.type_signature.name.to_string(),
-                    class_member_item,
-                );
-            }
+        if let Item::Class(id, _) = item {
+            matched_classes.insert(*id);
         }
         matched_items.insert(item_name.to_string(), item.clone());
     }

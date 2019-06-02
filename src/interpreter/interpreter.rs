@@ -443,6 +443,9 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::Record(info.type_id, values);
             }
+            FunctionInfo::ClassMember(info) => {
+                unimplemented!()
+            }
         }
     }
 
