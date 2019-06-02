@@ -48,7 +48,7 @@ impl Program {
             function_id: Counter::new(),
             typedef_id: Counter::new(),
             pattern_id: Counter::new(),
-            class_id: Counter::new()
+            class_id: Counter::new(),
         }
     }
 
@@ -76,7 +76,7 @@ impl Program {
         }
     }
 
-pub fn get_class_id(&mut self) -> ClassId {
+    pub fn get_class_id(&mut self) -> ClassId {
         ClassId {
             id: self.class_id.next(),
         }

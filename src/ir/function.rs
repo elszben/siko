@@ -1,9 +1,9 @@
+use crate::ir::class::ClassId;
 use crate::ir::expr::ExprId;
 use crate::ir::types::TypeDefId;
 use crate::ir::types::TypeSignatureId;
 use crate::location_info::item::LocationId;
 use std::fmt;
-use crate::ir::class::ClassId;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FunctionId {
@@ -69,7 +69,6 @@ impl fmt::Display for VariantConstructorInfo {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ClassMemberInfo {
     pub class_id: ClassId,
@@ -82,14 +81,13 @@ impl fmt::Display for ClassMemberInfo {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub enum FunctionInfo {
     Lambda(LambdaInfo),
     NamedFunction(NamedFunctionInfo),
     RecordConstructor(RecordConstructorInfo),
     VariantConstructor(VariantConstructorInfo),
-    ClassMember(ClassMemberInfo)
+    ClassMember(ClassMemberInfo),
 }
 
 impl fmt::Display for FunctionInfo {

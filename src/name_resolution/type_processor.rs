@@ -137,7 +137,10 @@ fn process_type_signature(
                                         }
                                     }
                                 }
-                                Item::Function(..) | Item::Variant(..) | Item::ClassMember(..) | Item::Class(..) => {
+                                Item::Function(..)
+                                | Item::Variant(..)
+                                | Item::ClassMember(..)
+                                | Item::Class(..) => {
                                     let err = ResolverError::NameNotType(name.clone(), location_id);
                                     errors.push(err);
                                     return None;

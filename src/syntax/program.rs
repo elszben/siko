@@ -1,6 +1,8 @@
 use crate::location_info::item::LocationId;
 use crate::syntax::class::Class;
 use crate::syntax::class::ClassId;
+use crate::syntax::class::ClassMember;
+use crate::syntax::class::ClassMemberId;
 use crate::syntax::class::Instance;
 use crate::syntax::class::InstanceId;
 use crate::syntax::data::Adt;
@@ -23,8 +25,6 @@ use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
 use crate::util::Counter;
 use std::collections::BTreeMap;
-use crate::syntax::class::ClassMemberId;
-use crate::syntax::class::ClassMember;
 
 #[derive(Debug, Clone)]
 pub struct Program {

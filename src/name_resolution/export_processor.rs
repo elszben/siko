@@ -3,8 +3,8 @@ use crate::name_resolution::export_import_pattern::check_item;
 use crate::name_resolution::export_import_pattern::check_member;
 use crate::name_resolution::export_import_pattern::process_patterns;
 use crate::name_resolution::export_import_pattern::MemberPatternKind;
-use crate::name_resolution::module::Module;
 use crate::name_resolution::item::Item;
+use crate::name_resolution::module::Module;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -32,7 +32,7 @@ pub fn process_exports(
                 item,
                 program,
                 &mut exported_items,
-                &mut matched_classes
+                &mut matched_classes,
             );
         }
 

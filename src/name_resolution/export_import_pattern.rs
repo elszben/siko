@@ -1,13 +1,13 @@
 use crate::location_info::item::LocationId;
 use crate::name_resolution::item::DataMember;
 use crate::name_resolution::item::Item;
+use crate::syntax::class::ClassId;
 use crate::syntax::export_import::EIItem;
 use crate::syntax::export_import::EIList;
 use crate::syntax::export_import::EIMember;
 use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use crate::syntax::class::ClassId;
 
 #[derive(Debug)]
 pub struct ItemPattern {
@@ -183,7 +183,7 @@ pub fn check_item(
     item: &Item,
     program: &Program,
     matched_items: &mut BTreeMap<String, Item>,
-    matched_classes: &mut BTreeSet<ClassId>
+    matched_classes: &mut BTreeSet<ClassId>,
 ) {
     let mut matched_item = false;
     for pattern in item_patterns.iter_mut() {

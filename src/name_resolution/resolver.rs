@@ -36,7 +36,6 @@ use crate::syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-
 #[derive(Debug)]
 pub struct Resolver {
     modules: BTreeMap<String, Module>,
@@ -239,7 +238,10 @@ impl Resolver {
                                 locations.push(class.location_id);
                             }
                             Item::ClassMember(_, id, _) => {
-                                let class_member = program.class_members.get(id).expect("Classmember not found");
+                                let class_member = program
+                                    .class_members
+                                    .get(id)
+                                    .expect("Classmember not found");
                                 locations.push(class_member.location_id);
                             }
                         }

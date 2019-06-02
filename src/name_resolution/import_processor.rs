@@ -203,12 +203,12 @@ pub fn process_imports(
                         );
                     }
 
-            for (name, item) in &source_module.exported_items {
-            if let Item::ClassMember(class_id, _, _) = item {
-                if matched_classes.contains(&class_id) {
-                    local_imported_items.insert(name.clone(), item.clone());
-                }
-            }
+                    for (name, item) in &source_module.exported_items {
+                        if let Item::ClassMember(class_id, _, _) = item {
+                            if matched_classes.contains(&class_id) {
+                                local_imported_items.insert(name.clone(), item.clone());
+                            }
+                        }
                     }
 
                     for (name, item) in local_imported_items {

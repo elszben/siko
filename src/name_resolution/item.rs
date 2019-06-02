@@ -10,7 +10,6 @@ use crate::syntax::data::RecordId;
 use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
 
-
 #[derive(Debug, Clone)]
 pub enum Item {
     Function(FunctionId, IrFunctionId),
