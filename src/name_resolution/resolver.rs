@@ -237,6 +237,10 @@ impl Resolver {
                                 let class = program.classes.get(id).expect("Class not found");
                                 locations.push(class.location_id);
                             }
+                            Item::ClassMember(id) => {
+                                let class_member = program.class_members.get(id).expect("Classmember not found");
+                                locations.push(class_member.location_id);
+                            }
                         }
                     }
                     let err = ResolverError::InternalModuleConflicts(
@@ -515,8 +519,10 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
+        let mut constraint_type_args = BTreeSet::new();
         let class = program.classes.get(class_id).expect("Class not found");
         for constraint in &class.constraints {
+            constraint_type_args.insert(constraint.arg.clone());
             match module.imported_items.get(&constraint.class_name) {
                 Some(items) => {
                     let item = &items[0];
@@ -539,6 +545,12 @@ impl Resolver {
                     errors.push(err);
                 }
             }
+        }
+        if constraint_type_args.len() > 1
+            || (!constraint_type_args.is_empty() && !constraint_type_args.contains(&class.arg))
+        {
+            let err = ResolverError::TypeClassConstraintArgMismatch(class.location_id);
+            errors.push(err);
         }
     }
 

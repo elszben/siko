@@ -9,7 +9,7 @@ pub struct Class {
     pub name: String,
     pub arg: String,
     pub constraints: Vec<Constraint>,
-    pub members: Vec<ClassMember>,
+    pub members: Vec<ClassMemberId>,
     pub location_id: LocationId,
 }
 
@@ -25,8 +25,10 @@ pub struct Instance {
 
 #[derive(Debug, Clone)]
 pub struct ClassMember {
+    pub id: ClassMemberId,
     pub type_signature: FunctionType,
     pub function: Option<FunctionId>,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +45,11 @@ pub struct Constraint {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ClassId {
+    pub id: usize,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ClassMemberId {
     pub id: usize,
 }
 

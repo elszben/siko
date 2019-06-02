@@ -6,6 +6,7 @@ use crate::syntax::data::RecordId;
 use crate::syntax::data::VariantId;
 use crate::syntax::function::FunctionId;
 use crate::syntax::data::AdtId;
+use crate::syntax::class::ClassMemberId;
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -14,6 +15,7 @@ pub enum Item {
     Adt(AdtId, TypeDefId),
     Variant(AdtId, VariantId, TypeDefId, usize),
     Class(ClassId),
+    ClassMember(ClassMemberId),
 }
 
 #[derive(Debug, Clone)]

@@ -27,6 +27,8 @@ data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 korteb  a :: (Eq a , Foo a) => a -> a
 korteb a = a
 
+foo a b = eq a b
+
 main = do
     a  <- Foo { name = "name"
             , szilva = 5, korte = 3}

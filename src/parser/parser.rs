@@ -884,11 +884,16 @@ impl<'a> Parser<'a> {
                             function.func_type = Some(function_type.clone());
                             module.functions.push(function_id);
                             self.program.functions.insert(function_id, function);
+                            let member_id = self.program.get_class_member_id();
+                            let location_id =function_type.location_id; 
                             let member = ClassMember {
+                                id: member_id,
                                 type_signature: function_type,
                                 function: Some(function_id),
+                                location_id: location_id
                             };
-                            members.push(member);
+                            self.program.add_class_member(member_id, member);
+                            members.push(member_id);
                         } else {
                             self.restore(saved_index);
                             let reason = ParserErrorReason::Custom {

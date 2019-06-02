@@ -387,6 +387,14 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::TypeClassConstraintArgMismatch(id) => {
+                            println!(
+                                "{} type class constraint arguments must match arguments of the type class",
+                                error.red(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

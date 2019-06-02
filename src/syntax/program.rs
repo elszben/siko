@@ -23,6 +23,8 @@ use crate::syntax::types::TypeSignature;
 use crate::syntax::types::TypeSignatureId;
 use crate::util::Counter;
 use std::collections::BTreeMap;
+use crate::syntax::class::ClassMemberId;
+use crate::syntax::class::ClassMember;
 
 #[derive(Debug, Clone)]
 pub struct Program {
@@ -32,6 +34,7 @@ pub struct Program {
     pub adts: BTreeMap<AdtId, Adt>,
     pub variants: BTreeMap<VariantId, Variant>,
     pub classes: BTreeMap<ClassId, Class>,
+    pub class_members: BTreeMap<ClassMemberId, ClassMember>,
     pub instances: BTreeMap<InstanceId, Instance>,
     pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
     pub type_signatures: BTreeMap<TypeSignatureId, (TypeSignature, LocationId)>,
@@ -47,6 +50,7 @@ pub struct Program {
     record_field_id: Counter,
     pattern_id: Counter,
     class_id: Counter,
+    class_member_id: Counter,
     instance_id: Counter,
 }
 
@@ -59,6 +63,7 @@ impl Program {
             adts: BTreeMap::new(),
             variants: BTreeMap::new(),
             classes: BTreeMap::new(),
+            class_members: BTreeMap::new(),
             instances: BTreeMap::new(),
             exprs: BTreeMap::new(),
             type_signatures: BTreeMap::new(),
@@ -74,6 +79,7 @@ impl Program {
             record_field_id: Counter::new(),
             pattern_id: Counter::new(),
             class_id: Counter::new(),
+            class_member_id: Counter::new(),
             instance_id: Counter::new(),
         }
     }
@@ -144,6 +150,12 @@ impl Program {
         }
     }
 
+    pub fn get_class_member_id(&mut self) -> ClassMemberId {
+        ClassMemberId {
+            id: self.class_member_id.next(),
+        }
+    }
+
     pub fn get_instance_id(&mut self) -> InstanceId {
         InstanceId {
             id: self.instance_id.next(),
@@ -174,6 +186,10 @@ impl Program {
 
     pub fn add_class(&mut self, id: ClassId, class: Class) {
         self.classes.insert(id, class);
+    }
+
+    pub fn add_class_member(&mut self, id: ClassMemberId, class_member: ClassMember) {
+        self.class_members.insert(id, class_member);
     }
 
     pub fn add_instance(&mut self, id: InstanceId, instance: Instance) {
