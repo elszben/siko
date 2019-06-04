@@ -420,7 +420,6 @@ impl<'a> Parser<'a> {
                     let ty = self.add_type_signature(ty, start_index);
                     from = ty;
                 }
-
                 _ => {}
             }
         }
@@ -459,9 +458,9 @@ impl<'a> Parser<'a> {
                             }
                             TokenKind::VarIdentifier => {
                                 let arg_start_index = self.get_index();
-                                let arg = self.var_identifier("type")?;
+                                let arg = self.var_identifier("type arg")?;
                                 let arg = self.add_type_signature(
-                                    TypeSignature::Named(arg, Vec::new()),
+                                    TypeSignature::TypeArg(arg),
                                     arg_start_index,
                                 );
                                 args.push(arg);
@@ -484,9 +483,8 @@ impl<'a> Parser<'a> {
                     return Ok(id);
                 }
                 Token::VarIdentifier(_) => {
-                    let name = self.var_identifier("type")?;
-                    let args = Vec::new();
-                    let ty = TypeSignature::Named(name, args);
+                    let name = self.var_identifier("type arg")?;
+                    let ty = TypeSignature::TypeArg(name);
                     let id = self.add_type_signature(ty, start_index);
                     return Ok(id);
                 }
@@ -971,6 +969,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(TokenKind::EndOfItem)?;
         let id = self.program.get_instance_id();
+        module.instances.push(id);
         let instance = Instance {
             id: id,
             name: name,

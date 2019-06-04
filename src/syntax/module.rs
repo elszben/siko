@@ -1,5 +1,6 @@
 use crate::location_info::item::LocationId;
 use crate::syntax::class::ClassId;
+use crate::syntax::class::InstanceId;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::export_import::EIList;
@@ -21,6 +22,7 @@ pub struct Module {
     pub records: Vec<RecordId>,
     pub adts: Vec<AdtId>,
     pub classes: Vec<ClassId>,
+    pub instances: Vec<InstanceId>,
     pub imports: BTreeMap<ImportId, Import>,
     pub location_id: LocationId,
     pub export_list: EIList,
@@ -35,6 +37,7 @@ impl Module {
             records: Vec::new(),
             adts: Vec::new(),
             classes: Vec::new(),
+            instances: Vec::new(),
             imports: BTreeMap::new(),
             location_id: location_id,
             export_list: export_list,

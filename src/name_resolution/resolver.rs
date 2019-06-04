@@ -28,6 +28,7 @@ use crate::name_resolution::module::Module;
 use crate::name_resolution::type_processor::process_type_signatures;
 use crate::syntax::class::ClassId as AstClassId;
 use crate::syntax::class::Constraint;
+use crate::syntax::class::Instance as AstInstance;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
@@ -614,6 +615,33 @@ impl Resolver {
         }
     }
 
+    fn process_instance(
+        &self,
+        instance: &AstInstance,
+        program: &Program,
+        ir_program: &mut IrProgram,
+        module: &Module,
+        errors: &mut Vec<ResolverError>,
+    ) {
+        for constraint in &instance.constraints {
+            let mut found = false;
+            /*for arg in &ty.type_args {
+                if arg.0 == constraint.arg {
+                    found = true;
+                    break;
+                }
+            }*/
+            if !found {
+                let err = ResolverError::InvalidArgumentInTypeClassConstraint(
+                    constraint.arg.clone(),
+                    constraint.location_id,
+                );
+                errors.push(err);
+            }
+            self.check_constraint(constraint, module, errors);
+        }
+    }
+
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
         let mut errors = Vec::new();
 
@@ -680,6 +708,17 @@ impl Resolver {
 
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));
+        }
+
+        for (_, module) in &self.modules {
+            let ast_module = program.modules.get(&module.id).expect("Module not found");
+            for instance_id in &ast_module.instances {
+                let instance = program
+                    .instances
+                    .get(&instance_id)
+                    .expect("Instance not found");
+                self.process_instance(instance, program, &mut ir_program, module, &mut errors);
+            }
         }
 
         for (_, module) in &self.modules {

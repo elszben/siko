@@ -182,6 +182,11 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::UnknownTypeArg(var_name, id) => {
+                            println!("{} unknown type argument {}", error.red(), var_name.yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                         ResolverError::TypeArgumentConflict(args, id) => {
                             println!(
                                 "{} type argument(s) {} are not unique",

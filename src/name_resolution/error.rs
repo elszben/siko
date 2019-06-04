@@ -8,6 +8,7 @@ pub enum ResolverError {
     InternalModuleConflicts(String, String, Vec<LocationId>),
     ImportedModuleNotFound(String, LocationId),
     UnknownTypeName(String, LocationId),
+    UnknownTypeArg(String, LocationId),
     TypeArgumentConflict(Vec<String>, LocationId),
     ArgumentConflict(Vec<String>, LocationId),
     LambdaArgumentConflict(Vec<String>, LocationId),
