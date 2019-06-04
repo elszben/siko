@@ -546,7 +546,6 @@ impl Resolver {
                         errors.push(err);
                     }
                 }
-
             }
             None => {
                 let err = ResolverError::NotAClassName(
@@ -557,7 +556,6 @@ impl Resolver {
             }
         }
     }
-
 
     fn process_class(
         &self,
@@ -570,8 +568,11 @@ impl Resolver {
         let class = program.classes.get(class_id).expect("Class not found");
         for constraint in &class.constraints {
             if class.arg != constraint.arg {
-let err = ResolverError::InvalidArgumentInTypeClassConstraint(constraint.arg.clone(), constraint.location_id);
-            errors.push(err);
+                let err = ResolverError::InvalidArgumentInTypeClassConstraint(
+                    constraint.arg.clone(),
+                    constraint.location_id,
+                );
+                errors.push(err);
             }
             self.check_constraint(constraint, module, errors);
         }
@@ -601,9 +602,11 @@ let err = ResolverError::InvalidArgumentInTypeClassConstraint(constraint.arg.clo
                         }
                     }
                     if !found {
-                        let err = ResolverError::InvalidArgumentInTypeClassConstraint(constraint.arg.clone(), constraint.location_id);
-            errors.push(err);
-
+                        let err = ResolverError::InvalidArgumentInTypeClassConstraint(
+                            constraint.arg.clone(),
+                            constraint.location_id,
+                        );
+                        errors.push(err);
                     }
                     self.check_constraint(constraint, module, errors);
                 }

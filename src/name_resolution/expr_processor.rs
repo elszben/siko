@@ -583,9 +583,9 @@ pub fn process_expr(
                         return add_expr(ir_expr, id, ir_program, program);
                     }
                     PathResolveResult::ClassMemberRef(n) => {
-                    let ir_expr = IrExpr::ClassFunctionCall(n, vec![]);
-                    return add_expr(ir_expr, id, ir_program, program);
-                }
+                        let ir_expr = IrExpr::ClassFunctionCall(n, vec![]);
+                        return add_expr(ir_expr, id, ir_program, program);
+                    }
                 }
             } else {
                 if let Expr::Builtin(op) = id_expr {

@@ -120,9 +120,12 @@ impl fmt::Display for Expr {
             Expr::DynamicFunctionCall(id_expr, args) => {
                 write!(f, "DynamicFunctionCall({}, {})", id_expr, format_list(args))
             }
-            Expr::ClassFunctionCall(class_member_id, args) => {
-                write!(f, "ClassFunctionCall({}, {})", class_member_id, format_list(args))
-            }
+            Expr::ClassFunctionCall(class_member_id, args) => write!(
+                f,
+                "ClassFunctionCall({}, {})",
+                class_member_id,
+                format_list(args)
+            ),
             Expr::If(cond, true_branch, false_branch) => {
                 write!(f, "If({}, {}, {})", cond, true_branch, false_branch)
             }
