@@ -171,9 +171,7 @@ fn process_type_signature(
                     Some(id) => {
                         item_ids.push(id);
                     }
-                    None => {
-                        return None;
-                    }
+                    None => {}
                 }
             }
             IrTypeSignature::Tuple(item_ids)
@@ -189,9 +187,7 @@ fn process_type_signature(
                 used_type_args,
             ) {
                 Some(id) => id,
-                None => {
-                    return None;
-                }
+                None => ir_program.get_type_signature_id(),
             };
             let ir_to = match process_type_signature(
                 to,
@@ -203,9 +199,7 @@ fn process_type_signature(
                 used_type_args,
             ) {
                 Some(id) => id,
-                None => {
-                    return None;
-                }
+                None => ir_program.get_type_signature_id(),
             };
             IrTypeSignature::Function(ir_from, ir_to)
         }

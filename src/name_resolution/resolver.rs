@@ -27,6 +27,7 @@ use crate::name_resolution::lambda_helper::LambdaHelper;
 use crate::name_resolution::module::Module;
 use crate::name_resolution::type_processor::process_type_signatures;
 use crate::syntax::class::ClassId as AstClassId;
+use crate::syntax::class::Constraint;
 use crate::syntax::data::AdtId;
 use crate::syntax::data::RecordId;
 use crate::syntax::function::FunctionBody as AstFunctionBody;
@@ -217,7 +218,7 @@ impl Resolver {
                         .items
                         .entry(class_member.type_signature.name.clone())
                         .or_insert_with(|| Vec::new());
-                    items.push(Item::ClassMember(class.id,* member_id, ir_class_member_id));
+                    items.push(Item::ClassMember(class.id, *member_id, ir_class_member_id));
                 }
             }
         }
@@ -526,6 +527,38 @@ impl Resolver {
         }
     }
 
+    fn check_constraint(
+        &self,
+        constraint: &Constraint,
+        module: &Module,
+        errors: &mut Vec<ResolverError>,
+    ) {
+        match module.imported_items.get(&constraint.class_name) {
+            Some(items) => {
+                let item = &items[0];
+                match item.item {
+                    Item::Class(constraint_class_id, _) => {}
+                    _ => {
+                        let err = ResolverError::NotAClassName(
+                            constraint.class_name.clone(),
+                            constraint.location_id,
+                        );
+                        errors.push(err);
+                    }
+                }
+
+            }
+            None => {
+                let err = ResolverError::NotAClassName(
+                    constraint.class_name.clone(),
+                    constraint.location_id,
+                );
+                errors.push(err);
+            }
+        }
+    }
+
+
     fn process_class(
         &self,
         program: &Program,
@@ -534,38 +567,47 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let mut constraint_type_args = BTreeSet::new();
         let class = program.classes.get(class_id).expect("Class not found");
         for constraint in &class.constraints {
-            constraint_type_args.insert(constraint.arg.clone());
-            match module.imported_items.get(&constraint.class_name) {
-                Some(items) => {
-                    let item = &items[0];
-                    match item.item {
-                        Item::Class(constraint_class_id, _) => {}
-                        _ => {
-                            let err = ResolverError::NotAClassName(
-                                constraint.class_name.clone(),
-                                constraint.location_id,
-                            );
-                            errors.push(err);
+            if class.arg != constraint.arg {
+let err = ResolverError::InvalidArgumentInTypeClassConstraint(constraint.arg.clone(), constraint.location_id);
+            errors.push(err);
+            }
+            self.check_constraint(constraint, module, errors);
+        }
+        for member_id in &class.members {
+            let class_member = program
+                .class_members
+                .get(member_id)
+                .expect("Class member not found");
+            let ty = &class_member.type_signature;
+            let result = process_type_signatures(
+                &ty.type_args[..],
+                &[ty.type_signature_id],
+                program,
+                ir_program,
+                module,
+                ty.location_id,
+                errors,
+                false,
+            );
+            if errors.is_empty() {
+                for constraint in &ty.constraints {
+                    let mut found = false;
+                    for arg in &ty.type_args {
+                        if arg.0 == constraint.arg {
+                            found = true;
+                            break;
                         }
                     }
-                }
-                None => {
-                    let err = ResolverError::NotAClassName(
-                        constraint.class_name.clone(),
-                        constraint.location_id,
-                    );
-                    errors.push(err);
+                    if !found {
+                        let err = ResolverError::InvalidArgumentInTypeClassConstraint(constraint.arg.clone(), constraint.location_id);
+            errors.push(err);
+
+                    }
+                    self.check_constraint(constraint, module, errors);
                 }
             }
-        }
-        if constraint_type_args.len() > 1
-            || (!constraint_type_args.is_empty() && !constraint_type_args.contains(&class.arg))
-        {
-            let err = ResolverError::TypeClassConstraintArgMismatch(class.location_id);
-            errors.push(err);
         }
     }
 

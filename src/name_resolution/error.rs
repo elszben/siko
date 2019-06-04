@@ -30,5 +30,5 @@ pub enum ResolverError {
     FieldsInitializedMultipleTimes(Vec<String>, LocationId),
     NoRecordFoundWithFields(Vec<String>, LocationId),
     NotAClassName(String, LocationId),
-    TypeClassConstraintArgMismatch(LocationId),
+    InvalidArgumentInTypeClassConstraint(String, LocationId),
 }

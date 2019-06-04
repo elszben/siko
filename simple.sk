@@ -20,7 +20,7 @@ instance (Eq a) => Eq List a where
 class (BooM.Boo a) => Eq2 a where
     feq a :: a -> a -> Bool
 
-    fne a :: a -> a -> Bool
+    fne a :: (Boo a) => a -> a -> Bool
 
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
