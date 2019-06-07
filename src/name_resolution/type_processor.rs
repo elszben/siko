@@ -7,6 +7,7 @@ use crate::location_info::item::LocationId;
 use crate::name_resolution::error::ResolverError;
 use crate::name_resolution::item::Item;
 use crate::name_resolution::module::Module;
+use crate::name_resolution::type_arg_resolver::TypeArgResolver;
 use crate::syntax::program::Program;
 use crate::syntax::types::TypeSignature as AstTypeSignature;
 use crate::syntax::types::TypeSignatureId;
