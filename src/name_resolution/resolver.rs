@@ -334,6 +334,7 @@ impl Resolver {
                 ty.location_id,
                 errors,
                 false,
+                false,
             );
 
             if !result.is_empty() {
@@ -422,6 +423,7 @@ impl Resolver {
             adt.location_id,
             errors,
             false,
+            false,
         );
 
         if errors.is_empty() {
@@ -505,6 +507,7 @@ impl Resolver {
             record.location_id,
             errors,
             record.external,
+            false,
         );
 
         if errors.is_empty() {
@@ -592,6 +595,7 @@ impl Resolver {
                 ty.location_id,
                 errors,
                 false,
+                true,
             );
             if errors.is_empty() {
                 for constraint in &ty.constraints {

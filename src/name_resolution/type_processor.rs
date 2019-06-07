@@ -21,9 +21,8 @@ fn process_named_type(
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
-    type_args: &BTreeMap<String, usize>,
+    type_arg_resolver: &mut TypeArgResolver,
     errors: &mut Vec<ResolverError>,
-    used_type_args: &mut BTreeSet<String>,
 ) -> Option<IrTypeSignatureId> {
     let ir_type_signature = match module.imported_items.get(name) {
         Some(items) => {
@@ -39,9 +38,8 @@ fn process_named_type(
                     program,
                     ir_program,
                     module,
-                    type_args,
+                    type_arg_resolver,
                     errors,
-                    used_type_args,
                 ) {
                     Some(id) => {
                         named_arg_ids.push(id);
@@ -128,18 +126,16 @@ fn process_type_signature(
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
-    type_args: &BTreeMap<String, usize>,
+    type_arg_resolver: &mut TypeArgResolver,
     errors: &mut Vec<ResolverError>,
-    used_type_args: &mut BTreeSet<String>,
 ) -> Option<IrTypeSignatureId> {
     let type_signature = program.get_type_signature(type_signature_id);
     let location_id = program.get_type_signature_location(type_signature_id);
     let ir_type_signature = match type_signature {
         AstTypeSignature::Nothing => IrTypeSignature::Nothing,
         AstTypeSignature::TypeArg(name) => {
-            if let Some(index) = type_args.get(name) {
-                used_type_args.insert(name.clone());
-                IrTypeSignature::TypeArgument(*index, name.clone())
+            if let Some(index) = type_arg_resolver.resolve_arg(name) {
+                IrTypeSignature::TypeArgument(index, name.clone())
             } else {
                 let error = ResolverError::UnknownTypeArg(name.clone(), location_id);
                 errors.push(error);
@@ -154,9 +150,8 @@ fn process_type_signature(
                     program,
                     ir_program,
                     module,
-                    type_args,
+                    type_arg_resolver,
                     errors,
-                    used_type_args,
                 ) {
                     Some(id) => {
                         item_ids.push(id);
@@ -180,9 +175,8 @@ fn process_type_signature(
                     program,
                     ir_program,
                     module,
-                    type_args,
+                    type_arg_resolver,
                     errors,
-                    used_type_args,
                 );
             }
         },
@@ -194,9 +188,8 @@ fn process_type_signature(
                     program,
                     ir_program,
                     module,
-                    type_args,
+                    type_arg_resolver,
                     errors,
-                    used_type_args,
                 ) {
                     Some(id) => {
                         item_ids.push(id);
@@ -212,9 +205,8 @@ fn process_type_signature(
                 program,
                 ir_program,
                 module,
-                type_args,
+                type_arg_resolver,
                 errors,
-                used_type_args,
             ) {
                 Some(id) => id,
                 None => ir_program.get_type_signature_id(),
@@ -224,9 +216,8 @@ fn process_type_signature(
                 program,
                 ir_program,
                 module,
-                type_args,
+                type_arg_resolver,
                 errors,
-                used_type_args,
             ) {
                 Some(id) => id,
                 None => ir_program.get_type_signature_id(),
@@ -250,13 +241,18 @@ pub fn process_type_signatures(
     location_id: LocationId,
     errors: &mut Vec<ResolverError>,
     external: bool,
+    allow_implicit: bool,
 ) -> Vec<Option<IrTypeSignatureId>> {
+    let mut type_arg_resolver = TypeArgResolver::new(allow_implicit);
     let mut result = Vec::new();
-    let mut type_args = BTreeMap::new();
+    let mut type_arg_names = BTreeSet::new();
     let mut conflicting_names = BTreeSet::new();
-    for (index, type_arg) in original_type_args.iter().enumerate() {
-        if type_args.insert(type_arg.0.clone(), index).is_some() {
-            conflicting_names.insert(type_arg.0.clone());
+    for (type_arg, _) in original_type_args {
+        if !allow_implicit {
+            type_arg_resolver.add_explicit(type_arg.clone());
+        }
+        if !type_arg_names.insert(type_arg.clone()) {
+            conflicting_names.insert(type_arg.clone());
         }
     }
     if !conflicting_names.is_empty() {
@@ -266,25 +262,21 @@ pub fn process_type_signatures(
         );
         errors.push(error);
     }
-
-    let mut used_type_args = BTreeSet::new();
-
     for type_signature_id in type_signature_ids {
         let id = process_type_signature(
             &type_signature_id,
             program,
             ir_program,
             module,
-            &type_args,
+            &mut type_arg_resolver,
             errors,
-            &mut used_type_args,
         );
         result.push(id);
     }
 
     let mut unused = Vec::new();
-    for type_arg in type_args.keys() {
-        if !used_type_args.contains(type_arg) {
+    for (type_arg, _) in original_type_args {
+        if !type_arg_resolver.contains(type_arg) {
             unused.push(type_arg.clone());
         }
     }
