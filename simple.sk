@@ -11,6 +11,7 @@ import BooM (korte, Boo)
 
 korte = True
 
+
 instance Eq Bool where
     eb a b = extern
 
