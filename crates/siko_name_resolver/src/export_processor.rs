@@ -18,7 +18,7 @@ pub fn process_exports(
         let mut exported_items = BTreeMap::new();
         let mut exported_members = BTreeMap::new();
         let mut matched_classes = BTreeSet::new();
-        let ast_module = program.modules.get(&module.id).expect("Module not found");
+        let ast_module = program.modules.get(&module.id);
 
         let (mut item_patterns, mut member_patterns) = process_patterns(&ast_module.export_list);
 

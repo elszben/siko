@@ -33,4 +33,17 @@ impl Module {
             location_id: location_id,
         }
     }
+
+    pub fn add_item(&mut self, name: String, item: Item) {
+        let items = self.items.entry(name.clone()).or_insert_with(|| Vec::new());
+        items.push(item);
+    }
+
+    pub fn add_member(&mut self, name: String, member: DataMember) {
+        let members = self
+            .members
+            .entry(name.clone())
+            .or_insert_with(|| Vec::new());
+        members.push(member);
+    }
 }

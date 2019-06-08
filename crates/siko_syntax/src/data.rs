@@ -28,9 +28,21 @@ pub struct AdtId {
     pub id: usize,
 }
 
+impl From<usize> for AdtId {
+    fn from(id: usize) -> AdtId {
+        AdtId { id: id }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct VariantId {
     pub id: usize,
+}
+
+impl From<usize> for VariantId {
+    fn from(id: usize) -> VariantId {
+        VariantId { id: id }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +58,12 @@ pub struct Record {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct RecordId {
     pub id: usize,
+}
+
+impl From<usize> for RecordId {
+    fn from(id: usize) -> RecordId {
+        RecordId { id: id }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

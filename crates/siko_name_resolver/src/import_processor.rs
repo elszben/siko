@@ -139,7 +139,7 @@ pub fn process_imports(
             &mut imported_members,
         );
 
-        let ast_module = program.modules.get(&module.id).expect("Module not found");
+        let ast_module = program.modules.get(&module.id);
         for (_, import) in &ast_module.imports {
             if modules.get(&import.module_path).is_none() {
                 let err = ResolverError::ImportedModuleNotFound(

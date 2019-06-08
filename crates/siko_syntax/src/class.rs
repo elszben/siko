@@ -48,12 +48,30 @@ pub struct ClassId {
     pub id: usize,
 }
 
+impl From<usize> for ClassId {
+    fn from(id: usize) -> ClassId {
+        ClassId { id: id }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ClassMemberId {
     pub id: usize,
 }
 
+impl From<usize> for ClassMemberId {
+    fn from(id: usize) -> ClassMemberId {
+        ClassMemberId { id: id }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct InstanceId {
     pub id: usize,
+}
+
+impl From<usize> for InstanceId {
+    fn from(id: usize) -> InstanceId {
+        InstanceId { id: id }
+    }
 }

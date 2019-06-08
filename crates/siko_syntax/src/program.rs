@@ -24,75 +24,48 @@ use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use siko_util::Counter;
+use siko_util::ItemContainer;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Program {
-    pub modules: BTreeMap<ModuleId, Module>,
-    pub functions: BTreeMap<FunctionId, Function>,
-    pub records: BTreeMap<RecordId, Record>,
-    pub adts: BTreeMap<AdtId, Adt>,
-    pub variants: BTreeMap<VariantId, Variant>,
-    pub classes: BTreeMap<ClassId, Class>,
-    pub class_members: BTreeMap<ClassMemberId, ClassMember>,
-    pub instances: BTreeMap<InstanceId, Instance>,
+    pub modules: ItemContainer<ModuleId, Module>,
+    pub functions: ItemContainer<FunctionId, Function>,
+    pub records: ItemContainer<RecordId, Record>,
+    pub adts: ItemContainer<AdtId, Adt>,
+    pub variants: ItemContainer<VariantId, Variant>,
+    pub classes: ItemContainer<ClassId, Class>,
+    pub class_members: ItemContainer<ClassMemberId, ClassMember>,
+    pub instances: ItemContainer<InstanceId, Instance>,
     pub exprs: BTreeMap<ExprId, (Expr, LocationId)>,
     pub type_signatures: BTreeMap<TypeSignatureId, (TypeSignature, LocationId)>,
     pub patterns: BTreeMap<PatternId, (Pattern, LocationId)>,
-    module_id: Counter,
-    function_id: Counter,
     import_id: Counter,
     expr_id: Counter,
     type_signature_id: Counter,
-    adt_id: Counter,
-    variant_id: Counter,
-    record_id: Counter,
     record_field_id: Counter,
     pattern_id: Counter,
-    class_id: Counter,
-    class_member_id: Counter,
-    instance_id: Counter,
 }
 
 impl Program {
     pub fn new() -> Program {
         Program {
-            modules: BTreeMap::new(),
-            functions: BTreeMap::new(),
-            records: BTreeMap::new(),
-            adts: BTreeMap::new(),
-            variants: BTreeMap::new(),
-            classes: BTreeMap::new(),
-            class_members: BTreeMap::new(),
-            instances: BTreeMap::new(),
+            modules: ItemContainer::new(),
+            functions: ItemContainer::new(),
+            records: ItemContainer::new(),
+            adts: ItemContainer::new(),
+            variants: ItemContainer::new(),
+            classes: ItemContainer::new(),
+            class_members: ItemContainer::new(),
+            instances: ItemContainer::new(),
             exprs: BTreeMap::new(),
             type_signatures: BTreeMap::new(),
             patterns: BTreeMap::new(),
-            module_id: Counter::new(),
-            function_id: Counter::new(),
             import_id: Counter::new(),
             expr_id: Counter::new(),
             type_signature_id: Counter::new(),
-            adt_id: Counter::new(),
-            variant_id: Counter::new(),
-            record_id: Counter::new(),
             record_field_id: Counter::new(),
             pattern_id: Counter::new(),
-            class_id: Counter::new(),
-            class_member_id: Counter::new(),
-            instance_id: Counter::new(),
-        }
-    }
-
-    pub fn get_module_id(&mut self) -> ModuleId {
-        ModuleId {
-            id: self.module_id.next(),
-        }
-    }
-
-    pub fn get_function_id(&mut self) -> FunctionId {
-        FunctionId {
-            id: self.module_id.next(),
         }
     }
 
@@ -105,24 +78,6 @@ impl Program {
     pub fn get_expr_id(&mut self) -> ExprId {
         ExprId {
             id: self.expr_id.next(),
-        }
-    }
-
-    pub fn get_adt_id(&mut self) -> AdtId {
-        AdtId {
-            id: self.adt_id.next(),
-        }
-    }
-
-    pub fn get_variant_id(&mut self) -> VariantId {
-        VariantId {
-            id: self.variant_id.next(),
-        }
-    }
-
-    pub fn get_record_id(&mut self) -> RecordId {
-        RecordId {
-            id: self.record_id.next(),
         }
     }
 
@@ -144,28 +99,6 @@ impl Program {
         }
     }
 
-    pub fn get_class_id(&mut self) -> ClassId {
-        ClassId {
-            id: self.class_id.next(),
-        }
-    }
-
-    pub fn get_class_member_id(&mut self) -> ClassMemberId {
-        ClassMemberId {
-            id: self.class_member_id.next(),
-        }
-    }
-
-    pub fn get_instance_id(&mut self) -> InstanceId {
-        InstanceId {
-            id: self.instance_id.next(),
-        }
-    }
-
-    pub fn add_module(&mut self, id: ModuleId, module: Module) {
-        self.modules.insert(id, module);
-    }
-
     pub fn add_expr(&mut self, id: ExprId, expr: Expr, location_id: LocationId) {
         self.exprs.insert(id, (expr, location_id));
     }
@@ -182,18 +115,6 @@ impl Program {
 
     pub fn add_pattern(&mut self, id: PatternId, pattern: Pattern, location_id: LocationId) {
         self.patterns.insert(id, (pattern, location_id));
-    }
-
-    pub fn add_class(&mut self, id: ClassId, class: Class) {
-        self.classes.insert(id, class);
-    }
-
-    pub fn add_class_member(&mut self, id: ClassMemberId, class_member: ClassMember) {
-        self.class_members.insert(id, class_member);
-    }
-
-    pub fn add_instance(&mut self, id: InstanceId, instance: Instance) {
-        self.instances.insert(id, instance);
     }
 
     pub fn get_expr(&self, id: &ExprId) -> &Expr {

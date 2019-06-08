@@ -11,6 +11,7 @@ use crate::item::Variant;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
 use crate::type_processor::process_type_signatures;
+use siko_ir::class::Class;
 use siko_ir::class::ClassId as IrClassId;
 use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
@@ -106,9 +107,9 @@ impl Resolver {
         ir_program: &mut IrProgram,
     ) {
         for (_, module) in &mut self.modules {
-            let ast_module = program.modules.get(&module.id).expect("Module not found");
+            let ast_module = program.modules.get(&module.id);
             for record_id in &ast_module.records {
-                let record = program.records.get(record_id).expect("Record not found");
+                let record = program.records.get(record_id);
                 let ir_typedef_id = ir_program.typedefs.get_id();
                 let ir_ctor_id = ir_program.functions.get_id();
                 let record_ctor_info = RecordConstructorInfo {
@@ -137,27 +138,21 @@ impl Resolver {
 
                 let typedef = TypeDef::Record(ir_record);
                 ir_program.typedefs.add_item(ir_typedef_id, typedef);
-                let items = module
-                    .items
-                    .entry(record.name.clone())
-                    .or_insert_with(|| Vec::new());
-                items.push(Item::Record(*record_id, ir_typedef_id));
+                let item = Item::Record(*record_id, ir_typedef_id);
+                module.add_item(record.name.clone(), item);
                 for (index, field) in record.fields.iter().enumerate() {
-                    let members = module
-                        .members
-                        .entry(field.name.clone())
-                        .or_insert_with(|| Vec::new());
                     let record_field = RecordField {
                         field_id: field.id,
                         record_id: *record_id,
                         ir_typedef_id: ir_typedef_id,
                         index: index,
                     };
-                    members.push(DataMember::RecordField(record_field));
+                    let member = DataMember::RecordField(record_field);
+                    module.add_member(field.name.clone(), member);
                 }
             }
             for adt_id in &ast_module.adts {
-                let adt = program.adts.get(adt_id).expect("Adt not found");
+                let adt = program.adts.get(adt_id);
                 let ir_typedef_id = ir_program.typedefs.get_id();
                 let ir_adt = Adt {
                     name: adt.name.clone(),
@@ -167,60 +162,36 @@ impl Resolver {
                 };
                 let typedef = TypeDef::Adt(ir_adt);
                 ir_program.typedefs.add_item(ir_typedef_id, typedef);
-                let items = module
-                    .items
-                    .entry(adt.name.clone())
-                    .or_insert_with(|| Vec::new());
-                items.push(Item::Adt(*adt_id, ir_typedef_id));
+                let item = Item::Adt(*adt_id, ir_typedef_id);
+                module.add_item(adt.name.clone(), item);
                 for (index, variant_id) in adt.variants.iter().enumerate() {
-                    let ast_variant = program.variants.get(variant_id).expect("Variant not found");
-                    let items = module
-                        .items
-                        .entry(ast_variant.name.clone())
-                        .or_insert_with(|| Vec::new());
-                    items.push(Item::Variant(*adt_id, *variant_id, ir_typedef_id, index));
-                    let members = module
-                        .members
-                        .entry(ast_variant.name.clone())
-                        .or_insert_with(|| Vec::new());
+                    let ast_variant = program.variants.get(variant_id);
+                    let item = Item::Variant(*adt_id, *variant_id, ir_typedef_id, index);
+                    module.add_item(ast_variant.name.clone(), item);
                     let variant = Variant {
                         variant_id: *variant_id,
                         adt_id: *adt_id,
                     };
-                    members.push(DataMember::Variant(variant));
+                    let member = DataMember::Variant(variant);
+                    module.add_member(ast_variant.name.clone(), member);
                 }
             }
             for function_id in &ast_module.functions {
-                let function = program
-                    .functions
-                    .get(function_id)
-                    .expect("Function not found");
+                let function = program.functions.get(function_id);
                 let ir_function_id = ir_program.functions.get_id();
-                let items = module
-                    .items
-                    .entry(function.name.clone())
-                    .or_insert_with(|| Vec::new());
-                items.push(Item::Function(function.id, ir_function_id));
+                let item = Item::Function(function.id, ir_function_id);
+                module.add_item(function.name.clone(), item);
             }
             for class_id in &ast_module.classes {
                 let ir_class_id = ir_program.classes.get_id();
-                let class = program.classes.get(class_id).expect("Class not found");
-                let items = module
-                    .items
-                    .entry(class.name.clone())
-                    .or_insert_with(|| Vec::new());
-                items.push(Item::Class(class.id, ir_class_id));
+                let class = program.classes.get(class_id);
+                let item = Item::Class(class.id, ir_class_id);
+                module.add_item(class.name.clone(), item);
                 for member_id in &class.members {
                     let ir_class_member_id = ir_program.get_class_member_id();
-                    let class_member = program
-                        .class_members
-                        .get(member_id)
-                        .expect("Class member not found");
-                    let items = module
-                        .items
-                        .entry(class_member.type_signature.name.clone())
-                        .or_insert_with(|| Vec::new());
-                    items.push(Item::ClassMember(class.id, *member_id, ir_class_member_id));
+                    let class_member = program.class_members.get(member_id);
+                    let item = Item::ClassMember(class.id, *member_id, ir_class_member_id);
+                    module.add_item(class_member.type_signature.name.clone(), item);
                 }
             }
         }
@@ -232,31 +203,27 @@ impl Resolver {
                     for item in items {
                         match item {
                             Item::Function(id, _) => {
-                                let function =
-                                    program.functions.get(id).expect("Function not found");
+                                let function = program.functions.get(id);
                                 locations.push(function.location_id);
                             }
                             Item::Record(id, _) => {
-                                let record = program.records.get(id).expect("Record not found");
+                                let record = program.records.get(id);
                                 locations.push(record.location_id);
                             }
                             Item::Adt(id, _) => {
-                                let adt = program.adts.get(id).expect("Adt not found");
+                                let adt = program.adts.get(id);
                                 locations.push(adt.location_id);
                             }
                             Item::Variant(_, id, _, _) => {
-                                let variant = program.variants.get(id).expect("Variant not found");
+                                let variant = program.variants.get(id);
                                 locations.push(variant.location_id);
                             }
                             Item::Class(id, _) => {
-                                let class = program.classes.get(id).expect("Class not found");
+                                let class = program.classes.get(id);
                                 locations.push(class.location_id);
                             }
                             Item::ClassMember(_, id, _) => {
-                                let class_member = program
-                                    .class_members
-                                    .get(id)
-                                    .expect("Classmember not found");
+                                let class_member = program.class_members.get(id);
                                 locations.push(class_member.location_id);
                             }
                         }
@@ -271,7 +238,7 @@ impl Resolver {
             }
         }
 
-        for (_, record) in &program.records {
+        for (_, record) in &program.records.items {
             let mut field_names = BTreeSet::new();
             for field in &record.fields {
                 if !field_names.insert(field.name.clone()) {
@@ -285,10 +252,10 @@ impl Resolver {
             }
         }
 
-        for (_, adt) in &program.adts {
+        for (_, adt) in &program.adts.items {
             let mut variant_names = BTreeSet::new();
             for variant_id in &adt.variants {
-                let variant = program.variants.get(variant_id).expect("Variant not found");
+                let variant = program.variants.get(variant_id);
                 if !variant_names.insert(variant.name.clone()) {
                     let err = ResolverError::VariantNotUnique(
                         adt.name.clone(),
@@ -310,10 +277,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let function = program
-            .functions
-            .get(function_id)
-            .expect("Function not found");
+        let function = program.functions.get(function_id);
         let mut type_signature_id = None;
         let mut body = None;
         if let Some(ty) = &function.func_type {
@@ -406,13 +370,10 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let adt = program.adts.get(adt_id).expect("Adt not found");
+        let adt = program.adts.get(adt_id);
         let mut type_signature_ids = Vec::new();
         for variant_id in &adt.variants {
-            let variant = program
-                .variants
-                .get(&variant_id)
-                .expect("Variant not found");
+            let variant = program.variants.get(&variant_id);
             type_signature_ids.push(variant.type_signature_id);
         }
         let result = process_type_signatures(
@@ -491,7 +452,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let record = program.records.get(record_id).expect("Record not found");
+        let record = program.records.get(record_id);
         let mut type_signature_ids = Vec::new();
         for field in &record.fields {
             type_signature_ids.push(field.type_signature_id);
@@ -560,7 +521,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let class = program.classes.get(class_id).expect("Class not found");
+        let class = program.classes.get(class_id);
         for constraint in &class.constraints {
             if class.arg != constraint.arg {
                 let err = ResolverError::InvalidArgumentInTypeClassConstraint(
@@ -577,10 +538,7 @@ impl Resolver {
             );
         }
         for member_id in &class.members {
-            let class_member = program
-                .class_members
-                .get(member_id)
-                .expect("Class member not found");
+            let class_member = program.class_members.get(member_id);
             let ty = &class_member.type_signature;
             let result = process_type_signatures(
                 &ty.type_args[..],
@@ -662,7 +620,7 @@ impl Resolver {
 
         let mut modules = BTreeMap::new();
 
-        for ast_module in program.modules.values() {
+        for ast_module in program.modules.items.values() {
             self.register_module(ast_module, &mut modules);
         }
 
@@ -726,12 +684,9 @@ impl Resolver {
         }
 
         for (_, module) in &self.modules {
-            let ast_module = program.modules.get(&module.id).expect("Module not found");
+            let ast_module = program.modules.get(&module.id);
             for instance_id in &ast_module.instances {
-                let instance = program
-                    .instances
-                    .get(&instance_id)
-                    .expect("Instance not found");
+                let instance = program.instances.get(&instance_id);
                 self.process_instance(instance, program, &mut ir_program, module, &mut errors);
             }
         }

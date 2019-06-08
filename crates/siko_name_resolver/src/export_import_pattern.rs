@@ -109,15 +109,15 @@ pub fn process_patterns(item_list: &EIList) -> (Vec<ItemPattern>, Vec<MemberPatt
 fn match_item(name: &str, group: bool, item: &Item, program: &Program) -> bool {
     match item {
         Item::Function(id, _) => {
-            let function = program.functions.get(&id).expect("Function not found");
+            let function = program.functions.get(&id);
             function.name == name && !group
         }
         Item::Record(id, _) => {
-            let record = program.records.get(&id).expect("Record not found");
+            let record = program.records.get(&id);
             record.name == name
         }
         Item::Adt(id, _) => {
-            let adt = program.adts.get(&id).expect("Adt not found");
+            let adt = program.adts.get(&id);
             adt.name == name
         }
         Item::Variant(..) => {
@@ -125,7 +125,7 @@ fn match_item(name: &str, group: bool, item: &Item, program: &Program) -> bool {
             false
         }
         Item::Class(id, _) => {
-            let class = program.classes.get(&id).expect("Class not found");
+            let class = program.classes.get(&id);
             class.name == name && !group
         }
         Item::ClassMember(_, _, _) => false,
@@ -140,10 +140,7 @@ fn match_member(
 ) -> bool {
     match member {
         DataMember::RecordField(field) => {
-            let record = program
-                .records
-                .get(&field.record_id)
-                .expect("Record not found");
+            let record = program.records.get(&field.record_id);
             for record_field in &record.fields {
                 if record.name == group_name {
                     if let Some(n) = name {
@@ -157,11 +154,8 @@ fn match_member(
             }
         }
         DataMember::Variant(variant) => {
-            let adt = program.adts.get(&variant.adt_id).expect("Adt not found");
-            let ast_variant = program
-                .variants
-                .get(&variant.variant_id)
-                .expect("Variant not found");
+            let adt = program.adts.get(&variant.adt_id);
+            let ast_variant = program.variants.get(&variant.variant_id);
             if adt.name == group_name {
                 if let Some(n) = name {
                     if *n == ast_variant.name {
@@ -207,11 +201,8 @@ pub fn check_item(
                     matched_item = true;
                 }
                 MemberPatternKind::Specific(pattern) => {
-                    let adt = program.adts.get(&adt_id).expect("Adt not found");
-                    let ast_variant = program
-                        .variants
-                        .get(&variant_id)
-                        .expect("Variant not found");
+                    let adt = program.adts.get(&adt_id);
+                    let ast_variant = program.variants.get(&variant_id);
                     if adt.name == pattern.group_name {
                         if let Some(n) = &pattern.name {
                             if *n == ast_variant.name {

@@ -14,6 +14,12 @@ pub struct ModuleId {
     pub id: usize,
 }
 
+impl From<usize> for ModuleId {
+    fn from(id: usize) -> ModuleId {
+        ModuleId { id: id }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Module {
     pub name: String,

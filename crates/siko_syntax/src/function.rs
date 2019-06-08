@@ -33,3 +33,9 @@ pub struct Function {
 pub struct FunctionId {
     pub id: usize,
 }
+
+impl From<usize> for FunctionId {
+    fn from(id: usize) -> FunctionId {
+        FunctionId { id: id }
+    }
+}

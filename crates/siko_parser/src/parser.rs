@@ -555,7 +555,7 @@ impl<'a> Parser<'a> {
                 unreachable!()
             };
             self.expect(TokenKind::EndOfItem)?;
-            let id = self.program.get_function_id();
+            let id = self.program.functions.get_id();
             let function = Function {
                 id: id,
                 name: name,
@@ -701,7 +701,7 @@ impl<'a> Parser<'a> {
         let location_id = self.get_location_id(start_index, end_index);
         let record = Record {
             name: name,
-            id: self.program.get_record_id(),
+            id: self.program.records.get_id(),
             type_args: type_args,
             fields: fields,
             location_id: location_id,
@@ -717,14 +717,14 @@ impl<'a> Parser<'a> {
         let type_signature_id = self.parse_function_type(true, false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(variant_start_index, end_index);
-        let id = self.program.get_variant_id();
+        let id = self.program.variants.get_id();
         let variant = Variant {
             id: id,
             name: name,
             type_signature_id: type_signature_id,
             location_id: location_id,
         };
-        self.program.variants.insert(id, variant);
+        self.program.variants.add_item(id, variant);
         Ok(id)
     }
 
@@ -744,7 +744,7 @@ impl<'a> Parser<'a> {
             let location_id = self.get_location_id(start_index, end_index);
             let record = Record {
                 name: name,
-                id: self.program.get_record_id(),
+                id: self.program.records.get_id(),
                 type_args: args,
                 fields: Vec::new(),
                 location_id: location_id,
@@ -766,7 +766,7 @@ impl<'a> Parser<'a> {
             let location_id = self.get_location_id(start_index, end_index);
             let adt = Adt {
                 name: name,
-                id: self.program.get_adt_id(),
+                id: self.program.adts.get_id(),
                 type_args: args,
                 variants: variants,
                 location_id: location_id,
@@ -881,7 +881,7 @@ impl<'a> Parser<'a> {
                             if last.function.is_none() {
                                 let function_id = function.id;
                                 function.func_type = Some(last.type_signature.clone());
-                                self.program.functions.insert(function_id, function);
+                                self.program.functions.add_item(function_id, function);
                                 last.function = Some(function_id);
                                 continue;
                             }
@@ -893,7 +893,7 @@ impl<'a> Parser<'a> {
                         return report_parser_error(self, reason);
                     }
                     FunctionOrFunctionType::FunctionType(function_type) => {
-                        let member_id = self.program.get_class_member_id();
+                        let member_id = self.program.class_members.get_id();
                         let location_id = function_type.location_id;
                         let member = ClassMember {
                             id: member_id,
@@ -908,12 +908,12 @@ impl<'a> Parser<'a> {
             self.expect(TokenKind::EndOfBlock)?;
         }
         self.expect(TokenKind::EndOfItem)?;
-        let id = self.program.get_class_id();
+        let id = self.program.classes.get_id();
         module.classes.push(id);
         let mut member_ids = Vec::new();
         for member in members {
             member_ids.push(member.id);
-            self.program.add_class_member(member.id, member);
+            self.program.class_members.add_item(member.id, member);
         }
         let class = Class {
             id: id,
@@ -950,7 +950,7 @@ impl<'a> Parser<'a> {
                     FunctionOrFunctionType::Function(function) => {
                         let function_id = function.id;
                         module.functions.push(function_id);
-                        self.program.functions.insert(function_id, function);
+                        self.program.functions.add_item(function_id, function);
                         let member = InstanceMember {
                             function: function_id,
                         };
@@ -968,7 +968,7 @@ impl<'a> Parser<'a> {
             self.expect(TokenKind::EndOfBlock)?;
         }
         self.expect(TokenKind::EndOfItem)?;
-        let id = self.program.get_instance_id();
+        let id = self.program.instances.get_id();
         module.instances.push(id);
         let instance = Instance {
             id: id,
@@ -1004,21 +1004,21 @@ impl<'a> Parser<'a> {
                         match data {
                             Data::Record(record) => {
                                 module.records.push(record.id);
-                                self.program.records.insert(record.id, record);
+                                self.program.records.add_item(record.id, record);
                             }
                             Data::Adt(adt) => {
                                 module.adts.push(adt.id);
-                                self.program.adts.insert(adt.id, adt);
+                                self.program.adts.add_item(adt.id, adt);
                             }
                         }
                     }
                     TokenKind::KeywordClass => {
                         let class = self.parse_class(&mut module)?;
-                        self.program.add_class(class.id, class);
+                        self.program.classes.add_item(class.id, class);
                     }
                     TokenKind::KeywordInstance => {
                         let instance = self.parse_instance(&mut module)?;
-                        self.program.add_instance(instance.id, instance);
+                        self.program.instances.add_item(instance.id, instance);
                     }
                     TokenKind::EndOfBlock => {
                         break;
@@ -1029,7 +1029,7 @@ impl<'a> Parser<'a> {
                             FunctionOrFunctionType::Function(function) => {
                                 let function_id = function.id;
                                 module.functions.push(function_id);
-                                self.program.functions.insert(function_id, function);
+                                self.program.functions.add_item(function_id, function);
                             }
                             FunctionOrFunctionType::FunctionType(function_type) => {
                                 let saved_index = self.get_index();
@@ -1038,7 +1038,7 @@ impl<'a> Parser<'a> {
                                     let function_id = function.id;
                                     function.func_type = Some(function_type);
                                     module.functions.push(function_id);
-                                    self.program.functions.insert(function_id, function);
+                                    self.program.functions.add_item(function_id, function);
                                 } else {
                                     self.restore(saved_index);
                                     let reason = ParserErrorReason::Custom {
@@ -1063,13 +1063,13 @@ impl<'a> Parser<'a> {
 
     pub fn parse(&mut self) -> Result<(), ParseError> {
         while !self.is_done() {
-            let m_id = self.program.get_module_id();
+            let m_id = self.program.modules.get_id();
             let module = self.parse_module(m_id)?;
-            self.program.add_module(m_id, module);
+            self.program.modules.add_item(m_id, module);
         }
 
         let mut prelude_exists = false;
-        for (_, module) in self.program.modules.iter_mut() {
+        for (_, module) in &self.program.modules.items {
             if module.name == PRELUDE_NAME {
                 prelude_exists = true;
                 break;
@@ -1078,7 +1078,7 @@ impl<'a> Parser<'a> {
 
         if prelude_exists {
             let mut modules_without_prelude = Vec::new();
-            for (module_id, module) in &self.program.modules {
+            for (module_id, module) in &self.program.modules.items {
                 let mut prelude_imported = false;
                 if module.name == PRELUDE_NAME {
                     continue;
@@ -1104,11 +1104,8 @@ impl<'a> Parser<'a> {
                     },
                     location_id: None,
                 };
-                let module = self
-                    .program
-                    .modules
-                    .get_mut(&module_id)
-                    .expect("Module not found");
+                let module = self.program.modules.get_mut(&module_id);
+
                 module.imports.insert(import_id, import);
             }
         }
