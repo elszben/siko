@@ -1,7 +1,7 @@
-use siko_location_info::item::LocationId;
 use crate::class::Constraint;
 use crate::expr::ExprId;
 use crate::types::TypeSignatureId;
+use siko_location_info::item::LocationId;
 
 #[derive(Debug, Clone)]
 pub enum FunctionBody {

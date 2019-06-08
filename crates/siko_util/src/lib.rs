@@ -1,5 +1,5 @@
-use std::fmt;
 use std::collections::BTreeMap;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Counter {
@@ -33,7 +33,7 @@ impl<Key: Ord + From<usize>, Item> ItemContainer<Key, Item> {
     pub fn new() -> ItemContainer<Key, Item> {
         ItemContainer {
             items: BTreeMap::new(),
-            id: Counter::new()
+            id: Counter::new(),
         }
     }
 

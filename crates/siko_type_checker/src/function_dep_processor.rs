@@ -1,14 +1,14 @@
+use crate::common::DependencyGroup;
+use crate::common::FunctionTypeInfo;
+use crate::type_store::TypeStore;
+use crate::walker::walk_expr;
+use crate::walker::Visitor;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use crate::common::DependencyGroup;
-use crate::common::FunctionTypeInfo;
-use crate::type_store::TypeStore;
-use crate::walker::walk_expr;
-use crate::walker::Visitor;
 #[allow(unused)]
 use siko_util::format_list;
 use std::collections::BTreeMap;

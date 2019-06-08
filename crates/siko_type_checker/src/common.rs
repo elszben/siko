@@ -1,10 +1,10 @@
-use siko_ir::expr::ExprId;
-use siko_ir::function::FunctionId;
-use siko_location_info::item::LocationId;
 use crate::function_type::FunctionType;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
+use siko_ir::expr::ExprId;
+use siko_ir::function::FunctionId;
+use siko_location_info::item::LocationId;
 use std::collections::BTreeSet;
 use std::fmt;
 

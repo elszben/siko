@@ -1,6 +1,6 @@
+use crate::pattern::PatternId;
 use siko_constants::BuiltinOperator;
 use siko_location_info::item::LocationId;
-use crate::pattern::PatternId;
 use siko_util::format_list;
 use std::fmt;
 

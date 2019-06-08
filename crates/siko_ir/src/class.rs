@@ -1,5 +1,5 @@
-use std::fmt;
 use siko_location_info::item::LocationId;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Class {

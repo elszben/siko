@@ -1,11 +1,11 @@
-use siko_constants;
 use crate::error::Error;
-use siko_ir::function::FunctionInfo;
-use siko_ir::program::Program;
 use crate::error::TypecheckError;
 use crate::expr_processor::ExprProcessor;
 use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::function_processor::FunctionProcessor;
+use siko_constants;
+use siko_ir::function::FunctionInfo;
+use siko_ir::program::Program;
 
 pub struct Typechecker {}
 

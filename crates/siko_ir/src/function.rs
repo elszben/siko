@@ -18,7 +18,7 @@ impl fmt::Display for FunctionId {
 
 impl From<usize> for FunctionId {
     fn from(id: usize) -> FunctionId {
-        FunctionId{id:id}
+        FunctionId { id: id }
     }
 }
 

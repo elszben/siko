@@ -1,8 +1,7 @@
-use siko_constants;
-use siko_location_info::error_context::ErrorContext;
 use crate::environment::Environment;
 use crate::value::Callable;
 use crate::value::Value;
+use siko_constants;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
@@ -10,6 +9,7 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
+use siko_location_info::error_context::ErrorContext;
 
 pub struct Interpreter<'a> {
     error_context: ErrorContext<'a>,
@@ -363,7 +363,8 @@ impl<'a> Interpreter<'a> {
                 if !v {
                     let current_expr = current_expr.expect("No current expr");
                     let location_id = program.get_expr_location(&current_expr);
-                    self.error_context.report_error(format!("Assertion failed"), location_id);
+                    self.error_context
+                        .report_error(format!("Assertion failed"), location_id);
                     panic!("Abort not implemented");
                 }
                 return Value::Tuple(vec![]);

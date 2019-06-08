@@ -69,16 +69,12 @@ fn resolve_item_path(
                     return PathResolveResult::FunctionRef(ir_function_id);
                 }
                 Item::Record(_, ir_typedef_id) => {
-                    let ir_record = ir_program
-                        .typedefs
-                        .get(&ir_typedef_id).get_record();
-                        return PathResolveResult::FunctionRef(ir_record.constructor);
+                    let ir_record = ir_program.typedefs.get(&ir_typedef_id).get_record();
+                    return PathResolveResult::FunctionRef(ir_record.constructor);
                 }
                 Item::Variant(_, _, ir_typedef_id, index) => {
-                    let ir_adt = ir_program
-                         .typedefs
-                        .get(&ir_typedef_id).get_adt();
-                        return PathResolveResult::FunctionRef(ir_adt.variants[index].constructor);
+                    let ir_adt = ir_program.typedefs.get(&ir_typedef_id).get_adt();
+                    return PathResolveResult::FunctionRef(ir_adt.variants[index].constructor);
                 }
                 Item::ClassMember(_, _, ir_class_member_id) => {
                     return PathResolveResult::ClassMemberRef(ir_class_member_id);
@@ -156,7 +152,7 @@ fn resolve_pattern_type_constructor(
             match item.item {
                 Item::Function(_, _) => unreachable!(),
                 Item::Record(_, ir_typedef_id) => {
-                        return IrPattern::Record(ir_typedef_id, ids);
+                    return IrPattern::Record(ir_typedef_id, ids);
                 }
                 Item::Variant(_, _, ir_typedef_id, index) => {
                     if irrefutable {
@@ -164,7 +160,7 @@ fn resolve_pattern_type_constructor(
                         errors.push(err);
                         return IrPattern::Wildcard;
                     } else {
-                            return IrPattern::Variant(ir_typedef_id, index, ids);
+                        return IrPattern::Variant(ir_typedef_id, index, ids);
                     }
                 }
                 _ => {}
@@ -193,7 +189,7 @@ fn resolve_record_type(
             match item.item {
                 Item::Function(_, _) => unreachable!(),
                 Item::Record(_, ir_typedef_id) => {
-                        return Some(ir_typedef_id);
+                    return Some(ir_typedef_id);
                 }
                 Item::Variant(..) => {
                     let err = ResolverError::NotRecordType(name.clone(), location_id);

@@ -1,9 +1,9 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
-use siko_ir::types::TypeDefId;
 use crate::type_store::CloneContext;
 use crate::type_store::TypeIndex;
 use crate::type_store::TypeStore;
+use siko_ir::types::TypeDefId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;

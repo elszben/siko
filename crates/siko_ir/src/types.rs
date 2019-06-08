@@ -90,15 +90,14 @@ impl fmt::Display for TypeDefId {
     }
 }
 
-
 impl From<usize> for TypeDefId {
     fn from(id: usize) -> TypeDefId {
-        TypeDefId{id:id}
+        TypeDefId { id: id }
     }
 }
 
-impl TypeDef { 
-pub fn get_adt(&self) -> &Adt {
+impl TypeDef {
+    pub fn get_adt(&self) -> &Adt {
         if let TypeDef::Adt(adt) = self {
             &adt
         } else {
@@ -115,7 +114,7 @@ pub fn get_adt(&self) -> &Adt {
     }
 
     pub fn get_mut_adt(&mut self) -> &mut Adt {
-        if let TypeDef::Adt(ref mut adt) =  self {
+        if let TypeDef::Adt(ref mut adt) = self {
             adt
         } else {
             unreachable!()

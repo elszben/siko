@@ -14,7 +14,6 @@ pub enum TypecheckError {
     InvalidRecordPattern(LocationId, String, usize, usize),
 }
 
-
 #[derive(Debug)]
 pub struct Error {
     pub errors: Vec<TypecheckError>,

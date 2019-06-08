@@ -11,6 +11,7 @@ use crate::item::Variant;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
 use crate::type_processor::process_type_signatures;
+use siko_ir::class::ClassId as IrClassId;
 use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
@@ -26,6 +27,7 @@ use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeSignature;
 use siko_ir::types::Variant as IrVariant;
 use siko_ir::types::VariantItem;
+use siko_location_info::item::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
 use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance as AstInstance;
@@ -37,8 +39,6 @@ use siko_syntax::module::Module as AstModule;
 use siko_syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use siko_ir::class::ClassId as IrClassId;
-use siko_location_info::item::LocationId;
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -476,10 +476,8 @@ impl Resolver {
                 }
             }
 
-            let ir_adt = ir_program
-                .typedefs
-                .get_mut(&ir_typedef_id).get_mut_adt();
-                ir_adt.variants = ir_variants;
+            let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
+            ir_adt.variants = ir_variants;
         }
     }
 
@@ -520,10 +518,8 @@ impl Resolver {
                 ir_fields.push(ir_field);
             }
 
-            let ir_record = ir_program
-                .typedefs
-                .get_mut(&ir_typedef_id).get_mut_record();
-                ir_record.fields = ir_fields;
+            let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
+            ir_record.fields = ir_fields;
         }
     }
 
@@ -533,7 +529,7 @@ impl Resolver {
         location_id: LocationId,
         module: &Module,
         errors: &mut Vec<ResolverError>,
-    ) -> Option<IrClassId>{
+    ) -> Option<IrClassId> {
         match module.imported_items.get(class_name) {
             Some(items) => {
                 let item = &items[0];
@@ -542,19 +538,13 @@ impl Resolver {
                         return Some(ir_class_id);
                     }
                     _ => {
-                        let err = ResolverError::NotAClassName(
-                            class_name.clone(),
-                            location_id,
-                        );
+                        let err = ResolverError::NotAClassName(class_name.clone(), location_id);
                         errors.push(err);
                     }
                 }
             }
             None => {
-                let err = ResolverError::NotAClassName(
-                    class_name.clone(),
-                    location_id,
-                );
+                let err = ResolverError::NotAClassName(class_name.clone(), location_id);
                 errors.push(err);
             }
         }
@@ -578,7 +568,12 @@ impl Resolver {
                 );
                 errors.push(err);
             }
-            self.lookup_class(&constraint.class_name, constraint.location_id, module, errors);
+            self.lookup_class(
+                &constraint.class_name,
+                constraint.location_id,
+                module,
+                errors,
+            );
         }
         for member_id in &class.members {
             let class_member = program
@@ -613,7 +608,12 @@ impl Resolver {
                         );
                         errors.push(err);
                     }
-                    self.lookup_class(&constraint.class_name, constraint.location_id, module, errors);
+                    self.lookup_class(
+                        &constraint.class_name,
+                        constraint.location_id,
+                        module,
+                        errors,
+                    );
                 }
             }
         }
@@ -630,27 +630,30 @@ impl Resolver {
         let mut type_args = Vec::new();
         for constraint in &instance.constraints {
             type_args.push((constraint.arg.clone(), constraint.location_id));
-            self.lookup_class(&constraint.class_name, constraint.location_id, module, errors);
+            self.lookup_class(
+                &constraint.class_name,
+                constraint.location_id,
+                module,
+                errors,
+            );
         }
 
         match self.lookup_class(&instance.class_name, instance.location_id, module, errors) {
-            Some(ir_class_id) => {
-
-            }
+            Some(ir_class_id) => {}
             None => {}
         }
 
         let result = process_type_signatures(
-                &type_args[..],
-                &[instance.type_signature_id],
-                program,
-                ir_program,
-                module,
-                instance.location_id,
-                errors,
-                false,
-                true,
-            );
+            &type_args[..],
+            &[instance.type_signature_id],
+            program,
+            ir_program,
+            module,
+            instance.location_id,
+            errors,
+            false,
+            true,
+        );
     }
 
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {

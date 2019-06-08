@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::error::Error;
-use siko_location_info::error_context::ErrorContext;
 use siko_interpreter::interpreter::Interpreter;
+use siko_location_info::error_context::ErrorContext;
 use siko_location_info::file_manager::FileManager;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::location_info::LocationInfo;

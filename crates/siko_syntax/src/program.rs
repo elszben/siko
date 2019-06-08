@@ -1,4 +1,3 @@
-use siko_location_info::item::LocationId;
 use crate::class::Class;
 use crate::class::ClassId;
 use crate::class::ClassMember;
@@ -23,6 +22,7 @@ use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
+use siko_location_info::item::LocationId;
 use siko_util::Counter;
 use std::collections::BTreeMap;
 

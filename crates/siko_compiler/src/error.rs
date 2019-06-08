@@ -1,6 +1,7 @@
+use colored::*;
+use siko_location_info::error_context::ErrorContext;
 use siko_location_info::file_manager::FileManager;
 use siko_location_info::filepath::FilePath;
-use siko_location_info::error_context::ErrorContext;
 use siko_location_info::item::LocationId;
 use siko_location_info::location::Location;
 use siko_location_info::location_set::LocationSet;
@@ -11,7 +12,6 @@ use siko_parser::error::ParseError;
 use siko_type_checker::error::Error as TypecheckErrorContainer;
 use siko_type_checker::error::TypecheckError;
 use siko_util::format_list;
-use colored::*;
 use std::cmp;
 use std::convert::From;
 use std::io::Error as IoError;
@@ -165,7 +165,11 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownTypeArg(var_name, id) => {
-                            println!("{} unknown type argument {}", error.red(), var_name.yellow());
+                            println!(
+                                "{} unknown type argument {}",
+                                error.red(),
+                                var_name.yellow()
+                            );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }

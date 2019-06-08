@@ -1,5 +1,5 @@
-use siko_location_info::item::LocationId;
 use crate::export_import::EIList;
+use siko_location_info::item::LocationId;
 
 #[derive(Debug, Clone)]
 pub struct HiddenItem {

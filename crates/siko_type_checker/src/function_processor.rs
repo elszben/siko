@@ -1,12 +1,3 @@
-use siko_ir::expr::ExprId;
-use siko_ir::function::Function;
-use siko_ir::function::FunctionId;
-use siko_ir::function::FunctionInfo;
-use siko_ir::program::Program;
-use siko_ir::types::TypeDefId;
-use siko_ir::types::TypeSignature;
-use siko_ir::types::TypeSignatureId;
-use siko_location_info::item::LocationId;
 use crate::common::create_general_function_type;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
@@ -16,6 +7,15 @@ use crate::function_type::FunctionType;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
+use siko_ir::expr::ExprId;
+use siko_ir::function::Function;
+use siko_ir::function::FunctionId;
+use siko_ir::function::FunctionInfo;
+use siko_ir::program::Program;
+use siko_ir::types::TypeDefId;
+use siko_ir::types::TypeSignature;
+use siko_ir::types::TypeSignatureId;
+use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 
 pub struct FunctionProcessor {

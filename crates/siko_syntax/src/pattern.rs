@@ -1,6 +1,6 @@
-use siko_location_info::item::LocationId;
 use crate::expr::ExprId;
 use crate::types::TypeSignatureId;
+use siko_location_info::item::LocationId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

@@ -1,12 +1,3 @@
-use siko_ir::expr::Expr;
-use siko_ir::expr::ExprId;
-use siko_ir::expr::FieldAccessInfo;
-use siko_ir::function::FunctionId;
-use siko_ir::pattern::Pattern;
-use siko_ir::pattern::PatternId;
-use siko_ir::program::Program;
-use siko_ir::types::TypeDefId;
-use siko_location_info::item::LocationId;
 use crate::common::create_general_function_type;
 use crate::common::DependencyGroup;
 use crate::common::FunctionTypeInfo;
@@ -18,6 +9,15 @@ use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use crate::walker::walk_expr;
 use crate::walker::Visitor;
+use siko_ir::expr::Expr;
+use siko_ir::expr::ExprId;
+use siko_ir::expr::FieldAccessInfo;
+use siko_ir::function::FunctionId;
+use siko_ir::pattern::Pattern;
+use siko_ir::pattern::PatternId;
+use siko_ir::program::Program;
+use siko_ir::types::TypeDefId;
+use siko_location_info::item::LocationId;
 use siko_util::format_list;
 use std::collections::BTreeMap;
 
@@ -482,7 +482,11 @@ impl<'a> Visitor for Unifier<'a> {
                 let mut expected_records = Vec::new();
                 let mut matching_update = None;
                 for record_update in record_updates {
-                    let record = self.program.typedefs.get(&record_update.record_id).get_record();
+                    let record = self
+                        .program
+                        .typedefs
+                        .get(&record_update.record_id)
+                        .get_record();
                     expected_records.push(record.name.clone());
                     if let Some(id) = real_record_type {
                         if record_update.record_id == id {

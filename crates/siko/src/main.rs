@@ -1,8 +1,8 @@
-use std::env;
-use std::path::Path;
 use siko_compiler::compiler::Compiler;
 use siko_compiler::compiler::CompilerInput;
 use siko_compiler::config::Config;
+use std::env;
+use std::path::Path;
 use walkdir::WalkDir;
 
 fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>) {

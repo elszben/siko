@@ -1,7 +1,7 @@
-use siko_location_info::item::LocationId;
 use crate::function::FunctionId;
 use crate::function::FunctionType;
 use crate::types::TypeSignatureId;
+use siko_location_info::item::LocationId;
 
 #[derive(Debug, Clone)]
 pub struct Class {

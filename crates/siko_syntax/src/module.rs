@@ -1,4 +1,3 @@
-use siko_location_info::item::LocationId;
 use crate::class::ClassId;
 use crate::class::InstanceId;
 use crate::data::AdtId;
@@ -7,6 +6,7 @@ use crate::export_import::EIList;
 use crate::function::FunctionId;
 use crate::import::Import;
 use crate::import::ImportId;
+use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
