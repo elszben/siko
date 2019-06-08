@@ -111,15 +111,6 @@ name = "siko"
 version = "0.1.0"
 dependencies = [
  "siko_compiler 0.1.0",
- "siko_constants 0.1.0",
- "siko_interpreter 0.1.0",
- "siko_ir 0.1.0",
- "siko_location_info 0.1.0",
- "siko_name_resolver 0.1.0",
- "siko_parser 0.1.0",
- "siko_syntax 0.1.0",
- "siko_type_checker 0.1.0",
- "siko_util 0.1.0",
  "walkdir 2.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

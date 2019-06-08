@@ -1,17 +1,5 @@
-use siko_compiler;
-use siko_constants;
-use siko_interpreter;
-use siko_ir;
-use siko_location_info;
-use siko_name_resolver;
-use siko_parser;
-use siko_syntax;
-use siko_type_checker;
-use siko_util;
-
 use std::env;
 use std::path::Path;
-
 use siko_compiler::compiler::Compiler;
 use siko_compiler::compiler::CompilerInput;
 use siko_compiler::config::Config;

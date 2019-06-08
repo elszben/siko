@@ -10,6 +10,6 @@ pub struct ErrorContext<'a> {
 
 impl<'a> ErrorContext<'a> {
     pub fn report_error(&self, msg: String, location: LocationId) {
-
+        println!("ERROR: {}", msg); // TODO
     }
 }
