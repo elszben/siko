@@ -91,7 +91,7 @@ impl<'a> Unifier<'a> {
     fn check_literal_pattern(&mut self, pattern_id: PatternId, ty: Type) {
         let literal_var = self.expr_processor.type_store.add_type(ty);
         let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
-        let location = self.program.get_pattern_location(&pattern_id);
+        let location = self.program.patterns.get(&pattern_id).location_id;
         self.expr_processor
             .unify_variables(&var, &literal_var, location, self.errors);
     }
@@ -337,7 +337,7 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::Bind(pattern_id, rhs) => {
                 let pattern_var = self.expr_processor.lookup_type_var_for_pattern(pattern_id);
                 let rhs_var = self.expr_processor.lookup_type_var_for_expr(rhs);
-                let pattern_location = self.program.get_pattern_location(pattern_id);
+                let pattern_location = self.program.patterns.get(pattern_id).location_id;
                 self.expr_processor.unify_variables(
                     &pattern_var,
                     &rhs_var,
@@ -427,7 +427,7 @@ impl<'a> Visitor for Unifier<'a> {
                 let body_var = self.expr_processor.lookup_type_var_for_expr(&body);
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 for case in cases {
-                    let pattern_location = self.program.get_pattern_location(&case.pattern_id);
+                    let pattern_location = self.program.patterns.get(&case.pattern_id).location_id;
                     let pattern_var = self
                         .expr_processor
                         .lookup_type_var_for_pattern(&case.pattern_id);
@@ -553,14 +553,14 @@ impl<'a> Visitor for Unifier<'a> {
                 let tuple_ty = Type::Tuple(vars);
                 let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
                 let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
-                let location = self.program.get_pattern_location(&pattern_id);
+                let location = self.program.patterns.get(&pattern_id).location_id;
                 self.expr_processor
                     .unify_variables(&tuple_var, &var, location, self.errors);
             }
             Pattern::Record(typedef_id, items) => {
                 let record_type_info = self.get_record_type_info(typedef_id);
                 let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
-                let location = self.program.get_pattern_location(&pattern_id);
+                let location = self.program.patterns.get(&pattern_id).location_id;
                 self.expr_processor.unify_variables(
                     &record_type_info.record_type,
                     &var,
@@ -580,7 +580,7 @@ impl<'a> Visitor for Unifier<'a> {
                     for (index, item) in items.iter().enumerate() {
                         let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
                         let field_var = record_type_info.field_types[index];
-                        let location = self.program.get_pattern_location(item);
+                        let location = self.program.patterns.get(item).location_id;
                         self.expr_processor.unify_variables(
                             &field_var,
                             &item_var,
@@ -604,7 +604,7 @@ impl<'a> Visitor for Unifier<'a> {
                     .map(|v| clone_context.clone_var(*v))
                     .collect();
                 let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
-                let location = self.program.get_pattern_location(&pattern_id);
+                let location = self.program.patterns.get(&pattern_id).location_id;
                 self.expr_processor
                     .unify_variables(&variant_var, &var, location, self.errors);
                 if item_vars.len() != items.len() {
@@ -621,7 +621,7 @@ impl<'a> Visitor for Unifier<'a> {
                     for (index, item) in items.iter().enumerate() {
                         let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
                         let variant_item_var = item_vars[index];
-                        let location = self.program.get_pattern_location(item);
+                        let location = self.program.patterns.get(item).location_id;
                         self.expr_processor.unify_variables(
                             &variant_item_var,
                             &item_var,

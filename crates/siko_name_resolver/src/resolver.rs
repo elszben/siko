@@ -29,7 +29,6 @@ use siko_ir::types::Variant as IrVariant;
 use siko_ir::types::VariantItem;
 use siko_location_info::item::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
-use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordId;

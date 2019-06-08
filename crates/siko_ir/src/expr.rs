@@ -2,7 +2,6 @@ use crate::class::ClassMemberId;
 use crate::function::FunctionId;
 use crate::pattern::PatternId;
 use crate::types::TypeDefId;
-use siko_location_info::item::LocationId;
 use siko_util::format_list;
 use std::fmt;
 

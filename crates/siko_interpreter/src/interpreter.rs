@@ -77,7 +77,7 @@ impl<'a> Interpreter<'a> {
         program: &Program,
         environment: &mut Environment,
     ) -> bool {
-        let pattern = program.get_pattern(pattern_id);
+        let pattern = &program.patterns.get(pattern_id).item;
         match pattern {
             Pattern::Binding(_) => {
                 environment.add(*pattern_id, value.clone());

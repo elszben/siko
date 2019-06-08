@@ -19,10 +19,8 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::function::LambdaInfo;
 use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
-use siko_ir::pattern::PatternInfo as IrPatternInfo;
 use siko_ir::program::ItemInfo;
 use siko_ir::program::Program as IrProgram;
-use siko_ir::types::TypeDef;
 use siko_ir::types::TypeDefId;
 use siko_location_info::item::LocationId;
 use siko_syntax::expr::Expr;
@@ -135,7 +133,6 @@ fn process_field_access(
 
 fn resolve_pattern_type_constructor(
     name: &String,
-    ir_program: &mut IrProgram,
     module: &Module,
     errors: &mut Vec<ResolverError>,
     location_id: LocationId,
@@ -174,7 +171,6 @@ fn resolve_pattern_type_constructor(
 
 fn resolve_record_type(
     name: &String,
-    ir_program: &mut IrProgram,
     module: &Module,
     errors: &mut Vec<ResolverError>,
     location_id: LocationId,
@@ -217,7 +213,7 @@ fn process_pattern(
     lambda_helper: LambdaHelper,
     irrefutable: bool,
 ) -> IrPatternId {
-    let ir_pattern_id = ir_program.get_pattern_id();
+    let ir_pattern_id = ir_program.patterns.get_id();
     let (pattern, location) = program
         .patterns
         .get(&pattern_id)
@@ -267,15 +263,7 @@ fn process_pattern(
                     )
                 })
                 .collect();
-            resolve_pattern_type_constructor(
-                name,
-                ir_program,
-                module,
-                errors,
-                *location,
-                ids,
-                irrefutable,
-            )
+            resolve_pattern_type_constructor(name, module, errors, *location, ids, irrefutable)
         }
         Pattern::Guarded(pattern_id, guard_expr_id) => {
             let ir_pattern_id = process_pattern(
@@ -354,9 +342,7 @@ fn process_pattern(
             return ir_pattern_id;
         }
         Pattern::Record(name, items) => {
-            if let Some(ir_type_id) =
-                resolve_record_type(name, ir_program, module, errors, *location)
-            {
+            if let Some(ir_type_id) = resolve_record_type(name, module, errors, *location) {
                 let record = ir_program.typedefs.get(&ir_type_id).get_record().clone();
                 let mut unused_fields = BTreeSet::new();
                 let mut initialized_twice = BTreeSet::new();
@@ -424,11 +410,11 @@ fn process_pattern(
             }
         }
     };
-    let ir_pattern_info = IrPatternInfo {
-        pattern: ir_pattern,
+    let ir_pattern_info = ItemInfo {
+        item: ir_pattern,
         location_id: *location,
     };
-    ir_program.add_pattern(ir_pattern_id, ir_pattern_info);
+    ir_program.patterns.add_item(ir_pattern_id, ir_pattern_info);
     ir_pattern_id
 }
 
@@ -822,9 +808,7 @@ pub fn process_expr(
             return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::RecordInitialization(name, items) => {
-            if let Some(ir_type_id) =
-                resolve_record_type(name, ir_program, module, errors, location_id)
-            {
+            if let Some(ir_type_id) = resolve_record_type(name, module, errors, location_id) {
                 let record = ir_program.typedefs.get(&ir_type_id).get_record().clone();
                 let mut unused_fields = BTreeSet::new();
                 let mut initialized_twice = BTreeSet::new();
