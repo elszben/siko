@@ -1,9 +1,0 @@
-[package]
-name = "siko"
-version = "0.1.0"
-authors = ["elszben <notgonna@tell.you>"]
-edition = "2018"
-
-[dependencies]
-colored = "1.7.0"
-walkdir = "2"
