@@ -19,19 +19,19 @@ use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 
 use siko_util::Counter;
+use siko_util::ItemContainer;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Program {
     pub type_signatures: BTreeMap<TypeSignatureId, TypeInfo>,
     pub exprs: BTreeMap<ExprId, ExprInfo>,
-    pub functions: BTreeMap<FunctionId, Function>,
-    pub typedefs: BTreeMap<TypeDefId, TypeDef>,
+    pub functions: ItemContainer<FunctionId, Function>,
+    pub typedefs: ItemContainer<TypeDefId, TypeDef>,
     pub patterns: BTreeMap<PatternId, PatternInfo>,
+    pub classes: BTreeMap<ClassId, Class>,
     type_signature_id: Counter,
     expr_id: Counter,
-    function_id: Counter,
-    typedef_id: Counter,
     pattern_id: Counter,
     class_id: Counter,
     class_member_id: Counter,
@@ -42,13 +42,12 @@ impl Program {
         Program {
             type_signatures: BTreeMap::new(),
             exprs: BTreeMap::new(),
-            functions: BTreeMap::new(),
-            typedefs: BTreeMap::new(),
+            functions: ItemContainer::new(),
+            typedefs: ItemContainer::new(),
             patterns: BTreeMap::new(),
+            classes: BTreeMap::new(),
             type_signature_id: Counter::new(),
             expr_id: Counter::new(),
-            function_id: Counter::new(),
-            typedef_id: Counter::new(),
             pattern_id: Counter::new(),
             class_id: Counter::new(),
             class_member_id: Counter::new(),
@@ -64,18 +63,6 @@ impl Program {
     pub fn get_expr_id(&mut self) -> ExprId {
         ExprId {
             id: self.expr_id.next(),
-        }
-    }
-
-    pub fn get_function_id(&mut self) -> FunctionId {
-        FunctionId {
-            id: self.function_id.next(),
-        }
-    }
-
-    pub fn get_typedef_id(&mut self) -> TypeDefId {
-        TypeDefId {
-            id: self.typedef_id.next(),
         }
     }
 
@@ -120,34 +107,6 @@ impl Program {
 
     pub fn get_expr_location(&self, id: &ExprId) -> LocationId {
         self.exprs.get(id).expect("Expr not found").location_id
-    }
-
-    pub fn add_function(&mut self, id: FunctionId, function: Function) {
-        self.functions.insert(id, function);
-    }
-
-    pub fn get_function(&self, id: &FunctionId) -> &Function {
-        &self.functions.get(id).expect("Function not found")
-    }
-
-    pub fn add_typedef(&mut self, id: TypeDefId, typedef: TypeDef) {
-        self.typedefs.insert(id, typedef);
-    }
-
-    pub fn get_adt(&self, id: &TypeDefId) -> &Adt {
-        if let TypeDef::Adt(adt) = self.typedefs.get(id).expect("TypeDefId not found") {
-            adt
-        } else {
-            unreachable!()
-        }
-    }
-
-    pub fn get_record(&self, id: &TypeDefId) -> &Record {
-        if let TypeDef::Record(record) = self.typedefs.get(id).expect("TypeDefId not found") {
-            record
-        } else {
-            unreachable!()
-        }
     }
 
     pub fn get_pattern_id(&mut self) -> PatternId {

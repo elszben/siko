@@ -1,8 +1,11 @@
 use std::fmt;
+use siko_location_info::item::LocationId;
 
 #[derive(Debug, Clone)]
 pub struct Class {
     pub id: ClassId,
+    pub name: String,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

@@ -33,7 +33,7 @@ impl<'a> Interpreter<'a> {
             Value::Callable(mut callable) => {
                 callable.values.extend(args);
                 loop {
-                    let func_info = program.get_function(&callable.function_id);
+                    let func_info = program.functions.get(&callable.function_id);
                     let needed_arg_count =
                         func_info.arg_locations.len() + func_info.implicit_arg_count;
                     if needed_arg_count > callable.values.len() {
@@ -404,7 +404,7 @@ impl<'a> Interpreter<'a> {
         environment: &mut Environment,
         current_expr: Option<ExprId>,
     ) -> Value {
-        let function = program.get_function(&id);
+        let function = program.functions.get(&id);
         match &function.info {
             FunctionInfo::NamedFunction(info) => match info.body {
                 Some(body) => {
@@ -424,7 +424,7 @@ impl<'a> Interpreter<'a> {
                 return self.eval_expr(program, info.body, environment);
             }
             FunctionInfo::VariantConstructor(info) => {
-                let adt = program.get_adt(&info.type_id);
+                let adt = program.typedefs.get(&info.type_id).get_adt();
                 let variant = &adt.variants[info.index];
                 let mut values = Vec::new();
                 for index in 0..variant.items.len() {
@@ -434,7 +434,7 @@ impl<'a> Interpreter<'a> {
                 return Value::Variant(info.type_id, info.index, values);
             }
             FunctionInfo::RecordConstructor(info) => {
-                let record = program.get_record(&info.type_id);
+                let record = program.typedefs.get(&info.type_id).get_record();
                 let mut values = Vec::new();
                 for index in 0..record.fields.len() {
                     let v = environment.get_arg_by_index(index);
@@ -447,7 +447,7 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Value {
-        for (id, function) in &program.functions {
+        for (id, function) in &program.functions.items {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
                     if info.module == siko_constants::MAIN_MODULE

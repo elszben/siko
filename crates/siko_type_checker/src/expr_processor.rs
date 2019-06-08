@@ -271,7 +271,7 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::ArgRef(arg_ref) => {
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.program.get_expr_location(&expr_id);
-                let func = self.program.get_function(&arg_ref.id);
+                let func = self.program.functions.get(&arg_ref.id);
                 let index = if arg_ref.captured {
                     arg_ref.index
                 } else {
@@ -376,7 +376,7 @@ impl<'a> Visitor for Unifier<'a> {
                 for info in infos {
                     let test_record_type_info = self.get_record_type_info(&info.record_id);
                     let record_type_info = self.get_record_type_info(&info.record_id);
-                    let record = self.program.get_record(&info.record_id);
+                    let record = self.program.typedefs.get(&info.record_id).get_record();
                     all_records.push(record.name.clone());
                     let test_record_expr_var = self
                         .expr_processor
@@ -482,7 +482,7 @@ impl<'a> Visitor for Unifier<'a> {
                 let mut expected_records = Vec::new();
                 let mut matching_update = None;
                 for record_update in record_updates {
-                    let record = self.program.get_record(&record_update.record_id);
+                    let record = self.program.typedefs.get(&record_update.record_id).get_record();
                     expected_records.push(record.name.clone());
                     if let Some(id) = real_record_type {
                         if record_update.record_id == id {
@@ -564,7 +564,7 @@ impl<'a> Visitor for Unifier<'a> {
                     self.errors,
                 );
                 if record_type_info.field_types.len() != items.len() {
-                    let record = self.program.get_record(typedef_id);
+                    let record = self.program.typedefs.get(typedef_id).get_record();
                     let err = TypecheckError::InvalidRecordPattern(
                         location,
                         record.name.clone(),
@@ -604,7 +604,7 @@ impl<'a> Visitor for Unifier<'a> {
                 self.expr_processor
                     .unify_variables(&variant_var, &var, location, self.errors);
                 if item_vars.len() != items.len() {
-                    let adt = self.program.get_adt(typedef_id);
+                    let adt = self.program.typedefs.get(typedef_id).get_adt();
                     let variant = &adt.variants[*index];
                     let err = TypecheckError::InvalidVariantPattern(
                         location,

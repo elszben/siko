@@ -89,3 +89,44 @@ impl fmt::Display for TypeDefId {
         write!(f, "TypeDefId({})", self.id)
     }
 }
+
+
+impl From<usize> for TypeDefId {
+    fn from(id: usize) -> TypeDefId {
+        TypeDefId{id:id}
+    }
+}
+
+impl TypeDef { 
+pub fn get_adt(&self) -> &Adt {
+        if let TypeDef::Adt(adt) = self {
+            &adt
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn get_record(&self) -> &Record {
+        if let TypeDef::Record(record) = self {
+            &record
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn get_mut_adt(&mut self) -> &mut Adt {
+        if let TypeDef::Adt(ref mut adt) =  self {
+            adt
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn get_mut_record(&mut self) -> &mut Record {
+        if let TypeDef::Record(ref mut record) = self {
+            record
+        } else {
+            unreachable!()
+        }
+    }
+}

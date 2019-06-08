@@ -16,6 +16,12 @@ impl fmt::Display for FunctionId {
     }
 }
 
+impl From<usize> for FunctionId {
+    fn from(id: usize) -> FunctionId {
+        FunctionId{id:id}
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NamedFunctionInfo {
     pub body: Option<ExprId>,

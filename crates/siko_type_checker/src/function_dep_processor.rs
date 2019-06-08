@@ -109,7 +109,7 @@ impl FunctionDependencyProcessor {
                     })
                     .map(|id| *id)
                     .collect();
-                let func_info = program.functions.get(id).expect("Function not found");
+                let func_info = program.functions.get(id);
                 if let Some(host) = func_info.get_lambda_host() {
                     deps.insert(host);
                 }

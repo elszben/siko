@@ -69,26 +69,16 @@ fn resolve_item_path(
                     return PathResolveResult::FunctionRef(ir_function_id);
                 }
                 Item::Record(_, ir_typedef_id) => {
-                    let ir_typedef = ir_program
+                    let ir_record = ir_program
                         .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("Record not found");
-                    if let TypeDef::Record(ir_record) = ir_typedef {
+                        .get(&ir_typedef_id).get_record();
                         return PathResolveResult::FunctionRef(ir_record.constructor);
-                    } else {
-                        unreachable!()
-                    }
                 }
                 Item::Variant(_, _, ir_typedef_id, index) => {
-                    let ir_typedef = ir_program
-                        .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("Adt not found");
-                    if let TypeDef::Adt(ir_adt) = ir_typedef {
+                    let ir_adt = ir_program
+                         .typedefs
+                        .get(&ir_typedef_id).get_adt();
                         return PathResolveResult::FunctionRef(ir_adt.variants[index].constructor);
-                    } else {
-                        unreachable!()
-                    }
                 }
                 Item::ClassMember(_, _, ir_class_member_id) => {
                     return PathResolveResult::ClassMemberRef(ir_class_member_id);
@@ -166,15 +156,7 @@ fn resolve_pattern_type_constructor(
             match item.item {
                 Item::Function(_, _) => unreachable!(),
                 Item::Record(_, ir_typedef_id) => {
-                    let ir_typedef = ir_program
-                        .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("Record not found");
-                    if let TypeDef::Record(..) = ir_typedef {
                         return IrPattern::Record(ir_typedef_id, ids);
-                    } else {
-                        unreachable!()
-                    }
                 }
                 Item::Variant(_, _, ir_typedef_id, index) => {
                     if irrefutable {
@@ -182,15 +164,7 @@ fn resolve_pattern_type_constructor(
                         errors.push(err);
                         return IrPattern::Wildcard;
                     } else {
-                        let ir_typedef = ir_program
-                            .typedefs
-                            .get(&ir_typedef_id)
-                            .expect("Adt not found");
-                        if let TypeDef::Adt(..) = ir_typedef {
                             return IrPattern::Variant(ir_typedef_id, index, ids);
-                        } else {
-                            unreachable!()
-                        }
                     }
                 }
                 _ => {}
@@ -219,15 +193,7 @@ fn resolve_record_type(
             match item.item {
                 Item::Function(_, _) => unreachable!(),
                 Item::Record(_, ir_typedef_id) => {
-                    let ir_typedef = ir_program
-                        .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("Record not found");
-                    if let TypeDef::Record(..) = ir_typedef {
                         return Some(ir_typedef_id);
-                    } else {
-                        unreachable!()
-                    }
                 }
                 Item::Variant(..) => {
                     let err = ResolverError::NotRecordType(name.clone(), location_id);
@@ -395,7 +361,7 @@ fn process_pattern(
             if let Some(ir_type_id) =
                 resolve_record_type(name, ir_program, module, errors, *location)
             {
-                let record = ir_program.get_record(&ir_type_id).clone();
+                let record = ir_program.typedefs.get(&ir_type_id).get_record().clone();
                 let mut unused_fields = BTreeSet::new();
                 let mut initialized_twice = BTreeSet::new();
                 for f in &record.fields {
@@ -484,7 +450,7 @@ pub fn process_expr(
     //println!("Processing expr {} {}", id, expr);
     match expr {
         Expr::Lambda(args, lambda_body) => {
-            let ir_lambda_id = ir_program.get_function_id();
+            let ir_lambda_id = ir_program.functions.get_id();
             let mut arg_names = BTreeSet::new();
             let mut conflicting_names: BTreeSet<String> = BTreeSet::new();
             let mut environment = Environment::child(environment);
@@ -537,7 +503,7 @@ pub fn process_expr(
                 implicit_arg_count: captures.len(),
                 info: FunctionInfo::Lambda(lambda_info),
             };
-            ir_program.add_function(ir_lambda_id, ir_function);
+            ir_program.functions.add_item(ir_lambda_id, ir_function);
 
             let captured_lambda_args: Vec<_> = captures
                 .into_iter()
@@ -863,7 +829,7 @@ pub fn process_expr(
             if let Some(ir_type_id) =
                 resolve_record_type(name, ir_program, module, errors, location_id)
             {
-                let record = ir_program.get_record(&ir_type_id).clone();
+                let record = ir_program.typedefs.get(&ir_type_id).get_record().clone();
                 let mut unused_fields = BTreeSet::new();
                 let mut initialized_twice = BTreeSet::new();
                 for f in &record.fields {

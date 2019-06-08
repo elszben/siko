@@ -1,4 +1,5 @@
 use std::fmt;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub struct Counter {
@@ -20,4 +21,35 @@ impl Counter {
 pub fn format_list<T: fmt::Display>(items: &[T]) -> String {
     let ss: Vec<_> = items.iter().map(|i| format!("{}", i)).collect();
     format!("{}", ss.join(", "))
+}
+
+#[derive(Debug)]
+pub struct ItemContainer<Key, Item> {
+    pub items: BTreeMap<Key, Item>,
+    id: Counter,
+}
+
+impl<Key: Ord + From<usize>, Item> ItemContainer<Key, Item> {
+    pub fn new() -> ItemContainer<Key, Item> {
+        ItemContainer {
+            items: BTreeMap::new(),
+            id: Counter::new()
+        }
+    }
+
+    pub fn get_id(&mut self) -> Key {
+        self.id.next().into()
+    }
+
+    pub fn add_item(&mut self, key: Key, item: Item) {
+        self.items.insert(key, item);
+    }
+
+    pub fn get(&self, key: &Key) -> &Item {
+        self.items.get(key).expect("Item not found")
+    }
+
+    pub fn get_mut(&mut self, key: &Key) -> &mut Item {
+        self.items.get_mut(key).expect("Item not found")
+    }
 }

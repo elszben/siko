@@ -17,7 +17,7 @@ impl Typechecker {
     fn check_main(&self, program: &Program, errors: &mut Vec<TypecheckError>) {
         let mut main_found = false;
 
-        for (_, function) in &program.functions {
+        for (_, function) in &program.functions.items {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
                     if info.module == siko_constants::MAIN_MODULE

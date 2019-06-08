@@ -54,37 +54,28 @@ fn process_named_type(
                 Item::Adt(_, ir_typedef_id) => {
                     let ir_adt = ir_program
                         .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("TypeDef not found");
-                    match ir_adt {
-                        TypeDef::Adt(adt) => {
-                            if adt.type_args.len() != named_arg_ids.len() {
+                        .get(&ir_typedef_id).get_adt();
+                            if ir_adt.type_args.len() != named_arg_ids.len() {
                                 let err = ResolverError::IncorrectTypeArgumentCount(
                                     name.clone(),
-                                    adt.type_args.len(),
+                                    ir_adt.type_args.len(),
                                     named_arg_ids.len(),
                                     location_id,
                                 );
                                 errors.push(err);
                                 return None;
                             }
-                            IrTypeSignature::Named(adt.name.clone(), ir_typedef_id, named_arg_ids)
-                        }
-                        TypeDef::Record(_) => unreachable!(),
-                    }
+                            IrTypeSignature::Named(ir_adt.name.clone(), ir_typedef_id, named_arg_ids)
                 }
                 Item::Record(_, ir_typedef_id) => {
                     let ir_record = ir_program
                         .typedefs
-                        .get(&ir_typedef_id)
-                        .expect("TypeDef not found");
-                    match ir_record {
-                        TypeDef::Adt(_) => unreachable!(),
-                        TypeDef::Record(record) => {
-                            if record.type_args.len() != named_arg_ids.len() {
+                        .get(&ir_typedef_id).get_record();
+                        
+                            if ir_record.type_args.len() != named_arg_ids.len() {
                                 let err = ResolverError::IncorrectTypeArgumentCount(
                                     name.clone(),
-                                    record.type_args.len(),
+                                    ir_record.type_args.len(),
                                     named_arg_ids.len(),
                                     location_id,
                                 );
@@ -92,12 +83,10 @@ fn process_named_type(
                                 return None;
                             }
                             IrTypeSignature::Named(
-                                record.name.clone(),
+                                ir_record.name.clone(),
                                 ir_typedef_id,
                                 named_arg_ids,
                             )
-                        }
-                    }
                 }
                 Item::Function(..)
                 | Item::Variant(..)

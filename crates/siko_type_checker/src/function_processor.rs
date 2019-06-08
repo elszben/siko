@@ -211,11 +211,11 @@ impl FunctionProcessor {
         BTreeMap<TypeDefId, RecordTypeInfo>,
         BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     ) {
-        for (id, function) in &program.functions {
+        for (id, function) in &program.functions.items {
             let displayed_name = format!("{}", function.info);
             match &function.info {
                 FunctionInfo::RecordConstructor(i) => {
-                    let record = program.get_record(&i.type_id);
+                    let record = program.typedefs.get(&i.type_id).get_record();
 
                     let mut args = Vec::new();
 
@@ -265,7 +265,7 @@ impl FunctionProcessor {
                     self.function_type_info_map.insert(*id, type_info);
                 }
                 FunctionInfo::VariantConstructor(i) => {
-                    let adt = program.get_adt(&i.type_id);
+                    let adt = program.typedefs.get(&i.type_id).get_adt();
                     let variant = &adt.variants[i.index];
                     let location_id =
                         program.get_type_signature_location(&variant.type_signature_id);

@@ -936,7 +936,7 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         let start_index = self.get_index();
-        let name = self.type_identifier("class name")?;
+        let class_name = self.type_identifier("class name")?;
         let end_index = self.get_index();
         let instance_location_id = self.get_location_id(start_index, end_index);
         let type_signature_id = self.parse_function_type(false, false)?;
@@ -972,7 +972,7 @@ impl<'a> Parser<'a> {
         module.instances.push(id);
         let instance = Instance {
             id: id,
-            name: name,
+            class_name: class_name,
             type_signature_id: type_signature_id,
             constraints: constraints,
             members: members,

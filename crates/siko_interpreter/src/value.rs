@@ -52,13 +52,13 @@ impl Value {
             Value::Variant(id, index, vs) => {
                 parens_needed = !vs.is_empty();
                 let ss: Vec<_> = vs.iter().map(|v| v.debug(program, true)).collect();
-                let adt = program.get_adt(id);
+                let adt = program.typedefs.get(id).get_adt();
                 let variant = &adt.variants[*index];
                 format!("{} {}", variant.name, ss.join(" "))
             }
             Value::Record(id, vs) => {
                 let ss: Vec<_> = vs.iter().map(|v| v.debug(program, true)).collect();
-                let record = program.get_record(id);
+                let record = program.typedefs.get(id).get_record();
                 format!("{} {}", record.name, ss.join(" "))
             }
             Value::List(vs) => {

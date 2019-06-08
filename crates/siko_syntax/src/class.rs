@@ -16,7 +16,7 @@ pub struct Class {
 #[derive(Debug, Clone)]
 pub struct Instance {
     pub id: InstanceId,
-    pub name: String,
+    pub class_name: String,
     pub type_signature_id: TypeSignatureId,
     pub constraints: Vec<Constraint>,
     pub members: Vec<InstanceMember>,

@@ -37,6 +37,8 @@ use siko_syntax::module::Module as AstModule;
 use siko_syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use siko_ir::class::ClassId as IrClassId;
+use siko_location_info::item::LocationId;
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -108,8 +110,8 @@ impl Resolver {
             let ast_module = program.modules.get(&module.id).expect("Module not found");
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id).expect("Record not found");
-                let ir_typedef_id = ir_program.get_typedef_id();
-                let ir_ctor_id = ir_program.get_function_id();
+                let ir_typedef_id = ir_program.typedefs.get_id();
+                let ir_ctor_id = ir_program.functions.get_id();
                 let record_ctor_info = RecordConstructorInfo {
                     type_id: ir_typedef_id,
                 };
@@ -123,7 +125,7 @@ impl Resolver {
                     implicit_arg_count: 0,
                     info: FunctionInfo::RecordConstructor(record_ctor_info),
                 };
-                ir_program.add_function(ir_ctor_id, ir_ctor_function);
+                ir_program.functions.add_item(ir_ctor_id, ir_ctor_function);
 
                 let ir_record = Record {
                     name: record.name.clone(),
@@ -135,7 +137,7 @@ impl Resolver {
                 };
 
                 let typedef = TypeDef::Record(ir_record);
-                ir_program.add_typedef(ir_typedef_id, typedef);
+                ir_program.typedefs.add_item(ir_typedef_id, typedef);
                 let items = module
                     .items
                     .entry(record.name.clone())
@@ -157,7 +159,7 @@ impl Resolver {
             }
             for adt_id in &ast_module.adts {
                 let adt = program.adts.get(adt_id).expect("Adt not found");
-                let ir_typedef_id = ir_program.get_typedef_id();
+                let ir_typedef_id = ir_program.typedefs.get_id();
                 let ir_adt = Adt {
                     name: adt.name.clone(),
                     id: ir_typedef_id,
@@ -165,7 +167,7 @@ impl Resolver {
                     variants: Vec::new(),
                 };
                 let typedef = TypeDef::Adt(ir_adt);
-                ir_program.add_typedef(ir_typedef_id, typedef);
+                ir_program.typedefs.add_item(ir_typedef_id, typedef);
                 let items = module
                     .items
                     .entry(adt.name.clone())
@@ -194,7 +196,7 @@ impl Resolver {
                     .functions
                     .get(function_id)
                     .expect("Function not found");
-                let ir_function_id = ir_program.get_function_id();
+                let ir_function_id = ir_program.functions.get_id();
                 let items = module
                     .items
                     .entry(function.name.clone())
@@ -393,7 +395,7 @@ impl Resolver {
             implicit_arg_count: 0,
             info: FunctionInfo::NamedFunction(named_info),
         };
-        ir_program.add_function(ir_function_id, ir_function);
+        ir_program.functions.add_item(ir_function_id, ir_function);
     }
 
     fn process_adt(
@@ -443,7 +445,7 @@ impl Resolver {
                             type_signature_id: *i,
                         })
                         .collect();
-                    let ir_ctor_id = ir_program.get_function_id();
+                    let ir_ctor_id = ir_program.functions.get_id();
                     let variant_ctor_info = VariantConstructorInfo {
                         type_id: ir_typedef_id,
                         index: index,
@@ -459,7 +461,7 @@ impl Resolver {
                         implicit_arg_count: 0,
                         info: FunctionInfo::VariantConstructor(variant_ctor_info),
                     };
-                    ir_program.add_function(ir_ctor_id, ir_ctor_function);
+                    ir_program.functions.add_item(ir_ctor_id, ir_ctor_function);
 
                     let ir_variant = IrVariant {
                         name: name.clone(),
@@ -476,11 +478,8 @@ impl Resolver {
 
             let ir_adt = ir_program
                 .typedefs
-                .get_mut(&ir_typedef_id)
-                .expect("Adt not found");
-            if let TypeDef::Adt(adt) = ir_adt {
-                adt.variants = ir_variants;
-            }
+                .get_mut(&ir_typedef_id).get_mut_adt();
+                ir_adt.variants = ir_variants;
         }
     }
 
@@ -523,29 +522,29 @@ impl Resolver {
 
             let ir_record = ir_program
                 .typedefs
-                .get_mut(&ir_typedef_id)
-                .expect("Adt not found");
-            if let TypeDef::Record(record) = ir_record {
-                record.fields = ir_fields;
-            }
+                .get_mut(&ir_typedef_id).get_mut_record();
+                ir_record.fields = ir_fields;
         }
     }
 
-    fn check_constraint(
+    fn lookup_class(
         &self,
-        constraint: &Constraint,
+        class_name: &String,
+        location_id: LocationId,
         module: &Module,
         errors: &mut Vec<ResolverError>,
-    ) {
-        match module.imported_items.get(&constraint.class_name) {
+    ) -> Option<IrClassId>{
+        match module.imported_items.get(class_name) {
             Some(items) => {
                 let item = &items[0];
                 match item.item {
-                    Item::Class(constraint_class_id, _) => {}
+                    Item::Class(_, ir_class_id) => {
+                        return Some(ir_class_id);
+                    }
                     _ => {
                         let err = ResolverError::NotAClassName(
-                            constraint.class_name.clone(),
-                            constraint.location_id,
+                            class_name.clone(),
+                            location_id,
                         );
                         errors.push(err);
                     }
@@ -553,12 +552,13 @@ impl Resolver {
             }
             None => {
                 let err = ResolverError::NotAClassName(
-                    constraint.class_name.clone(),
-                    constraint.location_id,
+                    class_name.clone(),
+                    location_id,
                 );
                 errors.push(err);
             }
         }
+        None
     }
 
     fn process_class(
@@ -578,7 +578,7 @@ impl Resolver {
                 );
                 errors.push(err);
             }
-            self.check_constraint(constraint, module, errors);
+            self.lookup_class(&constraint.class_name, constraint.location_id, module, errors);
         }
         for member_id in &class.members {
             let class_member = program
@@ -613,7 +613,7 @@ impl Resolver {
                         );
                         errors.push(err);
                     }
-                    self.check_constraint(constraint, module, errors);
+                    self.lookup_class(&constraint.class_name, constraint.location_id, module, errors);
                 }
             }
         }
@@ -627,23 +627,30 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
+        let mut type_args = Vec::new();
         for constraint in &instance.constraints {
-            let mut found = false;
-            /*for arg in &ty.type_args {
-                if arg.0 == constraint.arg {
-                    found = true;
-                    break;
-                }
-            }*/
-            if !found {
-                let err = ResolverError::InvalidArgumentInTypeClassConstraint(
-                    constraint.arg.clone(),
-                    constraint.location_id,
-                );
-                errors.push(err);
-            }
-            self.check_constraint(constraint, module, errors);
+            type_args.push((constraint.arg.clone(), constraint.location_id));
+            self.lookup_class(&constraint.class_name, constraint.location_id, module, errors);
         }
+
+        match self.lookup_class(&instance.class_name, instance.location_id, module, errors) {
+            Some(ir_class_id) => {
+
+            }
+            None => {}
+        }
+
+        let result = process_type_signatures(
+                &type_args[..],
+                &[instance.type_signature_id],
+                program,
+                ir_program,
+                module,
+                instance.location_id,
+                errors,
+                false,
+                true,
+            );
     }
 
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
