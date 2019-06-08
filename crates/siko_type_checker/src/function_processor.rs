@@ -41,7 +41,7 @@ impl FunctionProcessor {
         program: &Program,
         arg_map: &mut BTreeMap<usize, TypeVariable>,
     ) -> TypeVariable {
-        let type_signature = program.get_type_signature(type_signature_id);
+        let type_signature = &program.type_signatures.get(type_signature_id).item;
         match type_signature {
             TypeSignature::Bool => {
                 let ty = Type::Bool;
@@ -130,7 +130,7 @@ impl FunctionProcessor {
                         name.clone(),
                         arg_count,
                         signature_vars.len(),
-                        program.get_type_signature_location(&type_signature_id),
+                        program.type_signatures.get(&type_signature_id).location_id,
                     );
                     errors.push(err);
                     return;
@@ -154,7 +154,7 @@ impl FunctionProcessor {
                         displayed_name,
                         arg_count,
                         0,
-                        program.get_type_signature_location(&type_signature_id),
+                        program.type_signatures.get(&type_signature_id).location_id,
                     );
                     errors.push(err);
                     return;
@@ -267,8 +267,10 @@ impl FunctionProcessor {
                 FunctionInfo::VariantConstructor(i) => {
                     let adt = program.typedefs.get(&i.type_id).get_adt();
                     let variant = &adt.variants[i.index];
-                    let location_id =
-                        program.get_type_signature_location(&variant.type_signature_id);
+                    let location_id = program
+                        .type_signatures
+                        .get(&variant.type_signature_id)
+                        .location_id;
 
                     let mut args = Vec::new();
 

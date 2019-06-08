@@ -7,6 +7,12 @@ pub struct TypeSignatureId {
     pub id: usize,
 }
 
+impl From<usize> for TypeSignatureId {
+    fn from(id: usize) -> TypeSignatureId {
+        TypeSignatureId { id: id }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum TypeSignature {
     Bool,
@@ -19,21 +25,6 @@ pub enum TypeSignature {
     Named(String, TypeDefId, Vec<TypeSignatureId>),
     Variant(String, Vec<TypeSignatureId>),
     Wildcard,
-}
-
-#[derive(Debug, Clone)]
-pub struct TypeInfo {
-    pub type_signature: TypeSignature,
-    pub location_id: LocationId,
-}
-
-impl TypeInfo {
-    pub fn new(type_signature: TypeSignature, location_id: LocationId) -> TypeInfo {
-        TypeInfo {
-            type_signature: type_signature,
-            location_id: location_id,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

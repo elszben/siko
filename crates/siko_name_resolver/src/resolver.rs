@@ -204,7 +204,7 @@ impl Resolver {
                 items.push(Item::Function(function.id, ir_function_id));
             }
             for class_id in &ast_module.classes {
-                let ir_class_id = ir_program.get_class_id();
+                let ir_class_id = ir_program.classes.get_id();
                 let class = program.classes.get(class_id).expect("Class not found");
                 let items = module
                     .items
@@ -435,8 +435,7 @@ impl Resolver {
                 if let TypeSignature::Variant(name, items) = ir_program
                     .type_signatures
                     .get(&ir_typesignature_id)
-                    .expect("type signature missing")
-                    .type_signature
+                    .item
                     .clone()
                 {
                     let items: Vec<_> = items
@@ -455,7 +454,10 @@ impl Resolver {
                         arg_locations: items
                             .iter()
                             .map(|item| {
-                                ir_program.get_type_signature_location(&item.type_signature_id)
+                                ir_program
+                                    .type_signatures
+                                    .get(&item.type_signature_id)
+                                    .location_id
                             })
                             .collect(),
                         implicit_arg_count: 0,

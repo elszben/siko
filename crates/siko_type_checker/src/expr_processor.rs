@@ -83,7 +83,7 @@ impl<'a> Unifier<'a> {
     fn check_literal_expr(&mut self, expr_id: ExprId, ty: Type) {
         let literal_var = self.expr_processor.type_store.add_type(ty);
         let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-        let location = self.program.get_expr_location(&expr_id);
+        let location = self.program.exprs.get(&expr_id).location_id;
         self.expr_processor
             .unify_variables(&var, &literal_var, location, self.errors);
     }
@@ -128,11 +128,11 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::If(cond, true_branch, false_branch) => {
                 let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 let cond_var = self.expr_processor.lookup_type_var_for_expr(cond);
-                let cond_location = self.program.get_expr_location(cond);
+                let cond_location = self.program.exprs.get(cond).location_id;
                 let true_var = self.expr_processor.lookup_type_var_for_expr(true_branch);
-                let true_location = self.program.get_expr_location(true_branch);
+                let true_location = self.program.exprs.get(true_branch).location_id;
                 let false_var = self.expr_processor.lookup_type_var_for_expr(false_branch);
                 self.expr_processor.unify_variables(
                     &bool_var,
@@ -180,7 +180,7 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                 }
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 if failed {
                     let function_type_string = self
                         .expr_processor
@@ -238,7 +238,7 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                 }
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 if failed {
                     let function_type_string = self
                         .expr_processor
@@ -270,7 +270,7 @@ impl<'a> Visitor for Unifier<'a> {
             }
             Expr::ArgRef(arg_ref) => {
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 let func = self.program.functions.get(&arg_ref.id);
                 let index = if arg_ref.captured {
                     arg_ref.index
@@ -288,7 +288,7 @@ impl<'a> Visitor for Unifier<'a> {
             }
             Expr::Do(items) => {
                 let do_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let do_location = self.program.get_expr_location(&expr_id);
+                let do_location = self.program.exprs.get(&expr_id).location_id;
                 let last_item = items[items.len() - 1];
                 let last_item_var = self.expr_processor.lookup_type_var_for_expr(&last_item);
                 self.expr_processor.unify_variables(
@@ -306,7 +306,7 @@ impl<'a> Visitor for Unifier<'a> {
                 let tuple_ty = Type::Tuple(vars);
                 let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 self.expr_processor
                     .unify_variables(&tuple_var, &var, location, self.errors);
             }
@@ -314,7 +314,7 @@ impl<'a> Visitor for Unifier<'a> {
                 let tuple_var = self.expr_processor.lookup_type_var_for_expr(tuple_expr);
                 let tuple_ty = self.expr_processor.type_store.get_type(&tuple_var);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 if let Type::Tuple(items) = tuple_ty {
                     if items.len() > *index {
                         self.expr_processor.unify_variables(
@@ -347,21 +347,21 @@ impl<'a> Visitor for Unifier<'a> {
                 let tuple_ty = Type::Tuple(vec![]);
                 let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 self.expr_processor
                     .unify_variables(&var, &tuple_var, location, self.errors);
             }
             Expr::ExprValue(expr_ref, _) => {
                 let expr_ref_var = self.expr_processor.lookup_type_var_for_expr(expr_ref);
                 let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 self.expr_processor
                     .unify_variables(&expr_ref_var, &var, location, self.errors);
             }
             Expr::Formatter(fmt, args) => {
                 let subs: Vec<_> = fmt.split("{}").collect();
                 if subs.len() != args.len() + 1 {
-                    let location = self.program.get_expr_location(&expr_id);
+                    let location = self.program.exprs.get(&expr_id).location_id;
                     let err = TypecheckError::InvalidFormatString(location);
                     self.errors.push(err);
                 }
@@ -371,7 +371,7 @@ impl<'a> Visitor for Unifier<'a> {
                 let mut all_records = Vec::new();
                 let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr);
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 let mut matches: Vec<(RecordTypeInfo, FieldAccessInfo)> = Vec::new();
                 for info in infos {
                     let test_record_type_info = self.get_record_type_info(&info.record_id);
@@ -438,7 +438,7 @@ impl<'a> Visitor for Unifier<'a> {
                         self.errors,
                     );
                     let case_body_var = self.expr_processor.lookup_type_var_for_expr(&case.body);
-                    let case_body_location = self.program.get_expr_location(&case.body);
+                    let case_body_location = self.program.exprs.get(&case.body).location_id;
                     self.expr_processor.unify_variables(
                         &expr_var,
                         &case_body_var,
@@ -450,7 +450,7 @@ impl<'a> Visitor for Unifier<'a> {
             Expr::RecordInitialization(type_id, items) => {
                 let record_type_info = self.get_record_type_info(type_id);
                 let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.program.get_expr_location(&expr_id);
+                let location = self.program.exprs.get(&expr_id).location_id;
                 self.expr_processor.unify_variables(
                     &expr_var,
                     &record_type_info.record_type,
@@ -461,7 +461,7 @@ impl<'a> Visitor for Unifier<'a> {
                     let field_type_var = record_type_info.field_types[index];
                     let field_expr_var =
                         self.expr_processor.lookup_type_var_for_expr(&item.expr_id);
-                    let field_expr_location = self.program.get_expr_location(&item.expr_id);
+                    let field_expr_location = self.program.exprs.get(&item.expr_id).location_id;
                     self.expr_processor.unify_variables(
                         &field_type_var,
                         &field_expr_var,
@@ -471,7 +471,7 @@ impl<'a> Visitor for Unifier<'a> {
                 }
             }
             Expr::RecordUpdate(record_expr_id, record_updates) => {
-                let location_id = self.program.get_expr_location(&expr_id);
+                let location_id = self.program.exprs.get(&expr_id).location_id;
                 let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr_id);
                 let record_expr_type = self.expr_processor.type_store.get_type(&record_expr_var);
                 let real_record_type = if let Type::Named(_, id, _) = record_expr_type {
@@ -509,7 +509,7 @@ impl<'a> Visitor for Unifier<'a> {
                                 .expr_processor
                                 .lookup_type_var_for_expr(&field_update.expr_id);
                             let field_expr_location =
-                                self.program.get_expr_location(&field_update.expr_id);
+                                self.program.exprs.get(&field_update.expr_id).location_id;
                             self.expr_processor.unify_variables(
                                 &field_var,
                                 &field_expr_var,
@@ -518,7 +518,7 @@ impl<'a> Visitor for Unifier<'a> {
                             );
                         }
                         let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                        let location = self.program.get_expr_location(&expr_id);
+                        let location = self.program.exprs.get(&expr_id).location_id;
                         self.expr_processor.unify_variables(
                             &expr_var,
                             &record_type_info.record_type,
@@ -634,7 +634,7 @@ impl<'a> Visitor for Unifier<'a> {
             Pattern::Guarded(_, guard_expr_id) => {
                 let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
                 let guard_var = self.expr_processor.lookup_type_var_for_expr(guard_expr_id);
-                let location = self.program.get_expr_location(guard_expr_id);
+                let location = self.program.exprs.get(guard_expr_id).location_id;
                 self.expr_processor
                     .unify_variables(&bool_var, &guard_var, location, self.errors);
             }
@@ -736,18 +736,18 @@ impl ExprProcessor {
         let mut unifier = Unifier::new(self, program, errors, group);
         walk_expr(&body, program, &mut unifier);
         let body_var = self.lookup_type_var_for_expr(&body);
-        let body_location = program.get_expr_location(&body);
+        let body_location = program.exprs.get(&body).location_id;
         self.unify_variables(&result_var, &body_var, body_location, errors);
     }
 
     #[allow(unused)]
     pub fn dump_expression_types(&self, program: &Program) {
-        for (expr_id, expr_info) in &program.exprs {
+        for (expr_id, expr_info) in &program.exprs.items {
             let var = self.lookup_type_var_for_expr(expr_id);
             println!(
                 "Expr: {}: {} -> {}",
                 expr_id,
-                expr_info.expr,
+                expr_info.item,
                 self.type_store.get_resolved_type_string(&var)
             );
         }

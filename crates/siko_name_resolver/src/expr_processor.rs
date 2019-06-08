@@ -10,7 +10,6 @@ use siko_ir::class::ClassMemberId as IrClassMemberId;
 use siko_ir::expr::Case as IrCase;
 use siko_ir::expr::Expr as IrExpr;
 use siko_ir::expr::ExprId as IrExprId;
-use siko_ir::expr::ExprInfo as IrExprInfo;
 use siko_ir::expr::FieldAccessInfo;
 use siko_ir::expr::RecordFieldValueExpr;
 use siko_ir::expr::RecordUpdateInfo;
@@ -21,6 +20,7 @@ use siko_ir::function::LambdaInfo;
 use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::pattern::PatternInfo as IrPatternInfo;
+use siko_ir::program::ItemInfo;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::TypeDef;
 use siko_ir::types::TypeDefId;
@@ -96,10 +96,10 @@ fn add_expr(
     ir_program: &mut IrProgram,
     program: &Program,
 ) -> IrExprId {
-    let expr_id = ir_program.get_expr_id();
+    let expr_id = ir_program.exprs.get_id();
     let location_id = program.get_expr_location(&ast_id);
-    let expr_info = IrExprInfo::new(ir_expr, location_id);
-    ir_program.add_expr(expr_id, expr_info);
+    let expr_info = ItemInfo::new(ir_expr, location_id);
+    ir_program.exprs.add_item(expr_id, expr_info);
     expr_id
 }
 

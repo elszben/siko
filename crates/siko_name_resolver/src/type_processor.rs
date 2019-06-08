@@ -2,16 +2,14 @@ use crate::error::ResolverError;
 use crate::item::Item;
 use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
+use siko_ir::program::ItemInfo;
 use siko_ir::program::Program as IrProgram;
-use siko_ir::types::TypeDef;
-use siko_ir::types::TypeInfo;
 use siko_ir::types::TypeSignature as IrTypeSignature;
 use siko_ir::types::TypeSignatureId as IrTypeSignatureId;
 use siko_location_info::item::LocationId;
 use siko_syntax::program::Program;
 use siko_syntax::types::TypeSignature as AstTypeSignature;
 use siko_syntax::types::TypeSignatureId;
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 fn process_named_type(
@@ -96,9 +94,9 @@ fn process_named_type(
             return None;
         }
     };
-    let id = ir_program.get_type_signature_id();
-    let type_info = TypeInfo::new(ir_type_signature, location_id);
-    ir_program.add_type_signature(id, type_info);
+    let id = ir_program.type_signatures.get_id();
+    let type_info = ItemInfo::new(ir_type_signature, location_id);
+    ir_program.type_signatures.add_item(id, type_info);
     return Some(id);
 }
 
@@ -190,7 +188,7 @@ fn process_type_signature(
                 errors,
             ) {
                 Some(id) => id,
-                None => ir_program.get_type_signature_id(),
+                None => ir_program.type_signatures.get_id(),
             };
             let ir_to = match process_type_signature(
                 to,
@@ -201,15 +199,15 @@ fn process_type_signature(
                 errors,
             ) {
                 Some(id) => id,
-                None => ir_program.get_type_signature_id(),
+                None => ir_program.type_signatures.get_id(),
             };
             IrTypeSignature::Function(ir_from, ir_to)
         }
         AstTypeSignature::Wildcard => IrTypeSignature::Wildcard,
     };
-    let id = ir_program.get_type_signature_id();
-    let type_info = TypeInfo::new(ir_type_signature, location_id);
-    ir_program.add_type_signature(id, type_info);
+    let id = ir_program.type_signatures.get_id();
+    let type_info = ItemInfo::new(ir_type_signature, location_id);
+    ir_program.type_signatures.add_item(id, type_info);
     return Some(id);
 }
 

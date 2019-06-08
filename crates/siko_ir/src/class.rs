@@ -19,6 +19,12 @@ impl fmt::Display for ClassId {
     }
 }
 
+impl From<usize> for ClassId {
+    fn from(id: usize) -> ClassId {
+        ClassId { id: id }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ClassMemberId {
     pub id: usize,

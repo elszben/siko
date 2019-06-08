@@ -10,7 +10,7 @@ pub trait Visitor {
 }
 
 pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
-    let expr = program.get_expr(expr_id);
+    let expr = &program.exprs.get(expr_id).item;
     match expr {
         Expr::StaticFunctionCall(_, args) => {
             for arg in args {

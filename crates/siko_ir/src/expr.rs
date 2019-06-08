@@ -40,6 +40,12 @@ impl fmt::Display for ExprId {
     }
 }
 
+impl From<usize> for ExprId {
+    fn from(id: usize) -> ExprId {
+        ExprId { id: id }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FieldAccessInfo {
     pub record_id: TypeDefId,
@@ -155,21 +161,6 @@ impl fmt::Display for Expr {
             Expr::RecordUpdate(expr_id, items) => {
                 write!(f, "RecordUpdate({}, {})", expr_id, format_list(items))
             }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ExprInfo {
-    pub expr: Expr,
-    pub location_id: LocationId,
-}
-
-impl ExprInfo {
-    pub fn new(expr: Expr, location_id: LocationId) -> ExprInfo {
-        ExprInfo {
-            expr: expr,
-            location_id: location_id,
         }
     }
 }

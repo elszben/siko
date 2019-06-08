@@ -179,7 +179,7 @@ impl<'a> Interpreter<'a> {
         expr_id: ExprId,
         environment: &mut Environment,
     ) -> Value {
-        let expr = program.get_expr(&expr_id);
+        let expr = &program.exprs.get(&expr_id).item;
         //println!("Eval {} {}", expr_id, expr);
         match expr {
             Expr::IntegerLiteral(v) => Value::Int(*v),
@@ -362,7 +362,7 @@ impl<'a> Interpreter<'a> {
                 let v = environment.get_arg_by_index(0).as_bool();
                 if !v {
                     let current_expr = current_expr.expect("No current expr");
-                    let location_id = program.get_expr_location(&current_expr);
+                    let location_id = program.exprs.get(&current_expr).location_id;
                     self.error_context
                         .report_error(format!("Assertion failed"), location_id);
                     panic!("Abort not implemented");
