@@ -882,11 +882,11 @@ impl<'a> Parser<'a> {
                         if !members.is_empty() {
                             let len = members.len();
                             let last = &mut members[len - 1];
-                            if last.function.is_none() {
+                            if last.default_implementation.is_none() {
                                 let function_id = function.id;
                                 function.func_type = Some(last.type_signature.clone());
                                 self.program.functions.add_item(function_id, function);
-                                last.function = Some(function_id);
+                                last.default_implementation = Some(function_id);
                                 continue;
                             }
                         }
@@ -902,7 +902,7 @@ impl<'a> Parser<'a> {
                         let member = ClassMember {
                             id: member_id,
                             type_signature: function_type,
-                            function: None,
+                            default_implementation: None,
                             location_id: location_id,
                         };
                         members.push(member);
@@ -953,10 +953,9 @@ impl<'a> Parser<'a> {
                 match function_or_type {
                     FunctionOrFunctionType::Function(function) => {
                         let function_id = function.id;
-                        module.functions.push(function_id);
                         self.program.functions.add_item(function_id, function);
                         let member = InstanceMember {
-                            function: function_id,
+                            function_id: function_id,
                         };
                         members.push(member);
                     }

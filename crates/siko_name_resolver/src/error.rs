@@ -32,6 +32,9 @@ pub enum ResolverError {
     NoRecordFoundWithFields(Vec<String>, LocationId),
     NotAClassName(String, LocationId),
     InvalidArgumentInTypeClassConstraint(String, LocationId),
+    NotAClassMember(String, String, LocationId),
+    ClassMemberImplementedMultipleTimes(String, LocationId),
+    MissingClassMemberInInstance(String, String, LocationId),
 }
 
 #[derive(Debug)]

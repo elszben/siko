@@ -27,13 +27,13 @@ pub struct Instance {
 pub struct ClassMember {
     pub id: ClassMemberId,
     pub type_signature: FunctionType,
-    pub function: Option<FunctionId>,
+    pub default_implementation: Option<FunctionId>,
     pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
 pub struct InstanceMember {
-    pub function: FunctionId,
+    pub function_id: FunctionId,
 }
 
 #[derive(Debug, Clone)]

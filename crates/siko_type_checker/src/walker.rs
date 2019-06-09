@@ -79,7 +79,11 @@ pub fn walk_expr(expr_id: &ExprId, program: &Program, visitor: &mut Visitor) {
                 }
             }
         }
-        Expr::ClassFunctionCall(..) => unimplemented!(),
+        Expr::ClassFunctionCall(_, args) => {
+            for arg in args {
+                walk_expr(arg, program, visitor);
+            }
+        }
     }
     visitor.visit_expr(*expr_id, expr);
 }

@@ -12,10 +12,13 @@ import BooM (korte, Boo)
 korte = True
 
 instance Eq Bool where
-    eb a b = extern
+    eq a b = extern
+
+instance Eq Int where
+    eq a b = extern
 
 instance (Eq a) => Eq List a where
-    ec a b = extern
+    eq a b = extern
 
 class (BooM.Boo a) => Eq2 a where
     feq a :: a -> a -> Bool

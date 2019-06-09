@@ -576,6 +576,7 @@ impl Resolver {
                     id: ir_class_member_id,
                     name: class_member.type_signature.name.clone(),
                     type_signature: result[0].expect("Type signature not found"),
+                    default_implementation: class_member.default_implementation.map(|_| ()),
                     location_id: class_member.location_id,
                 };
                 ir_program
@@ -647,13 +648,60 @@ impl Resolver {
             true,
         );
 
+        let mut class_members = BTreeMap::new();
+
+        let ir_class = ir_program.classes.get(&ir_class_id);
+
+        for member_id in &ir_class.members {
+            let ir_class_member = ir_program.class_members.get(&member_id);
+            class_members.insert(
+                ir_class_member.name.clone(),
+                ir_class_member.default_implementation.is_some(),
+            );
+        }
+
         if errors.is_empty() {
             let id = ir_program.instances.get_id();
+
+            let mut members = Vec::new();
+            let mut implemented_members = BTreeSet::new();
+
+            for member in &instance.members {
+                let function = program.functions.get(&member.function_id);
+                let member_name = &function.name;
+                if !class_members.contains_key(member_name) {
+                    let err = ResolverError::NotAClassMember(
+                        member_name.clone(),
+                        instance.class_name.clone(),
+                        function.location_id,
+                    );
+                    errors.push(err);
+                }
+                if !implemented_members.insert(member_name.clone()) {
+                    let err = ResolverError::ClassMemberImplementedMultipleTimes(
+                        member_name.clone(),
+                        function.location_id,
+                    );
+                    errors.push(err);
+                }
+            }
+
+            for (class_member, has_default_impl) in &class_members {
+                if !has_default_impl && !implemented_members.contains(class_member) {
+                    let err = ResolverError::MissingClassMemberInInstance(
+                        class_member.clone(),
+                        instance.class_name.clone(),
+                        instance.location_id,
+                    );
+                    errors.push(err);
+                }
+            }
+
             let ir_instance = IrInstance {
                 id: id,
                 class_id: ir_class_id,
                 type_signature: result[0].expect("Type signature not found"),
-                members: Vec::new()
+                members: members,
             };
 
             ir_program.instances.add_item(id, ir_instance);

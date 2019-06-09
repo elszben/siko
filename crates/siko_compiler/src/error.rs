@@ -387,6 +387,39 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::NotAClassMember(member_name, class_name, id) => {
+                            println!(
+                                "{} {} is not a member of class {}",
+                                error.red(),
+                                member_name.yellow(),
+                                class_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ClassMemberImplementedMultipleTimes(member_name, id) => {
+                            println!(
+                                "{} class member {} is implemented multiple times",
+                                error.red(),
+                                member_name.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::MissingClassMemberInInstance(
+                            member_name,
+                            class_name,
+                            id,
+                        ) => {
+                            println!(
+                                "{} class member {} of class {} is missing in instance",
+                                error.red(),
+                                member_name.yellow(),
+                                class_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

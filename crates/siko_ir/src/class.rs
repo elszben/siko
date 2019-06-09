@@ -1,5 +1,5 @@
-use crate::types::TypeSignatureId;
 use crate::function::FunctionId;
+use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use std::fmt;
 
@@ -50,6 +50,7 @@ pub struct ClassMember {
     pub id: ClassMemberId,
     pub name: String,
     pub type_signature: TypeSignatureId,
+    pub default_implementation: Option<()>,
     pub location_id: LocationId,
 }
 
@@ -75,7 +76,7 @@ pub struct Instance {
     pub id: InstanceId,
     pub class_id: ClassId,
     pub type_signature: TypeSignatureId,
-    pub members: Vec<InstanceMember>
+    pub members: Vec<InstanceMember>,
 }
 
 #[derive(Debug, Clone)]

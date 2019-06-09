@@ -538,7 +538,7 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                 }
             }
-            Expr::ClassFunctionCall(..) => unimplemented!(),
+            Expr::ClassFunctionCall(_, args) => {}
         }
     }
 
