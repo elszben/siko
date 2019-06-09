@@ -1,3 +1,4 @@
+use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use std::fmt;
 
@@ -47,5 +48,29 @@ impl From<usize> for ClassMemberId {
 pub struct ClassMember {
     pub id: ClassMemberId,
     pub name: String,
+    pub type_signature: TypeSignatureId,
     pub location_id: LocationId,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct InstanceId {
+    pub id: usize,
+}
+
+impl fmt::Display for InstanceId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "#{}", self.id)
+    }
+}
+
+impl From<usize> for InstanceId {
+    fn from(id: usize) -> InstanceId {
+        InstanceId { id: id }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Instance {
+    pub id: InstanceId,
+    pub class_id: ClassId,
 }

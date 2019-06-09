@@ -2,6 +2,8 @@ use crate::class::Class;
 use crate::class::ClassId;
 use crate::class::ClassMember;
 use crate::class::ClassMemberId;
+use crate::class::Instance;
+use crate::class::InstanceId;
 use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::function::Function;
@@ -24,6 +26,7 @@ pub struct Program {
     pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
     pub classes: ItemContainer<ClassId, Class>,
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
+    pub instances: ItemContainer<InstanceId, Instance>,
 }
 
 impl Program {
@@ -36,6 +39,7 @@ impl Program {
             patterns: ItemContainer::new(),
             classes: ItemContainer::new(),
             class_members: ItemContainer::new(),
+            instances: ItemContainer::new(),
         }
     }
 }

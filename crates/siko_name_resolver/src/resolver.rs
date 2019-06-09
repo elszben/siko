@@ -14,6 +14,7 @@ use crate::type_processor::process_type_signatures;
 use siko_ir::class::Class as IrClass;
 use siko_ir::class::ClassId as IrClassId;
 use siko_ir::class::ClassMember as IrClassMember;
+use siko_ir::class::Instance as IrInstance;
 use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
@@ -196,14 +197,6 @@ impl Resolver {
                     let item = Item::ClassMember(class.id, *member_id, ir_class_member_id);
                     module.add_item(class_member.type_signature.name.clone(), item);
                     members.push(ir_class_member_id);
-                    let ir_class_member = IrClassMember {
-                        id: ir_class_member_id,
-                        name: class_member.type_signature.name.clone(),
-                        location_id: class_member.location_id,
-                    };
-                    ir_program
-                        .class_members
-                        .add_item(ir_class_member_id, ir_class_member);
                 }
                 let ir_class = IrClass {
                     id: ir_class_id,
@@ -540,6 +533,7 @@ impl Resolver {
         program: &Program,
         ir_program: &mut IrProgram,
         class_id: &AstClassId,
+        ir_class_id: &IrClassId,
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
@@ -559,8 +553,12 @@ impl Resolver {
                 errors,
             );
         }
-        for member_id in &class.members {
+
+        let ir_class = ir_program.classes.get(ir_class_id);
+        let ir_class_member_ids = ir_class.members.clone();
+        for (index, member_id) in class.members.iter().enumerate() {
             let class_member = program.class_members.get(member_id);
+            let ir_class_member_id = ir_class_member_ids[index];
             let ty = &class_member.type_signature;
             let result = process_type_signatures(
                 &ty.type_args[..],
@@ -574,6 +572,16 @@ impl Resolver {
                 true,
             );
             if errors.is_empty() {
+                let ir_class_member = IrClassMember {
+                    id: ir_class_member_id,
+                    name: class_member.type_signature.name.clone(),
+                    type_signature: result[0].expect("Type signature not found"),
+                    location_id: class_member.location_id,
+                };
+                ir_program
+                    .class_members
+                    .add_item(ir_class_member_id, ir_class_member);
+
                 for constraint in &ty.constraints {
                     let mut found = false;
                     for arg in &ty.type_args {
@@ -619,10 +627,13 @@ impl Resolver {
             );
         }
 
-        match self.lookup_class(&instance.class_name, instance.location_id, module, errors) {
-            Some(ir_class_id) => {}
-            None => {}
-        }
+        let ir_class_id =
+            match self.lookup_class(&instance.class_name, instance.location_id, module, errors) {
+                Some(ir_class_id) => ir_class_id,
+                None => {
+                    return;
+                }
+            };
 
         let result = process_type_signatures(
             &type_args[..],
@@ -635,6 +646,16 @@ impl Resolver {
             false,
             true,
         );
+
+        if errors.is_empty() {
+            let id = ir_program.instances.get_id();
+            let ir_instance = IrInstance {
+                id: id,
+                class_id: ir_class_id,
+            };
+
+            ir_program.instances.add_item(id, ir_instance);
+        }
     }
 
     pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
@@ -688,10 +709,11 @@ impl Resolver {
                             module,
                             &mut errors,
                         ),
-                        Item::Class(ast_class_id, _) => self.process_class(
+                        Item::Class(ast_class_id, ir_class_id) => self.process_class(
                             program,
                             &mut ir_program,
                             ast_class_id,
+                            ir_class_id,
                             module,
                             &mut errors,
                         ),
