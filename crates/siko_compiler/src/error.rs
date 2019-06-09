@@ -416,6 +416,29 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::ClassMemberTypeArgMismatch(
+                            class_arg,
+                            signature_args,
+                            id,
+                        ) => {
+                            println!(
+                                "{} type arguments of class member {} does not match the type argument of class {}",
+                                error.red(),
+                                format_list(signature_args).yellow(),
+                                class_arg.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ExtraConstraintInClassMember(member_name, id) => {
+                            println!(
+                                "{} extra type constraint in class member {}",
+                                error.red(),
+                                member_name.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

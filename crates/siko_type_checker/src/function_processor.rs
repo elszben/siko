@@ -73,10 +73,10 @@ impl FunctionProcessor {
                 let ty = Type::Function(FunctionType::new(from_var, to_var));
                 return self.type_store.add_type(ty);
             }
-            TypeSignature::TypeArgument(index, name) => {
+            TypeSignature::TypeArgument(index, name, constraints) => {
                 let var = arg_map.entry(*index).or_insert_with(|| {
                     let arg = self.type_store.get_unique_type_arg();
-                    let ty = Type::FixedTypeArgument(arg, name.clone());
+                    let ty = Type::FixedTypeArgument(arg, name.clone(), constraints.clone());
                     self.type_store.add_type(ty)
                 });
                 return *var;

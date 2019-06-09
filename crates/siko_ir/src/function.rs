@@ -1,4 +1,5 @@
 use crate::class::ClassId;
+use crate::class::ClassMemberId;
 use crate::expr::ExprId;
 use crate::types::TypeDefId;
 use crate::types::TypeSignatureId;
@@ -78,12 +79,12 @@ impl fmt::Display for VariantConstructorInfo {
 #[derive(Debug, Clone)]
 pub struct ClassMemberInfo {
     pub class_id: ClassId,
-    pub index: usize,
+    pub member_id: ClassMemberId,
 }
 
 impl fmt::Display for ClassMemberInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}/{}", self.class_id, self.index)
+        write!(f, "{}/{}", self.class_id, self.member_id)
     }
 }
 

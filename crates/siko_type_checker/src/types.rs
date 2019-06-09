@@ -3,6 +3,7 @@ use super::type_variable::TypeVariable;
 use crate::type_store::CloneContext;
 use crate::type_store::TypeIndex;
 use crate::type_store::TypeStore;
+use siko_ir::class::ClassId;
 use siko_ir::types::TypeDefId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -18,7 +19,7 @@ pub enum Type {
     Tuple(Vec<TypeVariable>),
     Function(FunctionType),
     TypeArgument(usize),
-    FixedTypeArgument(usize, String),
+    FixedTypeArgument(usize, String, Vec<ClassId>),
     Named(String, TypeDefId, Vec<TypeVariable>),
 }
 
@@ -58,7 +59,7 @@ impl Type {
                 let new_index = context.arg(*index);
                 Type::TypeArgument(new_index)
             }
-            Type::FixedTypeArgument(index, _) => {
+            Type::FixedTypeArgument(index, _, _) => {
                 let new_index = context.arg(*index);
                 Type::TypeArgument(new_index)
             }
@@ -104,7 +105,7 @@ impl Type {
             Type::TypeArgument(index) => {
                 args.insert(*index);
             }
-            Type::FixedTypeArgument(index, _) => {
+            Type::FixedTypeArgument(index, _, _) => {
                 args.insert(*index);
             }
             Type::Named(_, _, type_vars) => {
@@ -152,7 +153,7 @@ impl Type {
                 "{}",
                 type_args.get(index).expect("readable type arg not found")
             ),
-            Type::FixedTypeArgument(_, name) => format!("{}", name),
+            Type::FixedTypeArgument(_, name, _) => format!("{}", name),
             Type::Named(name, _, type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()
@@ -234,7 +235,7 @@ impl Type {
                 format!("{} -> {}", from, to)
             }
             Type::TypeArgument(index) => format!("type_arg{}", index),
-            Type::FixedTypeArgument(index, n) => format!("fixed_type_arg({}){}", n, index),
+            Type::FixedTypeArgument(index, n, _) => format!("fixed_type_arg({}){}", n, index),
             Type::Named(n, id, type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()
@@ -260,7 +261,7 @@ impl fmt::Display for Type {
             }
             Type::Function(func_type) => write!(f, "{}", func_type),
             Type::TypeArgument(index) => write!(f, "t{}", index),
-            Type::FixedTypeArgument(_, name) => write!(f, "{}", name),
+            Type::FixedTypeArgument(_, name, _) => write!(f, "{}", name),
             Type::Named(name, _, types) => {
                 let ss: Vec<_> = types.iter().map(|t| format!("{}", t)).collect();
                 write!(f, "{} {}", name, ss.join(" "))

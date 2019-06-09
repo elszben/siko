@@ -1,3 +1,4 @@
+use crate::class::ClassId;
 use crate::function::FunctionId;
 use siko_location_info::item::LocationId;
 use std::fmt;
@@ -21,7 +22,7 @@ pub enum TypeSignature {
     Nothing,
     Tuple(Vec<TypeSignatureId>),
     Function(TypeSignatureId, TypeSignatureId),
-    TypeArgument(usize, String),
+    TypeArgument(usize, String, Vec<ClassId>),
     Named(String, TypeDefId, Vec<TypeSignatureId>),
     Variant(String, Vec<TypeSignatureId>),
     Wildcard,

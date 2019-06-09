@@ -2,6 +2,7 @@ use crate::error::ResolverError;
 use crate::item::Item;
 use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
+use siko_ir::class::ClassId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::TypeSignature as IrTypeSignature;
 use siko_ir::types::TypeSignatureId as IrTypeSignatureId;
@@ -114,8 +115,8 @@ fn process_type_signature(
     let ir_type_signature = match type_signature {
         AstTypeSignature::Nothing => IrTypeSignature::Nothing,
         AstTypeSignature::TypeArg(name) => {
-            if let Some(index) = type_arg_resolver.resolve_arg(name) {
-                IrTypeSignature::TypeArgument(index, name.clone())
+            if let Some(info) = type_arg_resolver.resolve_arg(name) {
+                IrTypeSignature::TypeArgument(info.index, name.clone(), info.constraints)
             } else {
                 let error = ResolverError::UnknownTypeArg(name.clone(), location_id);
                 errors.push(error);
@@ -213,7 +214,7 @@ fn process_type_signature(
 }
 
 pub fn process_type_signatures(
-    original_type_args: &[(String, LocationId)],
+    original_type_args: Vec<(String, Vec<ClassId>)>,
     type_signature_ids: &[TypeSignatureId],
     program: &Program,
     ir_program: &mut IrProgram,
@@ -227,9 +228,9 @@ pub fn process_type_signatures(
     let mut result = Vec::new();
     let mut type_arg_names = BTreeSet::new();
     let mut conflicting_names = BTreeSet::new();
-    for (type_arg, _) in original_type_args {
+    for (type_arg, constraints) in original_type_args {
         if !allow_implicit {
-            type_arg_resolver.add_explicit(type_arg.clone());
+            type_arg_resolver.add_explicit(type_arg.clone(), constraints);
         }
         if !type_arg_names.insert(type_arg.clone()) {
             conflicting_names.insert(type_arg.clone());
@@ -255,7 +256,7 @@ pub fn process_type_signatures(
     }
 
     let mut unused = Vec::new();
-    for (type_arg, _) in original_type_args {
+    for type_arg in type_arg_names.iter() {
         if !type_arg_resolver.contains(type_arg) {
             unused.push(type_arg.clone());
         }

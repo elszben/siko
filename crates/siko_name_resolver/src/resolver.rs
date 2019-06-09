@@ -32,6 +32,7 @@ use siko_ir::types::Variant as IrVariant;
 use siko_ir::types::VariantItem;
 use siko_location_info::item::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
+use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordId;
@@ -41,6 +42,38 @@ use siko_syntax::module::Module as AstModule;
 use siko_syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+
+struct TypeArgConstraintCollector {
+    constraints: BTreeMap<String, Vec<IrClassId>>,
+}
+
+impl TypeArgConstraintCollector {
+    fn new() -> TypeArgConstraintCollector {
+        TypeArgConstraintCollector {
+            constraints: BTreeMap::new(),
+        }
+    }
+
+    fn add_empty(&mut self, arg: String) {
+        self.constraints.insert(arg, Vec::new());
+    }
+
+    fn add_constraint(&mut self, constraint: &Constraint, class_id: IrClassId) {
+        let classes = self
+            .constraints
+            .entry(constraint.arg.clone())
+            .or_insert_with(|| Vec::new());
+        classes.push(class_id);
+    }
+
+    fn get_all_constraints(&self) -> Vec<(String, Vec<IrClassId>)> {
+        let mut result = Vec::new();
+        for (arg, constraints) in &self.constraints {
+            result.push((arg.clone(), constraints.clone()));
+        }
+        result
+    }
+}
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -303,8 +336,27 @@ impl Resolver {
                 errors.push(err);
             }
 
+            let mut collector = TypeArgConstraintCollector::new();
+
+            for (type_arg, _) in ty.type_args.iter() {
+                collector.add_empty(type_arg.clone());
+            }
+
+            for constraint in &ty.constraints {
+                if let Some(ir_class_id) = self.lookup_class(
+                    &constraint.class_name,
+                    constraint.location_id,
+                    module,
+                    errors,
+                ) {
+                    collector.add_constraint(constraint, ir_class_id);
+                }
+            }
+
+            let type_args = collector.get_all_constraints();
+
             let result = process_type_signatures(
-                &ty.type_args[..],
+                type_args,
                 &[ty.type_signature_id],
                 program,
                 ir_program,
@@ -314,15 +366,6 @@ impl Resolver {
                 false,
                 false,
             );
-
-            for constraint in &ty.constraints {
-                self.lookup_class(
-                    &constraint.class_name,
-                    constraint.location_id,
-                    module,
-                    errors,
-                );
-            }
 
             if !result.is_empty() {
                 type_signature_id = result[0];
@@ -398,8 +441,17 @@ impl Resolver {
             let variant = program.variants.get(&variant_id);
             type_signature_ids.push(variant.type_signature_id);
         }
+
+        let mut collector = TypeArgConstraintCollector::new();
+
+        for (type_arg, _) in adt.type_args.iter() {
+            collector.add_empty(type_arg.clone());
+        }
+
+        let type_args = collector.get_all_constraints();
+
         let result = process_type_signatures(
-            &adt.type_args[..],
+            type_args,
             &type_signature_ids[..],
             program,
             ir_program,
@@ -480,8 +532,17 @@ impl Resolver {
             let field = program.record_fields.get(field_id);
             type_signature_ids.push(field.type_signature_id);
         }
+
+        let mut collector = TypeArgConstraintCollector::new();
+
+        for (type_arg, _) in record.type_args.iter() {
+            collector.add_empty(type_arg.clone());
+        }
+
+        let type_args = collector.get_all_constraints();
+
         let result = process_type_signatures(
-            &record.type_args[..],
+            type_args,
             &type_signature_ids[..],
             program,
             ir_program,
@@ -547,6 +608,10 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
     ) {
         let class = program.classes.get(class_id);
+
+        let mut collector = TypeArgConstraintCollector::new();
+        collector.add_empty(class.arg.clone());
+
         for constraint in &class.constraints {
             if class.arg != constraint.arg {
                 let err = ResolverError::InvalidArgumentInTypeClassConstraint(
@@ -555,12 +620,14 @@ impl Resolver {
                 );
                 errors.push(err);
             }
-            self.lookup_class(
+            if let Some(ir_class_id) = self.lookup_class(
                 &constraint.class_name,
                 constraint.location_id,
                 module,
                 errors,
-            );
+            ) {
+                collector.add_constraint(constraint, ir_class_id);
+            }
         }
 
         let ir_class = ir_program.classes.get(ir_class_id);
@@ -569,8 +636,31 @@ impl Resolver {
             let class_member = program.class_members.get(member_id);
             let ir_class_member_id = ir_class_member_ids[index];
             let ty = &class_member.type_signature;
+            let signature_type_args: BTreeSet<_> =
+                ty.type_args.iter().map(|i| i.0.clone()).collect();
+            if !signature_type_args.contains(&class.arg) || signature_type_args.len() != 1 {
+                let err = ResolverError::ClassMemberTypeArgMismatch(
+                    class.arg.clone(),
+                    signature_type_args.into_iter().collect(),
+                    ty.location_id,
+                );
+                errors.push(err);
+                continue;
+            }
+            if !ty.constraints.is_empty() {
+                for constraint in &ty.constraints {
+                    let err = ResolverError::ExtraConstraintInClassMember(
+                        class_member.type_signature.name.clone(),
+                        constraint.location_id,
+                    );
+                    errors.push(err);
+                }
+                continue;
+            }
+
+            let type_args = collector.get_all_constraints();
             let result = process_type_signatures(
-                &ty.type_args[..],
+                type_args,
                 &[ty.type_signature_id],
                 program,
                 ir_program,
@@ -578,7 +668,7 @@ impl Resolver {
                 ty.location_id,
                 errors,
                 false,
-                true,
+                false,
             );
             if errors.is_empty() {
                 let ir_class_member = IrClassMember {
@@ -591,29 +681,6 @@ impl Resolver {
                 ir_program
                     .class_members
                     .add_item(ir_class_member_id, ir_class_member);
-
-                for constraint in &ty.constraints {
-                    let mut found = false;
-                    for arg in &ty.type_args {
-                        if arg.0 == constraint.arg {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        let err = ResolverError::InvalidArgumentInTypeClassConstraint(
-                            constraint.arg.clone(),
-                            constraint.location_id,
-                        );
-                        errors.push(err);
-                    }
-                    self.lookup_class(
-                        &constraint.class_name,
-                        constraint.location_id,
-                        module,
-                        errors,
-                    );
-                }
             }
         }
     }
@@ -626,15 +693,16 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let mut type_args = Vec::new();
+        let mut collector = TypeArgConstraintCollector::new();
         for constraint in &instance.constraints {
-            type_args.push((constraint.arg.clone(), constraint.location_id));
-            self.lookup_class(
+            if let Some(ir_class_id) = self.lookup_class(
                 &constraint.class_name,
                 constraint.location_id,
                 module,
                 errors,
-            );
+            ) {
+                collector.add_constraint(constraint, ir_class_id);
+            }
         }
 
         let ir_class_id =
@@ -645,8 +713,10 @@ impl Resolver {
                 }
             };
 
+        let type_args = collector.get_all_constraints();
+
         let result = process_type_signatures(
-            &type_args[..],
+            type_args,
             &[instance.type_signature_id],
             program,
             ir_program,

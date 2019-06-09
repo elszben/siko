@@ -35,6 +35,8 @@ pub enum ResolverError {
     NotAClassMember(String, String, LocationId),
     ClassMemberImplementedMultipleTimes(String, LocationId),
     MissingClassMemberInInstance(String, String, LocationId),
+    ClassMemberTypeArgMismatch(String, Vec<String>, LocationId),
+    ExtraConstraintInClassMember(String, LocationId),
 }
 
 #[derive(Debug)]
