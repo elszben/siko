@@ -665,7 +665,7 @@ impl<'a> Parser<'a> {
         let location_id = self.get_location_id(start_index, end_index);
         let item = RecordField {
             name: name,
-            id: self.program.get_record_field_id(),
+            id: self.program.record_fields.get_id(),
             type_signature_id: type_signature_id,
             location_id: location_id,
         };
@@ -685,7 +685,9 @@ impl<'a> Parser<'a> {
                 break;
             }
             let record_field = self.parse_record_field()?;
-            fields.push(record_field);
+            let id = record_field.id;
+            self.program.record_fields.add_item(id, record_field);
+            fields.push(id);
             let mut found = false;
             if self.current(TokenKind::Comma) {
                 found = true;

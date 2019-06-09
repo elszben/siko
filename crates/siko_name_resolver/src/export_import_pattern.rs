@@ -141,10 +141,11 @@ fn match_member(
     match member {
         DataMember::RecordField(field) => {
             let record = program.records.get(&field.record_id);
-            for record_field in &record.fields {
+            for field_id in &record.fields {
+                let field = program.record_fields.get(field_id);
                 if record.name == group_name {
                     if let Some(n) = name {
-                        if *n == record_field.name {
+                        if *n == field.name {
                             return true;
                         }
                     } else {

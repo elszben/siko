@@ -5,6 +5,7 @@ use std::fmt;
 pub struct Class {
     pub id: ClassId,
     pub name: String,
+    pub members: Vec<ClassMemberId>,
     pub location_id: LocationId,
 }
 
@@ -34,4 +35,17 @@ impl fmt::Display for ClassMemberId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "#{}", self.id)
     }
+}
+
+impl From<usize> for ClassMemberId {
+    fn from(id: usize) -> ClassMemberId {
+        ClassMemberId { id: id }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassMember {
+    pub id: ClassMemberId,
+    pub name: String,
+    pub location_id: LocationId,
 }

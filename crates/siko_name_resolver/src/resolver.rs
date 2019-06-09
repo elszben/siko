@@ -11,8 +11,9 @@ use crate::item::Variant;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
 use crate::type_processor::process_type_signatures;
-use siko_ir::class::Class;
+use siko_ir::class::Class as IrClass;
 use siko_ir::class::ClassId as IrClassId;
+use siko_ir::class::ClassMember as IrClassMember;
 use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
@@ -120,7 +121,7 @@ impl Resolver {
                     arg_locations: record
                         .fields
                         .iter()
-                        .map(|field| field.location_id)
+                        .map(|field_id| program.record_fields.get(field_id).location_id)
                         .collect(),
                     implicit_arg_count: 0,
                     info: FunctionInfo::RecordConstructor(record_ctor_info),
@@ -140,7 +141,8 @@ impl Resolver {
                 ir_program.typedefs.add_item(ir_typedef_id, typedef);
                 let item = Item::Record(*record_id, ir_typedef_id);
                 module.add_item(record.name.clone(), item);
-                for (index, field) in record.fields.iter().enumerate() {
+                for (index, field_id) in record.fields.iter().enumerate() {
+                    let field = program.record_fields.get(field_id);
                     let record_field = RecordField {
                         field_id: field.id,
                         record_id: *record_id,
@@ -187,12 +189,29 @@ impl Resolver {
                 let class = program.classes.get(class_id);
                 let item = Item::Class(class.id, ir_class_id);
                 module.add_item(class.name.clone(), item);
+                let mut members = Vec::new();
                 for member_id in &class.members {
-                    let ir_class_member_id = ir_program.get_class_member_id();
+                    let ir_class_member_id = ir_program.class_members.get_id();
                     let class_member = program.class_members.get(member_id);
                     let item = Item::ClassMember(class.id, *member_id, ir_class_member_id);
                     module.add_item(class_member.type_signature.name.clone(), item);
+                    members.push(ir_class_member_id);
+                    let ir_class_member = IrClassMember {
+                        id: ir_class_member_id,
+                        name: class_member.type_signature.name.clone(),
+                        location_id: class_member.location_id,
+                    };
+                    ir_program
+                        .class_members
+                        .add_item(ir_class_member_id, ir_class_member);
                 }
+                let ir_class = IrClass {
+                    id: ir_class_id,
+                    name: class.name.clone(),
+                    members: members,
+                    location_id: class.location_id,
+                };
+                ir_program.classes.add_item(ir_class_id, ir_class);
             }
         }
 
@@ -240,7 +259,8 @@ impl Resolver {
 
         for (_, record) in &program.records.items {
             let mut field_names = BTreeSet::new();
-            for field in &record.fields {
+            for field_id in &record.fields {
+                let field = program.record_fields.get(field_id);
                 if !field_names.insert(field.name.clone()) {
                     let err = ResolverError::RecordFieldNotUnique(
                         record.name.clone(),
@@ -454,7 +474,8 @@ impl Resolver {
     ) {
         let record = program.records.get(record_id);
         let mut type_signature_ids = Vec::new();
-        for field in &record.fields {
+        for field_id in &record.fields {
+            let field = program.record_fields.get(field_id);
             type_signature_ids.push(field.type_signature_id);
         }
         let result = process_type_signatures(
@@ -471,7 +492,8 @@ impl Resolver {
 
         if errors.is_empty() {
             let mut ir_fields = Vec::new();
-            for (index, field) in record.fields.iter().enumerate() {
+            for (index, field_id) in record.fields.iter().enumerate() {
+                let field = program.record_fields.get(field_id);
                 let ir_typesignature_id = result[index].expect("type signature missing");
                 let ir_field = IrRecordField {
                     name: field.name.clone(),

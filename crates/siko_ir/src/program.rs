@@ -1,5 +1,6 @@
 use crate::class::Class;
 use crate::class::ClassId;
+use crate::class::ClassMember;
 use crate::class::ClassMemberId;
 use crate::expr::Expr;
 use crate::expr::ExprId;
@@ -12,8 +13,6 @@ use crate::types::TypeDefId;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::ItemInfo;
-
-use siko_util::Counter;
 use siko_util::ItemContainer;
 
 #[derive(Debug)]
@@ -24,7 +23,7 @@ pub struct Program {
     pub typedefs: ItemContainer<TypeDefId, TypeDef>,
     pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
     pub classes: ItemContainer<ClassId, Class>,
-    class_member_id: Counter,
+    pub class_members: ItemContainer<ClassMemberId, ClassMember>,
 }
 
 impl Program {
@@ -36,13 +35,7 @@ impl Program {
             typedefs: ItemContainer::new(),
             patterns: ItemContainer::new(),
             classes: ItemContainer::new(),
-            class_member_id: Counter::new(),
-        }
-    }
-
-    pub fn get_class_member_id(&mut self) -> ClassMemberId {
-        ClassMemberId {
-            id: self.class_member_id.next(),
+            class_members: ItemContainer::new(),
         }
     }
 }

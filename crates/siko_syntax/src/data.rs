@@ -50,7 +50,7 @@ pub struct Record {
     pub name: String,
     pub id: RecordId,
     pub type_args: Vec<(String, LocationId)>,
-    pub fields: Vec<RecordField>,
+    pub fields: Vec<RecordFieldId>,
     pub location_id: LocationId,
     pub external: bool,
 }
@@ -69,6 +69,12 @@ impl From<usize> for RecordId {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct RecordFieldId {
     pub id: usize,
+}
+
+impl From<usize> for RecordFieldId {
+    fn from(id: usize) -> RecordFieldId {
+        RecordFieldId { id: id }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -7,6 +7,7 @@ use crate::class::InstanceId;
 use crate::data::Adt;
 use crate::data::AdtId;
 use crate::data::Record;
+use crate::data::RecordField;
 use crate::data::RecordFieldId;
 use crate::data::RecordId;
 use crate::data::Variant;
@@ -24,7 +25,6 @@ use crate::pattern::PatternId;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::ItemInfo;
-use siko_util::Counter;
 use siko_util::ItemContainer;
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub struct Program {
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
     pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
     pub imports: ItemContainer<ImportId, Import>,
-    record_field_id: Counter,
+    pub record_fields: ItemContainer<RecordFieldId, RecordField>,
 }
 
 impl Program {
@@ -59,13 +59,7 @@ impl Program {
             type_signatures: ItemContainer::new(),
             patterns: ItemContainer::new(),
             imports: ItemContainer::new(),
-            record_field_id: Counter::new(),
-        }
-    }
-
-    pub fn get_record_field_id(&mut self) -> RecordFieldId {
-        RecordFieldId {
-            id: self.record_field_id.next(),
+            record_fields: ItemContainer::new(),
         }
     }
 }
