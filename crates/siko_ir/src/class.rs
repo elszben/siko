@@ -1,4 +1,5 @@
 use crate::types::TypeSignatureId;
+use crate::function::FunctionId;
 use siko_location_info::item::LocationId;
 use std::fmt;
 
@@ -73,4 +74,11 @@ impl From<usize> for InstanceId {
 pub struct Instance {
     pub id: InstanceId,
     pub class_id: ClassId,
+    pub type_signature: TypeSignatureId,
+    pub members: Vec<InstanceMember>
+}
+
+#[derive(Debug, Clone)]
+pub struct InstanceMember {
+    pub function: FunctionId,
 }

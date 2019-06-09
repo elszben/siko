@@ -652,6 +652,8 @@ impl Resolver {
             let ir_instance = IrInstance {
                 id: id,
                 class_id: ir_class_id,
+                type_signature: result[0].expect("Type signature not found"),
+                members: Vec::new()
             };
 
             ir_program.instances.add_item(id, ir_instance);
