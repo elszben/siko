@@ -4,10 +4,8 @@ use crate::data::AdtId;
 use crate::data::RecordId;
 use crate::export_import::EIList;
 use crate::function::FunctionId;
-use crate::import::Import;
 use crate::import::ImportId;
 use siko_location_info::item::LocationId;
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ModuleId {
@@ -29,7 +27,7 @@ pub struct Module {
     pub adts: Vec<AdtId>,
     pub classes: Vec<ClassId>,
     pub instances: Vec<InstanceId>,
-    pub imports: BTreeMap<ImportId, Import>,
+    pub imports: Vec<ImportId>,
     pub location_id: LocationId,
     pub export_list: EIList,
 }
@@ -44,7 +42,7 @@ impl Module {
             adts: Vec::new(),
             classes: Vec::new(),
             instances: Vec::new(),
-            imports: BTreeMap::new(),
+            imports: Vec::new(),
             location_id: location_id,
             export_list: export_list,
         }

@@ -15,6 +15,7 @@ use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::function::Function;
 use crate::function::FunctionId;
+use crate::import::Import;
 use crate::import::ImportId;
 use crate::module::Module;
 use crate::module::ModuleId;
@@ -39,7 +40,7 @@ pub struct Program {
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
     pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
-    import_id: Counter,
+    pub imports: ItemContainer<ImportId, Import>,
     record_field_id: Counter,
 }
 
@@ -57,14 +58,8 @@ impl Program {
             exprs: ItemContainer::new(),
             type_signatures: ItemContainer::new(),
             patterns: ItemContainer::new(),
-            import_id: Counter::new(),
+            imports: ItemContainer::new(),
             record_field_id: Counter::new(),
-        }
-    }
-
-    pub fn get_import_id(&mut self) -> ImportId {
-        ImportId {
-            id: self.import_id.next(),
         }
     }
 

@@ -996,9 +996,10 @@ impl<'a> Parser<'a> {
             if let Some(token) = self.peek() {
                 match token.token.kind() {
                     TokenKind::KeywordImport => {
-                        let import_id = self.program.get_import_id();
+                        let import_id = self.program.imports.get_id();
                         let import = self.parse_import(import_id)?;
-                        module.imports.insert(import_id, import);
+                        self.program.imports.add_item(import_id, import);
+                        module.imports.push(import_id);
                     }
                     TokenKind::KeywordData => {
                         let data = self.parse_data()?;
@@ -1085,7 +1086,8 @@ impl<'a> Parser<'a> {
                 if module.name == PRELUDE_NAME {
                     continue;
                 }
-                for (_, import) in &module.imports {
+                for import_id in &module.imports {
+                    let import = self.program.imports.get(import_id);
                     if import.module_path == PRELUDE_NAME {
                         prelude_imported = true;
                         break;
@@ -1096,7 +1098,7 @@ impl<'a> Parser<'a> {
                 }
             }
             for module_id in modules_without_prelude {
-                let import_id = self.program.get_import_id();
+                let import_id = self.program.imports.get_id();
                 let import = Import {
                     id: import_id,
                     module_path: PRELUDE_NAME.to_string(),
@@ -1106,9 +1108,9 @@ impl<'a> Parser<'a> {
                     },
                     location_id: None,
                 };
+                self.program.imports.add_item(import_id, import);
                 let module = self.program.modules.get_mut(&module_id);
-
-                module.imports.insert(import_id, import);
+                module.imports.push(import_id);
             }
         }
 

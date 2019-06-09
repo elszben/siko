@@ -35,3 +35,9 @@ impl Import {
 pub struct ImportId {
     pub id: usize,
 }
+
+impl From<usize> for ImportId {
+    fn from(id: usize) -> ImportId {
+        ImportId { id: id }
+    }
+}
