@@ -28,7 +28,7 @@ class (BooM.Boo a) => Eq2 a where
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 
-korteb  a :: (Eq a , Foo a) => a -> a
+korteb  a :: (Eq a) => a -> a
 korteb a = a
 
 foo a b = eq a b

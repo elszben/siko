@@ -370,17 +370,13 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NotAClassName(name, id) => {
-                            println!(
-                                "{} {} is not an imported type class",
-                                error.red(),
-                                name.yellow(),
-                            );
+                            println!("{} {} is not a class", error.red(), name.yellow(),);
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::InvalidArgumentInTypeClassConstraint(arg, id) => {
                             println!(
-                                "{} type class constraint argument {} is unknown type argument",
+                                "{} class constraint argument {} is unknown type argument",
                                 error.red(),
                                 arg.yellow()
                             );

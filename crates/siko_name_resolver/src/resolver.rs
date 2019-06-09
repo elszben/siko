@@ -315,6 +315,15 @@ impl Resolver {
                 false,
             );
 
+            for constraint in &ty.constraints {
+                self.lookup_class(
+                    &constraint.class_name,
+                    constraint.location_id,
+                    module,
+                    errors,
+                );
+            }
+
             if !result.is_empty() {
                 type_signature_id = result[0];
             }
