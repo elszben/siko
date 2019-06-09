@@ -381,8 +381,9 @@ impl<'a> Parser<'a> {
     pub fn add_pattern(&mut self, pattern: Pattern, start_index: usize) -> PatternId {
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
-        let id = self.program.get_pattern_id();
-        self.program.add_pattern(id, pattern, location_id);
+        let id = self.program.patterns.get_id();
+        let info = ItemInfo::new(pattern, location_id);
+        self.program.patterns.add_item(id, info);
         id
     }
 

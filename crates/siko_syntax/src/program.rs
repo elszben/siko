@@ -23,10 +23,8 @@ use crate::pattern::PatternId;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::ItemInfo;
-use siko_location_info::item::LocationId;
 use siko_util::Counter;
 use siko_util::ItemContainer;
-use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct Program {
@@ -40,10 +38,9 @@ pub struct Program {
     pub instances: ItemContainer<InstanceId, Instance>,
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
-    pub patterns: BTreeMap<PatternId, (Pattern, LocationId)>,
+    pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
     import_id: Counter,
     record_field_id: Counter,
-    pattern_id: Counter,
 }
 
 impl Program {
@@ -59,10 +56,9 @@ impl Program {
             instances: ItemContainer::new(),
             exprs: ItemContainer::new(),
             type_signatures: ItemContainer::new(),
-            patterns: BTreeMap::new(),
+            patterns: ItemContainer::new(),
             import_id: Counter::new(),
             record_field_id: Counter::new(),
-            pattern_id: Counter::new(),
         }
     }
 
@@ -76,15 +72,5 @@ impl Program {
         RecordFieldId {
             id: self.record_field_id.next(),
         }
-    }
-
-    pub fn get_pattern_id(&mut self) -> PatternId {
-        PatternId {
-            id: self.pattern_id.next(),
-        }
-    }
-
-    pub fn add_pattern(&mut self, id: PatternId, pattern: Pattern, location_id: LocationId) {
-        self.patterns.insert(id, (pattern, location_id));
     }
 }

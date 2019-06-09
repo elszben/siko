@@ -214,14 +214,12 @@ fn process_pattern(
     irrefutable: bool,
 ) -> IrPatternId {
     let ir_pattern_id = ir_program.patterns.get_id();
-    let (pattern, location) = program
-        .patterns
-        .get(&pattern_id)
-        .expect("Pattern not found");
+    let info = program.patterns.get(&pattern_id);
+    let (pattern, location_id) = (&info.item, info.location_id);
     let ir_pattern = match pattern {
         Pattern::Binding(name) => {
             let locations = bindings.entry(name.clone()).or_insert_with(|| Vec::new());
-            locations.push(*location);
+            locations.push(location_id);
             environment.add_expr_value(name.clone(), case_expr_id, ir_pattern_id);
             IrPattern::Binding(name.clone())
         }
@@ -263,7 +261,7 @@ fn process_pattern(
                     )
                 })
                 .collect();
-            resolve_pattern_type_constructor(name, module, errors, *location, ids, irrefutable)
+            resolve_pattern_type_constructor(name, module, errors, location_id, ids, irrefutable)
         }
         Pattern::Guarded(pattern_id, guard_expr_id) => {
             let ir_pattern_id = process_pattern(
@@ -292,7 +290,7 @@ fn process_pattern(
         Pattern::Wildcard => IrPattern::Wildcard,
         Pattern::IntegerLiteral(v) => {
             if irrefutable {
-                let err = ResolverError::NotIrrefutablePattern(*location);
+                let err = ResolverError::NotIrrefutablePattern(location_id);
                 errors.push(err);
                 IrPattern::Wildcard
             } else {
@@ -301,7 +299,7 @@ fn process_pattern(
         }
         Pattern::FloatLiteral(v) => {
             if irrefutable {
-                let err = ResolverError::NotIrrefutablePattern(*location);
+                let err = ResolverError::NotIrrefutablePattern(location_id);
                 errors.push(err);
                 IrPattern::Wildcard
             } else {
@@ -310,7 +308,7 @@ fn process_pattern(
         }
         Pattern::StringLiteral(v) => {
             if irrefutable {
-                let err = ResolverError::NotIrrefutablePattern(*location);
+                let err = ResolverError::NotIrrefutablePattern(location_id);
                 errors.push(err);
                 IrPattern::Wildcard
             } else {
@@ -319,7 +317,7 @@ fn process_pattern(
         }
         Pattern::BoolLiteral(v) => {
             if irrefutable {
-                let err = ResolverError::NotIrrefutablePattern(*location);
+                let err = ResolverError::NotIrrefutablePattern(location_id);
                 errors.push(err);
                 IrPattern::Wildcard
             } else {
@@ -342,7 +340,7 @@ fn process_pattern(
             return ir_pattern_id;
         }
         Pattern::Record(name, items) => {
-            if let Some(ir_type_id) = resolve_record_type(name, module, errors, *location) {
+            if let Some(ir_type_id) = resolve_record_type(name, module, errors, location_id) {
                 let record = ir_program.typedefs.get(&ir_type_id).get_record().clone();
                 let mut unused_fields = BTreeSet::new();
                 let mut initialized_twice = BTreeSet::new();
@@ -391,14 +389,14 @@ fn process_pattern(
                 if !unused_fields.is_empty() {
                     let err = ResolverError::MissingFields(
                         unused_fields.into_iter().collect(),
-                        *location,
+                        location_id,
                     );
                     errors.push(err);
                 }
                 if !initialized_twice.is_empty() {
                     let err = ResolverError::FieldsInitializedMultipleTimes(
                         initialized_twice.into_iter().collect(),
-                        *location,
+                        location_id,
                     );
                     errors.push(err);
                 }
@@ -412,7 +410,7 @@ fn process_pattern(
     };
     let ir_pattern_info = ItemInfo {
         item: ir_pattern,
-        location_id: *location,
+        location_id: location_id,
     };
     ir_program.patterns.add_item(ir_pattern_id, ir_pattern_info);
     ir_pattern_id
