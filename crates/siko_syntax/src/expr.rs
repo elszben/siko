@@ -15,6 +15,12 @@ impl fmt::Display for ExprId {
     }
 }
 
+impl From<usize> for ExprId {
+    fn from(id: usize) -> ExprId {
+        ExprId { id: id }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Case {
     pub pattern_id: PatternId,

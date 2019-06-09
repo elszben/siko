@@ -11,25 +11,10 @@ use crate::types::TypeDef;
 use crate::types::TypeDefId;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
-use siko_location_info::item::LocationId;
+use siko_location_info::item::ItemInfo;
 
 use siko_util::Counter;
 use siko_util::ItemContainer;
-
-#[derive(Debug, Clone)]
-pub struct ItemInfo<T> {
-    pub item: T,
-    pub location_id: LocationId,
-}
-
-impl<T> ItemInfo<T> {
-    pub fn new(item: T, location_id: LocationId) -> ItemInfo<T> {
-        ItemInfo {
-            item: item,
-            location_id: location_id,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Program {

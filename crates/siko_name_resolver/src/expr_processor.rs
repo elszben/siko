@@ -19,9 +19,9 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::function::LambdaInfo;
 use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
-use siko_ir::program::ItemInfo;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::TypeDefId;
+use siko_location_info::item::ItemInfo;
 use siko_location_info::item::LocationId;
 use siko_syntax::expr::Expr;
 use siko_syntax::expr::ExprId;
@@ -95,7 +95,7 @@ fn add_expr(
     program: &Program,
 ) -> IrExprId {
     let expr_id = ir_program.exprs.get_id();
-    let location_id = program.get_expr_location(&ast_id);
+    let location_id = program.exprs.get(&ast_id).location_id;
     let expr_info = ItemInfo::new(ir_expr, location_id);
     ir_program.exprs.add_item(expr_id, expr_info);
     expr_id
@@ -427,8 +427,8 @@ pub fn process_expr(
     errors: &mut Vec<ResolverError>,
     lambda_helper: LambdaHelper,
 ) -> IrExprId {
-    let expr = program.get_expr(&id);
-    let location_id = program.get_expr_location(&id);
+    let expr = &program.exprs.get(&id).item;
+    let location_id = program.exprs.get(&id).location_id;
     //println!("Processing expr {} {}", id, expr);
     match expr {
         Expr::Lambda(args, lambda_body) => {
@@ -509,7 +509,7 @@ pub fn process_expr(
                     )
                 })
                 .collect();
-            let id_expr = program.get_expr(id_expr_id);
+            let id_expr = &program.exprs.get(id_expr_id).item;
             if let Expr::Path(path) = id_expr {
                 match resolve_item_path(
                     path,

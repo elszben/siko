@@ -12,6 +12,7 @@ use siko_constants::BuiltinOperator;
 use siko_constants::PRELUDE_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
+use siko_location_info::item::ItemInfo;
 use siko_location_info::item::LocationId;
 use siko_location_info::location_info::LocationInfo;
 use siko_location_info::location_set::LocationSet;
@@ -358,8 +359,9 @@ impl<'a> Parser<'a> {
     pub fn add_expr(&mut self, expr: Expr, start_index: usize) -> ExprId {
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
-        let id = self.program.get_expr_id();
-        self.program.add_expr(id, expr, location_id);
+        let id = self.program.exprs.get_id();
+        let info = ItemInfo::new(expr, location_id);
+        self.program.exprs.add_item(id, info);
         id
     }
 
@@ -370,10 +372,9 @@ impl<'a> Parser<'a> {
     ) -> TypeSignatureId {
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
-        let id = self.program.get_type_signature_id();
-        self.program
-            .add_type_signature(id, type_signature, location_id);
-
+        let id = self.program.type_signatures.get_id();
+        let info = ItemInfo::new(type_signature, location_id);
+        self.program.type_signatures.add_item(id, info);
         id
     }
 
@@ -526,7 +527,7 @@ impl<'a> Parser<'a> {
                 Vec::new()
             };
             let type_signature_id = self.parse_function_type(false, false)?;
-            let full_type_signature_id = self.program.get_type_signature_id();
+            let full_type_signature_id = self.program.type_signatures.get_id();
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
             let function_type = FunctionType {

@@ -2,10 +2,10 @@ use crate::error::ResolverError;
 use crate::item::Item;
 use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
-use siko_ir::program::ItemInfo;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::TypeSignature as IrTypeSignature;
 use siko_ir::types::TypeSignatureId as IrTypeSignatureId;
+use siko_location_info::item::ItemInfo;
 use siko_location_info::item::LocationId;
 use siko_syntax::program::Program;
 use siko_syntax::types::TypeSignature as AstTypeSignature;
@@ -108,8 +108,9 @@ fn process_type_signature(
     type_arg_resolver: &mut TypeArgResolver,
     errors: &mut Vec<ResolverError>,
 ) -> Option<IrTypeSignatureId> {
-    let type_signature = program.get_type_signature(type_signature_id);
-    let location_id = program.get_type_signature_location(type_signature_id);
+    let info = program.type_signatures.get(type_signature_id);
+    let type_signature = &info.item;
+    let location_id = info.location_id;
     let ir_type_signature = match type_signature {
         AstTypeSignature::Nothing => IrTypeSignature::Nothing,
         AstTypeSignature::TypeArg(name) => {

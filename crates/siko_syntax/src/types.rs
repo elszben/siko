@@ -3,6 +3,12 @@ pub struct TypeSignatureId {
     pub id: usize,
 }
 
+impl From<usize> for TypeSignatureId {
+    fn from(id: usize) -> TypeSignatureId {
+        TypeSignatureId { id: id }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum TypeSignature {
     Nothing,

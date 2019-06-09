@@ -14,6 +14,12 @@ impl fmt::Display for PatternId {
     }
 }
 
+impl From<usize> for PatternId {
+    fn from(id: usize) -> PatternId {
+        PatternId { id: id }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RecordFieldPattern {
     pub name: String,
