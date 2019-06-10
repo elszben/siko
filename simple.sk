@@ -2,7 +2,7 @@ module BooM(Boo, korte) where
 
 class Boo a where
    boo a :: a -> a -> Bool
-   boo a = 5
+   boo a b = False
 
 korte = 5
 
@@ -16,7 +16,7 @@ instance Eq Bool where
     eq a b = extern
 
 instance Eq Int where
-    eq a b = 5
+    eq a b = True
 
 instance (Eq a) => Eq List a where
     eq a b = extern
@@ -29,15 +29,17 @@ class (BooM.Boo a) => Eq2 a where
 data Foo a = { name :: a, korte :: Int, szilva :: Int}
 data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
 
-korteb  a :: (Eq a) => a -> a
-korteb a = a
+korteb  a :: (Eq a) => a -> a -> Bool
+korteb a b = eq a b
 
 foo a b = eq a b
 
-main = do
+main2 = do
     a  <- Foo { name = "name"
             , szilva = 5, korte = 3}
     a <- a { name = "qq"}
     case a of
         Foo { korte= _, szilva= b,name= a } -> print "{}" % a
+
+main = eq 4 5 
     

@@ -315,7 +315,12 @@ impl<'a> Interpreter<'a> {
                 }
                 unreachable!()
             }
-            Expr::ClassFunctionCall(..) => unimplemented!(),
+            Expr::ClassFunctionCall(class_member_id, args) => {
+                let member = program.class_members.get(class_member_id);
+                let class = program.classes.get(&member.class_id);
+                println!("calling {} from {}", member.name, class.name);
+                unimplemented!()
+            }
         }
     }
 

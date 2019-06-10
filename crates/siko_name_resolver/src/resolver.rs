@@ -713,6 +713,7 @@ impl Resolver {
                     };
                 let ir_class_member = IrClassMember {
                     id: ir_class_member_id,
+                    class_id: *ir_class_id,
                     name: class_member.type_signature.name.clone(),
                     type_signature: result[0].expect("Type signature not found"),
                     default_implementation: default_implementation,

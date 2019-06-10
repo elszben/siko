@@ -48,6 +48,7 @@ impl From<usize> for ClassMemberId {
 #[derive(Debug, Clone)]
 pub struct ClassMember {
     pub id: ClassMemberId,
+    pub class_id: ClassId,
     pub name: String,
     pub type_signature: TypeSignatureId,
     pub default_implementation: Option<FunctionId>,
