@@ -1,3 +1,4 @@
+use crate::class_processor::ClassProcessor;
 use crate::error::Error;
 use crate::error::TypecheckError;
 use crate::expr_processor::ExprProcessor;
@@ -48,6 +49,10 @@ impl Typechecker {
 
         let (type_store, function_type_info_map, ordered_dep_groups) =
             function_dep_processor.process_functions(program);
+
+        let class_processor = ClassProcessor::new(type_store);
+
+        let (type_store, class_type_info_map) = class_processor.process_classes(program, &mut errors);
 
         let mut expr_processor = ExprProcessor::new(
             type_store,

@@ -1,45 +1,6 @@
-module BooM(Boo, korte) where
+module Main where
 
 class Boo a where
-   boo a :: a -> a -> Bool
-   boo a b = False
+    boo a :: a -> Bool
 
-korte = 5
-
-module Main(main) where
-
-import BooM (korte, Boo)
-
-korte = True
-
-instance Eq Bool where
-    eq a b = extern
-
-instance Eq Int where
-    eq a b = True
-
-instance (Eq a) => Eq List a where
-    eq a b = extern
-
-class (BooM.Boo a) => Eq2 a where
-    feq a :: a -> a -> Bool
-
-    fne a :: a -> a -> Bool
-
-data Foo a = { name :: a, korte :: Int, szilva :: Int}
-data Foo2 a = { name :: a, korte2 :: Int, szilva2 :: Int}
-
-korteb  a :: (Eq a) => a -> a -> Bool
-korteb a b = eq a b
-
-foo a b = eq a b
-
-main2 = do
-    a  <- Foo { name = "name"
-            , szilva = 5, korte = 3}
-    a <- a { name = "qq"}
-    case a of
-        Foo { korte= _, szilva= b,name= a } -> print "{}" % a
-
-main = eq 4 5 
-    
+main = boo 5

@@ -364,7 +364,6 @@ impl FunctionProcessor {
                         }
                     },
                 },
-                FunctionInfo::ClassMember(i) => unimplemented!(),
             }
         }
 

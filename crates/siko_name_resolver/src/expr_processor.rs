@@ -529,7 +529,7 @@ pub fn process_expr(
                         return add_expr(ir_expr, id, ir_program, program);
                     }
                     PathResolveResult::ClassMemberRef(n) => {
-                        let ir_expr = IrExpr::ClassFunctionCall(n, vec![]);
+                        let ir_expr = IrExpr::ClassFunctionCall(n, ir_args);
                         return add_expr(ir_expr, id, ir_program, program);
                     }
                 }

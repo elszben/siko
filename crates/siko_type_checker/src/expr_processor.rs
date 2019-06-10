@@ -538,7 +538,10 @@ impl<'a> Visitor for Unifier<'a> {
                     }
                 }
             }
-            Expr::ClassFunctionCall(_, args) => {}
+            Expr::ClassFunctionCall(class_member_id, args) => {
+                let class_member = self.program.class_members.get(class_member_id);
+                let class = self.program.classes.get(&class_member.class_id);
+            }
         }
     }
 

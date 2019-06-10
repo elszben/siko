@@ -1,5 +1,3 @@
-use crate::class::ClassId;
-use crate::class::ClassMemberId;
 use crate::expr::ExprId;
 use crate::types::TypeDefId;
 use crate::types::TypeSignatureId;
@@ -77,24 +75,11 @@ impl fmt::Display for VariantConstructorInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct ClassMemberInfo {
-    pub class_id: ClassId,
-    pub member_id: ClassMemberId,
-}
-
-impl fmt::Display for ClassMemberInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}/{}", self.class_id, self.member_id)
-    }
-}
-
-#[derive(Debug, Clone)]
 pub enum FunctionInfo {
     Lambda(LambdaInfo),
     NamedFunction(NamedFunctionInfo),
     RecordConstructor(RecordConstructorInfo),
     VariantConstructor(VariantConstructorInfo),
-    ClassMember(ClassMemberInfo),
 }
 
 impl fmt::Display for FunctionInfo {
@@ -104,7 +89,6 @@ impl fmt::Display for FunctionInfo {
             FunctionInfo::NamedFunction(i) => write!(f, "{}", i),
             FunctionInfo::RecordConstructor(i) => write!(f, "{}", i),
             FunctionInfo::VariantConstructor(i) => write!(f, "{}", i),
-            FunctionInfo::ClassMember(i) => write!(f, "{}", i),
         }
     }
 }
