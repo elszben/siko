@@ -81,5 +81,6 @@ pub struct Instance {
 
 #[derive(Debug, Clone)]
 pub struct InstanceMember {
-    pub function: FunctionId,
+    pub class_member_id: ClassMemberId,
+    pub function_id: FunctionId,
 }

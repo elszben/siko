@@ -16,7 +16,7 @@ instance Eq Bool where
     eq a b = extern
 
 instance Eq Int where
-    eq a b = extern
+    eq a b = 5
 
 instance (Eq a) => Eq List a where
     eq a b = extern
