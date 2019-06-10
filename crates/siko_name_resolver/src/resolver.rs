@@ -671,11 +671,26 @@ impl Resolver {
                 false,
             );
             if errors.is_empty() {
+                let default_implementation =
+                    if let Some(default_implementation) = &class_member.default_implementation {
+                        let ir_function_id = ir_program.functions.get_id();
+                        self.process_function(
+                            program,
+                            ir_program,
+                            default_implementation,
+                            ir_function_id,
+                            module,
+                            errors,
+                        );
+                        Some(ir_function_id)
+                    } else {
+                        None
+                    };
                 let ir_class_member = IrClassMember {
                     id: ir_class_member_id,
                     name: class_member.type_signature.name.clone(),
                     type_signature: result[0].expect("Type signature not found"),
-                    default_implementation: class_member.default_implementation.map(|_| ()),
+                    default_implementation: default_implementation,
                     location_id: class_member.location_id,
                 };
                 ir_program
