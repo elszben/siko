@@ -38,8 +38,9 @@ use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordId;
+
+use siko_syntax::function::Function as AstFunction;
 use siko_syntax::function::FunctionBody as AstFunctionBody;
-use siko_syntax::function::FunctionId as AstFunctionId;
 use siko_syntax::function::FunctionType as AstFunctionType;
 use siko_syntax::module::Module as AstModule;
 use siko_syntax::program::Program;
@@ -317,15 +318,12 @@ impl Resolver {
         }
     }
 
-    fn process_function_type(
+    fn check_function_type_name(
         &self,
         function_type: &AstFunctionType,
         name: &String,
-        module: &Module,
-        program: &Program,
-        ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
-    ) -> Option<TypeSignatureId> {
+    ) {
         if function_type.name != *name {
             let err = ResolverError::FunctionTypeNameMismatch(
                 function_type.name.clone(),
@@ -334,7 +332,16 @@ impl Resolver {
             );
             errors.push(err);
         }
+    }
 
+    fn process_function_type(
+        &self,
+        function_type: &AstFunctionType,
+        module: &Module,
+        program: &Program,
+        ir_program: &mut IrProgram,
+        errors: &mut Vec<ResolverError>,
+    ) -> Option<TypeSignatureId> {
         let mut collector = TypeArgConstraintCollector::new();
 
         for (type_arg, _) in function_type.type_args.iter() {
@@ -373,21 +380,14 @@ impl Resolver {
         &self,
         program: &Program,
         ir_program: &mut IrProgram,
-        function_id: &AstFunctionId,
+        function: &AstFunction,
         ir_function_id: IrFunctionId,
         module: &Module,
         errors: &mut Vec<ResolverError>,
         type_signature_id: Option<TypeSignatureId>,
     ) {
-        let function = program.functions.get(function_id);
         let mut body = None;
-        /*
-                let type_signature_id = if let Some(ty) = &function.func_type {
-                    self.process_function_type(ty, &function.name, module, program, ir_program, errors)
-                } else {
-                    None
-                };
-        */
+
         if let AstFunctionBody::Expr(id) = function.body {
             let mut environment = Environment::new();
             let mut arg_names = BTreeSet::new();
@@ -687,14 +687,21 @@ impl Resolver {
                 false,
                 false,
             );
+
             if errors.is_empty() {
                 let default_implementation =
                     if let Some(default_implementation) = &class_member.default_implementation {
                         let ir_function_id = ir_program.functions.get_id();
+                        let function = program.functions.get(default_implementation);
+                        let func_type = function
+                            .func_type
+                            .as_ref()
+                            .expect("default class member has no type");
+                        self.check_function_type_name(func_type, &function.name, errors);
                         self.process_function(
                             program,
                             ir_program,
-                            default_implementation,
+                            &function,
                             ir_function_id,
                             module,
                             errors,
@@ -793,10 +800,11 @@ impl Resolver {
                     };
                     members.push(ir_instance_member);
                     let class_member_type_signature_id = class_member_info.2;
+                    let function = program.functions.get(&member.function_id);
                     self.process_function(
                         program,
                         ir_program,
-                        &member.function_id,
+                        &function,
                         ir_function_id,
                         module,
                         errors,
@@ -938,9 +946,9 @@ impl Resolver {
                         Item::Function(ast_function_id, ir_function_id) => {
                             let function = program.functions.get(ast_function_id);
                             let type_signature_id = if let Some(ty) = &function.func_type {
+                                self.check_function_type_name(ty, &function.name, &mut errors);
                                 self.process_function_type(
                                     ty,
-                                    &function.name,
                                     module,
                                     program,
                                     &mut ir_program,
@@ -952,7 +960,7 @@ impl Resolver {
                             self.process_function(
                                 program,
                                 &mut ir_program,
-                                ast_function_id,
+                                &function,
                                 *ir_function_id,
                                 module,
                                 &mut errors,
