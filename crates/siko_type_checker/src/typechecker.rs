@@ -52,17 +52,19 @@ impl Typechecker {
 
         let class_processor = ClassProcessor::new(type_store);
 
-        let (type_store, class_type_info_map) = class_processor.process_classes(program, &mut errors);
+        let (type_store, class_type_info_map) =
+            class_processor.process_classes(program, &mut errors);
 
         let mut expr_processor = ExprProcessor::new(
             type_store,
             function_type_info_map,
             record_type_info_map,
             variant_type_info_map,
+            program
         );
 
         for group in &ordered_dep_groups {
-            expr_processor.process_dep_group(program, group, &mut errors);
+            expr_processor.process_dep_group(group, &mut errors);
         }
 
         //expr_processor.dump_function_types();

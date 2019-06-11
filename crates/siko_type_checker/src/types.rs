@@ -5,6 +5,7 @@ use crate::type_store::TypeIndex;
 use crate::type_store::TypeStore;
 use siko_ir::class::ClassId;
 use siko_ir::types::TypeDefId;
+use siko_util::Collector;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
@@ -78,6 +79,7 @@ impl Type {
         vars: &mut BTreeSet<TypeVariable>,
         args: &mut BTreeSet<usize>,
         indices: &mut BTreeSet<TypeIndex>,
+        constraints: &mut Collector<usize, ClassId>,
         type_store: &TypeStore,
     ) {
         match self {
@@ -91,7 +93,7 @@ impl Type {
                     vars.insert(*var);
                     indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, indices, type_store);
+                    ty.collect(vars, args, indices, constraints, type_store);
                 }
             }
             Type::Function(func_type) => {
@@ -99,13 +101,16 @@ impl Type {
                     vars.insert(*var);
                     indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, indices, type_store);
+                    ty.collect(vars, args, indices, constraints, type_store);
                 }
             }
             Type::TypeArgument(index) => {
                 args.insert(*index);
             }
-            Type::FixedTypeArgument(index, _, _) => {
+            Type::FixedTypeArgument(index, _, type_constraints) => {
+                for c in type_constraints {
+                    constraints.add(*index, *c);
+                }
                 args.insert(*index);
             }
             Type::Named(_, _, type_vars) => {
@@ -113,7 +118,7 @@ impl Type {
                     vars.insert(*var);
                     indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, indices, type_store);
+                    ty.collect(vars, args, indices, constraints, type_store);
                 }
             }
         }

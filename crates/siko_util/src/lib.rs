@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -51,5 +52,22 @@ impl<Key: Ord + From<usize>, Item> ItemContainer<Key, Item> {
 
     pub fn get_mut(&mut self, key: &Key) -> &mut Item {
         self.items.get_mut(key).expect("Item not found")
+    }
+}
+
+pub struct Collector<Key, Item> {
+   pub  items: BTreeMap<Key, BTreeSet<Item>>
+}
+
+impl<Key: Ord, Item: Ord> Collector<Key, Item> {
+    pub fn new() -> Collector<Key, Item> {
+        Collector {
+            items: BTreeMap::new()
+        }
+    }
+
+    pub fn add(&mut self, key: Key, item: Item) {
+        let entry = self.items.entry(key).or_insert_with(|| BTreeSet::new());
+        entry.insert(item);
     }
 }

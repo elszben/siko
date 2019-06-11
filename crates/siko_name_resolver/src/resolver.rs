@@ -62,10 +62,10 @@ impl TypeArgConstraintCollector {
         self.constraints.insert(arg, Vec::new());
     }
 
-    fn add_constraint(&mut self, constraint: &Constraint, class_id: IrClassId) {
+    fn add_constraint(&mut self, arg: String, class_id: IrClassId) {
         let classes = self
             .constraints
-            .entry(constraint.arg.clone())
+            .entry(arg.clone())
             .or_insert_with(|| Vec::new());
         classes.push(class_id);
     }
@@ -355,7 +355,7 @@ impl Resolver {
                 module,
                 errors,
             ) {
-                collector.add_constraint(constraint, ir_class_id);
+                collector.add_constraint(constraint.arg.clone(), ir_class_id);
             }
         }
 
@@ -627,7 +627,7 @@ impl Resolver {
         let class = program.classes.get(class_id);
 
         let mut collector = TypeArgConstraintCollector::new();
-        collector.add_empty(class.arg.clone());
+        collector.add_constraint(class.arg.clone(),* ir_class_id);
 
         for constraint in &class.constraints {
             if class.arg != constraint.arg {
@@ -643,7 +643,7 @@ impl Resolver {
                 module,
                 errors,
             ) {
-                collector.add_constraint(constraint, ir_class_id);
+                collector.add_constraint(constraint.arg.clone(), ir_class_id);
             }
         }
 
@@ -742,7 +742,7 @@ impl Resolver {
                 module,
                 errors,
             ) {
-                collector.add_constraint(constraint, ir_class_id);
+                collector.add_constraint(constraint.arg.clone(), ir_class_id);
             }
         }
 

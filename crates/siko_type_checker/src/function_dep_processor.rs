@@ -46,19 +46,25 @@ impl GroupTable {
     }
 }
 
-struct DependencyCollector {
+struct DependencyCollector<'a> {
+    program: &'a Program,
     used_functions: BTreeSet<FunctionId>,
 }
 
-impl DependencyCollector {
-    fn new() -> DependencyCollector {
+impl<'a> DependencyCollector<'a> {
+    fn new(program: &'a Program) -> DependencyCollector<'a> {
         DependencyCollector {
+            program: program,
             used_functions: BTreeSet::new(),
         }
     }
 }
 
-impl Visitor for DependencyCollector {
+impl<'a> Visitor for DependencyCollector<'a> {
+    fn get_program(&self) -> &Program {
+        &self.program
+    }
+
     fn visit_expr(&mut self, _: ExprId, expr: &Expr) {
         match expr {
             Expr::StaticFunctionCall(id, _) => {
@@ -94,8 +100,8 @@ impl FunctionDependencyProcessor {
     fn collect_deps(&mut self, program: &Program) {
         for (id, type_info) in &self.function_type_info_map {
             if let Some(body) = type_info.body {
-                let mut collector = DependencyCollector::new();
-                walk_expr(&body, program, &mut collector);
+                let mut collector = DependencyCollector::new(program);
+                walk_expr(&body,  &mut collector);
                 let deps: Vec<_> = collector.used_functions.into_iter().collect();
                 //println!("{} deps {}", id, format_list(&deps[..]));
                 let mut deps: BTreeSet<_> = deps

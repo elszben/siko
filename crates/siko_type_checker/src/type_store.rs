@@ -1,5 +1,8 @@
 use super::type_variable::TypeVariable;
 use crate::types::Type;
+use siko_ir::program::Program;
+use siko_util::format_list;
+use siko_util::Collector;
 use siko_util::Counter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -261,7 +264,7 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
+    pub fn get_resolved_type_string(&self, var: &TypeVariable, program: &Program) -> String {
         if self.is_recursive(*var) {
             return format!("<recursive type>");
         }
@@ -269,7 +272,8 @@ impl TypeStore {
         let mut vars = BTreeSet::new();
         let mut args = BTreeSet::new();
         let mut indices = BTreeSet::new();
-        ty.collect(&mut vars, &mut args, &mut indices, self);
+        let mut constraints = Collector::new();
+        ty.collect(&mut vars, &mut args, &mut indices, &mut constraints, self);
         let mut type_args = BTreeMap::new();
         let mut next_char = 'a' as u32;
         for arg in args {
@@ -277,7 +281,21 @@ impl TypeStore {
             type_args.insert(arg, format!("{}", c));
             next_char += 1;
         }
-        ty.as_string(self, false, &type_args)
+        let mut constraint_strings = Vec::new();
+        for (c, classes) in constraints.items {
+            for class_id in classes {
+                let class = program.classes.get(&class_id);
+                let c_str = format!(
+                    "{} {}",
+                    class.name,
+                    type_args.get(&c).expect("Type arg not found")
+                );
+                constraint_strings.push(c_str);
+            }
+        }
+        let prefix = format!("({}) => ", format_list(&constraint_strings[..]));
+        let type_str = ty.as_string(self, false, &type_args);
+        format!("{}{}", prefix, type_str)
     }
 
     pub fn get_new_type_var(&mut self) -> TypeVariable {

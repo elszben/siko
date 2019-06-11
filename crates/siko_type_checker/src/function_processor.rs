@@ -3,9 +3,8 @@ use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
-use crate::function_type::FunctionType;
+use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
-use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
@@ -13,7 +12,6 @@ use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
-use siko_ir::types::TypeSignature;
 use siko_ir::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
@@ -35,69 +33,6 @@ impl FunctionProcessor {
         }
     }
 
-    fn process_type_signature(
-        &mut self,
-        type_signature_id: &TypeSignatureId,
-        program: &Program,
-        arg_map: &mut BTreeMap<usize, TypeVariable>,
-    ) -> TypeVariable {
-        let type_signature = &program.type_signatures.get(type_signature_id).item;
-        match type_signature {
-            TypeSignature::Bool => {
-                let ty = Type::Bool;
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::Int => {
-                let ty = Type::Int;
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::String => {
-                let ty = Type::String;
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::Nothing => {
-                let ty = Type::Nothing;
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::Tuple(items) => {
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|i| self.process_type_signature(i, program, arg_map))
-                    .collect();
-                let ty = Type::Tuple(items);
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::Function(from, to) => {
-                let from_var = self.process_type_signature(from, program, arg_map);
-                let to_var = self.process_type_signature(to, program, arg_map);
-                let ty = Type::Function(FunctionType::new(from_var, to_var));
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::TypeArgument(index, name, constraints) => {
-                let var = arg_map.entry(*index).or_insert_with(|| {
-                    let arg = self.type_store.get_unique_type_arg();
-                    let ty = Type::FixedTypeArgument(arg, name.clone(), constraints.clone());
-                    self.type_store.add_type(ty)
-                });
-                return *var;
-            }
-            TypeSignature::Named(name, id, items) => {
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|i| self.process_type_signature(i, program, arg_map))
-                    .collect();
-                let ty = Type::Named(name.clone(), *id, items);
-                return self.type_store.add_type(ty);
-            }
-            TypeSignature::Variant(..) => unreachable!(),
-            TypeSignature::Wildcard => {
-                let arg = self.type_store.get_unique_type_arg();
-                let ty = Type::TypeArgument(arg);
-                self.type_store.add_type(ty)
-            }
-        }
-    }
-
     fn register_typed_function(
         &mut self,
         displayed_name: String,
@@ -111,7 +46,12 @@ impl FunctionProcessor {
         location_id: LocationId,
     ) {
         let mut arg_map = BTreeMap::new();
-        let func_type_var = self.process_type_signature(&type_signature_id, program, &mut arg_map);
+        let func_type_var = process_type_signature(
+            &mut self.type_store,
+            &type_signature_id,
+            program,
+            &mut arg_map,
+        );
         /*
         println!(
             "Registering named function {} {} with type {}",
@@ -227,7 +167,8 @@ impl FunctionProcessor {
 
                     let mut arg_map = BTreeMap::new();
                     for (index, field) in record.fields.iter().enumerate() {
-                        let arg_var = self.process_type_signature(
+                        let arg_var = process_type_signature(
+                            &mut self.type_store,
                             &field.type_signature_id,
                             program,
                             &mut arg_map,
@@ -282,7 +223,8 @@ impl FunctionProcessor {
 
                     let mut arg_map = BTreeMap::new();
                     for (index, item) in variant.items.iter().enumerate() {
-                        let arg_var = self.process_type_signature(
+                        let arg_var = process_type_signature(
+                            &mut self.type_store,
                             &item.type_signature_id,
                             program,
                             &mut arg_map,
