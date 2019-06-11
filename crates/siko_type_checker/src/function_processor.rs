@@ -57,7 +57,7 @@ impl FunctionProcessor {
             "Registering named function {} {} with type {}",
             function_id,
             displayed_name,
-            self.type_store.get_resolved_type_string(&func_type_var)
+            self.type_store.get_resolved_type_string(&func_type_var, program)
         );
         */
         let ty = self.type_store.get_type(&func_type_var);
