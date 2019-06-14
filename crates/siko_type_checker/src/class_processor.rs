@@ -24,6 +24,9 @@ impl ClassProcessor {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
     ) -> (TypeStore, BTreeMap<ClassMemberId, ClassMemberTypeInfo>) {
+        for (class_id,class) in &program.classes.items {
+            self.type_store.class_names.insert(*class_id, class.name.clone());
+        }
         for (class_member_id, class_member) in &program.class_members.items {
             //println!("{} = {:?}", class_member.name, class_member.type_signature);
             let mut arg_map = BTreeMap::new();

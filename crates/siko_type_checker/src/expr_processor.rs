@@ -116,17 +116,12 @@ impl<'a, 'b> Unifier<'a, 'b> {
 
     #[allow(unused)]
     fn print_type(&self, msg: &str, var: &TypeVariable) {
-        let ty = self
-            .expr_processor
-            .type_store
-            .get_resolved_type_string(var, &self.expr_processor.program);
+        let ty = self.expr_processor.type_store.get_resolved_type_string(var);
         println!("{}: {}", msg, ty);
     }
 
     fn get_type_string(&self, var: &TypeVariable) -> String {
-        self.expr_processor
-            .type_store
-            .get_resolved_type_string(var, &self.expr_processor.program)
+        self.expr_processor.type_store.get_resolved_type_string(var)
     }
 
 
@@ -875,13 +870,13 @@ impl<'a> ExprProcessor<'a> {
                 "Expr: {}: {} -> {}",
                 expr_id,
                 expr_info.item,
-                self.type_store.get_resolved_type_string(&var, program)
+                self.type_store.get_resolved_type_string(&var)
             );
         }
     }
 
     #[allow(unused)]
-    pub fn dump_function_types(&self, program: &Program) {
+    pub fn dump_function_types(&self) {
         for (id, info) in &self.function_type_info_map {
             if info.body.is_none() {
                 // continue;
@@ -891,7 +886,7 @@ impl<'a> ExprProcessor<'a> {
                 id,
                 info.displayed_name,
                 self.type_store
-                    .get_resolved_type_string(&info.function_type, program)
+                    .get_resolved_type_string(&info.function_type)
             );
         }
     }
@@ -913,12 +908,8 @@ impl<'a> ExprProcessor<'a> {
         errors: &mut Vec<TypecheckError>,
     ) -> bool {
         if !self.type_store.unify(&expected, &found) {
-            let expected_type = self
-                .type_store
-                .get_resolved_type_string(&expected, &self.program);
-            let found_type = self
-                .type_store
-                .get_resolved_type_string(&found, &self.program);
+            let expected_type = self.type_store.get_resolved_type_string(&expected);
+            let found_type = self.type_store.get_resolved_type_string(&found);
             let err = TypecheckError::TypeMismatch(location, expected_type, found_type);
             errors.push(err);
             false

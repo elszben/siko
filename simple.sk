@@ -5,6 +5,11 @@ class Eq a
 class (Eq a) => Boo a where
     boo a :: a -> Bool
 
-foo b = boo b
+class Quu a where
+    quu a :: a -> Bool
 
-main = boo 5
+foo b = do 
+    boo b
+    quu b
+
+main = foo 5

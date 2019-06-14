@@ -1,6 +1,6 @@
 use super::type_variable::TypeVariable;
 use crate::types::Type;
-use siko_ir::program::Program;
+use siko_ir::class::ClassId;
 use siko_util::format_list;
 use siko_util::Collector;
 use siko_util::Counter;
@@ -126,6 +126,7 @@ pub struct TypeStore {
     var_counter: Counter,
     index_counter: Counter,
     arg_counter: Counter,
+    pub class_names: BTreeMap<ClassId, String>,
 }
 
 impl TypeStore {
@@ -136,6 +137,7 @@ impl TypeStore {
             var_counter: Counter::new(),
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
+            class_names: BTreeMap::new(),
         }
     }
 
@@ -188,6 +190,10 @@ impl TypeStore {
         }
     }
 
+    pub fn has_class_instance(&self, var: &TypeVariable, class_id: &ClassId) -> bool {
+        false
+    }
+
     pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
         let primary_type = self.get_type(primary);
         let secondary_type = self.get_type(secondary);
@@ -211,23 +217,30 @@ impl TypeStore {
                 Type::TypeArgument(_, primary_constraints),
                 Type::TypeArgument(_, secondary_constraints),
             ) => {
-                println!("P{:?}", primary_constraints);
-                println!("S{:?}", secondary_constraints);
                 let mut merged_constraints = primary_constraints.clone();
                 merged_constraints.extend(secondary_constraints);
                 merged_constraints.sort();
                 merged_constraints.dedup();
-                println!("M{:?}", merged_constraints);
                 let merged_type =
                     Type::TypeArgument(self.get_unique_type_arg(), merged_constraints);
                 let merged_type_var = self.add_type(merged_type);
-                self.merge(primary, &merged_type_var);
-                self.merge(secondary, &merged_type_var);
+                self.merge(&merged_type_var, primary);
+                self.merge(&merged_type_var, secondary);
             }
-            (Type::TypeArgument(_, _), _) => {
+            (Type::TypeArgument(_, constraints), _) => {
+                for c in constraints {
+                    if !self.has_class_instance(secondary, c) {
+                        return false;
+                    }
+                }
                 self.merge(secondary, primary);
             }
-            (_, Type::TypeArgument(_, _)) => {
+            (_, Type::TypeArgument(_, constraints)) => {
+                for c in constraints {
+                    if !self.has_class_instance(primary, c) {
+                        return false;
+                    }
+                }
                 self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
@@ -278,7 +291,7 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn get_resolved_type_string(&self, var: &TypeVariable, program: &Program) -> String {
+    pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
         if self.is_recursive(*var) {
             return format!("<recursive type>");
         }
@@ -298,16 +311,24 @@ impl TypeStore {
         let mut constraint_strings = Vec::new();
         for (c, classes) in constraints.items {
             for class_id in classes {
-                let class = program.classes.get(&class_id);
+                let class_name = self
+                    .class_names
+                    .get(&class_id)
+                    .expect("Class name not found");
                 let c_str = format!(
                     "{} {}",
-                    class.name,
+                    class_name,
                     type_args.get(&c).expect("Type arg not found")
                 );
                 constraint_strings.push(c_str);
             }
         }
-        let prefix = format!("({}) => ", format_list(&constraint_strings[..]));
+
+        let prefix = if constraint_strings.is_empty() {
+            format!("")
+        } else {
+            format!("({}) => ", format_list(&constraint_strings[..]))
+        };
         let type_str = ty.as_string(self, false, &type_args);
         format!("{}{}", prefix, type_str)
     }
