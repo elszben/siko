@@ -1,6 +1,10 @@
 module Main where
 
+class Eq a
+
 class (Eq a) => Boo a where
     boo a :: a -> Bool
+
+foo b = boo b
 
 main = boo 5

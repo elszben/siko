@@ -9,6 +9,11 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 #[derive(Debug, Clone)]
+pub struct ClassMemberTypeInfo {
+    pub member_type_var: TypeVariable,
+}
+
+#[derive(Debug, Clone)]
 pub struct RecordTypeInfo {
     pub record_type: TypeVariable,
     pub field_types: Vec<TypeVariable>,

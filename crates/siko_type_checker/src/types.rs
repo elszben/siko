@@ -19,7 +19,7 @@ pub enum Type {
     Nothing,
     Tuple(Vec<TypeVariable>),
     Function(FunctionType),
-    TypeArgument(usize),
+    TypeArgument(usize, Vec<ClassId>),
     FixedTypeArgument(usize, String, Vec<ClassId>),
     Named(String, TypeDefId, Vec<TypeVariable>),
 }
@@ -56,13 +56,13 @@ impl Type {
                 let to = Type::clone_type_var(&func_type.to, context);
                 Type::Function(FunctionType::new(from, to))
             }
-            Type::TypeArgument(index) => {
+            Type::TypeArgument(index, constraints) => {
                 let new_index = context.arg(*index);
-                Type::TypeArgument(new_index)
+                Type::TypeArgument(new_index, constraints.clone())
             }
-            Type::FixedTypeArgument(index, _, _) => {
+            Type::FixedTypeArgument(index, _, constraints) => {
                 let new_index = context.arg(*index);
-                Type::TypeArgument(new_index)
+                Type::TypeArgument(new_index, constraints.clone())
             }
             Type::Named(name, id, typevars) => {
                 let typevars: Vec<_> = typevars
@@ -104,7 +104,10 @@ impl Type {
                     ty.collect(vars, args, indices, constraints, type_store);
                 }
             }
-            Type::TypeArgument(index) => {
+            Type::TypeArgument(index, type_constraints) => {
+                for c in type_constraints {
+                    constraints.add(*index, *c);
+                }
                 args.insert(*index);
             }
             Type::FixedTypeArgument(index, _, type_constraints) => {
@@ -154,7 +157,7 @@ impl Type {
                     func_type_str
                 }
             }
-            Type::TypeArgument(index) => format!(
+            Type::TypeArgument(index, _) => format!(
                 "{}",
                 type_args.get(index).expect("readable type arg not found")
             ),
@@ -239,7 +242,7 @@ impl Type {
                 let to = type_store.debug_var(&func_type.to);
                 format!("{} -> {}", from, to)
             }
-            Type::TypeArgument(index) => format!("type_arg{}", index),
+            Type::TypeArgument(index, _) => format!("type_arg{}", index),
             Type::FixedTypeArgument(index, n, _) => format!("fixed_type_arg({}){}", n, index),
             Type::Named(n, id, type_vars) => {
                 let ss: Vec<_> = type_vars
@@ -265,7 +268,7 @@ impl fmt::Display for Type {
                 write!(f, "({})", ss.join(", "))
             }
             Type::Function(func_type) => write!(f, "{}", func_type),
-            Type::TypeArgument(index) => write!(f, "t{}", index),
+            Type::TypeArgument(index, _) => write!(f, "t{}", index),
             Type::FixedTypeArgument(_, name, _) => write!(f, "{}", name),
             Type::Named(name, _, types) => {
                 let ss: Vec<_> = types.iter().map(|t| format!("{}", t)).collect();

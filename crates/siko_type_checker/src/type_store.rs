@@ -144,7 +144,7 @@ impl TypeStore {
     }
 
     pub fn get_unique_type_arg_type(&mut self) -> Type {
-        let ty = Type::TypeArgument(self.arg_counter.next());
+        let ty = Type::TypeArgument(self.arg_counter.next(), vec![]);
         ty
     }
 
@@ -207,13 +207,27 @@ impl TypeStore {
             (Type::Int, Type::Int) => {}
             (Type::String, Type::String) => {}
             (Type::Bool, Type::Bool) => {}
-            (Type::TypeArgument(_), Type::TypeArgument(_)) => {
-                self.merge(primary, secondary);
+            (
+                Type::TypeArgument(_, primary_constraints),
+                Type::TypeArgument(_, secondary_constraints),
+            ) => {
+                println!("P{:?}", primary_constraints);
+                println!("S{:?}", secondary_constraints);
+                let mut merged_constraints = primary_constraints.clone();
+                merged_constraints.extend(secondary_constraints);
+                merged_constraints.sort();
+                merged_constraints.dedup();
+                println!("M{:?}", merged_constraints);
+                let merged_type =
+                    Type::TypeArgument(self.get_unique_type_arg(), merged_constraints);
+                let merged_type_var = self.add_type(merged_type);
+                self.merge(primary, &merged_type_var);
+                self.merge(secondary, &merged_type_var);
             }
-            (Type::TypeArgument(_), _) => {
+            (Type::TypeArgument(_, _), _) => {
                 self.merge(secondary, primary);
             }
-            (_, Type::TypeArgument(_)) => {
+            (_, Type::TypeArgument(_, _)) => {
                 self.merge(primary, secondary);
             }
             (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {

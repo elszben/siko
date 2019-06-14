@@ -65,7 +65,7 @@ pub fn process_type_signature(
         TypeSignature::Variant(..) => unreachable!(),
         TypeSignature::Wildcard => {
             let arg = type_store.get_unique_type_arg();
-            let ty = Type::TypeArgument(arg);
+            let ty = Type::TypeArgument(arg, vec![]);
             type_store.add_type(ty)
         }
     }

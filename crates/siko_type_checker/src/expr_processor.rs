@@ -1,4 +1,5 @@
 use crate::common::create_general_function_type;
+use crate::common::ClassMemberTypeInfo;
 use crate::common::DependencyGroup;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
@@ -9,6 +10,7 @@ use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use crate::walker::walk_expr;
 use crate::walker::Visitor;
+use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::expr::FieldAccessInfo;
@@ -79,6 +81,16 @@ impl<'a, 'b> Unifier<'a, 'b> {
         }
         let mut context = self.expr_processor.type_store.create_clone_context(false);
         context.clone_var(type_info.function_type)
+    }
+
+    fn get_class_member_type_var(&mut self, class_member_id: &ClassMemberId) -> TypeVariable {
+        let type_info = self
+            .expr_processor
+            .class_member_type_info_map
+            .get(class_member_id)
+            .expect("Type info not found");
+        let mut context = self.expr_processor.type_store.create_clone_context(false);
+        context.clone_var(type_info.member_type_var)
     }
 
     fn check_literal_expr(&mut self, expr_id: ExprId, ty: Type) {
@@ -571,16 +583,58 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 }
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
-                let class_member = self
-                    .expr_processor
-                    .program
-                    .class_members
-                    .get(class_member_id);
-                let class = self
-                    .expr_processor
-                    .program
-                    .classes
-                    .get(&class_member.class_id);
+                let orig_function_type_var = self.get_class_member_type_var(class_member_id);
+                let mut function_type_var = orig_function_type_var;
+                let orig_arg_vars: Vec<_> = args
+                    .iter()
+                    .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
+                    .collect();
+                let mut arg_vars = orig_arg_vars.clone();
+                let mut failed = false;
+                while !arg_vars.is_empty() {
+                    if let Type::Function(func_type) =
+                        self.expr_processor.type_store.get_type(&function_type_var)
+                    {
+                        let first_arg = arg_vars.first().unwrap();
+                        if !self
+                            .expr_processor
+                            .type_store
+                            .unify(&func_type.from, first_arg)
+                        {
+                            failed = true;
+                            break;
+                        } else {
+                            function_type_var = func_type.to;
+                            arg_vars.remove(0);
+                        }
+                    } else {
+                        failed = true;
+                        break;
+                    }
+                }
+                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+                let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
+                if failed {
+                    let function_type_string = self.get_type_string(&orig_function_type_var);
+                    let arg_type_strings: Vec<_> = orig_arg_vars
+                        .iter()
+                        .map(|arg_var| self.get_type_string(arg_var))
+                        .collect();
+                    let arguments = format_list(&arg_type_strings[..]);
+                    let err = TypecheckError::FunctionArgumentMismatch(
+                        location,
+                        arguments,
+                        function_type_string,
+                    );
+                    self.errors.push(err);
+                } else {
+                    self.expr_processor.unify_variables(
+                        &expr_var,
+                        &function_type_var,
+                        location,
+                        self.errors,
+                    );
+                }
             }
         }
     }
@@ -735,6 +789,7 @@ pub struct ExprProcessor<'a> {
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
     variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
+    class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
     program: &'a Program,
 }
 
@@ -744,6 +799,7 @@ impl<'a> ExprProcessor<'a> {
         function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
         record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
         variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
+        class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
         program: &'a Program,
     ) -> ExprProcessor<'a> {
         ExprProcessor {
@@ -753,6 +809,7 @@ impl<'a> ExprProcessor<'a> {
             function_type_info_map: function_type_info_map,
             record_type_info_map: record_type_info_map,
             variant_type_info_map: variant_type_info_map,
+            class_member_type_info_map: class_member_type_info_map,
             program: program,
         }
     }
@@ -804,7 +861,7 @@ impl<'a> ExprProcessor<'a> {
         let mut type_var_creator = TypeVarCreator::new(self);
         walk_expr(&body, &mut type_var_creator);
         let mut unifier = Unifier::new(self, errors, group);
-        walk_expr(&body,  &mut unifier);
+        walk_expr(&body, &mut unifier);
         let body_var = self.lookup_type_var_for_expr(&body);
         let body_location = self.program.exprs.get(&body).location_id;
         self.unify_variables(&result_var, &body_var, body_location, errors);

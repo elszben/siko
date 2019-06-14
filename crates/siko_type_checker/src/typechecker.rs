@@ -60,14 +60,15 @@ impl Typechecker {
             function_type_info_map,
             record_type_info_map,
             variant_type_info_map,
-            program
+            class_type_info_map,
+            program,
         );
 
         for group in &ordered_dep_groups {
             expr_processor.process_dep_group(group, &mut errors);
         }
 
-        //expr_processor.dump_function_types();
+        expr_processor.dump_function_types(program);
         //expr_processor.dump_expression_types(program);
 
         expr_processor.check_recursive_types(&mut errors);
