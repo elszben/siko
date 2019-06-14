@@ -2,7 +2,7 @@ module Main where
 
 class Eq a
 
-class (Eq a) => Boo a where
+class (Boo a) => Boo a where
     boo a :: a -> Bool
 
 class Quu a where
