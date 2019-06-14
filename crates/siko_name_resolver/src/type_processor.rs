@@ -1,8 +1,8 @@
 use crate::error::ResolverError;
 use crate::item::Item;
 use crate::module::Module;
+use crate::type_arg_constraint_collector::TypeArgConstraintCollection;
 use crate::type_arg_resolver::TypeArgResolver;
-use siko_ir::class::ClassId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::TypeSignature as IrTypeSignature;
 use siko_ir::types::TypeSignatureId as IrTypeSignatureId;
@@ -214,7 +214,7 @@ fn process_type_signature(
 }
 
 pub fn process_type_signatures(
-    original_type_args: Vec<(String, Vec<ClassId>)>,
+    original_type_args: TypeArgConstraintCollection,
     type_signature_ids: &[TypeSignatureId],
     program: &Program,
     ir_program: &mut IrProgram,
@@ -228,7 +228,7 @@ pub fn process_type_signatures(
     let mut result = Vec::new();
     let mut type_arg_names = BTreeSet::new();
     let mut conflicting_names = BTreeSet::new();
-    for (type_arg, constraints) in original_type_args {
+    for (type_arg, constraints) in original_type_args.items {
         if !allow_implicit {
             type_arg_resolver.add_explicit(type_arg.clone(), constraints);
         }

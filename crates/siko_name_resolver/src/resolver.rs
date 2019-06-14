@@ -10,6 +10,7 @@ use crate::item::RecordField;
 use crate::item::Variant;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
+use crate::type_arg_constraint_collector::TypeArgConstraintCollector;
 use crate::type_processor::process_type_signatures;
 use siko_ir::class::Class as IrClass;
 use siko_ir::class::ClassId as IrClassId;
@@ -34,7 +35,6 @@ use siko_ir::types::Variant as IrVariant;
 use siko_ir::types::VariantItem;
 use siko_location_info::item::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
-use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordId;
@@ -47,37 +47,6 @@ use siko_syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-struct TypeArgConstraintCollector {
-    constraints: BTreeMap<String, Vec<IrClassId>>,
-}
-
-impl TypeArgConstraintCollector {
-    fn new() -> TypeArgConstraintCollector {
-        TypeArgConstraintCollector {
-            constraints: BTreeMap::new(),
-        }
-    }
-
-    fn add_empty(&mut self, arg: String) {
-        self.constraints.insert(arg, Vec::new());
-    }
-
-    fn add_constraint(&mut self, arg: String, class_id: IrClassId) {
-        let classes = self
-            .constraints
-            .entry(arg.clone())
-            .or_insert_with(|| Vec::new());
-        classes.push(class_id);
-    }
-
-    fn get_all_constraints(&self) -> Vec<(String, Vec<IrClassId>)> {
-        let mut result = Vec::new();
-        for (arg, constraints) in &self.constraints {
-            result.push((arg.clone(), constraints.clone()));
-        }
-        result
-    }
-}
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -627,7 +596,7 @@ impl Resolver {
         let class = program.classes.get(class_id);
 
         let mut collector = TypeArgConstraintCollector::new();
-        collector.add_constraint(class.arg.clone(),* ir_class_id);
+        collector.add_constraint(class.arg.clone(), *ir_class_id);
 
         for constraint in &class.constraints {
             if class.arg != constraint.arg {

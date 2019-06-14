@@ -324,7 +324,7 @@ fn process_pattern(
                 IrPattern::BoolLiteral(*v)
             }
         }
-        Pattern::Typed(pattern_id, _) => {
+        Pattern::Typed(pattern_id, type_signature_id) => {
             let ir_pattern_id = process_pattern(
                 case_expr_id,
                 *pattern_id,
