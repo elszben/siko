@@ -4,6 +4,8 @@ use crate::item::DataMember;
 use crate::item::Item;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
+use crate::type_arg_constraint_collector::TypeArgConstraintCollection;
+use crate::type_processor::process_type_signatures;
 use siko_constants::BuiltinOperator;
 use siko_constants::PRELUDE_NAME;
 use siko_ir::class::ClassMemberId as IrClassMemberId;
@@ -212,6 +214,7 @@ fn process_pattern(
     errors: &mut Vec<ResolverError>,
     lambda_helper: LambdaHelper,
     irrefutable: bool,
+    type_args: &TypeArgConstraintCollection,
 ) -> IrPatternId {
     let ir_pattern_id = ir_program.patterns.get_id();
     let info = program.patterns.get(&pattern_id);
@@ -238,6 +241,7 @@ fn process_pattern(
                         errors,
                         lambda_helper.clone(),
                         irrefutable,
+                        type_args
                     )
                 })
                 .collect();
@@ -258,6 +262,7 @@ fn process_pattern(
                         errors,
                         lambda_helper.clone(),
                         irrefutable,
+                        type_args
                     )
                 })
                 .collect();
@@ -275,6 +280,7 @@ fn process_pattern(
                 errors,
                 lambda_helper.clone(),
                 irrefutable,
+                type_args
             );
             let ir_guard_expr_id = process_expr(
                 *guard_expr_id,
@@ -284,6 +290,7 @@ fn process_pattern(
                 ir_program,
                 errors,
                 lambda_helper.clone(),
+                type_args
             );
             IrPattern::Guarded(ir_pattern_id, ir_guard_expr_id)
         }
@@ -336,7 +343,21 @@ fn process_pattern(
                 errors,
                 lambda_helper.clone(),
                 irrefutable,
+                type_args
             );
+
+            let result = process_type_signatures(
+                type_args.clone(),
+                &[*type_signature_id],
+                program,
+                ir_program,
+                module,
+                location_id,
+                errors,
+                false,
+                false,
+            );
+
             return ir_pattern_id;
         }
         Pattern::Record(name, items) => {
@@ -382,6 +403,7 @@ fn process_pattern(
                             errors,
                             lambda_helper.clone(),
                             irrefutable,
+                            type_args
                         );
                         (field_index, ir_pattern_id)
                     })
@@ -424,6 +446,7 @@ pub fn process_expr(
     ir_program: &mut IrProgram,
     errors: &mut Vec<ResolverError>,
     lambda_helper: LambdaHelper,
+    type_args: &TypeArgConstraintCollection
 ) -> IrExprId {
     let expr = &program.exprs.get(&id).item;
     let location_id = program.exprs.get(&id).location_id;
@@ -465,6 +488,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 local_lambda_helper.clone(),
+                type_args
             );
 
             let lambda_info = LambdaInfo {
@@ -504,6 +528,7 @@ pub fn process_expr(
                         ir_program,
                         errors,
                         lambda_helper.clone(),
+                        type_args
                     )
                 })
                 .collect();
@@ -575,6 +600,7 @@ pub fn process_expr(
                         ir_program,
                         errors,
                         lambda_helper.clone(),
+                        type_args
                     );
                     let ir_expr = IrExpr::DynamicFunctionCall(id_expr, ir_args);
                     return add_expr(ir_expr, id, ir_program, program);
@@ -591,6 +617,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper.clone(),
+                type_args
             );
             let ir_true_branch = process_expr(
                 *true_branch,
@@ -600,6 +627,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper.clone(),
+                type_args
             );
             let ir_false_branch = process_expr(
                 *false_branch,
@@ -609,6 +637,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper.clone(),
+                type_args
             );
             let ir_expr = IrExpr::If(ir_cond, ir_true_branch, ir_false_branch);
             return add_expr(ir_expr, id, ir_program, program);
@@ -625,6 +654,7 @@ pub fn process_expr(
                         ir_program,
                         errors,
                         lambda_helper.clone(),
+                        type_args
                     )
                 })
                 .collect();
@@ -684,6 +714,7 @@ pub fn process_expr(
                         ir_program,
                         errors,
                         lambda_helper.clone(),
+                        type_args
                     )
                 })
                 .collect();
@@ -699,6 +730,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper.clone(),
+                type_args
             );
             let mut bindings = BTreeMap::new();
             let ir_pattern_id = process_pattern(
@@ -712,6 +744,7 @@ pub fn process_expr(
                 errors,
                 lambda_helper.clone(),
                 true,
+                type_args
             );
             let ir_expr = IrExpr::Bind(ir_pattern_id, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
@@ -725,6 +758,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper,
+                type_args
             );
             let accesses = process_field_access(module, errors, name.to_string(), location_id);
             let ir_expr = IrExpr::FieldAccess(accesses, ir_expr_id);
@@ -739,6 +773,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper,
+                type_args
             );
             let ir_expr = IrExpr::TupleFieldAccess(*index, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
@@ -755,6 +790,7 @@ pub fn process_expr(
                         ir_program,
                         errors,
                         lambda_helper.clone(),
+                        type_args
                     )
                 })
                 .collect();
@@ -770,6 +806,7 @@ pub fn process_expr(
                 ir_program,
                 errors,
                 lambda_helper.clone(),
+                type_args
             );
             let mut ir_cases = Vec::new();
             for case in cases {
@@ -786,6 +823,7 @@ pub fn process_expr(
                     errors,
                     lambda_helper.clone(),
                     false,
+                    type_args
                 );
                 let ir_case_body_id = process_expr(
                     case.body,
@@ -795,6 +833,7 @@ pub fn process_expr(
                     ir_program,
                     errors,
                     lambda_helper.clone(),
+                    type_args
                 );
                 let ir_case = IrCase {
                     pattern_id: pattern_id,
@@ -845,6 +884,7 @@ pub fn process_expr(
                             ir_program,
                             errors,
                             lambda_helper.clone(),
+                            type_args
                         );
                         let value_expr = RecordFieldValueExpr {
                             expr_id: ir_body_id,
@@ -926,6 +966,7 @@ pub fn process_expr(
                     ir_program,
                     errors,
                     lambda_helper.clone(),
+                    type_args
                 );
                 field_exprs.push(ir_body_id);
             }

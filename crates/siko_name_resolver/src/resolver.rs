@@ -10,6 +10,7 @@ use crate::item::RecordField;
 use crate::item::Variant;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
+use crate::type_arg_constraint_collector::TypeArgConstraintCollection;
 use crate::type_arg_constraint_collector::TypeArgConstraintCollector;
 use crate::type_processor::process_type_signatures;
 use siko_ir::class::Class as IrClass;
@@ -310,7 +311,7 @@ impl Resolver {
         program: &Program,
         ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
-    ) -> Option<TypeSignatureId> {
+    ) -> (Option<TypeSignatureId>, TypeArgConstraintCollection) {
         let mut collector = TypeArgConstraintCollector::new();
 
         for (type_arg, _) in function_type.type_args.iter() {
@@ -331,7 +332,7 @@ impl Resolver {
         let type_args = collector.get_all_constraints();
 
         let result = process_type_signatures(
-            type_args,
+            type_args.clone(),
             &[function_type.type_signature_id],
             program,
             ir_program,
@@ -342,7 +343,7 @@ impl Resolver {
             false,
         );
 
-        result[0]
+        (result[0], type_args)
     }
 
     fn process_function(
@@ -354,6 +355,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
         type_signature_id: Option<TypeSignatureId>,
+        type_args: &TypeArgConstraintCollection,
     ) {
         let mut body = None;
 
@@ -391,6 +393,7 @@ impl Resolver {
                 ir_program,
                 errors,
                 lambda_helper,
+                type_args,
             );
             body = Some(body_id);
         }
@@ -646,7 +649,7 @@ impl Resolver {
 
             let type_args = collector.get_all_constraints();
             let result = process_type_signatures(
-                type_args,
+                type_args.clone(),
                 &[ty.type_signature_id],
                 program,
                 ir_program,
@@ -675,6 +678,7 @@ impl Resolver {
                             module,
                             errors,
                             result[0],
+                            &type_args,
                         );
                         Some(ir_function_id)
                     } else {
@@ -726,7 +730,7 @@ impl Resolver {
         let type_args = collector.get_all_constraints();
 
         let result = process_type_signatures(
-            type_args,
+            type_args.clone(),
             &[instance.type_signature_id],
             program,
             ir_program,
@@ -779,6 +783,7 @@ impl Resolver {
                         module,
                         errors,
                         Some(class_member_type_signature_id),
+                        &type_args,
                     );
                 } else {
                     let err = ResolverError::NotAClassMember(
@@ -915,18 +920,19 @@ impl Resolver {
                     match item {
                         Item::Function(ast_function_id, ir_function_id) => {
                             let function = program.functions.get(ast_function_id);
-                            let type_signature_id = if let Some(ty) = &function.func_type {
-                                self.check_function_type_name(ty, &function.name, &mut errors);
-                                self.process_function_type(
-                                    ty,
-                                    module,
-                                    program,
-                                    &mut ir_program,
-                                    &mut errors,
-                                )
-                            } else {
-                                None
-                            };
+                            let (type_signature_id, type_args) =
+                                if let Some(ty) = &function.func_type {
+                                    self.check_function_type_name(ty, &function.name, &mut errors);
+                                    self.process_function_type(
+                                        ty,
+                                        module,
+                                        program,
+                                        &mut ir_program,
+                                        &mut errors,
+                                    )
+                                } else {
+                                    (None, TypeArgConstraintCollection::new())
+                                };
                             self.process_function(
                                 program,
                                 &mut ir_program,
@@ -935,6 +941,7 @@ impl Resolver {
                                 module,
                                 &mut errors,
                                 type_signature_id,
+                                &type_args,
                             );
                         }
                         _ => {}

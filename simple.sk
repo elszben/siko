@@ -8,7 +8,9 @@ class (Boo a) => Boo a where
 class Quu a where
     quu a :: a -> Bool
 
+foo b :: b -> Int
 foo b = do 
+    a :: b <- 5
     boo b
     quu b
 

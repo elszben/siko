@@ -1,6 +1,7 @@
 use siko_ir::class::ClassId;
 use std::collections::BTreeMap;
 
+#[derive(Debug, Clone)]
 pub struct TypeArgConstraintCollection {
     pub items: Vec<(String, Vec<ClassId>)>,
 }

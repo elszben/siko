@@ -119,6 +119,9 @@ fn walk_pattern(pattern_id: &PatternId, visitor: &mut Visitor) {
         Pattern::FloatLiteral(_) => {}
         Pattern::StringLiteral(_) => {}
         Pattern::BoolLiteral(_) => {}
+        Pattern::Typed(id, _) => {
+            walk_pattern(id, visitor);
+        }
     }
     visitor.visit_pattern(*pattern_id, pattern);
 }

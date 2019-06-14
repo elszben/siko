@@ -773,6 +773,9 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             Pattern::BoolLiteral(_) => {
                 self.check_literal_pattern(pattern_id, Type::Bool);
             }
+            Pattern::Typed(id, _) => {
+                
+            }
         }
     }
 }
