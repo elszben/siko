@@ -54,6 +54,7 @@ struct Unifier<'a, 'b> {
     expr_processor: &'a mut ExprProcessor<'b>,
     errors: &'a mut Vec<TypecheckError>,
     group: &'a DependencyGroup,
+    arg_map: BTreeMap<usize, TypeVariable>,
 }
 
 impl<'a, 'b: 'a> Unifier<'a, 'b> {
@@ -61,11 +62,13 @@ impl<'a, 'b: 'a> Unifier<'a, 'b> {
         expr_processor: &'a mut ExprProcessor<'b>,
         errors: &'a mut Vec<TypecheckError>,
         group: &'a DependencyGroup,
+        arg_map: BTreeMap<usize, TypeVariable>,
     ) -> Unifier<'a, 'b> {
         Unifier {
             expr_processor: expr_processor,
             errors: errors,
             group: group,
+            arg_map: arg_map,
         }
     }
 }
@@ -572,7 +575,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             }
             Pattern::Typed(inner, type_signature_id) => {
                 self.match_patterns(inner, &pattern_id);
-                let mut arg_map = BTreeMap::new();
+                let mut arg_map = self.arg_map.clone();
                 let pattern_signature_type_var = process_type_signature(
                     &mut self.expr_processor.type_store,
                     type_signature_id,
@@ -660,10 +663,11 @@ impl<'a> ExprProcessor<'a> {
             .get(function_id)
             .expect("Function type info not found");
         let body = type_info.body.expect("body not found");
+        let arg_map = type_info.arg_map.clone();
         let result_var = type_info.result;
         let mut type_var_creator = TypeVarCreator::new(self);
         walk_expr(&body, &mut type_var_creator);
-        let mut unifier = Unifier::new(self, errors, group);
+        let mut unifier = Unifier::new(self, errors, group, arg_map);
         walk_expr(&body, &mut unifier);
         let body_var = self.lookup_type_var_for_expr(&body);
         let body_location = self.program.exprs.get(&body).location_id;

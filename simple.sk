@@ -1,5 +1,5 @@
 module Main where
-/*
+
 class Eq a
 
 class (Boo a) => Boo a where
@@ -8,18 +8,8 @@ class (Boo a) => Boo a where
 class Quu a where
     quu a :: a -> Bool
 
-foo b :: b -> Int
 foo b = do 
-    a :: b <- 5
     boo b
     quu b
 
 main = foo 5
-*/
-
-checksame a :: a -> a -> Bool
-checksame a b = False
-
-main = do
-    (a, b) :: (Int, String) <- (5, "a")
-    checksame a b

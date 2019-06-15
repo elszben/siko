@@ -175,7 +175,7 @@ impl Error {
                         }
                         ResolverError::TypeArgumentConflict(args, id) => {
                             println!(
-                                "{} type argument(s) {} are not unique",
+                                "{} type argument(s) are not unique: {}",
                                 error.red(),
                                 format_list(args).yellow()
                             );
@@ -184,7 +184,7 @@ impl Error {
                         }
                         ResolverError::ArgumentConflict(args, id) => {
                             println!(
-                                "{} argument(s) {} are not unique",
+                                "{} argument(s) are not unique: {}",
                                 error.red(),
                                 format_list(args).yellow()
                             );
