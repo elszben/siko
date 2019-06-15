@@ -17,5 +17,9 @@ foo b = do
 main = foo 5
 */
 
+checksame a :: a -> a -> Bool
+checksame a b = False
+
 main = do
-    a :: Int <- 5
+    (a, b) :: (Int, String) <- (5, "a")
+    checksame a b
