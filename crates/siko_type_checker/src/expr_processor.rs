@@ -171,6 +171,62 @@ impl<'a, 'b> Unifier<'a, 'b> {
         self.expr_processor
             .unify_variables(&var, &expr_var, location, self.errors);
     }
+
+    fn static_function_call(
+        &mut self,
+        orig_function_type_var: TypeVariable,
+        args: &Vec<ExprId>,
+        expr_id: ExprId,
+    ) {
+        let mut function_type_var = orig_function_type_var;
+        let orig_arg_vars: Vec<_> = args
+            .iter()
+            .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
+            .collect();
+        let mut arg_vars = orig_arg_vars.clone();
+        let mut failed = false;
+        while !arg_vars.is_empty() {
+            if let Type::Function(func_type) =
+                self.expr_processor.type_store.get_type(&function_type_var)
+            {
+                let first_arg = arg_vars.first().unwrap();
+                if !self
+                    .expr_processor
+                    .type_store
+                    .unify(&func_type.from, first_arg)
+                {
+                    failed = true;
+                    break;
+                } else {
+                    function_type_var = func_type.to;
+                    arg_vars.remove(0);
+                }
+            } else {
+                failed = true;
+                break;
+            }
+        }
+        let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+        let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
+        if failed {
+            let function_type_string = self.get_type_string(&orig_function_type_var);
+            let arg_type_strings: Vec<_> = orig_arg_vars
+                .iter()
+                .map(|arg_var| self.get_type_string(arg_var))
+                .collect();
+            let arguments = format_list(&arg_type_strings[..]);
+            let err =
+                TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
+            self.errors.push(err);
+        } else {
+            self.expr_processor.unify_variables(
+                &expr_var,
+                &function_type_var,
+                location,
+                self.errors,
+            );
+        }
+    }
 }
 
 impl<'a, 'b> Visitor for Unifier<'a, 'b> {
@@ -193,57 +249,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             }
             Expr::StaticFunctionCall(function_id, args) => {
                 let orig_function_type_var = self.get_function_type_var(function_id);
-                let mut function_type_var = orig_function_type_var;
-                let orig_arg_vars: Vec<_> = args
-                    .iter()
-                    .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
-                    .collect();
-                let mut arg_vars = orig_arg_vars.clone();
-                let mut failed = false;
-                while !arg_vars.is_empty() {
-                    if let Type::Function(func_type) =
-                        self.expr_processor.type_store.get_type(&function_type_var)
-                    {
-                        let first_arg = arg_vars.first().unwrap();
-                        if !self
-                            .expr_processor
-                            .type_store
-                            .unify(&func_type.from, first_arg)
-                        {
-                            failed = true;
-                            break;
-                        } else {
-                            function_type_var = func_type.to;
-                            arg_vars.remove(0);
-                        }
-                    } else {
-                        failed = true;
-                        break;
-                    }
-                }
-                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
-                if failed {
-                    let function_type_string = self.get_type_string(&orig_function_type_var);
-                    let arg_type_strings: Vec<_> = orig_arg_vars
-                        .iter()
-                        .map(|arg_var| self.get_type_string(arg_var))
-                        .collect();
-                    let arguments = format_list(&arg_type_strings[..]);
-                    let err = TypecheckError::FunctionArgumentMismatch(
-                        location,
-                        arguments,
-                        function_type_string,
-                    );
-                    self.errors.push(err);
-                } else {
-                    self.expr_processor.unify_variables(
-                        &expr_var,
-                        &function_type_var,
-                        location,
-                        self.errors,
-                    );
-                }
+                self.static_function_call(orig_function_type_var, args, expr_id);
             }
             Expr::DynamicFunctionCall(func_expr, args) => {
                 let mut gen_args = Vec::new();
@@ -369,7 +375,6 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 let mut possible_records = Vec::new();
                 let mut all_records = Vec::new();
                 let record_expr_var = self.expr_processor.lookup_type_var_for_expr(record_expr);
-                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
                 let mut matches: Vec<(RecordTypeInfo, FieldAccessInfo)> = Vec::new();
                 for info in infos {
@@ -405,18 +410,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     1 => {
                         let (record_type_info, field_info) = &matches[0];
                         let field_type_var = record_type_info.field_types[field_info.index];
-                        self.expr_processor.unify_variables(
-                            &record_expr_var,
-                            &record_type_info.record_type,
-                            location,
-                            self.errors,
-                        );
-                        self.expr_processor.unify_variables(
-                            &expr_var,
-                            &field_type_var,
-                            location,
-                            self.errors,
-                        );
+                        self.match_expr_with(record_expr, &record_type_info.record_type);
+                        self.match_expr_with(&expr_id, &field_type_var);
                     }
                     _ => {
                         let err = TypecheckError::AmbiguousFieldAccess(location, possible_records);
@@ -468,38 +463,12 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 match matching_update {
                     Some(update) => {
                         let record_type_info = self.get_record_type_info(&update.record_id);
-                        self.expr_processor.unify_variables(
-                            &record_type_info.record_type,
-                            &record_expr_var,
-                            location_id,
-                            self.errors,
-                        );
+                        self.match_expr_with(record_expr_id, &record_type_info.record_type);
                         for field_update in &update.items {
                             let field_var = record_type_info.field_types[field_update.index];
-                            let field_expr_var = self
-                                .expr_processor
-                                .lookup_type_var_for_expr(&field_update.expr_id);
-                            let field_expr_location = self
-                                .expr_processor
-                                .program
-                                .exprs
-                                .get(&field_update.expr_id)
-                                .location_id;
-                            self.expr_processor.unify_variables(
-                                &field_var,
-                                &field_expr_var,
-                                field_expr_location,
-                                self.errors,
-                            );
+                            self.match_expr_with(&field_update.expr_id, &field_var);
                         }
-                        let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                        let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
-                        self.expr_processor.unify_variables(
-                            &expr_var,
-                            &record_type_info.record_type,
-                            location,
-                            self.errors,
-                        );
+                        self.match_expr_with(&expr_id, &record_type_info.record_type);
                     }
                     None => {
                         let expected_type = format!("{}", expected_records.join(" or "));
@@ -512,57 +481,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let orig_function_type_var = self.get_class_member_type_var(class_member_id);
-                let mut function_type_var = orig_function_type_var;
-                let orig_arg_vars: Vec<_> = args
-                    .iter()
-                    .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
-                    .collect();
-                let mut arg_vars = orig_arg_vars.clone();
-                let mut failed = false;
-                while !arg_vars.is_empty() {
-                    if let Type::Function(func_type) =
-                        self.expr_processor.type_store.get_type(&function_type_var)
-                    {
-                        let first_arg = arg_vars.first().unwrap();
-                        if !self
-                            .expr_processor
-                            .type_store
-                            .unify(&func_type.from, first_arg)
-                        {
-                            failed = true;
-                            break;
-                        } else {
-                            function_type_var = func_type.to;
-                            arg_vars.remove(0);
-                        }
-                    } else {
-                        failed = true;
-                        break;
-                    }
-                }
-                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
-                let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
-                if failed {
-                    let function_type_string = self.get_type_string(&orig_function_type_var);
-                    let arg_type_strings: Vec<_> = orig_arg_vars
-                        .iter()
-                        .map(|arg_var| self.get_type_string(arg_var))
-                        .collect();
-                    let arguments = format_list(&arg_type_strings[..]);
-                    let err = TypecheckError::FunctionArgumentMismatch(
-                        location,
-                        arguments,
-                        function_type_string,
-                    );
-                    self.errors.push(err);
-                } else {
-                    self.expr_processor.unify_variables(
-                        &expr_var,
-                        &function_type_var,
-                        location,
-                        self.errors,
-                    );
-                }
+                self.static_function_call(orig_function_type_var, args, expr_id);
             }
         }
     }
