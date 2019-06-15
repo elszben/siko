@@ -206,7 +206,6 @@ impl<'a, 'b> Unifier<'a, 'b> {
                 break;
             }
         }
-        let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
         let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
         if failed {
             let function_type_string = self.get_type_string(&orig_function_type_var);
@@ -219,12 +218,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
                 TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
             self.errors.push(err);
         } else {
-            self.expr_processor.unify_variables(
-                &expr_var,
-                &function_type_var,
-                location,
-                self.errors,
-            );
+            self.match_expr_with(&expr_id, &function_type_var);
         }
     }
 }
@@ -278,7 +272,6 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                         }
                     }
                 }
-                let expr_var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
                 if failed {
                     let function_type_string = self.get_type_string(&gen_func);
@@ -294,12 +287,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     );
                     self.errors.push(err);
                 } else {
-                    self.expr_processor.unify_variables(
-                        &expr_var,
-                        &gen_result,
-                        location,
-                        self.errors,
-                    );
+                    self.match_expr_with(&expr_id, &gen_result);
                 }
             }
             Expr::ArgRef(arg_ref) => {
@@ -334,16 +322,10 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             Expr::TupleFieldAccess(index, tuple_expr) => {
                 let tuple_var = self.expr_processor.lookup_type_var_for_expr(tuple_expr);
                 let tuple_ty = self.expr_processor.type_store.get_type(&tuple_var);
-                let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
                 let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
                 if let Type::Tuple(items) = tuple_ty {
                     if items.len() > *index {
-                        self.expr_processor.unify_variables(
-                            &items[*index],
-                            &var,
-                            location,
-                            self.errors,
-                        );
+                        self.match_expr_with(&expr_id, &items[*index]);
                         return;
                     }
                 }
