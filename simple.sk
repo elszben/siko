@@ -1,5 +1,5 @@
 module Main where
-
+/*
 class Eq a
 
 class (Boo a) => Boo a where
@@ -15,3 +15,7 @@ foo b = do
     quu b
 
 main = foo 5
+*/
+
+main = do
+    a :: Int <- 5

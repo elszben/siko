@@ -86,6 +86,7 @@ impl FunctionProcessor {
                     func_type_var,
                     body,
                     location_id,
+                    arg_map
                 )
             }
             _ => {
@@ -107,6 +108,7 @@ impl FunctionProcessor {
                     func_type_var,
                     body,
                     location_id,
+                    arg_map
                 )
             }
         };
@@ -137,6 +139,7 @@ impl FunctionProcessor {
             func_type_var,
             Some(body),
             location_id,
+            BTreeMap::new()
         );
         self.function_type_info_map.insert(id, function_type_info);
     }
@@ -196,6 +199,7 @@ impl FunctionProcessor {
                         func_type_var,
                         None,
                         record.location_id,
+                        BTreeMap::new()
                     );
                     let record_type_info = RecordTypeInfo {
                         record_type: result_type_var,
@@ -252,6 +256,7 @@ impl FunctionProcessor {
                         func_type_var,
                         None,
                         location_id,
+                        BTreeMap::new()
                     );
 
                     let variant_type_info = VariantTypeInfo {

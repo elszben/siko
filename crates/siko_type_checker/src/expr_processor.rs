@@ -5,6 +5,7 @@ use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
+use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
@@ -138,6 +139,37 @@ impl<'a, 'b> Unifier<'a, 'b> {
             *field_type_var = clone_context.clone_var(*field_type_var);
         }
         record_type_info
+    }
+
+    fn match_patterns(&mut self, first: &PatternId, second: &PatternId) {
+        let first_pattern_var = self.expr_processor.lookup_type_var_for_pattern(first);
+        let second_pattern_var = self.expr_processor.lookup_type_var_for_pattern(second);
+        let location = self.expr_processor.program.patterns.get(first).location_id;
+        self.expr_processor.unify_variables(
+            &first_pattern_var,
+            &second_pattern_var,
+            location,
+            self.errors,
+        );
+    }
+
+    fn match_pattern_with(&mut self, pattern: &PatternId, var: &TypeVariable) {
+        let pattern_var = self.expr_processor.lookup_type_var_for_pattern(pattern);
+        let location = self
+            .expr_processor
+            .program
+            .patterns
+            .get(pattern)
+            .location_id;
+        self.expr_processor
+            .unify_variables(&var, &pattern_var, location, self.errors);
+    }
+
+    fn match_expr_with(&mut self, expr: &ExprId, var: &TypeVariable) {
+        let expr_var = self.expr_processor.lookup_type_var_for_expr(expr);
+        let location = self.expr_processor.program.exprs.get(expr).location_id;
+        self.expr_processor
+            .unify_variables(&var, &expr_var, location, self.errors);
     }
 }
 
@@ -644,32 +676,18 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     .collect();
                 let tuple_ty = Type::Tuple(vars);
                 let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
-                let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
-                let location = self
-                    .expr_processor
-                    .program
-                    .patterns
-                    .get(&pattern_id)
-                    .location_id;
-                self.expr_processor
-                    .unify_variables(&tuple_var, &var, location, self.errors);
+                self.match_pattern_with(&pattern_id, &tuple_var);
             }
             Pattern::Record(typedef_id, items) => {
                 let record_type_info = self.get_record_type_info(typedef_id);
-                let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
-                let location = self
-                    .expr_processor
-                    .program
-                    .patterns
-                    .get(&pattern_id)
-                    .location_id;
-                self.expr_processor.unify_variables(
-                    &record_type_info.record_type,
-                    &var,
-                    location,
-                    self.errors,
-                );
+                self.match_pattern_with(&pattern_id, &record_type_info.record_type);
                 if record_type_info.field_types.len() != items.len() {
+                    let location = self
+                        .expr_processor
+                        .program
+                        .patterns
+                        .get(&pattern_id)
+                        .location_id;
                     let record = self
                         .expr_processor
                         .program
@@ -685,15 +703,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     self.errors.push(err);
                 } else {
                     for (index, item) in items.iter().enumerate() {
-                        let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
                         let field_var = record_type_info.field_types[index];
-                        let location = self.expr_processor.program.patterns.get(item).location_id;
-                        self.expr_processor.unify_variables(
-                            &field_var,
-                            &item_var,
-                            location,
-                            self.errors,
-                        );
+                        self.match_pattern_with(item, &field_var);
                     }
                 }
             }
@@ -710,15 +721,13 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     .iter()
                     .map(|v| clone_context.clone_var(*v))
                     .collect();
-                let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
+                self.match_pattern_with(&pattern_id, &variant_var);
                 let location = self
                     .expr_processor
                     .program
                     .patterns
                     .get(&pattern_id)
                     .location_id;
-                self.expr_processor
-                    .unify_variables(&variant_var, &var, location, self.errors);
                 if item_vars.len() != items.len() {
                     let adt = self
                         .expr_processor
@@ -736,29 +745,15 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     self.errors.push(err);
                 } else {
                     for (index, item) in items.iter().enumerate() {
-                        let item_var = self.expr_processor.lookup_type_var_for_pattern(item);
                         let variant_item_var = item_vars[index];
-                        let location = self.expr_processor.program.patterns.get(item).location_id;
-                        self.expr_processor.unify_variables(
-                            &variant_item_var,
-                            &item_var,
-                            location,
-                            self.errors,
-                        );
+                        self.match_pattern_with(item, &variant_item_var);
                     }
                 }
             }
-            Pattern::Guarded(_, guard_expr_id) => {
+            Pattern::Guarded(inner, guard_expr_id) => {
+                self.match_patterns(inner, &pattern_id);
                 let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
-                let guard_var = self.expr_processor.lookup_type_var_for_expr(guard_expr_id);
-                let location = self
-                    .expr_processor
-                    .program
-                    .exprs
-                    .get(guard_expr_id)
-                    .location_id;
-                self.expr_processor
-                    .unify_variables(&bool_var, &guard_var, location, self.errors);
+                self.match_expr_with(guard_expr_id, &bool_var);
             }
             Pattern::Wildcard => {}
             Pattern::IntegerLiteral(_) => {
@@ -773,8 +768,16 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             Pattern::BoolLiteral(_) => {
                 self.check_literal_pattern(pattern_id, Type::Bool);
             }
-            Pattern::Typed(id, _) => {
-                
+            Pattern::Typed(inner, type_signature_id) => {
+                self.match_patterns(inner, &pattern_id);
+                let mut arg_map = BTreeMap::new();
+                let pattern_signature_type_var = process_type_signature(
+                    &mut self.expr_processor.type_store,
+                    type_signature_id,
+                    self.expr_processor.program,
+                    &mut arg_map,
+                );
+                self.match_pattern_with(inner, &pattern_signature_type_var);
             }
         }
     }
