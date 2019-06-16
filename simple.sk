@@ -3,10 +3,19 @@ module Main where
 class Eq a
 
 class (Boo a) => Boo a where
-    boo a :: a -> Bool
+   boo a :: a -> Bool
 
 class Quu a where
     quu a :: a -> Bool
+
+instance Boo Int where
+    boo a = False
+
+data Foo = {}
+
+instance Eq Int
+instance Eq Bool
+//instance (Eq a) => Eq Foo a
 
 foo b = do 
     boo b

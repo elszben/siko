@@ -1,0 +1,3 @@
+class Boo a 
+
+instance (Boo a) => Boo a

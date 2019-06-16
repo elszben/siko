@@ -568,6 +568,11 @@ impl Resolver {
     ) -> Option<IrClassId> {
         match module.imported_items.get(class_name) {
             Some(items) => {
+                if items.len() > 1 {
+                    let err = ResolverError::AmbiguousName(class_name.clone(), location_id);
+                    errors.push(err);
+                    return None;
+                }
                 let item = &items[0];
                 match item.item {
                     Item::Class(_, ir_class_id) => {
