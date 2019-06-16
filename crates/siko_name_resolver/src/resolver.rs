@@ -846,6 +846,7 @@ impl Resolver {
                 class_id: ir_class_id,
                 type_signature: type_signature,
                 members: members,
+                location_id: instance.location_id,
             };
 
             ir_program.instances.add_item(id, ir_instance);

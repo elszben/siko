@@ -12,6 +12,7 @@ pub enum TypecheckError {
     AmbiguousFieldAccess(LocationId, Vec<String>),
     InvalidVariantPattern(LocationId, String, usize, usize),
     InvalidRecordPattern(LocationId, String, usize, usize),
+    ConflictingInstances(LocationId, LocationId),
 }
 
 #[derive(Debug)]

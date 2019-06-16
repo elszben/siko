@@ -78,6 +78,7 @@ pub struct Instance {
     pub class_id: ClassId,
     pub type_signature: TypeSignatureId,
     pub members: Vec<InstanceMember>,
+    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]

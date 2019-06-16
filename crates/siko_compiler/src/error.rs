@@ -33,7 +33,7 @@ fn print_location_set(file_manager: &FileManager, location_set: &LocationSet) {
         last_line = *line_index;
         if first {
             first = false;
-            println!(
+            eprintln!(
                 "{}{}:{}",
                 "-- ".blue(),
                 location_set.file_path.path.green(),
@@ -41,27 +41,27 @@ fn print_location_set(file_manager: &FileManager, location_set: &LocationSet) {
             );
             if *line_index != 0 {
                 let line = &lines[*line_index - 1];
-                println!("{} {}", pipe.blue(), line);
+                eprintln!("{} {}", pipe.blue(), line);
             }
         }
         let line = &lines[*line_index];
         let chars: Vec<_> = line.chars().collect();
         let first = s_from_range(&chars[..], 0, ranges[0].start);
-        print!("{} {}", pipe.blue(), first);
+        eprint!("{} {}", pipe.blue(), first);
         for (index, range) in ranges.iter().enumerate() {
             let s = s_from_range(&chars[..], range.start, range.end);
-            print!("{}", s.yellow());
+            eprint!("{}", s.yellow());
             if index < ranges.len() - 1 {
                 let s = s_from_range(&chars[..], range.end, ranges[index + 1].start);
-                print!("{}", s);
+                eprint!("{}", s);
             }
         }
         let last = s_from_range(&chars[..], ranges[ranges.len() - 1].end, chars.len());
-        println!("{}", last);
+        eprintln!("{}", last);
     }
     if last_line + 1 < lines.len() {
         let line = &lines[last_line + 1];
-        println!("{} {}", pipe.blue(), line);
+        eprintln!("{} {}", pipe.blue(), line);
     }
 }
 
@@ -79,7 +79,7 @@ impl Error {
     fn report_location(file_manager: &FileManager, file_path: &FilePath, location: &Location) {
         let input = file_manager.content(file_path);
         let lines: Vec<_> = input.lines().collect();
-        println!(
+        eprintln!(
             "--{}:{}",
             file_path.path.green(),
             format!("{}", location.line + 1).green()
@@ -87,11 +87,11 @@ impl Error {
         let line = &lines[location.line];
         let chars: Vec<_> = line.chars().collect();
         let first = s_from_range(&chars[..], 0, location.span.start);
-        print!("{}", first);
+        eprint!("{}", first);
         let s = s_from_range(&chars[..], location.span.start, location.span.end);
-        print!("{}", s.red());
+        eprint!("{}", s.red());
         let last = s_from_range(&chars[..], location.span.end, chars.len());
-        println!("{}", last);
+        eprintln!("{}", last);
     }
 
     fn report_error_base(
@@ -101,7 +101,7 @@ impl Error {
         location: &Location,
     ) {
         let error = "ERROR:";
-        println!("{} {}", error.red(), msg);
+        eprintln!("{} {}", error.red(), msg);
         Error::report_location(file_manager, file_path, location);
     }
 
@@ -139,7 +139,7 @@ impl Error {
                     match err {
                         ResolverError::ModuleConflict(errors) => {
                             for (name, ids) in errors.iter() {
-                                println!(
+                                eprintln!(
                                     "{} module name {} defined more than once",
                                     error.red(),
                                     name.yellow()
@@ -151,7 +151,7 @@ impl Error {
                             }
                         }
                         ResolverError::ImportedModuleNotFound(name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} imported module {} does not exist",
                                 error.red(),
                                 name.yellow()
@@ -160,12 +160,12 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownTypeName(var_name, id) => {
-                            println!("{} unknown type name {}", error.red(), var_name.yellow());
+                            eprintln!("{} unknown type name {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownTypeArg(var_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} unknown type argument {}",
                                 error.red(),
                                 var_name.yellow()
@@ -174,7 +174,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::TypeArgumentConflict(args, id) => {
-                            println!(
+                            eprintln!(
                                 "{} type argument(s) are not unique: {}",
                                 error.red(),
                                 format_list(args).yellow()
@@ -183,7 +183,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ArgumentConflict(args, id) => {
-                            println!(
+                            eprintln!(
                                 "{} argument(s) are not unique: {}",
                                 error.red(),
                                 format_list(args).yellow()
@@ -192,7 +192,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::LambdaArgumentConflict(args, id) => {
-                            println!(
+                            eprintln!(
                                 "{} lambda argument(s) {} are not unique",
                                 error.red(),
                                 format_list(args).yellow()
@@ -201,17 +201,17 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownFunction(var_name, id) => {
-                            println!("{} unknown function {}", error.red(), var_name.yellow());
+                            eprintln!("{} unknown function {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::AmbiguousName(var_name, id) => {
-                            println!("{} ambiguous name {}", error.red(), var_name.yellow());
+                            eprintln!("{} ambiguous name {}", error.red(), var_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::FunctionTypeNameMismatch(n1, n2, id) => {
-                            println!(
+                            eprintln!(
                                 "{} name mismatch in function type signature, {} != {}",
                                 error.red(),
                                 n1.yellow(),
@@ -221,7 +221,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnusedTypeArgument(args, id) => {
-                            println!(
+                            eprintln!(
                                 "{} unused type argument(s): {}",
                                 error.red(),
                                 format_list(args).yellow()
@@ -230,7 +230,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::InternalModuleConflicts(module_name, name, locations) => {
-                            println!(
+                            eprintln!(
                                 "{} conflicting items named {} in module {}",
                                 error.red(),
                                 name.yellow(),
@@ -242,7 +242,7 @@ impl Error {
                             }
                         }
                         ResolverError::RecordFieldNotUnique(record_name, item_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} field name {} is not unique in record {}",
                                 error.red(),
                                 item_name.yellow(),
@@ -252,7 +252,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::VariantNotUnique(adt_name, variant_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} variant name {} is not unique in type {}",
                                 error.red(),
                                 variant_name.yellow(),
@@ -262,7 +262,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ExportNoMatch(module_name, entity_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} item {} does not export anything in module {}",
                                 error.red(),
                                 entity_name.yellow(),
@@ -272,7 +272,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ImportNoMatch(module_name, entity_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} item {} does not import anything from module {}",
                                 error.red(),
                                 entity_name.yellow(),
@@ -287,25 +287,25 @@ impl Error {
                             found,
                             id,
                         ) => {
-                            println!(
+                            eprintln!(
                                 "{} incorrect type argument count for type {}",
                                 error.red(),
                                 type_name.yellow(),
                             );
                             let expected = format!("{}", expected);
                             let found = format!("{}", found);
-                            println!("Expected: {}", expected.yellow());
-                            println!("Found:    {}", found.yellow());
+                            eprintln!("Expected: {}", expected.yellow());
+                            eprintln!("Found:    {}", found.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NameNotType(name, id) => {
-                            println!("{} name is not a type {}", error.red(), name.yellow(),);
+                            eprintln!("{} name is not a type {}", error.red(), name.yellow(),);
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnusedHiddenItem(hidden_item, module_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} hidden item {} does not hide anything from module {}",
                                 error.red(),
                                 hidden_item.yellow(),
@@ -315,22 +315,22 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::UnknownFieldName(field_name, id) => {
-                            println!("{} unknown field name {}", error.red(), field_name.yellow());
+                            eprintln!("{} unknown field name {}", error.red(), field_name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NotIrrefutablePattern(id) => {
-                            println!("{} not irrefutable pattern", error.red(),);
+                            eprintln!("{} not irrefutable pattern", error.red(),);
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NotRecordType(name, id) => {
-                            println!("{} {} is not a record type", error.red(), name.yellow());
+                            eprintln!("{} {} is not a record type", error.red(), name.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NoSuchField(record, field_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} there is no field named {} in {}",
                                 error.red(),
                                 field_name.yellow(),
@@ -340,7 +340,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::MissingFields(missing_fields, id) => {
-                            println!(
+                            eprintln!(
                                 "{} missing initialization of the following field(s): {}",
                                 error.red(),
                                 format_list(missing_fields).yellow(),
@@ -352,7 +352,7 @@ impl Error {
                             fields_initialized_twice,
                             id,
                         ) => {
-                            println!(
+                            eprintln!(
                                 "{} the following field(s) are initialized multiple times: {}",
                                 error.red(),
                                 format_list(fields_initialized_twice).yellow(),
@@ -361,7 +361,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NoRecordFoundWithFields(fields, id) => {
-                            println!(
+                            eprintln!(
                                 "{} no record found that has all the following field(s): {}",
                                 error.red(),
                                 format_list(fields).yellow(),
@@ -370,12 +370,12 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NotAClassName(name, id) => {
-                            println!("{} {} is not a class", error.red(), name.yellow(),);
+                            eprintln!("{} {} is not a class", error.red(), name.yellow(),);
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::InvalidArgumentInTypeClassConstraint(arg, id) => {
-                            println!(
+                            eprintln!(
                                 "{} class constraint argument {} is unknown type argument",
                                 error.red(),
                                 arg.yellow()
@@ -384,7 +384,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::NotAClassMember(member_name, class_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} {} is not a member of class {}",
                                 error.red(),
                                 member_name.yellow(),
@@ -394,7 +394,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ClassMemberImplementedMultipleTimes(member_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} class member {} is implemented multiple times",
                                 error.red(),
                                 member_name.yellow(),
@@ -407,7 +407,7 @@ impl Error {
                             class_name,
                             id,
                         ) => {
-                            println!(
+                            eprintln!(
                                 "{} class member {} of class {} is missing in instance",
                                 error.red(),
                                 member_name.yellow(),
@@ -421,7 +421,7 @@ impl Error {
                             signature_args,
                             id,
                         ) => {
-                            println!(
+                            eprintln!(
                                 "{} type arguments of class member {} does not match the type argument of class {}",
                                 error.red(),
                                 format_list(signature_args).yellow(),
@@ -431,7 +431,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ExtraConstraintInClassMember(member_name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} extra type constraint in class member {}",
                                 error.red(),
                                 member_name.yellow(),
@@ -443,7 +443,7 @@ impl Error {
                 }
             }
             Error::RuntimeError(err, id) => {
-                println!("{} {}", error.red(), err);
+                eprintln!("{} {}", error.red(), err);
                 let location_set = location_info.get_item_location(id);
                 print_location_set(file_manager, location_set);
             }
@@ -451,7 +451,7 @@ impl Error {
                 for err in &errs.errors {
                     match err {
                         TypecheckError::UntypedExternFunction(name, id) => {
-                            println!(
+                            eprintln!(
                                 "{} extern function {} must have a type signature",
                                 error.red(),
                                 name.yellow()
@@ -460,18 +460,18 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::TypeMismatch(id, expected, found) => {
-                            println!("{} type mismatch in expression", error.red());
-                            println!("Expected: {}", expected.yellow());
-                            println!("Found:    {}", found.yellow());
+                            eprintln!("{} type mismatch in expression", error.red());
+                            eprintln!("Expected: {}", expected.yellow());
+                            eprintln!("Found:    {}", found.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::FunctionArgumentMismatch(id, args, func) => {
-                            println!("{} invalid argument(s)", error.red());
+                            eprintln!("{} invalid argument(s)", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
-                            println!("Argument(s):      {}", args.yellow());
-                            println!("Function type:    {}", func.yellow());
+                            eprintln!("Argument(s):      {}", args.yellow());
+                            eprintln!("Function type:    {}", func.yellow());
                         }
                         TypecheckError::FunctionArgAndSignatureMismatch(
                             name,
@@ -479,16 +479,16 @@ impl Error {
                             signature_arg_count,
                             id,
                         ) => {
-                            println!(
+                            eprintln!(
                                 "{} function type signature for {} does not match its argument count",
                                 error.red(),
                                 name.yellow()
                             );
-                            println!(
+                            eprintln!(
                                 "Arguments:                      {}",
                                 format!("{}", arg_count).yellow()
                             );
-                            println!(
+                            eprintln!(
                                 "Arguments in type signature:    {}",
                                 format!("{}", signature_arg_count).yellow()
                             );
@@ -496,7 +496,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::MainNotFound => {
-                            println!(
+                            eprintln!(
                                 "{} {} function in module {} not found",
                                 error.red(),
                                 "main".yellow(),
@@ -504,17 +504,17 @@ impl Error {
                             );
                         }
                         TypecheckError::RecursiveType(id) => {
-                            println!("{} function type is recursive", error.red());
+                            eprintln!("{} function type is recursive", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::InvalidFormatString(id) => {
-                            println!("{} invalid format string", error.red());
+                            eprintln!("{} invalid format string", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::AmbiguousFieldAccess(id, records) => {
-                            println!(
+                            eprintln!(
                                 "{} ambiguous field access, record type could be {}",
                                 error.red(),
                                 format_list(records).yellow()
@@ -523,25 +523,35 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::InvalidVariantPattern(id, name, expected, found) => {
-                            println!(
+                            eprintln!(
                                 "{} invalid {} variant pattern, argument count mismatch",
                                 error.red(),
                                 name.yellow()
                             );
-                            println!("Expected:      {}", format!("{}", expected).yellow());
-                            println!("Found:         {}", format!("{}", found).yellow());
+                            eprintln!("Expected:      {}", format!("{}", expected).yellow());
+                            eprintln!("Found:         {}", format!("{}", found).yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::InvalidRecordPattern(id, name, expected, found) => {
-                            println!(
+                            eprintln!(
                                 "{} invalid {} record pattern, argument count mismatch",
                                 error.red(),
                                 name.yellow()
                             );
-                            println!("Expected:      {}", format!("{}", expected).yellow());
-                            println!("Found:         {}", format!("{}", found).yellow());
+                            eprintln!("Expected:      {}", format!("{}", expected).yellow());
+                            eprintln!("Found:         {}", format!("{}", found).yellow());
                             let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::ConflictingInstances(first, second) => {
+                            eprintln!(
+                                "{} conflicting class instances",
+                                error.red(),
+                            );
+                            let location_set = location_info.get_item_location(first);
+                            print_location_set(file_manager, location_set);
+                            let location_set = location_info.get_item_location(second);
                             print_location_set(file_manager, location_set);
                         }
                     }

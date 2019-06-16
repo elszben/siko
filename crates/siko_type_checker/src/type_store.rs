@@ -12,41 +12,30 @@ pub struct CloneContext<'a> {
     args: BTreeMap<usize, usize>,
     indices: BTreeMap<TypeIndex, TypeIndex>,
     pub type_store: &'a mut TypeStore,
-    verbose: bool,
 }
 
 impl<'a> CloneContext<'a> {
-    pub fn new(type_store: &'a mut TypeStore, verbose: bool) -> CloneContext<'a> {
+    pub fn new(type_store: &'a mut TypeStore) -> CloneContext<'a> {
         CloneContext {
             vars: BTreeMap::new(),
             args: BTreeMap::new(),
             indices: BTreeMap::new(),
             type_store: type_store,
-            verbose: verbose,
         }
     }
 
     pub fn var(&mut self, var: TypeVariable) -> TypeVariable {
         let r = CloneContext::build_var(self.type_store, &mut self.vars, var);
-        if self.verbose {
-            println!("Cloning var {} -> {}", var, r);
-        }
         r
     }
 
     pub fn arg(&mut self, arg: usize) -> usize {
         let r = CloneContext::build_arg(self.type_store, &mut self.args, arg);
-        if self.verbose {
-            println!("Cloning arg {} -> {}", arg, r);
-        }
         r
     }
 
     pub fn index(&mut self, index: TypeIndex) -> TypeIndex {
         let r = CloneContext::build_index(self.type_store, &mut self.indices, index);
-        if self.verbose {
-            println!("Cloning index {} -> {}", index.id, r.id);
-        }
         r
     }
 
@@ -361,12 +350,12 @@ impl TypeStore {
         var
     }
 
-    pub fn create_clone_context(&mut self, verbose: bool) -> CloneContext {
-        CloneContext::new(self, verbose)
+    pub fn create_clone_context(&mut self) -> CloneContext {
+        CloneContext::new(self)
     }
 
     pub fn clone_type_var_simple(&mut self, var: TypeVariable) -> TypeVariable {
-        let mut context = self.create_clone_context(false);
+        let mut context = self.create_clone_context();
         let ty = context.type_store.get_type(&var);
         let new_ty = ty.clone_type(&mut context);
         context.type_store.add_type(new_ty)

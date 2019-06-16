@@ -11,11 +11,11 @@ class Quu a where
 instance Boo Int where
     boo a = False
 
-data Foo = {}
+data Foo a = extern
 
 instance FEq Int
 instance FEq Bool
-//instance (Eq a) => Eq Foo a
+instance (Eq a) => FEq Foo a
 
 foo b = do 
     boo b

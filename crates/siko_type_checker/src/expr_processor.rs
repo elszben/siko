@@ -83,7 +83,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
         if self.group.functions.contains(function_id) {
             return type_info.function_type;
         }
-        let mut context = self.expr_processor.type_store.create_clone_context(false);
+        let mut context = self.expr_processor.type_store.create_clone_context();
         context.clone_var(type_info.function_type)
     }
 
@@ -93,7 +93,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .class_member_type_info_map
             .get(class_member_id)
             .expect("Type info not found");
-        let mut context = self.expr_processor.type_store.create_clone_context(false);
+        let mut context = self.expr_processor.type_store.create_clone_context();
         context.clone_var(type_info.member_type_var)
     }
 
@@ -136,7 +136,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .get(record_id)
             .expect("record tyoe info not found")
             .clone();
-        let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
+        let mut clone_context = self.expr_processor.type_store.create_clone_context();
         record_type_info.record_type = clone_context.clone_var(record_type_info.record_type);
         for field_type_var in &mut record_type_info.field_types {
             *field_type_var = clone_context.clone_var(*field_type_var);
@@ -519,7 +519,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     .variant_type_info_map
                     .get(&(*typedef_id, *index))
                     .expect("Record type info not found");
-                let mut clone_context = self.expr_processor.type_store.create_clone_context(false);
+                let mut clone_context = self.expr_processor.type_store.create_clone_context();
                 let variant_var = clone_context.clone_var(variant_type_info.variant_type);
                 let item_vars: Vec<_> = variant_type_info
                     .item_types
