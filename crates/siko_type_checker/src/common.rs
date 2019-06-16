@@ -91,7 +91,7 @@ impl FunctionTypeInfo {
             function_type: function_type,
             body: body,
             location_id: location_id,
-            arg_map: arg_map
+            arg_map: arg_map,
         }
     }
 }

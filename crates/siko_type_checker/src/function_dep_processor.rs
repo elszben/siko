@@ -101,7 +101,7 @@ impl FunctionDependencyProcessor {
         for (id, type_info) in &self.function_type_info_map {
             if let Some(body) = type_info.body {
                 let mut collector = DependencyCollector::new(program);
-                walk_expr(&body,  &mut collector);
+                walk_expr(&body, &mut collector);
                 let deps: Vec<_> = collector.used_functions.into_iter().collect();
                 //println!("{} deps {}", id, format_list(&deps[..]));
                 let mut deps: BTreeSet<_> = deps

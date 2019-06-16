@@ -48,7 +48,6 @@ use siko_syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-
 #[derive(Debug)]
 pub struct Resolver {
     modules: BTreeMap<String, Module>,

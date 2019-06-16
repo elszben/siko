@@ -10,5 +10,5 @@ pub mod type_store;
 pub mod type_variable;
 pub mod typechecker;
 pub mod types;
-pub mod walker;
 pub mod unifier;
+pub mod walker;

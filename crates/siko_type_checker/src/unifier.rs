@@ -1,18 +1,12 @@
-
 use crate::common::create_general_function_type;
-use crate::common::ClassMemberTypeInfo;
 use crate::common::DependencyGroup;
-use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
-use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
+use crate::expr_processor::ExprProcessor;
 use crate::type_processor::process_type_signature;
-use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
-use crate::walker::walk_expr;
 use crate::walker::Visitor;
-use crate::expr_processor::ExprProcessor;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -22,7 +16,6 @@ use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
-use siko_location_info::item::LocationId;
 use siko_util::format_list;
 use std::collections::BTreeMap;
 
@@ -103,7 +96,6 @@ impl<'a, 'b> Unifier<'a, 'b> {
     fn get_type_string(&self, var: &TypeVariable) -> String {
         self.expr_processor.type_store.get_resolved_type_string(var)
     }
-
 
     fn get_record_type_info(&mut self, record_id: &TypeDefId) -> RecordTypeInfo {
         let mut record_type_info = self

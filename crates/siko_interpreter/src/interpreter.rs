@@ -139,9 +139,7 @@ impl<'a> Interpreter<'a> {
                     return false;
                 }
             }
-            Pattern::Typed(id, _) => {
-                self.match_pattern(id, value, program, environment)
-            }
+            Pattern::Typed(id, _) => self.match_pattern(id, value, program, environment),
             Pattern::Wildcard => {
                 return true;
             }

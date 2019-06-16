@@ -8,7 +8,6 @@ use siko_ir::class::ClassMemberId;
 use siko_ir::program::Program;
 use std::collections::BTreeMap;
 
-
 fn is_conflicting(
     first: &InstanceTypeInfo,
     second: &InstanceTypeInfo,

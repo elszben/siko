@@ -545,10 +545,7 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         TypecheckError::ConflictingInstances(first, second) => {
-                            eprintln!(
-                                "{} conflicting class instances",
-                                error.red(),
-                            );
+                            eprintln!("{} conflicting class instances", error.red(),);
                             let location_set = location_info.get_item_location(first);
                             print_location_set(file_manager, location_set);
                             let location_set = location_info.get_item_location(second);

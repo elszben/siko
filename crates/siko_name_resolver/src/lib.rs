@@ -9,6 +9,6 @@ pub mod item;
 pub mod lambda_helper;
 pub mod module;
 pub mod resolver;
+pub mod type_arg_constraint_collector;
 pub mod type_arg_resolver;
 pub mod type_processor;
-pub mod type_arg_constraint_collector; 

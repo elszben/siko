@@ -8,9 +8,7 @@ pub struct TypeArgConstraintCollection {
 
 impl TypeArgConstraintCollection {
     pub fn new() -> TypeArgConstraintCollection {
-        TypeArgConstraintCollection {
-            items: Vec::new()
-        }
+        TypeArgConstraintCollection { items: Vec::new() }
     }
 }
 

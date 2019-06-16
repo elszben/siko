@@ -1,28 +1,23 @@
-use crate::common::create_general_function_type;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::DependencyGroup;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
-use crate::unifier::Unifier; 
 use crate::error::TypecheckError;
-use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
-use crate::types::Type;
+use crate::unifier::Unifier;
 use crate::walker::walk_expr;
 use crate::walker::Visitor;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
-use siko_ir::expr::FieldAccessInfo;
 use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
 use siko_location_info::item::LocationId;
-use siko_util::format_list;
 use std::collections::BTreeMap;
 
 struct TypeVarCreator<'a, 'b> {
@@ -57,7 +52,7 @@ pub struct ExprProcessor<'a> {
     pattern_type_var_map: BTreeMap<PatternId, TypeVariable>,
     pub function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     pub record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
-   pub  variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
+    pub variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     pub class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
     pub program: &'a Program,
 }

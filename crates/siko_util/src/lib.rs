@@ -56,13 +56,13 @@ impl<Key: Ord + From<usize>, Item> ItemContainer<Key, Item> {
 }
 
 pub struct Collector<Key, Item> {
-   pub  items: BTreeMap<Key, BTreeSet<Item>>
+    pub items: BTreeMap<Key, BTreeSet<Item>>,
 }
 
 impl<Key: Ord, Item: Ord> Collector<Key, Item> {
     pub fn new() -> Collector<Key, Item> {
         Collector {
-            items: BTreeMap::new()
+            items: BTreeMap::new(),
         }
     }
 
