@@ -1,6 +1,7 @@
 use crate::common::ClassMemberTypeInfo;
 use crate::common::DependencyGroup;
 use crate::common::FunctionTypeInfo;
+use crate::common::InstanceTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
@@ -9,6 +10,7 @@ use crate::type_variable::TypeVariable;
 use crate::unifier::Unifier;
 use crate::walker::walk_expr;
 use crate::walker::Visitor;
+use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -54,6 +56,7 @@ pub struct ExprProcessor<'a> {
     pub record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
     pub variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     pub class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+    pub instances: BTreeMap<ClassId, Vec<InstanceTypeInfo>>,
     pub program: &'a Program,
 }
 
@@ -64,6 +67,7 @@ impl<'a> ExprProcessor<'a> {
         record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
         variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
         class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+        instances: BTreeMap<ClassId, Vec<InstanceTypeInfo>>,
         program: &'a Program,
     ) -> ExprProcessor<'a> {
         ExprProcessor {
@@ -74,6 +78,7 @@ impl<'a> ExprProcessor<'a> {
             record_type_info_map: record_type_info_map,
             variant_type_info_map: variant_type_info_map,
             class_member_type_info_map: class_member_type_info_map,
+            instances: instances,
             program: program,
         }
     }

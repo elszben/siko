@@ -52,7 +52,7 @@ impl Typechecker {
 
         let class_processor = ClassProcessor::new(type_store);
 
-        let (type_store, class_type_info_map) =
+        let (type_store, class_type_info_map, instances) =
             class_processor.process_classes(program, &mut errors);
 
         let mut expr_processor = ExprProcessor::new(
@@ -61,6 +61,7 @@ impl Typechecker {
             record_type_info_map,
             variant_type_info_map,
             class_type_info_map,
+            instances,
             program,
         );
 

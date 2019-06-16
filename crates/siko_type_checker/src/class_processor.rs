@@ -38,7 +38,7 @@ impl ClassProcessor {
         mut self,
         program: &Program,
         errors: &mut Vec<TypecheckError>,
-    ) -> (TypeStore, BTreeMap<ClassMemberId, ClassMemberTypeInfo>) {
+    ) -> (TypeStore, BTreeMap<ClassMemberId, ClassMemberTypeInfo>,  BTreeMap<ClassId, Vec<InstanceTypeInfo>>,) {
         for (class_id, class) in &program.classes.items {
             self.type_store
                 .class_names
@@ -85,6 +85,6 @@ impl ClassProcessor {
             instance_infos.push(info);
         }
 
-        (self.type_store, self.class_member_type_info_map)
+        (self.type_store, self.class_member_type_info_map, self.instances)
     }
 }
