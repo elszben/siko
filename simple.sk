@@ -13,8 +13,8 @@ instance Boo Int where
 
 data Foo = {}
 
-instance Eq Int
-instance Eq Bool
+instance FEq Int
+instance FEq Bool
 //instance (Eq a) => Eq Foo a
 
 foo b = do 

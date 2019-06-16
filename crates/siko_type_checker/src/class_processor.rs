@@ -24,8 +24,10 @@ impl ClassProcessor {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
     ) -> (TypeStore, BTreeMap<ClassMemberId, ClassMemberTypeInfo>) {
-        for (class_id,class) in &program.classes.items {
-            self.type_store.class_names.insert(*class_id, class.name.clone());
+        for (class_id, class) in &program.classes.items {
+            self.type_store
+                .class_names
+                .insert(*class_id, class.name.clone());
         }
         for (class_member_id, class_member) in &program.class_members.items {
             //println!("{} = {:?}", class_member.name, class_member.type_signature);
@@ -44,6 +46,10 @@ impl ClassProcessor {
                 .insert(*class_member_id, info);
             //let type_str = self.type_store.get_resolved_type_string(&var, program);
             //println!("{}", type_str);
+        }
+
+        for (instance_id, instance) in &program.instances.items {
+            println!("processing instance {} for class {}", instance_id, instance.class_id);
         }
 
         (self.type_store, self.class_member_type_info_map)

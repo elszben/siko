@@ -8,3 +8,4 @@ edition = "2018"
 siko_compiler = { path = "../siko_compiler" }
 
 walkdir = "2"
+colored = "1.7.0"

@@ -110,6 +110,7 @@ dependencies = [
 name = "siko"
 version = "0.1.0"
 dependencies = [
+ "colored 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "siko_compiler 0.1.0",
  "walkdir 2.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

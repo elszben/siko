@@ -227,6 +227,28 @@ impl TypeStore {
                 self.merge(&merged_type_var, primary);
                 self.merge(&merged_type_var, secondary);
             }
+            (
+                Type::TypeArgument(_, primary_constraints),
+                Type::FixedTypeArgument(_, _, secondary_constraints),
+            ) => {
+                for c in primary_constraints {
+                    if !secondary_constraints.contains(c) {
+                        return false;
+                    }
+                }
+                self.merge(secondary, primary);
+            }
+            (
+                Type::FixedTypeArgument(_, _, primary_constraints),
+                Type::TypeArgument(_, secondary_constraints),
+            ) => {
+                for c in secondary_constraints {
+                    if !primary_constraints.contains(c) {
+                        return false;
+                    }
+                }
+                self.merge(primary, secondary);
+            }
             (Type::TypeArgument(_, constraints), _) => {
                 for c in constraints {
                     if !self.has_class_instance(secondary, c) {
