@@ -1,34 +1,13 @@
 use crate::common::ClassMemberTypeInfo;
+use crate::common::InstanceTypeInfo;
 use crate::error::TypecheckError;
 use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
-use crate::type_variable::TypeVariable;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
-use siko_ir::class::InstanceId;
 use siko_ir::program::Program;
-use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 
-pub struct InstanceTypeInfo {
-    pub instance_id: InstanceId,
-    pub type_var: TypeVariable,
-    pub location_id: LocationId,
-}
-
-impl InstanceTypeInfo {
-    pub fn new(
-        instance_id: InstanceId,
-        type_var: TypeVariable,
-        location_id: LocationId,
-    ) -> InstanceTypeInfo {
-        InstanceTypeInfo {
-            instance_id: instance_id,
-            type_var: type_var,
-            location_id: location_id,
-        }
-    }
-}
 
 fn is_conflicting(
     first: &InstanceTypeInfo,
