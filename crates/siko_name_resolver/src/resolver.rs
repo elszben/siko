@@ -115,11 +115,21 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
         ir_program: &mut IrProgram,
     ) {
-        for (_, module) in &mut self.modules {
+        for (module_name, module) in &mut self.modules {
+            let is_prelude = module_name == "Prelude";
             let ast_module = program.modules.get(&module.id);
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id);
-                let ir_typedef_id = ir_program.typedefs.get_id();
+                let ir_typedef_id = if is_prelude {
+                    match record.name.as_ref() {
+                        "Int" => ir_program.builtin_types.int_id,
+                        "Bool" => ir_program.builtin_types.bool_id,
+                        "String" => ir_program.builtin_types.string_id,
+                        _ => ir_program.typedefs.get_id(),
+                    }
+                } else {
+                    ir_program.typedefs.get_id()
+                };
                 let ir_ctor_id = ir_program.functions.get_id();
                 let record_ctor_info = RecordConstructorInfo {
                     type_id: ir_typedef_id,
@@ -762,7 +772,7 @@ impl Resolver {
             );
         }
 
-        if errors.is_empty() {
+        if let Some(type_signature) = result[0] {
             let id = ir_program.instances.get_id();
 
             let mut members = Vec::new();
@@ -834,7 +844,7 @@ impl Resolver {
             let ir_instance = IrInstance {
                 id: id,
                 class_id: ir_class_id,
-                type_signature: result[0].expect("Type signature not found"),
+                type_signature: type_signature,
                 members: members,
             };
 

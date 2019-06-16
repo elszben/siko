@@ -16,9 +16,6 @@ impl From<usize> for TypeSignatureId {
 
 #[derive(Debug, Clone)]
 pub enum TypeSignature {
-    Bool,
-    Int,
-    String,
     Nothing,
     Tuple(Vec<TypeSignatureId>),
     Function(TypeSignatureId, TypeSignatureId),

@@ -18,6 +18,13 @@ use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 
 #[derive(Debug)]
+pub struct BuiltinTypes {
+    pub int_id: TypeDefId,
+    pub bool_id: TypeDefId,
+    pub string_id: TypeDefId,
+}
+
+#[derive(Debug)]
 pub struct Program {
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
@@ -27,19 +34,27 @@ pub struct Program {
     pub classes: ItemContainer<ClassId, Class>,
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
+    pub builtin_types: BuiltinTypes,
 }
 
 impl Program {
     pub fn new() -> Program {
+        let mut typedefs = ItemContainer::new();
+        let builtin_types = BuiltinTypes {
+            int_id: typedefs.get_id(),
+            bool_id: typedefs.get_id(),
+            string_id: typedefs.get_id(),
+        };
         Program {
             type_signatures: ItemContainer::new(),
             exprs: ItemContainer::new(),
             functions: ItemContainer::new(),
-            typedefs: ItemContainer::new(),
+            typedefs: typedefs,
             patterns: ItemContainer::new(),
             classes: ItemContainer::new(),
             class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
+            builtin_types: builtin_types,
         }
     }
 }

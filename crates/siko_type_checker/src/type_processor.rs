@@ -16,18 +16,6 @@ pub fn process_type_signature(
 ) -> TypeVariable {
     let type_signature = &program.type_signatures.get(type_signature_id).item;
     match type_signature {
-        TypeSignature::Bool => {
-            let ty = Type::Bool;
-            return type_store.add_type(ty);
-        }
-        TypeSignature::Int => {
-            let ty = Type::Int;
-            return type_store.add_type(ty);
-        }
-        TypeSignature::String => {
-            let ty = Type::String;
-            return type_store.add_type(ty);
-        }
         TypeSignature::Nothing => {
             let ty = Type::Nothing;
             return type_store.add_type(ty);
@@ -55,12 +43,23 @@ pub fn process_type_signature(
             return *var;
         }
         TypeSignature::Named(name, id, items) => {
-            let items: Vec<_> = items
-                .iter()
-                .map(|i| process_type_signature(type_store, i, program, arg_map))
-                .collect();
-            let ty = Type::Named(name.clone(), *id, items);
-            return type_store.add_type(ty);
+            if *id == program.builtin_types.int_id {
+                let ty = Type::Int;
+                return type_store.add_type(ty);
+            } else if *id == program.builtin_types.bool_id {
+                let ty = Type::Bool;
+                return type_store.add_type(ty);
+            } else if *id == program.builtin_types.string_id {
+                let ty = Type::String;
+                return type_store.add_type(ty);
+            } else {
+                let items: Vec<_> = items
+                    .iter()
+                    .map(|i| process_type_signature(type_store, i, program, arg_map))
+                    .collect();
+                let ty = Type::Named(name.clone(), *id, items);
+                return type_store.add_type(ty);
+            }
         }
         TypeSignature::Variant(..) => unreachable!(),
         TypeSignature::Wildcard => {

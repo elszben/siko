@@ -8,6 +8,12 @@ use walkdir::WalkDir;
 fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>) {
     let mut inputs = Vec::new();
     let mut config = Config::new();
+    let prelude_source = include_str!("std/prelude.sk");
+    let prelude = CompilerInput::Memory{
+        name: "prelude".to_string(),
+        content: prelude_source.to_string()
+    };
+    inputs.push(prelude);
     for arg in args {
         if arg == "-v" {
             config.verbose = true;

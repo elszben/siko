@@ -144,23 +144,18 @@ fn process_type_signature(
             }
             IrTypeSignature::Variant(name.clone(), item_ids)
         }
-        AstTypeSignature::Named(name, named_args) => match name.as_ref() {
-            "Int" => IrTypeSignature::Int,
-            "Bool" => IrTypeSignature::Bool,
-            "String" => IrTypeSignature::String,
-            _ => {
-                return process_named_type(
-                    name,
-                    named_args,
-                    location_id,
-                    program,
-                    ir_program,
-                    module,
-                    type_arg_resolver,
-                    errors,
-                );
-            }
-        },
+        AstTypeSignature::Named(name, named_args) => {
+            return process_named_type(
+                name,
+                named_args,
+                location_id,
+                program,
+                ir_program,
+                module,
+                type_arg_resolver,
+                errors,
+            );
+        }
         AstTypeSignature::Tuple(items) => {
             let mut item_ids = Vec::new();
             for item in items {
