@@ -5,6 +5,7 @@ pub mod expr_processor;
 pub mod function_dep_processor;
 pub mod function_processor;
 pub mod function_type;
+pub mod instance_resolver;
 pub mod type_processor;
 pub mod type_store;
 pub mod type_variable;

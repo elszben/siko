@@ -11,6 +11,9 @@ class Quu a where
 instance Boo Int where
     boo a = False
 
+instance Quu Int where
+    quu a = False
+
 data Foo a = extern
 
 instance FEq Int

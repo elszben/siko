@@ -8,21 +8,9 @@ use siko_ir::class::ClassMemberId;
 use siko_ir::program::Program;
 use std::collections::BTreeMap;
 
-fn is_conflicting(
-    first: &InstanceTypeInfo,
-    second: &InstanceTypeInfo,
-    type_store: &mut TypeStore,
-) -> bool {
-    let mut context = type_store.create_clone_context();
-    let first = context.clone_var(first.type_var);
-    let second = context.clone_var(second.type_var);
-    type_store.unify(&first, &second)
-}
-
 pub struct ClassProcessor {
     type_store: TypeStore,
     class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-    instances: BTreeMap<ClassId, Vec<InstanceTypeInfo>>,
 }
 
 impl ClassProcessor {
@@ -30,7 +18,6 @@ impl ClassProcessor {
         ClassProcessor {
             type_store: type_store,
             class_member_type_info_map: BTreeMap::new(),
-            instances: BTreeMap::new(),
         }
     }
 
@@ -38,7 +25,7 @@ impl ClassProcessor {
         mut self,
         program: &Program,
         errors: &mut Vec<TypecheckError>,
-    ) -> (TypeStore, BTreeMap<ClassMemberId, ClassMemberTypeInfo>,  BTreeMap<ClassId, Vec<InstanceTypeInfo>>,) {
+    ) -> (TypeStore, BTreeMap<ClassMemberId, ClassMemberTypeInfo>) {
         for (class_id, class) in &program.classes.items {
             self.type_store
                 .class_names
@@ -72,19 +59,10 @@ impl ClassProcessor {
                 &mut arg_map,
             );
             let info = InstanceTypeInfo::new(*instance_id, var, instance.location_id);
-            let instance_infos = self
-                .instances
-                .entry(instance.class_id)
-                .or_insert_with(|| Vec::new());
-            for i in instance_infos.iter() {
-                if is_conflicting(i, &info, &mut self.type_store) {
-                    let err = TypecheckError::ConflictingInstances(i.location_id, info.location_id);
-                    errors.push(err);
-                }
-            }
-            instance_infos.push(info);
+            self.type_store
+                .add_instance_info(instance.class_id, info, errors);
         }
 
-        (self.type_store, self.class_member_type_info_map, self.instances)
+        (self.type_store, self.class_member_type_info_map)
     }
 }

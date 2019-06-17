@@ -1,4 +1,7 @@
-use super::type_variable::TypeVariable;
+use crate::common::InstanceTypeInfo;
+use crate::error::TypecheckError;
+use crate::instance_resolver::InstanceResolver;
+use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::class::ClassId;
 use siko_util::format_list;
@@ -116,6 +119,7 @@ pub struct TypeStore {
     index_counter: Counter,
     arg_counter: Counter,
     pub class_names: BTreeMap<ClassId, String>,
+    pub instance_resolver: InstanceResolver,
 }
 
 impl TypeStore {
@@ -127,6 +131,7 @@ impl TypeStore {
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
             class_names: BTreeMap::new(),
+            instance_resolver: InstanceResolver::new(),
         }
     }
 
@@ -179,8 +184,9 @@ impl TypeStore {
         }
     }
 
-    pub fn has_class_instance(&self, var: &TypeVariable, class_id: &ClassId) -> bool {
-        false
+    pub fn has_class_instance(&mut self, var: &TypeVariable, class_id: &ClassId) -> bool {
+        let instance_resolver = self.instance_resolver.clone();
+        instance_resolver.has_class_instance(var, class_id, self)
     }
 
     pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
@@ -384,5 +390,37 @@ impl TypeStore {
             self.get_index(var).id,
             ty.debug_dump(self)
         )
+    }
+
+    pub fn add_instance_info(
+        &mut self,
+        class_id: ClassId,
+        info: InstanceTypeInfo,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        fn is_conflicting(
+            first: &InstanceTypeInfo,
+            second: &InstanceTypeInfo,
+            type_store: &mut TypeStore,
+        ) -> bool {
+            let mut context = type_store.create_clone_context();
+            let first = context.clone_var(first.type_var);
+            let second = context.clone_var(second.type_var);
+            type_store.unify(&first, &second)
+        }
+
+        let instance_infos = self
+            .instance_resolver
+            .instances
+            .entry(class_id)
+            .or_insert_with(|| Vec::new());
+        let copy = instance_infos.clone();
+        instance_infos.push(info.clone());
+        for i in copy.iter() {
+            if is_conflicting(i, &info, self) {
+                let err = TypecheckError::ConflictingInstances(i.location_id, info.location_id);
+                errors.push(err);
+            }
+        }
     }
 }
