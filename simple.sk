@@ -1,7 +1,5 @@
 module Main where
 
-class BEq a
-class FEq a
 /*
 protocol BazProtocol = Baz
 protocol FooProtocol = Foo
@@ -11,8 +9,19 @@ actor FooActor Foo where
     FooProtocol -> foo
 */
 
-data Foo a = extern
-instance (FEq ddd) => BEq Foo ddd
-instance  BEq Foo Int
+
+class Boo a where
+    boo a :: a -> Bool
+
+class Foo a where
+    foo a :: a -> Bool
+
+instance (Foo a) => Boo a where
+    boo a = False
+
+instance Foo Int where
+    foo a = False
+
+bar a = boo 5
 
 main = 5

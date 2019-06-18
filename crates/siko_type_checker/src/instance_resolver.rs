@@ -35,6 +35,7 @@ impl InstanceResolver {
                 let input_var = context.clone_var(*var);
                 if type_store.unify(&input_var, &instance_var) {
                     type_store.unify(&second_instance_var, var);
+                    println!("Matching instance {}", instance.instance_id);
                     return true;
                 }
             }
