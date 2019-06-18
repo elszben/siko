@@ -1,27 +1,18 @@
 module Main where
 
+class BEq a
 class FEq a
+/*
+protocol BazProtocol = Baz
+protocol FooProtocol = Foo
 
-class (Boo a) => Boo a where
-   boo a :: a -> Bool
-
-class Quu a where
-    quu a :: a -> Bool
-
-instance Boo Int where
-    boo a = False
-
-instance Quu Int where
-    quu a = False
+actor FooActor Foo where
+    BazProtocol -> baz
+    FooProtocol -> foo
+*/
 
 data Foo a = extern
+instance (FEq ddd) => BEq Foo ddd
+instance  BEq Foo Int
 
-instance FEq Int
-instance FEq Bool
-instance (Eq a) => FEq Foo a
-
-foo b = do 
-    boo b
-    quu b
-
-main = foo 5
+main = 5

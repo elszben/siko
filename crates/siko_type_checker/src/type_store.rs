@@ -423,4 +423,15 @@ impl TypeStore {
             }
         }
     }
+
+    pub fn finished_instance_checks(&mut self) {
+        // during instance conflict checks the instance resolver
+        // will tell that every type has an instance for every type class
+        // to ignore instance constraints
+        // e.q. these instance are conflicting even if Int does
+        // not implement Bar
+        // instance (Bar a) => Foo a
+        // instance Foo Int
+        self.instance_resolver.hide_deps = false;
+    }
 }

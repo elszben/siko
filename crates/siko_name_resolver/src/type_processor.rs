@@ -224,9 +224,7 @@ pub fn process_type_signatures(
     let mut type_arg_names = BTreeSet::new();
     let mut conflicting_names = BTreeSet::new();
     for (type_arg, constraints) in original_type_args.items {
-        if !allow_implicit {
-            type_arg_resolver.add_explicit(type_arg.clone(), constraints);
-        }
+        type_arg_resolver.add_explicit(type_arg.clone(), constraints);
         if !type_arg_names.insert(type_arg.clone()) {
             conflicting_names.insert(type_arg.clone());
         }

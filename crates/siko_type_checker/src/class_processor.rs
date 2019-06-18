@@ -63,6 +63,8 @@ impl ClassProcessor {
                 .add_instance_info(instance.class_id, info, errors);
         }
 
+        self.type_store.finished_instance_checks();
+
         (self.type_store, self.class_member_type_info_map)
     }
 }
