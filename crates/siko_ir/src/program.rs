@@ -20,6 +20,7 @@ use siko_util::ItemContainer;
 #[derive(Debug)]
 pub struct BuiltinTypes {
     pub int_id: TypeDefId,
+    pub float_id: TypeDefId,
     pub bool_id: TypeDefId,
     pub string_id: TypeDefId,
 }
@@ -42,6 +43,7 @@ impl Program {
         let mut typedefs = ItemContainer::new();
         let builtin_types = BuiltinTypes {
             int_id: typedefs.get_id(),
+            float_id: typedefs.get_id(),
             bool_id: typedefs.get_id(),
             string_id: typedefs.get_id(),
         };

@@ -1,7 +1,25 @@
 module Prelude where
 
-op_add :: Int -> Int -> Int
+data Float = extern
+data Bool = extern
+data String = extern
+data Int = extern
+
+class Add a where
+    op_add a :: a -> a -> a
+
+instance Add Int where
+    op_add a = extern
+
+instance Add Float where
+    op_add a = extern
+
+instance Add String where
+    op_add a = extern
+
+/*op_add :: Int -> Int -> Int
 op_add x y = extern
+*/
 
 op_sub :: Int -> Int -> Int
 op_sub x y = extern
@@ -44,10 +62,6 @@ println :: String -> ()
 println msg = extern
 
 data Option a = Some a | None
-
-data Bool = extern
-data String = extern
-data Int = extern
 
 data List a = extern
 

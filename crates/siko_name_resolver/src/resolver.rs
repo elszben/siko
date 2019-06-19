@@ -122,6 +122,7 @@ impl Resolver {
                 let ir_typedef_id = if is_prelude {
                     match record.name.as_ref() {
                         "Int" => ir_program.builtin_types.int_id,
+                        "Float" => ir_program.builtin_types.float_id,
                         "Bool" => ir_program.builtin_types.bool_id,
                         "String" => ir_program.builtin_types.string_id,
                         _ => ir_program.typedefs.get_id(),

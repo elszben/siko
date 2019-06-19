@@ -583,6 +583,10 @@ pub fn process_expr(
                             errors,
                             location_id,
                         ) {
+                            PathResolveResult::ClassMemberRef(n) => {
+                                let ir_expr = IrExpr::ClassFunctionCall(n, ir_args);
+                                return add_expr(ir_expr, id, ir_program, program);
+                            }
                             PathResolveResult::FunctionRef(n) => {
                                 let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
                                 return add_expr(ir_expr, id, ir_program, program);

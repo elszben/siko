@@ -9,7 +9,6 @@ actor FooActor Foo where
     FooProtocol -> foo
 */
 
-
 class Boo a where
     boo a :: a -> Bool
 
@@ -24,4 +23,4 @@ instance Foo Int where
 
 bar a = boo 5
 
-main = 5
+main = 2.3 + 4.4
