@@ -12,10 +12,6 @@ use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
-    Int,
-    Float,
-    Bool,
-    String,
     Nothing,
     Tuple(Vec<TypeVariable>),
     Function(FunctionType),
@@ -39,10 +35,6 @@ impl Type {
 
     pub fn clone_type(&self, context: &mut CloneContext) -> Type {
         match self {
-            Type::Int => self.clone(),
-            Type::Float => self.clone(),
-            Type::Bool => self.clone(),
-            Type::String => self.clone(),
             Type::Nothing => self.clone(),
             Type::Tuple(typevars) => {
                 let typevars: Vec<_> = typevars
@@ -83,10 +75,6 @@ impl Type {
         type_store: &TypeStore,
     ) {
         match self {
-            Type::Int => {}
-            Type::Float => {}
-            Type::Bool => {}
-            Type::String => {}
             Type::Nothing => {}
             Type::Tuple(type_vars) => {
                 for var in type_vars {
@@ -134,10 +122,6 @@ impl Type {
         type_args: &BTreeMap<usize, String>,
     ) -> String {
         match self {
-            Type::Int => format!("Int"),
-            Type::Float => format!("Float"),
-            Type::Bool => format!("Bool"),
-            Type::String => format!("String"),
             Type::Nothing => format!("!"),
             Type::Tuple(type_vars) => {
                 let ss: Vec<_> = type_vars
@@ -191,10 +175,6 @@ impl Type {
         }
 
         match self {
-            Type::Int => false,
-            Type::Float => false,
-            Type::Bool => false,
-            Type::String => false,
             Type::Nothing => false,
             Type::Tuple(type_vars) => {
                 for var in type_vars {
@@ -225,10 +205,6 @@ impl Type {
 
     pub fn debug_dump(&self, type_store: &TypeStore) -> String {
         match self {
-            Type::Int => format!("Int"),
-            Type::Float => format!("Float"),
-            Type::Bool => format!("Bool"),
-            Type::String => format!("String"),
             Type::Nothing => format!("!"),
             Type::Tuple(type_vars) => {
                 let ss: Vec<_> = type_vars
@@ -258,10 +234,6 @@ impl Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Type::Int => write!(f, "Int"),
-            Type::Float => write!(f, "Float"),
-            Type::Bool => write!(f, "Bool"),
-            Type::String => write!(f, "String"),
             Type::Nothing => write!(f, "!"),
             Type::Tuple(types) => {
                 let ss: Vec<_> = types.iter().map(|t| format!("{}", t)).collect();

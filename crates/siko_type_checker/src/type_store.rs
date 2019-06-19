@@ -205,9 +205,6 @@ impl TypeStore {
             return true;
         }
         match (&primary_type, &secondary_type) {
-            (Type::Int, Type::Int) => {}
-            (Type::String, Type::String) => {}
-            (Type::Bool, Type::Bool) => {}
             (
                 Type::TypeArgument(_, primary_constraints),
                 Type::TypeArgument(_, secondary_constraints),

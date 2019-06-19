@@ -66,16 +66,14 @@ impl<'a, 'b> Unifier<'a, 'b> {
         context.clone_var(type_info.member_type_var)
     }
 
-    fn check_literal_expr(&mut self, expr_id: ExprId, ty: Type) {
-        let literal_var = self.expr_processor.type_store.add_type(ty);
+    fn check_literal_expr(&mut self, expr_id: ExprId, literal_var: TypeVariable) {
         let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
         let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
         self.expr_processor
             .unify_variables(&var, &literal_var, location, self.errors);
     }
 
-    fn check_literal_pattern(&mut self, pattern_id: PatternId, ty: Type) {
-        let literal_var = self.expr_processor.type_store.add_type(ty);
+    fn check_literal_pattern(&mut self, pattern_id: PatternId, literal_var: TypeVariable) {
         let var = self.expr_processor.lookup_type_var_for_pattern(&pattern_id);
         let location = self
             .expr_processor
@@ -143,6 +141,31 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .unify_variables(&var, &expr_var, location, self.errors);
     }
 
+    fn get_builtin_type(&mut self, name: String, typedef_id: TypeDefId) -> TypeVariable {
+        let ty = Type::Named(name, typedef_id, vec![]);
+        let var = self.expr_processor.type_store.add_type(ty);
+        var
+    }
+
+    fn get_bool_type(&mut self) -> TypeVariable {
+        self.get_builtin_type(format!("Bool"), self.get_program().builtin_types.bool_id)
+    }
+
+    fn get_int_type(&mut self) -> TypeVariable {
+        self.get_builtin_type(format!("Int"), self.get_program().builtin_types.int_id)
+    }
+
+    fn get_string_type(&mut self) -> TypeVariable {
+        self.get_builtin_type(
+            format!("String"),
+            self.get_program().builtin_types.string_id,
+        )
+    }
+
+    fn get_float_type(&mut self) -> TypeVariable {
+        self.get_builtin_type(format!("Float"), self.get_program().builtin_types.float_id)
+    }
+
     fn static_function_call(
         &mut self,
         orig_function_type_var: TypeVariable,
@@ -201,12 +224,24 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
 
     fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
         match expr {
-            Expr::IntegerLiteral(_) => self.check_literal_expr(expr_id, Type::Int),
-            Expr::StringLiteral(_) => self.check_literal_expr(expr_id, Type::String),
-            Expr::BoolLiteral(_) => self.check_literal_expr(expr_id, Type::Bool),
-            Expr::FloatLiteral(_) => self.check_literal_expr(expr_id, Type::Float),
+            Expr::IntegerLiteral(_) => {
+                let var = self.get_int_type();
+                self.check_literal_expr(expr_id, var)
+            }
+            Expr::StringLiteral(_) => {
+                let var = self.get_string_type();
+                self.check_literal_expr(expr_id, var)
+            }
+            Expr::BoolLiteral(_) => {
+                let var = self.get_bool_type();
+                self.check_literal_expr(expr_id, var)
+            }
+            Expr::FloatLiteral(_) => {
+                let var = self.get_float_type();
+                self.check_literal_expr(expr_id, var)
+            }
             Expr::If(cond, true_branch, false_branch) => {
-                let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
+                let bool_var = self.get_bool_type();
                 let false_var = self.expr_processor.lookup_type_var_for_expr(false_branch);
                 self.match_expr_with(cond, &bool_var);
                 self.match_expr_with(true_branch, &false_var);
@@ -525,21 +560,25 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             }
             Pattern::Guarded(inner, guard_expr_id) => {
                 self.match_patterns(inner, &pattern_id);
-                let bool_var = self.expr_processor.type_store.add_type(Type::Bool);
+                let bool_var = self.get_bool_type();
                 self.match_expr_with(guard_expr_id, &bool_var);
             }
             Pattern::Wildcard => {}
             Pattern::IntegerLiteral(_) => {
-                self.check_literal_pattern(pattern_id, Type::Int);
+                let var = self.get_int_type();
+                self.check_literal_pattern(pattern_id, var);
             }
             Pattern::FloatLiteral(_) => {
-                self.check_literal_pattern(pattern_id, Type::Float);
+                let var = self.get_float_type();
+                self.check_literal_pattern(pattern_id, var);
             }
             Pattern::StringLiteral(_) => {
-                self.check_literal_pattern(pattern_id, Type::String);
+                let var = self.get_string_type();
+                self.check_literal_pattern(pattern_id, var);
             }
             Pattern::BoolLiteral(_) => {
-                self.check_literal_pattern(pattern_id, Type::Bool);
+                let var = self.get_bool_type();
+                self.check_literal_pattern(pattern_id, var);
             }
             Pattern::Typed(inner, type_signature_id) => {
                 self.match_patterns(inner, &pattern_id);

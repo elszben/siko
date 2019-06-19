@@ -43,12 +43,12 @@ pub fn process_type_signature(
             return *var;
         }
         TypeSignature::Named(name, id, items) => {
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|i| process_type_signature(type_store, i, program, arg_map))
-                    .collect();
-                let ty = Type::Named(name.clone(), *id, items);
-                return type_store.add_type(ty);
+            let items: Vec<_> = items
+                .iter()
+                .map(|i| process_type_signature(type_store, i, program, arg_map))
+                .collect();
+            let ty = Type::Named(name.clone(), *id, items);
+            return type_store.add_type(ty);
         }
         TypeSignature::Variant(..) => unreachable!(),
         TypeSignature::Wildcard => {
