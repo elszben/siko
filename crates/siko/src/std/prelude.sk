@@ -17,9 +17,6 @@ instance Add Float where
 instance Add String where
     op_add a = extern
 
-/*op_add :: Int -> Int -> Int
-op_add x y = extern
-*/
 
 op_sub :: Int -> Int -> Int
 op_sub x y = extern

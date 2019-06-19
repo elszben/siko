@@ -13,6 +13,11 @@ use crate::module::Module;
 use crate::type_arg_constraint_collector::TypeArgConstraintCollection;
 use crate::type_arg_constraint_collector::TypeArgConstraintCollector;
 use crate::type_processor::process_type_signatures;
+use siko_constants::BOOL_NAME;
+use siko_constants::FLOAT_NAME;
+use siko_constants::INT_NAME;
+use siko_constants::PRELUDE_NAME;
+use siko_constants::STRING_NAME;
 use siko_ir::class::Class as IrClass;
 use siko_ir::class::ClassId as IrClassId;
 use siko_ir::class::ClassMember as IrClassMember;
@@ -115,21 +120,20 @@ impl Resolver {
         ir_program: &mut IrProgram,
     ) {
         for (module_name, module) in &mut self.modules {
-            let is_prelude = module_name == "Prelude";
+            let is_prelude = module_name == PRELUDE_NAME;
             let ast_module = program.modules.get(&module.id);
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id);
-                let ir_typedef_id = if is_prelude {
+                let ir_typedef_id = ir_program.typedefs.get_id();
+                if is_prelude {
                     match record.name.as_ref() {
-                        "Int" => ir_program.builtin_types.int_id,
-                        "Float" => ir_program.builtin_types.float_id,
-                        "Bool" => ir_program.builtin_types.bool_id,
-                        "String" => ir_program.builtin_types.string_id,
-                        _ => ir_program.typedefs.get_id(),
+                        INT_NAME => ir_program.builtin_types.int_id = Some(ir_typedef_id),
+                        FLOAT_NAME => ir_program.builtin_types.float_id = Some(ir_typedef_id),
+                        BOOL_NAME => ir_program.builtin_types.bool_id = Some(ir_typedef_id),
+                        STRING_NAME => ir_program.builtin_types.string_id = Some(ir_typedef_id),
+                        _ => {}
                     }
-                } else {
-                    ir_program.typedefs.get_id()
-                };
+                }
                 let ir_ctor_id = ir_program.functions.get_id();
                 let record_ctor_info = RecordConstructorInfo {
                     type_id: ir_typedef_id,

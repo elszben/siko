@@ -3,7 +3,6 @@ use crate::common::InstanceTypeInfo;
 use crate::error::TypecheckError;
 use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
-use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::program::Program;
 use std::collections::BTreeMap;

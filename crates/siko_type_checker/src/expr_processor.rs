@@ -1,7 +1,6 @@
 use crate::common::ClassMemberTypeInfo;
 use crate::common::DependencyGroup;
 use crate::common::FunctionTypeInfo;
-use crate::common::InstanceTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
@@ -10,7 +9,6 @@ use crate::type_variable::TypeVariable;
 use crate::unifier::Unifier;
 use crate::walker::walk_expr;
 use crate::walker::Visitor;
-use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;

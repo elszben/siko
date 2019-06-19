@@ -2,6 +2,7 @@ use colored::*;
 use siko_compiler::compiler::Compiler;
 use siko_compiler::compiler::CompilerInput;
 use siko_compiler::config::Config;
+use siko_constants::PRELUDE_NAME;
 use std::env;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -12,7 +13,7 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     let mut success = true;
     let prelude_source = include_str!("std/prelude.sk");
     let prelude = CompilerInput::Memory {
-        name: "prelude".to_string(),
+        name: PRELUDE_NAME.to_string(),
         content: prelude_source.to_string(),
     };
     inputs.push(prelude);

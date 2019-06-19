@@ -1,7 +1,9 @@
 use crate::environment::Environment;
 use crate::value::Callable;
 use crate::value::Value;
-use siko_constants;
+use siko_constants::MAIN_FUNCTION;
+use siko_constants::MAIN_MODULE;
+use siko_constants::PRELUDE_NAME;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
@@ -334,32 +336,32 @@ impl<'a> Interpreter<'a> {
         current_expr: Option<ExprId>,
     ) -> Value {
         match (module, name) {
-            ("Prelude", "op_add") => {
+            (PRELUDE_NAME, "op_add") => {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Int(l + r);
             }
-            ("Prelude", "op_sub") => {
+            (PRELUDE_NAME, "op_sub") => {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Int(l - r);
             }
-            ("Prelude", "op_mul") => {
+            (PRELUDE_NAME, "op_mul") => {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Int(l * r);
             }
-            ("Prelude", "op_lessthan") => {
+            (PRELUDE_NAME, "op_lessthan") => {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Bool(l < r);
             }
-            ("Prelude", "op_equals") => {
+            (PRELUDE_NAME, "op_equals") => {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Bool(l == r);
             }
-            ("Prelude", "op_notequals") => {
+            (PRELUDE_NAME, "op_notequals") => {
                 let l = environment.get_arg_by_index(0).as_int();
                 let r = environment.get_arg_by_index(1).as_int();
                 return Value::Bool(l != r);
@@ -375,20 +377,20 @@ impl<'a> Interpreter<'a> {
                 }
                 return Value::Tuple(vec![]);
             }
-            ("Prelude", "print") => {
+            (PRELUDE_NAME, "print") => {
                 let v = environment.get_arg_by_index(0).debug(program, false);
                 print!("{}", v);
                 return Value::Tuple(vec![]);
             }
-            ("Prelude", "println") => {
+            (PRELUDE_NAME, "println") => {
                 let v = environment.get_arg_by_index(0).debug(program, false);
                 println!("{}", v);
                 return Value::Tuple(vec![]);
             }
-            ("Prelude", "empty") => {
+            (PRELUDE_NAME, "empty") => {
                 return Value::List(vec![]);
             }
-            ("Prelude", "insert") => {
+            (PRELUDE_NAME, "insert") => {
                 let list = environment.get_arg_by_index(0);
                 let item = environment.get_arg_by_index(1);
                 if let Value::List(mut vs) = list {
@@ -456,9 +458,7 @@ impl<'a> Interpreter<'a> {
         for (id, function) in &program.functions.items {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
-                    if info.module == siko_constants::MAIN_MODULE
-                        && info.name == siko_constants::MAIN_FUNCTION
-                    {
+                    if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
                         let mut environment = Environment::new(*id, vec![], 0);
                         return self.execute(program, *id, &mut environment, None);
                     }
@@ -469,8 +469,7 @@ impl<'a> Interpreter<'a> {
 
         panic!(
             "Cannot find function {} in module {}",
-            siko_constants::MAIN_FUNCTION,
-            siko_constants::MAIN_MODULE
+            MAIN_FUNCTION, MAIN_MODULE
         );
     }
 }

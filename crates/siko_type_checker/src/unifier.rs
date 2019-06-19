@@ -141,29 +141,53 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .unify_variables(&var, &expr_var, location, self.errors);
     }
 
-    fn get_builtin_type(&mut self, name: String, typedef_id: TypeDefId) -> TypeVariable {
+    fn get_builtin_type(&mut self, typedef_id: TypeDefId) -> TypeVariable {
+        let name = self
+            .get_program()
+            .typedefs
+            .get(&typedef_id)
+            .get_record()
+            .name
+            .clone();
         let ty = Type::Named(name, typedef_id, vec![]);
         let var = self.expr_processor.type_store.add_type(ty);
         var
     }
 
     fn get_bool_type(&mut self) -> TypeVariable {
-        self.get_builtin_type(format!("Bool"), self.get_program().builtin_types.bool_id)
+        self.get_builtin_type(
+            self.get_program()
+                .builtin_types
+                .bool_id
+                .expect("Type bool not found"),
+        )
     }
 
     fn get_int_type(&mut self) -> TypeVariable {
-        self.get_builtin_type(format!("Int"), self.get_program().builtin_types.int_id)
+        self.get_builtin_type(
+            self.get_program()
+                .builtin_types
+                .int_id
+                .expect("Type int not found"),
+        )
     }
 
     fn get_string_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            format!("String"),
-            self.get_program().builtin_types.string_id,
+            self.get_program()
+                .builtin_types
+                .string_id
+                .expect("Type string not found"),
         )
     }
 
     fn get_float_type(&mut self) -> TypeVariable {
-        self.get_builtin_type(format!("Float"), self.get_program().builtin_types.float_id)
+        self.get_builtin_type(
+            self.get_program()
+                .builtin_types
+                .float_id
+                .expect("Type float not found"),
+        )
     }
 
     fn static_function_call(

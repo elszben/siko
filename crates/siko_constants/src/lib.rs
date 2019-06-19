@@ -23,3 +23,7 @@ pub enum BuiltinOperator {
 pub const MAIN_MODULE: &str = "Main";
 pub const MAIN_FUNCTION: &str = "main";
 pub const PRELUDE_NAME: &str = "Prelude";
+pub const INT_NAME: &str = "Int";
+pub const FLOAT_NAME: &str = "Float";
+pub const BOOL_NAME: &str = "Bool";
+pub const STRING_NAME: &str = "String";
