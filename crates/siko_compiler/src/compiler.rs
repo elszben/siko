@@ -102,7 +102,7 @@ impl Compiler {
 
         let mut resolver = Resolver::new();
 
-        let ir_program = resolver.resolve(&program)?;
+        let mut ir_program = resolver.resolve(&program)?;
 
         if self.config.verbose {
             println!("program {:#?}", ir_program);
@@ -110,7 +110,7 @@ impl Compiler {
 
         let mut typechecker = Typechecker::new();
 
-        typechecker.check(&ir_program)?;
+        typechecker.check(&mut ir_program)?;
         let mut interpreter = Interpreter::new(self.context());
 
         interpreter.run(&ir_program);

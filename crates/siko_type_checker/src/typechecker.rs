@@ -36,7 +36,7 @@ impl Typechecker {
         }
     }
 
-    pub fn check(&mut self, program: &Program) -> Result<(), Error> {
+    pub fn check(&mut self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         let function_processor = FunctionProcessor::new();

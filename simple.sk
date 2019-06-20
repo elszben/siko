@@ -21,6 +21,4 @@ instance (Foo a) => Boo a where
 instance Foo Int where
     foo a = False
 
-bar a = boo 5
-
-main2 = 2.3 + 4.4
+main = foo 5

@@ -36,7 +36,7 @@ pub struct Program {
     pub classes: ItemContainer<ClassId, Class>,
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
-
+    pub instance_selection_contexts: ItemContainer<ExprId, InstanceSelectionContext>,
     pub builtin_types: BuiltinTypes,
 }
 
@@ -57,6 +57,7 @@ impl Program {
             classes: ItemContainer::new(),
             class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
+            instance_selection_contexts: ItemContainer::new(),
             builtin_types: builtin_types,
         }
     }

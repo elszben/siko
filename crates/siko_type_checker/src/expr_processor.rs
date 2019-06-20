@@ -54,7 +54,7 @@ pub struct ExprProcessor<'a> {
     pub record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
     pub variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     pub class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-    pub program: &'a Program,
+    pub program: &'a mut Program,
 }
 
 impl<'a> ExprProcessor<'a> {
@@ -64,7 +64,7 @@ impl<'a> ExprProcessor<'a> {
         record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
         variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
         class_member_type_info_map: BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-        program: &'a Program,
+        program: &'a mut Program,
     ) -> ExprProcessor<'a> {
         ExprProcessor {
             type_store: type_store,
