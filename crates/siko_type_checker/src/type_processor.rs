@@ -16,10 +16,6 @@ pub fn process_type_signature(
 ) -> TypeVariable {
     let type_signature = &program.type_signatures.get(type_signature_id).item;
     match type_signature {
-        TypeSignature::Nothing => {
-            let ty = Type::Nothing;
-            return type_store.add_type(ty);
-        }
         TypeSignature::Tuple(items) => {
             let items: Vec<_> = items
                 .iter()

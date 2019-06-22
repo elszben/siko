@@ -11,7 +11,6 @@ impl From<usize> for TypeSignatureId {
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum TypeSignature {
-    Nothing,
     TypeArg(String),
     Named(String, Vec<TypeSignatureId>),
     Variant(String, Vec<TypeSignatureId>),

@@ -113,7 +113,6 @@ fn process_type_signature(
     let type_signature = &info.item;
     let location_id = info.location_id;
     let ir_type_signature = match type_signature {
-        AstTypeSignature::Nothing => IrTypeSignature::Nothing,
         AstTypeSignature::TypeArg(name) => {
             if let Some(info) = type_arg_resolver.resolve_arg(name) {
                 IrTypeSignature::TypeArgument(info.index, name.clone(), info.constraints)

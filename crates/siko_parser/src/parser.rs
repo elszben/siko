@@ -439,11 +439,6 @@ impl<'a> Parser<'a> {
                 Token::LParen => {
                     return self.parse_tuple_type(allow_wildcard);
                 }
-                Token::Op(BuiltinOperator::Not) => {
-                    self.advance()?;
-                    let id = self.add_type_signature(TypeSignature::Nothing, start_index);
-                    return Ok(id);
-                }
                 Token::TypeIdentifier(_) => {
                     let name = self.parse_qualified_type_name()?;
                     let mut args = Vec::new();

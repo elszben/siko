@@ -12,7 +12,6 @@ use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
-    Nothing,
     Tuple(Vec<TypeVariable>),
     Function(FunctionType),
     TypeArgument(usize, Vec<ClassId>),
@@ -35,7 +34,6 @@ impl Type {
 
     pub fn clone_type(&self, context: &mut CloneContext) -> Type {
         match self {
-            Type::Nothing => self.clone(),
             Type::Tuple(typevars) => {
                 let typevars: Vec<_> = typevars
                     .iter()
@@ -75,7 +73,6 @@ impl Type {
         type_store: &TypeStore,
     ) {
         match self {
-            Type::Nothing => {}
             Type::Tuple(type_vars) => {
                 for var in type_vars {
                     vars.insert(*var);
@@ -122,7 +119,6 @@ impl Type {
         type_args: &BTreeMap<usize, String>,
     ) -> String {
         match self {
-            Type::Nothing => format!("!"),
             Type::Tuple(type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()
@@ -175,7 +171,6 @@ impl Type {
         }
 
         match self {
-            Type::Nothing => false,
             Type::Tuple(type_vars) => {
                 for var in type_vars {
                     if check_sub_var(var, vars, type_store) {
@@ -205,7 +200,6 @@ impl Type {
 
     pub fn debug_dump(&self, type_store: &TypeStore) -> String {
         match self {
-            Type::Nothing => format!("!"),
             Type::Tuple(type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()
@@ -234,7 +228,6 @@ impl Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Type::Nothing => write!(f, "!"),
             Type::Tuple(types) => {
                 let ss: Vec<_> = types.iter().map(|t| format!("{}", t)).collect();
                 write!(f, "({})", ss.join(", "))

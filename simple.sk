@@ -21,4 +21,6 @@ instance (Foo a) => Boo a where
 instance Foo Int where
     foo a = False
 
-main = foo 5
+main = do
+    a <- foo
+    a "a"

@@ -16,7 +16,6 @@ impl From<usize> for TypeSignatureId {
 
 #[derive(Debug, Clone)]
 pub enum TypeSignature {
-    Nothing,
     Tuple(Vec<TypeSignatureId>),
     Function(TypeSignatureId, TypeSignatureId),
     TypeArgument(usize, String, Vec<ClassId>),
@@ -117,4 +116,28 @@ impl TypeDef {
             unreachable!()
         }
     }
+}
+
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TypeId {
+    pub id: usize,
+}
+
+impl fmt::Display for TypeId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TypeId({})", self.id)
+    }
+}
+
+impl From<usize> for TypeId {
+    fn from(id: usize) -> TypeId {
+        TypeId { id: id }
+    }
+}
+
+pub enum Type {
+    Tuple(Vec<TypeId>),
+    Named(String, TypeDefId, Vec<TypeId>),
+    Function(TypeId, TypeId),
 }

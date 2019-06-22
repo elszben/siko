@@ -8,7 +8,6 @@ use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::function::Function;
 use crate::function::FunctionId;
-use crate::instance_selection_context::InstanceSelectionContext;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::types::TypeDef;
@@ -36,7 +35,6 @@ pub struct Program {
     pub classes: ItemContainer<ClassId, Class>,
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
-    pub instance_selection_contexts: ItemContainer<ExprId, InstanceSelectionContext>,
     pub builtin_types: BuiltinTypes,
 }
 
@@ -57,7 +55,6 @@ impl Program {
             classes: ItemContainer::new(),
             class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
-            instance_selection_contexts: ItemContainer::new(),
             builtin_types: builtin_types,
         }
     }
