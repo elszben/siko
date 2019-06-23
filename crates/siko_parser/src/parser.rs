@@ -10,6 +10,7 @@ use crate::token::TokenInfo;
 use crate::token::TokenKind;
 use siko_constants::BuiltinOperator;
 use siko_constants::PRELUDE_NAME;
+use siko_constants::LIST_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
 use siko_location_info::item::ItemInfo;
@@ -438,6 +439,14 @@ impl<'a> Parser<'a> {
             Some(token_info) => match token_info.token {
                 Token::LParen => {
                     return self.parse_tuple_type(allow_wildcard);
+                }
+                Token::LBracket => {
+                    self.expect(TokenKind::LBracket)?;
+                    let arg = self.parse_function_type(parsing_variant, allow_wildcard)?;
+                    self.expect(TokenKind::RBracket)?;
+                    let ty = TypeSignature::Named(LIST_NAME.to_string(), vec![arg]);
+                    let id = self.add_type_signature(ty, start_index);
+                    return Ok(id);
                 }
                 Token::TypeIdentifier(_) => {
                     let name = self.parse_qualified_type_name()?;

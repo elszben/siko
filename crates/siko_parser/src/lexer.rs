@@ -357,6 +357,8 @@ impl Lexer {
                     '}' => Token::RCurly,
                     '(' => Token::LParen,
                     ')' => Token::RParen,
+                    '[' => Token::LBracket,
+                    ']' => Token::RBracket,
                     ';' => Token::Semicolon,
                     '%' => Token::Formatter,
                     _ => {
