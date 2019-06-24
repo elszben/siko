@@ -9,8 +9,8 @@ use crate::token::Token;
 use crate::token::TokenInfo;
 use crate::token::TokenKind;
 use siko_constants::BuiltinOperator;
-use siko_constants::PRELUDE_NAME;
 use siko_constants::LIST_NAME;
+use siko_constants::PRELUDE_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
 use siko_location_info::item::ItemInfo;
@@ -535,7 +535,9 @@ impl<'a> Parser<'a> {
             let full_type_signature_id = self.program.type_signatures.get_id();
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
+            let id = self.program.function_types.get_id();
             let function_type = FunctionType {
+                id: id,
                 name: name,
                 type_args: args,
                 constraints: constraints,

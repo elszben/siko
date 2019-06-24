@@ -16,6 +16,8 @@ use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::function::Function;
 use crate::function::FunctionId;
+use crate::function::FunctionType;
+use crate::function::FunctionTypeId;
 use crate::import::Import;
 use crate::import::ImportId;
 use crate::module::Module;
@@ -31,6 +33,7 @@ use siko_util::ItemContainer;
 pub struct Program {
     pub modules: ItemContainer<ModuleId, Module>,
     pub functions: ItemContainer<FunctionId, Function>,
+    pub function_types: ItemContainer<FunctionTypeId, FunctionType>,
     pub records: ItemContainer<RecordId, Record>,
     pub adts: ItemContainer<AdtId, Adt>,
     pub variants: ItemContainer<VariantId, Variant>,
@@ -49,6 +52,7 @@ impl Program {
         Program {
             modules: ItemContainer::new(),
             functions: ItemContainer::new(),
+            function_types: ItemContainer::new(),
             records: ItemContainer::new(),
             adts: ItemContainer::new(),
             variants: ItemContainer::new(),

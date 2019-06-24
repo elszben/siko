@@ -44,6 +44,10 @@ impl Typechecker {
         let (type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
             function_processor.process_functions(program, &mut errors);
 
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
         let function_dep_processor =
             FunctionDependencyProcessor::new(type_store, function_type_info_map);
 
@@ -54,6 +58,10 @@ impl Typechecker {
 
         let (type_store, class_type_info_map) =
             class_processor.process_classes(program, &mut errors);
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
 
         let mut expr_processor = ExprProcessor::new(
             type_store,
@@ -66,6 +74,10 @@ impl Typechecker {
 
         for group in &ordered_dep_groups {
             expr_processor.process_dep_group(group, &mut errors);
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
         }
 
         //expr_processor.dump_function_types();

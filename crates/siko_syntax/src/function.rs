@@ -11,6 +11,7 @@ pub enum FunctionBody {
 
 #[derive(Debug, Clone)]
 pub struct FunctionType {
+    pub id: FunctionTypeId,
     pub name: String,
     pub type_args: Vec<(String, LocationId)>,
     pub constraints: Vec<Constraint>,
@@ -37,5 +38,17 @@ pub struct FunctionId {
 impl From<usize> for FunctionId {
     fn from(id: usize) -> FunctionId {
         FunctionId { id: id }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct FunctionTypeId {
+    pub id: usize,
+}
+
+impl From<usize> for FunctionTypeId {
+    fn from(id: usize) -> FunctionTypeId {
+        FunctionTypeId { id: id }
     }
 }

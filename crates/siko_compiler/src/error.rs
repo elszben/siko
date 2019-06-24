@@ -452,7 +452,7 @@ impl Error {
                     match err {
                         TypecheckError::UntypedExternFunction(name, id) => {
                             eprintln!(
-                                "{} extern function {} must have a type signature",
+                                "{} extern function {} does not have a type signature",
                                 error.red(),
                                 name.yellow()
                             );
