@@ -9,18 +9,20 @@ actor FooActor Foo where
     FooProtocol -> foo
 */
 
-class Boo a where
-    boo a :: a -> Bool
+class Deq a where
+    deq a :: a -> a -> Bool
 
-class Foo a where
-    foo a :: a -> Bool
+data Vec a = extern
 
-instance (Foo a) => Boo a where
-    boo a = False
+get a :: Vec a -> a
+get a = extern
 
-instance Foo Int where
-    foo a = False
+instance Deq String where
+    deq a b = False
+
+instance Deq Vec a where
+    deq a b = deq (get a) (get b)
 
 main = do
-    a <- foo
-    a "a"
+    deq "a" "4"
+    

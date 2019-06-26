@@ -1,5 +1,5 @@
 use crate::function::FunctionId;
-use crate::function::FunctionType;
+use crate::function::FunctionTypeId;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 
@@ -9,7 +9,8 @@ pub struct Class {
     pub name: String,
     pub arg: String,
     pub constraints: Vec<Constraint>,
-    pub members: Vec<ClassMemberId>,
+    pub member_functions: Vec<FunctionId>,
+    pub member_function_types: Vec<FunctionTypeId>,
     pub location_id: LocationId,
 }
 
@@ -19,21 +20,9 @@ pub struct Instance {
     pub class_name: String,
     pub type_signature_id: TypeSignatureId,
     pub constraints: Vec<Constraint>,
-    pub members: Vec<InstanceMember>,
+    pub member_functions: Vec<FunctionId>,
+    pub member_function_types: Vec<FunctionTypeId>,
     pub location_id: LocationId,
-}
-
-#[derive(Debug, Clone)]
-pub struct ClassMember {
-    pub id: ClassMemberId,
-    pub type_signature: FunctionType,
-    pub default_implementation: Option<FunctionId>,
-    pub location_id: LocationId,
-}
-
-#[derive(Debug, Clone)]
-pub struct InstanceMember {
-    pub function_id: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -51,17 +40,6 @@ pub struct ClassId {
 impl From<usize> for ClassId {
     fn from(id: usize) -> ClassId {
         ClassId { id: id }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub struct ClassMemberId {
-    pub id: usize,
-}
-
-impl From<usize> for ClassMemberId {
-    fn from(id: usize) -> ClassMemberId {
-        ClassMemberId { id: id }
     }
 }
 

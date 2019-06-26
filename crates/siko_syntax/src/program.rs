@@ -1,7 +1,5 @@
 use crate::class::Class;
 use crate::class::ClassId;
-use crate::class::ClassMember;
-use crate::class::ClassMemberId;
 use crate::class::Instance;
 use crate::class::InstanceId;
 use crate::data::Adt;
@@ -38,7 +36,6 @@ pub struct Program {
     pub adts: ItemContainer<AdtId, Adt>,
     pub variants: ItemContainer<VariantId, Variant>,
     pub classes: ItemContainer<ClassId, Class>,
-    pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
@@ -57,7 +54,6 @@ impl Program {
             adts: ItemContainer::new(),
             variants: ItemContainer::new(),
             classes: ItemContainer::new(),
-            class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
             exprs: ItemContainer::new(),
             type_signatures: ItemContainer::new(),

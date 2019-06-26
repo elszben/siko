@@ -206,17 +206,26 @@ impl Resolver {
                 let item = Item::Function(function.id, ir_function_id);
                 module.add_item(function.name.clone(), item);
             }
+            for function_type_id in &ast_module.function_types {
+                let function_type = program.function_types.get(function_type_id);
+                let function_types = module
+                    .function_types
+                    .entry(function_type.name.clone())
+                    .or_insert_with(|| Vec::new());
+                function_types.push(*function_type_id);
+            }
             for class_id in &ast_module.classes {
                 let ir_class_id = ir_program.classes.get_id();
                 let class = program.classes.get(class_id);
                 let item = Item::Class(class.id, ir_class_id);
                 module.add_item(class.name.clone(), item);
                 let mut members = Vec::new();
-                for member_id in &class.members {
+                for member_function_type_id in &class.member_function_types {
                     let ir_class_member_id = ir_program.class_members.get_id();
-                    let class_member = program.class_members.get(member_id);
-                    let item = Item::ClassMember(class.id, *member_id, ir_class_member_id);
-                    module.add_item(class_member.type_signature.name.clone(), item);
+                    let class_member = program.function_types.get(member_function_type_id);
+                    let item =
+                        Item::ClassMember(class.id, *member_function_type_id, ir_class_member_id);
+                    module.add_item(class_member.name.clone(), item);
                     members.push(ir_class_member_id);
                 }
                 let ir_class = IrClass {
@@ -256,7 +265,7 @@ impl Resolver {
                                 locations.push(class.location_id);
                             }
                             Item::ClassMember(_, id, _) => {
-                                let class_member = program.class_members.get(id);
+                                let class_member = program.function_types.get(id);
                                 locations.push(class_member.location_id);
                             }
                         }
@@ -299,22 +308,6 @@ impl Resolver {
                     errors.push(err);
                 }
             }
-        }
-    }
-
-    fn check_function_type_name(
-        &self,
-        function_type: &AstFunctionType,
-        name: &String,
-        errors: &mut Vec<ResolverError>,
-    ) {
-        if function_type.name != *name {
-            let err = ResolverError::FunctionTypeNameMismatch(
-                function_type.name.clone(),
-                name.clone(),
-                function_type.location_id,
-            );
-            errors.push(err);
         }
     }
 
@@ -638,27 +631,36 @@ impl Resolver {
             }
         }
 
+        let mut default_implementations = BTreeMap::new();
+
+        for function_id in &class.member_functions {
+            let default_implementation = program.functions.get(function_id);
+            let impls = default_implementations
+                .entry(default_implementation.name.clone())
+                .or_insert_with(|| Vec::new());
+            impls.push(function_id);
+        }
+
         let ir_class = ir_program.classes.get(ir_class_id);
         let ir_class_member_ids = ir_class.members.clone();
-        for (index, member_id) in class.members.iter().enumerate() {
-            let class_member = program.class_members.get(member_id);
+        for (index, function_type_id) in class.member_function_types.iter().enumerate() {
+            let class_member = program.function_types.get(function_type_id);
             let ir_class_member_id = ir_class_member_ids[index];
-            let ty = &class_member.type_signature;
             let signature_type_args: BTreeSet<_> =
-                ty.type_args.iter().map(|i| i.0.clone()).collect();
+                class_member.type_args.iter().map(|i| i.0.clone()).collect();
             if !signature_type_args.contains(&class.arg) || signature_type_args.len() != 1 {
                 let err = ResolverError::ClassMemberTypeArgMismatch(
                     class.arg.clone(),
                     signature_type_args.into_iter().collect(),
-                    ty.location_id,
+                    class_member.location_id,
                 );
                 errors.push(err);
                 continue;
             }
-            if !ty.constraints.is_empty() {
-                for constraint in &ty.constraints {
+            if !class_member.constraints.is_empty() {
+                for constraint in &class_member.constraints {
                     let err = ResolverError::ExtraConstraintInClassMember(
-                        class_member.type_signature.name.clone(),
+                        class_member.name.clone(),
                         constraint.location_id,
                     );
                     errors.push(err);
@@ -669,11 +671,11 @@ impl Resolver {
             let type_args = collector.get_all_constraints();
             let result = process_type_signatures(
                 type_args.clone(),
-                &[ty.type_signature_id],
+                &[class_member.type_signature_id],
                 program,
                 ir_program,
                 module,
-                ty.location_id,
+                class_member.location_id,
                 errors,
                 false,
                 false,
@@ -681,32 +683,33 @@ impl Resolver {
 
             if errors.is_empty() {
                 let default_implementation =
-                    if let Some(default_implementation) = &class_member.default_implementation {
-                        let ir_function_id = ir_program.functions.get_id();
-                        let function = program.functions.get(default_implementation);
-                        let func_type = function
-                            .func_type
-                            .as_ref()
-                            .expect("default class member has no type");
-                        self.check_function_type_name(func_type, &function.name, errors);
-                        self.process_function(
-                            program,
-                            ir_program,
-                            &function,
-                            ir_function_id,
-                            module,
-                            errors,
-                            result[0],
-                            &type_args,
-                        );
-                        Some(ir_function_id)
+                    if let Some(impls) = default_implementations.get(&class_member.name) {
+                        if impls.len() > 1 {
+                            // TODO
+                            None
+                        } else {
+                            let impl_id = impls[0];
+                            let ir_function_id = ir_program.functions.get_id();
+                            let function = program.functions.get(&impl_id);
+                            self.process_function(
+                                program,
+                                ir_program,
+                                &function,
+                                ir_function_id,
+                                module,
+                                errors,
+                                result[0],
+                                &type_args,
+                            );
+                            Some(ir_function_id)
+                        }
                     } else {
                         None
                     };
                 let ir_class_member = IrClassMember {
                     id: ir_class_member_id,
                     class_id: *ir_class_id,
-                    name: class_member.type_signature.name.clone(),
+                    name: class_member.name.clone(),
                     type_signature: result[0].expect("Type signature not found"),
                     default_implementation: default_implementation,
                     location_id: class_member.location_id,
@@ -782,8 +785,8 @@ impl Resolver {
             let mut members = Vec::new();
             let mut implemented_members = BTreeSet::new();
 
-            for member in &instance.members {
-                let function = program.functions.get(&member.function_id);
+            for member_function_id in &instance.member_functions {
+                let function = program.functions.get(&member_function_id);
                 let member_name = &function.name;
                 if let Some(class_member_info) = class_members.get(member_name) {
                     let ir_function_id = ir_program.functions.get_id();
@@ -793,7 +796,6 @@ impl Resolver {
                     };
                     members.push(ir_instance_member);
                     let class_member_type_signature_id = class_member_info.2;
-                    let function = program.functions.get(&member.function_id);
                     self.process_function(
                         program,
                         ir_program,
@@ -940,19 +942,27 @@ impl Resolver {
                     match item {
                         Item::Function(ast_function_id, ir_function_id) => {
                             let function = program.functions.get(ast_function_id);
-                            let (type_signature_id, type_args) =
-                                if let Some(ty) = &function.func_type {
-                                    self.check_function_type_name(ty, &function.name, &mut errors);
+                            let (type_signature_id, type_args) = if let Some(function_types) =
+                                module.function_types.get(&function.name)
+                            {
+                                if function_types.len() > 1 {
+                                    // TODO
+                                    (None, TypeArgConstraintCollection::new())
+                                } else {
+                                    let function_type_id = function_types[0];
+                                    let function_type =
+                                        program.function_types.get(&function_type_id);
                                     self.process_function_type(
-                                        ty,
+                                        function_type,
                                         module,
                                         program,
                                         &mut ir_program,
                                         &mut errors,
                                     )
-                                } else {
-                                    (None, TypeArgConstraintCollection::new())
-                                };
+                                }
+                            } else {
+                                (None, TypeArgConstraintCollection::new())
+                            };
                             self.process_function(
                                 program,
                                 &mut ir_program,

@@ -18,11 +18,8 @@ use siko_location_info::item::LocationId;
 use siko_location_info::location_info::LocationInfo;
 use siko_location_info::location_set::LocationSet;
 use siko_syntax::class::Class;
-
-use siko_syntax::class::ClassMember;
 use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance;
-use siko_syntax::class::InstanceMember;
 use siko_syntax::data::Adt;
 use siko_syntax::data::Data;
 use siko_syntax::data::Record;
@@ -39,7 +36,9 @@ use siko_syntax::expr::Expr;
 use siko_syntax::expr::ExprId;
 use siko_syntax::function::Function;
 use siko_syntax::function::FunctionBody;
+use siko_syntax::function::FunctionId;
 use siko_syntax::function::FunctionType;
+use siko_syntax::function::FunctionTypeId;
 use siko_syntax::import::HiddenItem;
 use siko_syntax::import::Import;
 use siko_syntax::import::ImportId;
@@ -53,8 +52,8 @@ use siko_syntax::types::TypeSignature;
 use siko_syntax::types::TypeSignatureId;
 
 enum FunctionOrFunctionType {
-    Function(Function),
-    FunctionType(FunctionType),
+    Function(FunctionId),
+    FunctionType(FunctionTypeId),
 }
 
 fn parse_class_constraint(parser: &mut Parser) -> Result<Constraint, ParseError> {
@@ -546,7 +545,8 @@ impl<'a> Parser<'a> {
                 location_id: location_id,
             };
             self.expect(TokenKind::EndOfItem)?;
-            Ok(FunctionOrFunctionType::FunctionType(function_type))
+            self.program.function_types.add_item(id, function_type);
+            Ok(FunctionOrFunctionType::FunctionType(id))
         } else {
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
@@ -569,10 +569,10 @@ impl<'a> Parser<'a> {
                 name: name,
                 args: args,
                 body: body,
-                func_type: None,
                 location_id: location_id,
             };
-            Ok(FunctionOrFunctionType::Function(function))
+            self.program.functions.add_item(id, function);
+            Ok(FunctionOrFunctionType::Function(id))
         }
     }
 
@@ -877,41 +877,18 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let class_location_id = self.get_location_id(start_index, end_index);
         let arg = self.var_identifier("class argument")?;
-        let mut members: Vec<ClassMember> = Vec::new();
+        let mut member_functions: Vec<_> = Vec::new();
+        let mut member_function_types: Vec<_> = Vec::new();
         if self.current_kind() == TokenKind::KeywordWhere {
             self.expect(TokenKind::KeywordWhere)?;
             while self.current_kind() != TokenKind::EndOfBlock {
-                let saved_index = self.get_index();
                 let function_or_type = self.parse_function_or_function_type()?;
                 match function_or_type {
-                    FunctionOrFunctionType::Function(mut function) => {
-                        if !members.is_empty() {
-                            let len = members.len();
-                            let last = &mut members[len - 1];
-                            if last.default_implementation.is_none() {
-                                let function_id = function.id;
-                                function.func_type = Some(last.type_signature.clone());
-                                self.program.functions.add_item(function_id, function);
-                                last.default_implementation = Some(function_id);
-                                continue;
-                            }
-                        }
-                        self.restore(saved_index);
-                        let reason = ParserErrorReason::Custom {
-                            msg: format!("Expected function type signature"),
-                        };
-                        return report_parser_error(self, reason);
+                    FunctionOrFunctionType::Function(function_id) => {
+                        member_functions.push(function_id);
                     }
-                    FunctionOrFunctionType::FunctionType(function_type) => {
-                        let member_id = self.program.class_members.get_id();
-                        let location_id = function_type.location_id;
-                        let member = ClassMember {
-                            id: member_id,
-                            type_signature: function_type,
-                            default_implementation: None,
-                            location_id: location_id,
-                        };
-                        members.push(member);
+                    FunctionOrFunctionType::FunctionType(function_type_id) => {
+                        member_function_types.push(function_type_id);
                     }
                 }
             }
@@ -920,17 +897,13 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::EndOfItem)?;
         let id = self.program.classes.get_id();
         module.classes.push(id);
-        let mut member_ids = Vec::new();
-        for member in members {
-            member_ids.push(member.id);
-            self.program.class_members.add_item(member.id, member);
-        }
         let class = Class {
             id: id,
             name: name,
             arg: arg,
             constraints: constraints,
-            members: member_ids,
+            member_functions: member_functions,
+            member_function_types: member_function_types,
             location_id: class_location_id,
         };
         Ok(class)
@@ -950,27 +923,18 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let instance_location_id = self.get_location_id(start_index, end_index);
         let type_signature_id = self.parse_function_type(false, false)?;
-        let mut members = Vec::new();
+        let mut member_functions: Vec<_> = Vec::new();
+        let mut member_function_types: Vec<_> = Vec::new();
         if self.current_kind() == TokenKind::KeywordWhere {
             self.expect(TokenKind::KeywordWhere)?;
             while self.current_kind() != TokenKind::EndOfBlock {
-                let saved_index = self.get_index();
                 let function_or_type = self.parse_function_or_function_type()?;
                 match function_or_type {
-                    FunctionOrFunctionType::Function(function) => {
-                        let function_id = function.id;
-                        self.program.functions.add_item(function_id, function);
-                        let member = InstanceMember {
-                            function_id: function_id,
-                        };
-                        members.push(member);
+                    FunctionOrFunctionType::Function(function_id) => {
+                        member_functions.push(function_id);
                     }
-                    FunctionOrFunctionType::FunctionType(_) => {
-                        self.restore(saved_index);
-                        let reason = ParserErrorReason::Custom {
-                            msg: format!("Expected function definition, not function type"),
-                        };
-                        return report_parser_error(self, reason);
+                    FunctionOrFunctionType::FunctionType(function_type_id) => {
+                        member_function_types.push(function_type_id);
                     }
                 }
             }
@@ -984,7 +948,8 @@ impl<'a> Parser<'a> {
             class_name: class_name,
             type_signature_id: type_signature_id,
             constraints: constraints,
-            members: members,
+            member_functions: member_functions,
+            member_function_types: member_function_types,
             location_id: instance_location_id,
         };
         Ok(instance)
@@ -1033,34 +998,14 @@ impl<'a> Parser<'a> {
                     TokenKind::EndOfBlock => {
                         break;
                     }
-                    _ => {
-                        let function_or_type = self.parse_function_or_function_type()?;
-                        match function_or_type {
-                            FunctionOrFunctionType::Function(function) => {
-                                let function_id = function.id;
-                                module.functions.push(function_id);
-                                self.program.functions.add_item(function_id, function);
-                            }
-                            FunctionOrFunctionType::FunctionType(function_type) => {
-                                let saved_index = self.get_index();
-                                let function = self.parse_function_or_function_type()?;
-                                if let FunctionOrFunctionType::Function(mut function) = function {
-                                    let function_id = function.id;
-                                    function.func_type = Some(function_type);
-                                    module.functions.push(function_id);
-                                    self.program.functions.add_item(function_id, function);
-                                } else {
-                                    self.restore(saved_index);
-                                    let reason = ParserErrorReason::Custom {
-                                        msg: format!(
-                                            "Expected function definition, not function type"
-                                        ),
-                                    };
-                                    return report_parser_error(self, reason);
-                                }
-                            }
+                    _ => match self.parse_function_or_function_type()? {
+                        FunctionOrFunctionType::Function(id) => {
+                            module.functions.push(id);
                         }
-                    }
+                        FunctionOrFunctionType::FunctionType(id) => {
+                            module.function_types.push(id);
+                        }
+                    },
                 }
             } else {
                 break;

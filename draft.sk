@@ -1,0 +1,5 @@
+module Main where
+
+
+foo a :: [b] -> [a]
+foo a = a

@@ -26,7 +26,6 @@ pub struct Function {
     pub name: String,
     pub args: Vec<(String, LocationId)>,
     pub body: FunctionBody,
-    pub func_type: Option<FunctionType>,
     pub location_id: LocationId,
 }
 

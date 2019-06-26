@@ -3,12 +3,12 @@ use siko_ir::class::ClassMemberId as IrClassMemberId;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::types::TypeDefId;
 use siko_syntax::class::ClassId;
-use siko_syntax::class::ClassMemberId;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordFieldId;
 use siko_syntax::data::RecordId;
 use siko_syntax::data::VariantId;
 use siko_syntax::function::FunctionId;
+use siko_syntax::function::FunctionTypeId;
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -17,7 +17,7 @@ pub enum Item {
     Adt(AdtId, TypeDefId),
     Variant(AdtId, VariantId, TypeDefId, usize),
     Class(ClassId, IrClassId),
-    ClassMember(ClassId, ClassMemberId, IrClassMemberId),
+    ClassMember(ClassId, FunctionTypeId, IrClassMemberId),
 }
 
 #[derive(Debug, Clone)]
