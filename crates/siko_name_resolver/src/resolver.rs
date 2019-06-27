@@ -641,10 +641,28 @@ impl Resolver {
             impls.push(function_id);
         }
 
+        for (name, impls) in &default_implementations {
+            if impls.len() > 1 {
+                let mut locations = Vec::new();
+                for i in impls {
+                    let function = program.functions.get(i);
+                    locations.push(function.location_id);
+                }
+                let err = ResolverError::MultipleDefaultClassMember(
+                    class.name.clone(),
+                    name.clone(),
+                    locations,
+                );
+                errors.push(err);
+            }
+        }
+
         let ir_class = ir_program.classes.get(ir_class_id);
         let ir_class_member_ids = ir_class.members.clone();
+        let mut function_type_names = BTreeSet::new();
         for (index, function_type_id) in class.member_function_types.iter().enumerate() {
             let class_member = program.function_types.get(function_type_id);
+            function_type_names.insert(class_member.name.clone());
             let ir_class_member_id = ir_class_member_ids[index];
             let signature_type_args: BTreeSet<_> =
                 class_member.type_args.iter().map(|i| i.0.clone()).collect();
@@ -684,25 +702,21 @@ impl Resolver {
             if errors.is_empty() {
                 let default_implementation =
                     if let Some(impls) = default_implementations.get(&class_member.name) {
-                        if impls.len() > 1 {
-                            // TODO
-                            None
-                        } else {
-                            let impl_id = impls[0];
-                            let ir_function_id = ir_program.functions.get_id();
-                            let function = program.functions.get(&impl_id);
-                            self.process_function(
-                                program,
-                                ir_program,
-                                &function,
-                                ir_function_id,
-                                module,
-                                errors,
-                                result[0],
-                                &type_args,
-                            );
-                            Some(ir_function_id)
-                        }
+                        assert_eq!(impls.len(), 1);
+                        let impl_id = impls[0];
+                        let ir_function_id = ir_program.functions.get_id();
+                        let function = program.functions.get(&impl_id);
+                        self.process_function(
+                            program,
+                            ir_program,
+                            &function,
+                            ir_function_id,
+                            module,
+                            errors,
+                            result[0],
+                            &type_args,
+                        );
+                        Some(ir_function_id)
                     } else {
                         None
                     };
@@ -717,6 +731,21 @@ impl Resolver {
                 ir_program
                     .class_members
                     .add_item(ir_class_member_id, ir_class_member);
+            }
+        }
+
+        if errors.is_empty() {
+            for (name, impls) in &default_implementations {
+                if !function_type_names.contains(name) {
+                    let id = impls[0];
+                    let function = program.functions.get(id);
+                    let err = ResolverError::DefaultClassMemberWithoutType(
+                        class.name.clone(),
+                        name.clone(),
+                        function.location_id,
+                    );
+                    errors.push(err);
+                }
             }
         }
     }

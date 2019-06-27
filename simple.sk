@@ -11,6 +11,8 @@ actor FooActor Foo where
 
 class Deq a where
     deq a :: a -> a -> Bool
+    
+    deq a b = False
 
 data Vec a = extern
 

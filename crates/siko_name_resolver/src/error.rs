@@ -37,6 +37,8 @@ pub enum ResolverError {
     MissingClassMemberInInstance(String, String, LocationId),
     ClassMemberTypeArgMismatch(String, Vec<String>, LocationId),
     ExtraConstraintInClassMember(String, LocationId),
+    MultipleDefaultClassMember(String, String, Vec<LocationId>),
+    DefaultClassMemberWithoutType(String, String, LocationId),
 }
 
 #[derive(Debug)]

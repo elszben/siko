@@ -439,6 +439,28 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::MultipleDefaultClassMember(class, name, locations) => {
+                            eprintln!(
+                                "{} multiple default implementation for class member {} in class {}",
+                                error.red(),
+                                name.yellow(),
+                                class.yellow()
+                            );
+                            for id in locations {
+                                let location_set = location_info.get_item_location(id);
+                                print_location_set(file_manager, location_set);
+                            }
+                        }
+                        ResolverError::DefaultClassMemberWithoutType(class, name, id) => {
+                            eprintln!(
+                                "{} class member {} in class {} has no type signature",
+                                error.red(),
+                                name.yellow(),
+                                class.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
