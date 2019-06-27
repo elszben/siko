@@ -648,7 +648,7 @@ impl Resolver {
                     let function = program.functions.get(i);
                     locations.push(function.location_id);
                 }
-                let err = ResolverError::MultipleDefaultClassMember(
+                let err = ResolverError::ConflictingDefaultClassMember(
                     class.name.clone(),
                     name.clone(),
                     locations,
@@ -966,6 +966,28 @@ impl Resolver {
         }
 
         for (_, module) in &self.modules {
+            for (name, function_types) in &module.function_types {
+                if function_types.len() > 1 {
+                    let mut locations = Vec::new();
+                    for id in function_types {
+                        let function_type = program.function_types.get(id);
+                        locations.push(function_type.location_id);
+                    }
+                    let err = ResolverError::ConflictingFunctionTypesInModule(
+                        module.name.clone(),
+                        name.clone(),
+                        locations,
+                    );
+                    errors.push(err);
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::resolve_err(errors));
+        }
+
+        for (_, module) in &self.modules {
             for (_, items) in &module.items {
                 for item in items {
                     match item {
@@ -974,21 +996,16 @@ impl Resolver {
                             let (type_signature_id, type_args) = if let Some(function_types) =
                                 module.function_types.get(&function.name)
                             {
-                                if function_types.len() > 1 {
-                                    // TODO
-                                    (None, TypeArgConstraintCollection::new())
-                                } else {
-                                    let function_type_id = function_types[0];
-                                    let function_type =
-                                        program.function_types.get(&function_type_id);
-                                    self.process_function_type(
-                                        function_type,
-                                        module,
-                                        program,
-                                        &mut ir_program,
-                                        &mut errors,
-                                    )
-                                }
+                                assert_eq!(function_types.len(), 1);
+                                let function_type_id = function_types[0];
+                                let function_type = program.function_types.get(&function_type_id);
+                                self.process_function_type(
+                                    function_type,
+                                    module,
+                                    program,
+                                    &mut ir_program,
+                                    &mut errors,
+                                )
                             } else {
                                 (None, TypeArgConstraintCollection::new())
                             };

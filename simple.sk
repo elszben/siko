@@ -17,6 +17,7 @@ class Deq a where
 data Vec a = extern
 
 get a :: Vec a -> a
+get a :: Vec a -> a
 get a = extern
 
 instance Deq String where

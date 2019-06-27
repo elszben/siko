@@ -439,9 +439,9 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::MultipleDefaultClassMember(class, name, locations) => {
+                        ResolverError::ConflictingDefaultClassMember(class, name, locations) => {
                             eprintln!(
-                                "{} multiple default implementation for class member {} in class {}",
+                                "{} conflicting default implementations for class member {} in class {}",
                                 error.red(),
                                 name.yellow(),
                                 class.yellow()
@@ -460,6 +460,22 @@ impl Error {
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::ConflictingFunctionTypesInModule(
+                            module,
+                            name,
+                            locations,
+                        ) => {
+                            eprintln!(
+                                "{} conflicting function types named {} in module {}",
+                                error.red(),
+                                name.yellow(),
+                                module.yellow()
+                            );
+                            for id in locations {
+                                let location_set = location_info.get_item_location(id);
+                                print_location_set(file_manager, location_set);
+                            }
                         }
                     }
                 }
