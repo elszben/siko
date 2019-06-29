@@ -393,15 +393,6 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::ClassMemberImplementedMultipleTimes(member_name, id) => {
-                            eprintln!(
-                                "{} class member {} is implemented multiple times",
-                                error.red(),
-                                member_name.yellow(),
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
                         ResolverError::MissingClassMemberInInstance(
                             member_name,
                             class_name,
@@ -476,6 +467,53 @@ impl Error {
                                 let location_set = location_info.get_item_location(id);
                                 print_location_set(file_manager, location_set);
                             }
+                        }
+                        ResolverError::InstanceMemberWithoutImplementation(name, id) => {
+                            eprintln!( 
+                                "{} instance member {} has no implementation",
+                                error.red(),
+                                name.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                         ResolverError::ConflictingInstanceMemberFunction(
+                            name,
+                            locations,
+                        ) => {
+                            eprintln!(
+                                "{} conflicting instance member function named {}",
+                                error.red(),
+                                name.yellow(),
+                            );
+                            for id in locations {
+                                let location_set = location_info.get_item_location(id);
+                                print_location_set(file_manager, location_set);
+                            }
+                        }
+                        ResolverError::ConflictingFunctionTypesInInstance(
+                            name,
+                            locations,
+                        ) => {
+                            eprintln!(
+                                "{} conflicting function types named {} in instance",
+                                error.red(),
+                                name.yellow(),
+                            );
+                            for id in locations {
+                                let location_set = location_info.get_item_location(id);
+                                print_location_set(file_manager, location_set);
+                            }
+                        }
+                        ResolverError::FunctionTypeWithoutImplementationInModule(module, name, id) => {
+                            eprintln!( 
+                                "{} function type {} has no implementation in module {}",
+                                error.red(),
+                                name.yellow(),
+                                module.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
                         }
                     }
                 }

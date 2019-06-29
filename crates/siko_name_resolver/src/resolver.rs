@@ -868,6 +868,44 @@ impl Resolver {
             );
         }
 
+        let (
+            _,
+            function_types_without_functions,
+            conflicting_functions,
+            conflicting_function_types,
+        ) = check_function_and_function_type_consistency(
+            &instance.member_functions,
+            &instance.member_function_types,
+            program,
+        );
+
+        for id in function_types_without_functions {
+            let function_type = program.function_types.get(&id);
+            let err = ResolverError::InstanceMemberWithoutImplementation(
+                function_type.name.clone(),
+                function_type.location_id,
+            );
+            errors.push(err);
+        }
+
+        for (name, ids) in conflicting_functions {
+            let locations: Vec<_> = ids
+                .iter()
+                .map(|id| program.functions.get(id).location_id)
+                .collect();
+            let err = ResolverError::ConflictingInstanceMemberFunction(name.clone(), locations);
+            errors.push(err);
+        }
+
+        for (name, ids) in conflicting_function_types {
+            let locations: Vec<_> = ids
+                .iter()
+                .map(|id| program.function_types.get(id).location_id)
+                .collect();
+            let err = ResolverError::ConflictingFunctionTypesInInstance(name.clone(), locations);
+            errors.push(err);
+        }
+
         if let Some(type_signature) = result[0] {
             let id = ir_program.instances.get_id();
 
@@ -903,13 +941,7 @@ impl Resolver {
                     );
                     errors.push(err);
                 }
-                if !implemented_members.insert(member_name.clone()) {
-                    let err = ResolverError::ClassMemberImplementedMultipleTimes(
-                        member_name.clone(),
-                        function.location_id,
-                    );
-                    errors.push(err);
-                }
+                implemented_members.insert(member_name.clone());
             }
 
             for (class_member, (default_impl, ir_class_member_id, _)) in &class_members {
@@ -1026,20 +1058,35 @@ impl Resolver {
         }
 
         for (_, module) in &self.modules {
-            for (name, function_types) in &module.function_types {
-                if function_types.len() > 1 {
-                    let mut locations = Vec::new();
-                    for id in function_types {
-                        let function_type = program.function_types.get(id);
-                        locations.push(function_type.location_id);
-                    }
-                    let err = ResolverError::ConflictingFunctionTypesInModule(
-                        module.name.clone(),
-                        name.clone(),
-                        locations,
-                    );
-                    errors.push(err);
-                }
+            let ast_module = program.modules.get(&module.id);
+            let (_, function_types_without_functions, _, conflicting_function_types) =
+                check_function_and_function_type_consistency(
+                    &ast_module.functions,
+                    &ast_module.function_types,
+                    program,
+                );
+
+            for id in function_types_without_functions {
+                let function_type = program.function_types.get(&id);
+                let err = ResolverError::FunctionTypeWithoutImplementationInModule(
+                    module.name.clone(),
+                    function_type.name.clone(),
+                    function_type.location_id,
+                );
+                errors.push(err);
+            }
+
+            for (name, ids) in conflicting_function_types {
+                let locations: Vec<_> = ids
+                    .iter()
+                    .map(|id| program.function_types.get(id).location_id)
+                    .collect();
+                let err = ResolverError::ConflictingFunctionTypesInModule(
+                    module.name.clone(),
+                    name.clone(),
+                    locations,
+                );
+                errors.push(err);
             }
         }
 

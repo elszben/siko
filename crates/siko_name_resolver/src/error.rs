@@ -33,13 +33,16 @@ pub enum ResolverError {
     NotAClassName(String, LocationId),
     InvalidArgumentInTypeClassConstraint(String, LocationId),
     NotAClassMember(String, String, LocationId),
-    ClassMemberImplementedMultipleTimes(String, LocationId),
     MissingClassMemberInInstance(String, String, LocationId),
     ClassMemberTypeArgMismatch(String, Vec<String>, LocationId),
     ExtraConstraintInClassMember(String, LocationId),
     ConflictingDefaultClassMember(String, String, Vec<LocationId>),
     ConflictingFunctionTypesInModule(String, String, Vec<LocationId>),
     DefaultClassMemberWithoutType(String, String, LocationId),
+    InstanceMemberWithoutImplementation(String, LocationId),
+    ConflictingInstanceMemberFunction(String, Vec<LocationId>),
+    ConflictingFunctionTypesInInstance(String, Vec<LocationId>),
+    FunctionTypeWithoutImplementationInModule(String, String, LocationId),
 }
 
 #[derive(Debug)]
