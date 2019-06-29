@@ -11,39 +11,39 @@ pub struct TypeArgInfo {
 pub struct TypeArgResolver {
     args: BTreeMap<String, TypeArgInfo>,
     index: Counter,
-    allow_implicit: bool,
 }
 
 impl TypeArgResolver {
-    pub fn new(allow_implicit: bool) -> TypeArgResolver {
+    pub fn new() -> TypeArgResolver {
         TypeArgResolver {
             args: BTreeMap::new(),
             index: Counter::new(),
-            allow_implicit: allow_implicit,
         }
     }
 
-    pub fn add_explicit(&mut self, arg: String, constraints: Vec<ClassId>) {
+    pub fn add_explicit(&mut self, arg: String, constraints: Vec<ClassId>) -> usize {
         let index = self.index.next();
         let info = TypeArgInfo {
             index: index,
             constraints: constraints,
         };
         self.args.insert(arg.clone(), info);
+        index
     }
 
-    pub fn resolve_arg(&mut self, arg: &String) -> Option<TypeArgInfo> {
-        if self.allow_implicit {
-            let index = self.index.next();
-            let info = TypeArgInfo {
-                index: index,
-                constraints: Vec::new(),
-            };
-            let e = self.args.entry(arg.clone()).or_insert(info);
-            Some(e.clone())
+    pub fn add_constraint(&mut self, arg: &String, constraint: ClassId) -> bool {
+        if let Some(info) = self.args.get_mut(arg) {
+            info.constraints.push(constraint);
+            info.constraints.sort();
+            info.constraints.dedup();
+            true
         } else {
-            return self.args.get(arg).cloned();
+            false
         }
+    }
+
+    pub fn resolve_arg(&self, arg: &String) -> Option<TypeArgInfo> {
+        self.args.get(arg).cloned()
     }
 
     pub fn contains(&self, arg: &str) -> bool {

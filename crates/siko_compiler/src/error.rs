@@ -469,7 +469,7 @@ impl Error {
                             }
                         }
                         ResolverError::InstanceMemberWithoutImplementation(name, id) => {
-                            eprintln!( 
+                            eprintln!(
                                 "{} instance member {} has no implementation",
                                 error.red(),
                                 name.yellow(),
@@ -477,10 +477,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                         ResolverError::ConflictingInstanceMemberFunction(
-                            name,
-                            locations,
-                        ) => {
+                        ResolverError::ConflictingInstanceMemberFunction(name, locations) => {
                             eprintln!(
                                 "{} conflicting instance member function named {}",
                                 error.red(),
@@ -491,10 +488,7 @@ impl Error {
                                 print_location_set(file_manager, location_set);
                             }
                         }
-                        ResolverError::ConflictingFunctionTypesInInstance(
-                            name,
-                            locations,
-                        ) => {
+                        ResolverError::ConflictingFunctionTypesInInstance(name, locations) => {
                             eprintln!(
                                 "{} conflicting function types named {} in instance",
                                 error.red(),
@@ -505,8 +499,12 @@ impl Error {
                                 print_location_set(file_manager, location_set);
                             }
                         }
-                        ResolverError::FunctionTypeWithoutImplementationInModule(module, name, id) => {
-                            eprintln!( 
+                        ResolverError::FunctionTypeWithoutImplementationInModule(
+                            module,
+                            name,
+                            id,
+                        ) => {
+                            eprintln!(
                                 "{} function type {} has no implementation in module {}",
                                 error.red(),
                                 name.yellow(),

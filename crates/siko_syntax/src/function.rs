@@ -40,7 +40,6 @@ impl From<usize> for FunctionId {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FunctionTypeId {
     pub id: usize,

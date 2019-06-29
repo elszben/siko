@@ -1,8 +1,8 @@
 use crate::error::ResolverError;
 use crate::item::Item;
 use crate::module::Module;
-use crate::type_arg_constraint_collector::TypeArgConstraintCollection;
 use crate::type_arg_resolver::TypeArgResolver;
+use siko_ir::class::ClassId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::TypeSignature as IrTypeSignature;
 use siko_ir::types::TypeSignatureId as IrTypeSignatureId;
@@ -20,7 +20,7 @@ fn process_named_type(
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
-    type_arg_resolver: &mut TypeArgResolver,
+    type_arg_resolver: &TypeArgResolver,
     errors: &mut Vec<ResolverError>,
 ) -> Option<IrTypeSignatureId> {
     let ir_type_signature = match module.imported_items.get(name) {
@@ -101,12 +101,71 @@ fn process_named_type(
     return Some(id);
 }
 
-fn process_type_signature(
+pub fn collect_type_args(
+    type_signature_id: &TypeSignatureId,
+    program: &Program,
+    type_args: &mut BTreeSet<String>,
+) {
+    let info = program.type_signatures.get(type_signature_id);
+    match &info.item {
+        AstTypeSignature::Function(from, to) => {
+            collect_type_args(from, program, type_args);
+            collect_type_args(to, program, type_args);
+        }
+        AstTypeSignature::Named(_, items) => {
+            for item in items {
+                collect_type_args(item, program, type_args);
+            }
+        }
+        AstTypeSignature::Tuple(items) => {
+            for item in items {
+                collect_type_args(item, program, type_args);
+            }
+        }
+        AstTypeSignature::TypeArg(name) => {
+            type_args.insert(name.clone());
+        }
+        AstTypeSignature::Variant(_, items) => {
+            for item in items {
+                collect_type_args(item, program, type_args);
+            }
+        }
+        AstTypeSignature::Wildcard => {}
+    }
+}
+
+pub fn process_class_type_signature(
+    type_signature_id: &TypeSignatureId,
+    program: &Program,
+    ir_program: &mut IrProgram,
+    type_arg_resolver: &mut TypeArgResolver,
+    errors: &mut Vec<ResolverError>,
+    class_id: ClassId,
+) -> Option<(IrTypeSignatureId, String)> {
+    let info = program.type_signatures.get(type_signature_id);
+    match &info.item {
+        AstTypeSignature::TypeArg(name) => {
+            let constraints = vec![class_id];
+            let index = type_arg_resolver.add_explicit(name.clone(), constraints.clone());
+            let ir_type_signature = IrTypeSignature::TypeArgument(index, name.clone(), constraints);
+            let id = ir_program.type_signatures.get_id();
+            let type_info = ItemInfo::new(ir_type_signature, info.location_id);
+            ir_program.type_signatures.add_item(id, type_info);
+            Some((id, name.clone()))
+        }
+        _ => {
+            // TODO
+            None
+        }
+    }
+}
+
+pub fn process_type_signature(
     type_signature_id: &TypeSignatureId,
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
-    type_arg_resolver: &mut TypeArgResolver,
+    type_arg_resolver: &TypeArgResolver,
     errors: &mut Vec<ResolverError>,
 ) -> Option<IrTypeSignatureId> {
     let info = program.type_signatures.get(type_signature_id);
@@ -205,59 +264,4 @@ fn process_type_signature(
     let type_info = ItemInfo::new(ir_type_signature, location_id);
     ir_program.type_signatures.add_item(id, type_info);
     return Some(id);
-}
-
-pub fn process_type_signatures(
-    original_type_args: TypeArgConstraintCollection,
-    type_signature_ids: &[TypeSignatureId],
-    program: &Program,
-    ir_program: &mut IrProgram,
-    module: &Module,
-    location_id: LocationId,
-    errors: &mut Vec<ResolverError>,
-    external: bool,
-    allow_implicit: bool,
-) -> Vec<Option<IrTypeSignatureId>> {
-    let mut type_arg_resolver = TypeArgResolver::new(allow_implicit);
-    let mut result = Vec::new();
-    let mut type_arg_names = BTreeSet::new();
-    let mut conflicting_names = BTreeSet::new();
-    for (type_arg, constraints) in original_type_args.items {
-        type_arg_resolver.add_explicit(type_arg.clone(), constraints);
-        if !type_arg_names.insert(type_arg.clone()) {
-            conflicting_names.insert(type_arg.clone());
-        }
-    }
-    if !conflicting_names.is_empty() {
-        let error = ResolverError::TypeArgumentConflict(
-            conflicting_names.iter().cloned().collect(),
-            location_id,
-        );
-        errors.push(error);
-    }
-    for type_signature_id in type_signature_ids {
-        let id = process_type_signature(
-            &type_signature_id,
-            program,
-            ir_program,
-            module,
-            &mut type_arg_resolver,
-            errors,
-        );
-        result.push(id);
-    }
-
-    let mut unused = Vec::new();
-    for type_arg in type_arg_names.iter() {
-        if !type_arg_resolver.contains(type_arg) {
-            unused.push(type_arg.clone());
-        }
-    }
-
-    if !unused.is_empty() && !external {
-        let err = ResolverError::UnusedTypeArgument(unused, location_id);
-        errors.push(err);
-    }
-
-    result
 }

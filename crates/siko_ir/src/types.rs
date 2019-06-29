@@ -118,7 +118,6 @@ impl TypeDef {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeId {
     pub id: usize,

@@ -876,7 +876,7 @@ impl<'a> Parser<'a> {
         let name = self.type_identifier("class name")?;
         let end_index = self.get_index();
         let class_location_id = self.get_location_id(start_index, end_index);
-        let arg = self.var_identifier("class argument")?;
+        let arg = self.parse_function_type(false, false)?;
         let mut member_functions: Vec<_> = Vec::new();
         let mut member_function_types: Vec<_> = Vec::new();
         if self.current_kind() == TokenKind::KeywordWhere {

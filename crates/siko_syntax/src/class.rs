@@ -7,7 +7,7 @@ use siko_location_info::item::LocationId;
 pub struct Class {
     pub id: ClassId,
     pub name: String,
-    pub arg: String,
+    pub arg: TypeSignatureId,
     pub constraints: Vec<Constraint>,
     pub member_functions: Vec<FunctionId>,
     pub member_function_types: Vec<FunctionTypeId>,

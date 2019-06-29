@@ -50,6 +50,7 @@ pub struct ClassMember {
     pub id: ClassMemberId,
     pub class_id: ClassId,
     pub name: String,
+    pub class_type_signature: TypeSignatureId,
     pub type_signature: TypeSignatureId,
     pub default_implementation: Option<FunctionId>,
     pub location_id: LocationId,
