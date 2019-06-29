@@ -47,11 +47,72 @@ use siko_syntax::data::RecordId;
 
 use siko_syntax::function::Function as AstFunction;
 use siko_syntax::function::FunctionBody as AstFunctionBody;
+use siko_syntax::function::FunctionId as AstFunctionId;
 use siko_syntax::function::FunctionType as AstFunctionType;
+use siko_syntax::function::FunctionTypeId as AstFunctionTypeId;
 use siko_syntax::module::Module as AstModule;
 use siko_syntax::program::Program;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+
+fn check_function_and_function_type_consistency(
+    functions: &Vec<AstFunctionId>,
+    function_types: &Vec<AstFunctionTypeId>,
+    program: &Program,
+) -> (
+    Vec<AstFunctionId>,
+    Vec<AstFunctionTypeId>,
+    BTreeMap<String, Vec<AstFunctionId>>,
+    BTreeMap<String, Vec<AstFunctionTypeId>>,
+) {
+    let mut function_names = BTreeMap::new();
+    let mut function_type_names = BTreeMap::new();
+    for id in functions {
+        let function = program.functions.get(id);
+        let ids = function_names
+            .entry(function.name.clone())
+            .or_insert_with(|| Vec::new());
+        ids.push(*id);
+    }
+    for id in function_types {
+        let function_type = program.function_types.get(id);
+        let ids = function_type_names
+            .entry(function_type.name.clone())
+            .or_insert_with(|| Vec::new());
+        ids.push(*id);
+    }
+
+    let function_name_set: BTreeSet<_> = function_names.keys().collect();
+    let function_type_name_set: BTreeSet<_> = function_type_names.keys().collect();
+    let mut functions_without_types: Vec<AstFunctionId> = Vec::new();
+    let mut function_types_without_functions: Vec<AstFunctionTypeId> = Vec::new();
+    for n in function_name_set.difference(&function_type_name_set) {
+        let ids = function_names.get(*n).unwrap();
+        functions_without_types.extend(ids);
+    }
+    for n in function_type_name_set.difference(&function_name_set) {
+        let ids = function_type_names.get(*n).unwrap();
+        function_types_without_functions.extend(ids);
+    }
+    let mut conflicting_functions = function_names.clone();
+    for (name, ids) in &function_names {
+        if ids.len() == 1 {
+            conflicting_functions.remove(name);
+        }
+    }
+    let mut conflicting_function_types = function_type_names.clone();
+    for (name, ids) in &function_type_names {
+        if ids.len() == 1 {
+            conflicting_function_types.remove(name);
+        }
+    }
+    (
+        functions_without_types,
+        function_types_without_functions,
+        conflicting_functions,
+        conflicting_function_types,
+    )
+}
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -641,20 +702,34 @@ impl Resolver {
             impls.push(function_id);
         }
 
-        for (name, impls) in &default_implementations {
-            if impls.len() > 1 {
-                let mut locations = Vec::new();
-                for i in impls {
-                    let function = program.functions.get(i);
-                    locations.push(function.location_id);
-                }
-                let err = ResolverError::ConflictingDefaultClassMember(
-                    class.name.clone(),
-                    name.clone(),
-                    locations,
-                );
-                errors.push(err);
-            }
+        let (functions_without_types, _, conflicting_functions, _) =
+            check_function_and_function_type_consistency(
+                &class.member_functions,
+                &class.member_function_types,
+                program,
+            );
+
+        for id in functions_without_types {
+            let function = program.functions.get(&id);
+            let err = ResolverError::DefaultClassMemberWithoutType(
+                class.name.clone(),
+                function.name.clone(),
+                function.location_id,
+            );
+            errors.push(err);
+        }
+
+        for (name, ids) in conflicting_functions {
+            let locations: Vec<_> = ids
+                .iter()
+                .map(|id| program.functions.get(id).location_id)
+                .collect();
+            let err = ResolverError::ConflictingDefaultClassMember(
+                class.name.clone(),
+                name.clone(),
+                locations,
+            );
+            errors.push(err);
         }
 
         let ir_class = ir_program.classes.get(ir_class_id);
@@ -731,21 +806,6 @@ impl Resolver {
                 ir_program
                     .class_members
                     .add_item(ir_class_member_id, ir_class_member);
-            }
-        }
-
-        if errors.is_empty() {
-            for (name, impls) in &default_implementations {
-                if !function_type_names.contains(name) {
-                    let id = impls[0];
-                    let function = program.functions.get(id);
-                    let err = ResolverError::DefaultClassMemberWithoutType(
-                        class.name.clone(),
-                        name.clone(),
-                        function.location_id,
-                    );
-                    errors.push(err);
-                }
             }
         }
     }
