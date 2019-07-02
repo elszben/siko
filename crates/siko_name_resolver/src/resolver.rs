@@ -739,6 +739,7 @@ impl Resolver {
                 class_member.type_args.iter().map(|i| i.0.clone()).collect();
             if !signature_type_args.contains(&class_arg) || signature_type_args.len() != 1 {
                 let err = ResolverError::ClassMemberTypeArgMismatch(
+                    class_member.name.clone(),
                     class_arg.clone(),
                     signature_type_args.into_iter().collect(),
                     class_member.location_id,

@@ -408,13 +408,15 @@ impl Error {
                             print_location_set(file_manager, location_set);
                         }
                         ResolverError::ClassMemberTypeArgMismatch(
+                            member_name,
                             class_arg,
                             signature_args,
                             id,
                         ) => {
                             eprintln!(
-                                "{} type arguments of class member {} does not match the type argument of class {}",
+                                "{} type arguments of class member {} does not match the type argument of class: {} != {}",
                                 error.red(),
+                                member_name.yellow(),
                                 format_list(signature_args).yellow(),
                                 class_arg.yellow(),
                             );
@@ -509,6 +511,14 @@ impl Error {
                                 error.red(),
                                 name.yellow(),
                                 module.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::InvalidClassArgument(id) => {
+                            eprintln!(
+                                "{} invalid class argument, must be a single type argument",
+                                error.red(),
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);

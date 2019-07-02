@@ -16,6 +16,8 @@ class Deq a where
 
 data Vec a = extern
 
+instance (Deq a) => Deq b 
+
 instance Deq String where
     deq a b = False
 

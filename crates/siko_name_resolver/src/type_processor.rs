@@ -154,7 +154,8 @@ pub fn process_class_type_signature(
             Some((id, name.clone()))
         }
         _ => {
-            // TODO
+            let err = ResolverError::InvalidClassArgument(info. location_id);
+            errors.push(err);
             None
         }
     }
