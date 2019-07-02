@@ -383,8 +383,8 @@ impl Resolver {
     ) -> (Option<TypeSignatureId>, TypeArgResolver) {
         let mut type_arg_resolver = TypeArgResolver::new();
 
-        for (type_arg, _) in function_type.type_args.iter() {
-            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new());
+        for (type_arg, location_id) in function_type.type_args.iter() {
+            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
         }
 
         for constraint in &function_type.constraints {
@@ -403,7 +403,7 @@ impl Resolver {
             program,
             ir_program,
             module,
-            &type_arg_resolver,
+            &mut type_arg_resolver,
             errors,
         );
 
@@ -419,7 +419,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
         type_signature_id: Option<TypeSignatureId>,
-        type_arg_resolver: &TypeArgResolver,
+        type_arg_resolver: &mut TypeArgResolver,
     ) {
         let mut body = None;
 
@@ -497,16 +497,30 @@ impl Resolver {
 
         let mut type_arg_resolver = TypeArgResolver::new();
 
-        for (type_arg, _) in adt.type_args.iter() {
-            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new());
+        for (type_arg, location_id) in adt.type_args.iter() {
+            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
         }
 
         let result: Vec<_> = type_signature_ids
             .iter()
             .map(|id| {
-                process_type_signature(id, program, ir_program, module, &type_arg_resolver, errors)
+                process_type_signature(
+                    id,
+                    program,
+                    ir_program,
+                    module,
+                    &mut type_arg_resolver,
+                    errors,
+                )
             })
             .collect();
+
+        let unused_args = type_arg_resolver.collect_unused_args();
+
+        for (unused_arg, location_id) in unused_args {
+            let err = ResolverError::UnusedTypeArgument(unused_arg, location_id);
+            errors.push(err);
+        }
 
         if errors.is_empty() {
             let mut ir_variants = Vec::new();
@@ -581,18 +595,31 @@ impl Resolver {
 
         let mut type_arg_resolver = TypeArgResolver::new();
 
-        for (type_arg, _) in record.type_args.iter() {
-            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new());
+        for (type_arg, location_id) in record.type_args.iter() {
+            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
         }
 
         let result: Vec<_> = type_signature_ids
             .iter()
             .map(|id| {
-                process_type_signature(id, program, ir_program, module, &type_arg_resolver, errors)
+                process_type_signature(
+                    id,
+                    program,
+                    ir_program,
+                    module,
+                    &mut type_arg_resolver,
+                    errors,
+                )
             })
             .collect();
 
-        // TODO
+        if !record.external {
+            let unused_args = type_arg_resolver.collect_unused_args();
+            for (unused_arg, location_id) in unused_args {
+                let err = ResolverError::UnusedTypeArgument(unused_arg, location_id);
+                errors.push(err);
+            }
+        }
 
         if errors.is_empty() {
             let mut ir_fields = Vec::new();
@@ -763,7 +790,7 @@ impl Resolver {
                 program,
                 ir_program,
                 module,
-                &type_arg_resolver,
+                &mut type_arg_resolver,
                 errors,
             );
 
@@ -782,7 +809,7 @@ impl Resolver {
                             module,
                             errors,
                             result,
-                            &type_arg_resolver,
+                            &mut type_arg_resolver,
                         );
                         Some(ir_function_id)
                     } else {
@@ -814,12 +841,12 @@ impl Resolver {
     ) {
         let mut type_arg_resolver = TypeArgResolver::new();
 
-        let mut type_args = BTreeSet::new();
+        let mut type_args = BTreeMap::new();
 
         collect_type_args(&instance.type_signature_id, program, &mut type_args);
 
-        for type_arg in type_args {
-            type_arg_resolver.add_explicit(type_arg, Vec::new());
+        for (type_arg, location_id) in type_args {
+            type_arg_resolver.add_explicit(type_arg, Vec::new(), location_id);
         }
 
         for constraint in &instance.constraints {
@@ -830,7 +857,11 @@ impl Resolver {
                 errors,
             ) {
                 if !type_arg_resolver.add_constraint(&constraint.arg, ir_class_id) {
-                    // TODO
+                    let err = ResolverError::InvalidTypeArgInInstanceConstraint(
+                        constraint.arg.clone(),
+                        constraint.location_id,
+                    );
+                    errors.push(err);
                 }
             }
         }
@@ -848,7 +879,7 @@ impl Resolver {
             program,
             ir_program,
             module,
-            &type_arg_resolver,
+            &mut type_arg_resolver,
             errors,
         );
 
@@ -931,7 +962,7 @@ impl Resolver {
                         module,
                         errors,
                         Some(class_member_type_signature_id),
-                        &type_arg_resolver,
+                        &mut type_arg_resolver,
                     );
                 } else {
                     let err = ResolverError::NotAClassMember(
@@ -1057,6 +1088,10 @@ impl Resolver {
             }
         }
 
+        if !errors.is_empty() {
+            return Err(Error::resolve_err(errors));
+        }
+
         for (_, module) in &self.modules {
             let ast_module = program.modules.get(&module.id);
             let (_, function_types_without_functions, _, conflicting_function_types) =
@@ -1100,22 +1135,24 @@ impl Resolver {
                     match item {
                         Item::Function(ast_function_id, ir_function_id) => {
                             let function = program.functions.get(ast_function_id);
-                            let (type_signature_id, type_args) = if let Some(function_types) =
-                                module.function_types.get(&function.name)
-                            {
-                                assert_eq!(function_types.len(), 1);
-                                let function_type_id = function_types[0];
-                                let function_type = program.function_types.get(&function_type_id);
-                                self.process_function_type(
-                                    function_type,
-                                    module,
-                                    program,
-                                    &mut ir_program,
-                                    &mut errors,
-                                )
-                            } else {
-                                (None, TypeArgResolver::new())
-                            };
+                            let (type_signature_id, mut type_arg_resolver) =
+                                if let Some(function_types) =
+                                    module.function_types.get(&function.name)
+                                {
+                                    assert_eq!(function_types.len(), 1);
+                                    let function_type_id = function_types[0];
+                                    let function_type =
+                                        program.function_types.get(&function_type_id);
+                                    self.process_function_type(
+                                        function_type,
+                                        module,
+                                        program,
+                                        &mut ir_program,
+                                        &mut errors,
+                                    )
+                                } else {
+                                    (None, TypeArgResolver::new())
+                                };
                             self.process_function(
                                 program,
                                 &mut ir_program,
@@ -1124,7 +1161,7 @@ impl Resolver {
                                 module,
                                 &mut errors,
                                 type_signature_id,
-                                &type_args,
+                                &mut type_arg_resolver,
                             );
                         }
                         _ => {}

@@ -11,7 +11,7 @@ use siko_location_info::item::LocationId;
 use siko_syntax::program::Program;
 use siko_syntax::types::TypeSignature as AstTypeSignature;
 use siko_syntax::types::TypeSignatureId;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 fn process_named_type(
     name: &String,
@@ -20,7 +20,7 @@ fn process_named_type(
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
-    type_arg_resolver: &TypeArgResolver,
+    type_arg_resolver: &mut TypeArgResolver,
     errors: &mut Vec<ResolverError>,
 ) -> Option<IrTypeSignatureId> {
     let ir_type_signature = match module.imported_items.get(name) {
@@ -104,7 +104,7 @@ fn process_named_type(
 pub fn collect_type_args(
     type_signature_id: &TypeSignatureId,
     program: &Program,
-    type_args: &mut BTreeSet<String>,
+    type_args: &mut BTreeMap<String, LocationId>,
 ) {
     let info = program.type_signatures.get(type_signature_id);
     match &info.item {
@@ -123,7 +123,7 @@ pub fn collect_type_args(
             }
         }
         AstTypeSignature::TypeArg(name) => {
-            type_args.insert(name.clone());
+            type_args.insert(name.clone(), info.location_id);
         }
         AstTypeSignature::Variant(_, items) => {
             for item in items {
@@ -146,7 +146,8 @@ pub fn process_class_type_signature(
     match &info.item {
         AstTypeSignature::TypeArg(name) => {
             let constraints = vec![class_id];
-            let index = type_arg_resolver.add_explicit(name.clone(), constraints.clone());
+            let index =
+                type_arg_resolver.add_explicit(name.clone(), constraints.clone(), info.location_id);
             let ir_type_signature = IrTypeSignature::TypeArgument(index, name.clone(), constraints);
             let id = ir_program.type_signatures.get_id();
             let type_info = ItemInfo::new(ir_type_signature, info.location_id);
@@ -154,7 +155,7 @@ pub fn process_class_type_signature(
             Some((id, name.clone()))
         }
         _ => {
-            let err = ResolverError::InvalidClassArgument(info. location_id);
+            let err = ResolverError::InvalidClassArgument(info.location_id);
             errors.push(err);
             None
         }
@@ -166,7 +167,7 @@ pub fn process_type_signature(
     program: &Program,
     ir_program: &mut IrProgram,
     module: &Module,
-    type_arg_resolver: &TypeArgResolver,
+    type_arg_resolver: &mut TypeArgResolver,
     errors: &mut Vec<ResolverError>,
 ) -> Option<IrTypeSignatureId> {
     let info = program.type_signatures.get(type_signature_id);

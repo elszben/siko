@@ -14,8 +14,7 @@ pub enum ResolverError {
     LambdaArgumentConflict(Vec<String>, LocationId),
     UnknownFunction(String, LocationId),
     AmbiguousName(String, LocationId),
-    FunctionTypeNameMismatch(String, String, LocationId),
-    UnusedTypeArgument(Vec<String>, LocationId),
+    UnusedTypeArgument(String, LocationId),
     RecordFieldNotUnique(String, String, LocationId),
     VariantNotUnique(String, String, LocationId),
     ExportNoMatch(String, String, LocationId),
@@ -44,6 +43,7 @@ pub enum ResolverError {
     ConflictingFunctionTypesInInstance(String, Vec<LocationId>),
     FunctionTypeWithoutImplementationInModule(String, String, LocationId),
     InvalidClassArgument(LocationId),
+    InvalidTypeArgInInstanceConstraint(String, LocationId),
 }
 
 #[derive(Debug)]

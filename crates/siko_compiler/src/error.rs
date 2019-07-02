@@ -210,22 +210,8 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        ResolverError::FunctionTypeNameMismatch(n1, n2, id) => {
-                            eprintln!(
-                                "{} name mismatch in function type signature, {} != {}",
-                                error.red(),
-                                n1.yellow(),
-                                n2.yellow()
-                            );
-                            let location_set = location_info.get_item_location(id);
-                            print_location_set(file_manager, location_set);
-                        }
-                        ResolverError::UnusedTypeArgument(args, id) => {
-                            eprintln!(
-                                "{} unused type argument(s): {}",
-                                error.red(),
-                                format_list(args).yellow()
-                            );
+                        ResolverError::UnusedTypeArgument(arg, id) => {
+                            eprintln!("{} unused type argument: {}", error.red(), arg.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
@@ -519,6 +505,15 @@ impl Error {
                             eprintln!(
                                 "{} invalid class argument, must be a single type argument",
                                 error.red(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        ResolverError::InvalidTypeArgInInstanceConstraint(arg, id) => {
+                            eprintln!(
+                                "{} instance constraint argument {} is unknown type argument",
+                                error.red(),
+                                arg.yellow()
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);

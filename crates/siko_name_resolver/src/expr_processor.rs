@@ -214,7 +214,7 @@ fn process_pattern(
     errors: &mut Vec<ResolverError>,
     lambda_helper: LambdaHelper,
     irrefutable: bool,
-    type_arg_resolver: &TypeArgResolver,
+    type_arg_resolver: &mut TypeArgResolver,
 ) -> IrPatternId {
     let ir_pattern_id = ir_program.patterns.get_id();
     let info = program.patterns.get(&pattern_id);
@@ -446,7 +446,7 @@ pub fn process_expr(
     ir_program: &mut IrProgram,
     errors: &mut Vec<ResolverError>,
     lambda_helper: LambdaHelper,
-    type_arg_resolver: &TypeArgResolver,
+    type_arg_resolver: &mut TypeArgResolver,
 ) -> IrExprId {
     let expr = &program.exprs.get(&id).item;
     let location_id = program.exprs.get(&id).location_id;

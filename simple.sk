@@ -16,7 +16,9 @@ class Deq a where
 
 data Vec a = extern
 
-instance (Deq a) => Deq b 
+instance Deq b where
+    deq a :: a -> a -> Bool
+    deq a b = False
 
 instance Deq String where
     deq a b = False
