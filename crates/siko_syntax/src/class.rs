@@ -2,6 +2,7 @@ use crate::function::FunctionId;
 use crate::function::FunctionTypeId;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub struct Class {
@@ -9,8 +10,8 @@ pub struct Class {
     pub name: String,
     pub arg: TypeSignatureId,
     pub constraints: Vec<Constraint>,
-    pub member_functions: Vec<FunctionId>,
-    pub member_function_types: Vec<FunctionTypeId>,
+    pub member_functions: BTreeMap<String, Vec<FunctionId>>,
+    pub member_function_types: BTreeMap<String, Vec<FunctionTypeId>>,
     pub location_id: LocationId,
 }
 
@@ -20,8 +21,8 @@ pub struct Instance {
     pub class_name: String,
     pub type_signature_id: TypeSignatureId,
     pub constraints: Vec<Constraint>,
-    pub member_functions: Vec<FunctionId>,
-    pub member_function_types: Vec<FunctionTypeId>,
+    pub member_functions: BTreeMap<String, Vec<FunctionId>>,
+    pub member_function_types: BTreeMap<String, Vec<FunctionTypeId>>,
     pub location_id: LocationId,
 }
 

@@ -57,52 +57,34 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 fn check_function_and_function_type_consistency(
-    functions: &Vec<AstFunctionId>,
-    function_types: &Vec<AstFunctionTypeId>,
-    program: &Program,
+    functions: &BTreeMap<String, Vec<AstFunctionId>>,
+    function_types: &BTreeMap<String, Vec<AstFunctionTypeId>>,
 ) -> (
     Vec<AstFunctionId>,
     Vec<AstFunctionTypeId>,
     BTreeMap<String, Vec<AstFunctionId>>,
     BTreeMap<String, Vec<AstFunctionTypeId>>,
 ) {
-    let mut function_names = BTreeMap::new();
-    let mut function_type_names = BTreeMap::new();
-    for id in functions {
-        let function = program.functions.get(id);
-        let ids = function_names
-            .entry(function.name.clone())
-            .or_insert_with(|| Vec::new());
-        ids.push(*id);
-    }
-    for id in function_types {
-        let function_type = program.function_types.get(id);
-        let ids = function_type_names
-            .entry(function_type.name.clone())
-            .or_insert_with(|| Vec::new());
-        ids.push(*id);
-    }
-
-    let function_name_set: BTreeSet<_> = function_names.keys().collect();
-    let function_type_name_set: BTreeSet<_> = function_type_names.keys().collect();
+    let function_name_set: BTreeSet<_> = functions.keys().collect();
+    let function_type_name_set: BTreeSet<_> = function_types.keys().collect();
     let mut functions_without_types: Vec<AstFunctionId> = Vec::new();
     let mut function_types_without_functions: Vec<AstFunctionTypeId> = Vec::new();
     for n in function_name_set.difference(&function_type_name_set) {
-        let ids = function_names.get(*n).unwrap();
+        let ids = functions.get(*n).unwrap();
         functions_without_types.extend(ids);
     }
     for n in function_type_name_set.difference(&function_name_set) {
-        let ids = function_type_names.get(*n).unwrap();
+        let ids = function_types.get(*n).unwrap();
         function_types_without_functions.extend(ids);
     }
-    let mut conflicting_functions = function_names.clone();
-    for (name, ids) in &function_names {
+    let mut conflicting_functions = functions.clone();
+    for (name, ids) in functions {
         if ids.len() == 1 {
             conflicting_functions.remove(name);
         }
     }
-    let mut conflicting_function_types = function_type_names.clone();
-    for (name, ids) in &function_type_names {
+    let mut conflicting_function_types = function_types.clone();
+    for (name, ids) in function_types {
         if ids.len() == 1 {
             conflicting_function_types.remove(name);
         }
@@ -262,33 +244,32 @@ impl Resolver {
                     module.add_member(ast_variant.name.clone(), member);
                 }
             }
-            for function_id in &ast_module.functions {
-                let function = program.functions.get(function_id);
-                let ir_function_id = ir_program.functions.get_id();
-                let item = Item::Function(function.id, ir_function_id);
-                module.add_item(function.name.clone(), item);
-            }
-            for function_type_id in &ast_module.function_types {
-                let function_type = program.function_types.get(function_type_id);
-                let function_types = module
-                    .function_types
-                    .entry(function_type.name.clone())
-                    .or_insert_with(|| Vec::new());
-                function_types.push(*function_type_id);
+            for (_, function_ids) in &ast_module.functions {
+                for function_id in function_ids {
+                    let function = program.functions.get(function_id);
+                    let ir_function_id = ir_program.functions.get_id();
+                    let item = Item::Function(function.id, ir_function_id);
+                    module.add_item(function.name.clone(), item);
+                }
             }
             for class_id in &ast_module.classes {
                 let ir_class_id = ir_program.classes.get_id();
                 let class = program.classes.get(class_id);
                 let item = Item::Class(class.id, ir_class_id);
                 module.add_item(class.name.clone(), item);
-                let mut members = Vec::new();
-                for member_function_type_id in &class.member_function_types {
-                    let ir_class_member_id = ir_program.class_members.get_id();
-                    let class_member = program.function_types.get(member_function_type_id);
-                    let item =
-                        Item::ClassMember(class.id, *member_function_type_id, ir_class_member_id);
-                    module.add_item(class_member.name.clone(), item);
-                    members.push(ir_class_member_id);
+                let mut members = BTreeMap::new();
+                for (_, member_function_type_ids) in &class.member_function_types {
+                    for member_function_type_id in member_function_type_ids {
+                        let ir_class_member_id = ir_program.class_members.get_id();
+                        let class_member = program.function_types.get(member_function_type_id);
+                        let item = Item::ClassMember(
+                            class.id,
+                            *member_function_type_id,
+                            ir_class_member_id,
+                        );
+                        module.add_item(class_member.name.clone(), item);
+                        members.insert(class_member.name.clone(), ir_class_member_id);
+                    }
                 }
                 let ir_class = IrClass {
                     id: ir_class_id,
@@ -715,21 +696,10 @@ impl Resolver {
             }
         }
 
-        let mut default_implementations = BTreeMap::new();
-
-        for function_id in &class.member_functions {
-            let default_implementation = program.functions.get(function_id);
-            let impls = default_implementations
-                .entry(default_implementation.name.clone())
-                .or_insert_with(|| Vec::new());
-            impls.push(function_id);
-        }
-
         let (functions_without_types, _, conflicting_functions, _) =
             check_function_and_function_type_consistency(
                 &class.member_functions,
                 &class.member_function_types,
-                program,
             );
 
         for id in functions_without_types {
@@ -755,13 +725,14 @@ impl Resolver {
             errors.push(err);
         }
 
-        let ir_class = ir_program.classes.get(ir_class_id);
-        let ir_class_member_ids = ir_class.members.clone();
-        let mut function_type_names = BTreeSet::new();
-        for (index, function_type_id) in class.member_function_types.iter().enumerate() {
+        if !errors.is_empty() {}
+
+        let ir_class = ir_program.classes.get(ir_class_id).clone();
+        for (name, function_type_ids) in &class.member_function_types {
+            assert_eq!(function_type_ids.len(), 1);
+            let function_type_id = &function_type_ids[0];
             let class_member = program.function_types.get(function_type_id);
-            function_type_names.insert(class_member.name.clone());
-            let ir_class_member_id = ir_class_member_ids[index];
+            let ir_class_member_id = *ir_class.members.get(name).expect("Class member not found");
             let signature_type_args: BTreeSet<_> =
                 class_member.type_args.iter().map(|i| i.0.clone()).collect();
             if !signature_type_args.contains(&class_arg) || signature_type_args.len() != 1 {
@@ -796,11 +767,11 @@ impl Resolver {
 
             if errors.is_empty() {
                 let default_implementation =
-                    if let Some(impls) = default_implementations.get(&class_member.name) {
+                    if let Some(impls) = class.member_functions.get(&class_member.name) {
                         assert_eq!(impls.len(), 1);
                         let impl_id = impls[0];
                         let ir_function_id = ir_program.functions.get_id();
-                        let function = program.functions.get(&impl_id);
+                        let function = &program.functions.get(&impl_id);
                         self.process_function(
                             program,
                             ir_program,
@@ -883,21 +854,7 @@ impl Resolver {
             errors,
         );
 
-        let mut class_members = BTreeMap::new();
-
-        let ir_class = ir_program.classes.get(&ir_class_id);
-
-        for member_id in &ir_class.members {
-            let ir_class_member = ir_program.class_members.get(&member_id);
-            class_members.insert(
-                ir_class_member.name.clone(),
-                (
-                    ir_class_member.default_implementation.clone(),
-                    ir_class_member.id,
-                    ir_class_member.type_signature,
-                ),
-            );
-        }
+        let ir_class = ir_program.classes.get(&ir_class_id).clone();
 
         let (
             _,
@@ -907,7 +864,6 @@ impl Resolver {
         ) = check_function_and_function_type_consistency(
             &instance.member_functions,
             &instance.member_function_types,
-            program,
         );
 
         for id in function_types_without_functions {
@@ -937,23 +893,30 @@ impl Resolver {
             errors.push(err);
         }
 
+        if !errors.is_empty() {
+            return;
+        }
+
         if let Some(type_signature) = result {
             let id = ir_program.instances.get_id();
 
             let mut members = Vec::new();
             let mut implemented_members = BTreeSet::new();
 
-            for member_function_id in &instance.member_functions {
-                let function = program.functions.get(&member_function_id);
+            for (_, member_function_ids) in &instance.member_functions {
+                assert_eq!(member_function_ids.len(), 1);
+                let member_function_id = &member_function_ids[0];
+                let function = program.functions.get(member_function_id);
                 let member_name = &function.name;
-                if let Some(class_member_info) = class_members.get(member_name) {
+                if let Some(class_member_id) = ir_class.members.get(member_name) {
                     let ir_function_id = ir_program.functions.get_id();
+                    let ir_class_member = ir_program.class_members.get(class_member_id);
                     let ir_instance_member = IrInstanceMember {
-                        class_member_id: class_member_info.1,
+                        class_member_id: *class_member_id,
                         function_id: ir_function_id,
                     };
                     members.push(ir_instance_member);
-                    let class_member_type_signature_id = class_member_info.2;
+                    let class_member_type_signature_id = ir_class_member.type_signature;
                     self.process_function(
                         program,
                         ir_program,
@@ -975,13 +938,14 @@ impl Resolver {
                 implemented_members.insert(member_name.clone());
             }
 
-            for (class_member, (default_impl, ir_class_member_id, _)) in &class_members {
+            for (class_member, ir_class_member_id) in &ir_class.members {
                 if !implemented_members.contains(class_member) {
-                    match default_impl {
+                    let ir_class_member = ir_program.class_members.get(ir_class_member_id);
+                    match ir_class_member.default_implementation {
                         Some(default_impl) => {
                             let ir_instance_member = IrInstanceMember {
                                 class_member_id: *ir_class_member_id,
-                                function_id: *default_impl,
+                                function_id: default_impl,
                             };
                             members.push(ir_instance_member);
                         }
@@ -1098,7 +1062,6 @@ impl Resolver {
                 check_function_and_function_type_consistency(
                     &ast_module.functions,
                     &ast_module.function_types,
-                    program,
                 );
 
             for id in function_types_without_functions {

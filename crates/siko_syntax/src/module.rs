@@ -7,6 +7,7 @@ use crate::function::FunctionId;
 use crate::function::FunctionTypeId;
 use crate::import::ImportId;
 use siko_location_info::item::LocationId;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ModuleId {
@@ -23,8 +24,8 @@ impl From<usize> for ModuleId {
 pub struct Module {
     pub name: String,
     pub id: ModuleId,
-    pub functions: Vec<FunctionId>,
-    pub function_types: Vec<FunctionTypeId>,
+    pub functions: BTreeMap<String, Vec<FunctionId>>,
+    pub function_types: BTreeMap<String, Vec<FunctionTypeId>>,
     pub records: Vec<RecordId>,
     pub adts: Vec<AdtId>,
     pub classes: Vec<ClassId>,
@@ -39,8 +40,8 @@ impl Module {
         Module {
             name: name,
             id: id,
-            functions: Vec::new(),
-            function_types: Vec::new(),
+            functions: BTreeMap::new(),
+            function_types: BTreeMap::new(),
             records: Vec::new(),
             adts: Vec::new(),
             classes: Vec::new(),

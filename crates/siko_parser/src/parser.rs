@@ -50,10 +50,11 @@ use siko_syntax::pattern::PatternId;
 use siko_syntax::program::Program;
 use siko_syntax::types::TypeSignature;
 use siko_syntax::types::TypeSignatureId;
+use std::collections::BTreeMap;
 
 enum FunctionOrFunctionType {
-    Function(FunctionId),
-    FunctionType(FunctionTypeId),
+    Function(String, FunctionId),
+    FunctionType(String, FunctionTypeId),
 }
 
 fn parse_class_constraint(parser: &mut Parser) -> Result<Constraint, ParseError> {
@@ -537,7 +538,7 @@ impl<'a> Parser<'a> {
             let id = self.program.function_types.get_id();
             let function_type = FunctionType {
                 id: id,
-                name: name,
+                name: name.clone(),
                 type_args: args,
                 constraints: constraints,
                 full_type_signature_id: full_type_signature_id,
@@ -546,7 +547,7 @@ impl<'a> Parser<'a> {
             };
             self.expect(TokenKind::EndOfItem)?;
             self.program.function_types.add_item(id, function_type);
-            Ok(FunctionOrFunctionType::FunctionType(id))
+            Ok(FunctionOrFunctionType::FunctionType(name, id))
         } else {
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
@@ -566,13 +567,13 @@ impl<'a> Parser<'a> {
             let id = self.program.functions.get_id();
             let function = Function {
                 id: id,
-                name: name,
+                name: name.clone(),
                 args: args,
                 body: body,
                 location_id: location_id,
             };
             self.program.functions.add_item(id, function);
-            Ok(FunctionOrFunctionType::Function(id))
+            Ok(FunctionOrFunctionType::Function(name, id))
         }
     }
 
@@ -877,18 +878,22 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let class_location_id = self.get_location_id(start_index, end_index);
         let arg = self.parse_function_type(false, false)?;
-        let mut member_functions: Vec<_> = Vec::new();
-        let mut member_function_types: Vec<_> = Vec::new();
+        let mut member_functions = BTreeMap::new();
+        let mut member_function_types = BTreeMap::new();
         if self.current_kind() == TokenKind::KeywordWhere {
             self.expect(TokenKind::KeywordWhere)?;
             while self.current_kind() != TokenKind::EndOfBlock {
                 let function_or_type = self.parse_function_or_function_type()?;
                 match function_or_type {
-                    FunctionOrFunctionType::Function(function_id) => {
-                        member_functions.push(function_id);
+                    FunctionOrFunctionType::Function(name, function_id) => {
+                        let fs = member_functions.entry(name).or_insert_with(|| Vec::new());
+                        fs.push(function_id);
                     }
-                    FunctionOrFunctionType::FunctionType(function_type_id) => {
-                        member_function_types.push(function_type_id);
+                    FunctionOrFunctionType::FunctionType(name, function_type_id) => {
+                        let fs = member_function_types
+                            .entry(name)
+                            .or_insert_with(|| Vec::new());
+                        fs.push(function_type_id);
                     }
                 }
             }
@@ -923,18 +928,22 @@ impl<'a> Parser<'a> {
         let end_index = self.get_index();
         let instance_location_id = self.get_location_id(start_index, end_index);
         let type_signature_id = self.parse_function_type(false, false)?;
-        let mut member_functions: Vec<_> = Vec::new();
-        let mut member_function_types: Vec<_> = Vec::new();
+        let mut member_functions = BTreeMap::new();
+        let mut member_function_types = BTreeMap::new();
         if self.current_kind() == TokenKind::KeywordWhere {
             self.expect(TokenKind::KeywordWhere)?;
             while self.current_kind() != TokenKind::EndOfBlock {
                 let function_or_type = self.parse_function_or_function_type()?;
                 match function_or_type {
-                    FunctionOrFunctionType::Function(function_id) => {
-                        member_functions.push(function_id);
+                    FunctionOrFunctionType::Function(name, function_id) => {
+                        let fs = member_functions.entry(name).or_insert_with(|| Vec::new());
+                        fs.push(function_id);
                     }
-                    FunctionOrFunctionType::FunctionType(function_type_id) => {
-                        member_function_types.push(function_type_id);
+                    FunctionOrFunctionType::FunctionType(name, function_type_id) => {
+                        let fs = member_function_types
+                            .entry(name)
+                            .or_insert_with(|| Vec::new());
+                        fs.push(function_type_id);
                     }
                 }
             }
@@ -999,11 +1008,16 @@ impl<'a> Parser<'a> {
                         break;
                     }
                     _ => match self.parse_function_or_function_type()? {
-                        FunctionOrFunctionType::Function(id) => {
-                            module.functions.push(id);
+                        FunctionOrFunctionType::Function(name, function_id) => {
+                            let fs = module.functions.entry(name).or_insert_with(|| Vec::new());
+                            fs.push(function_id);
                         }
-                        FunctionOrFunctionType::FunctionType(id) => {
-                            module.function_types.push(id);
+                        FunctionOrFunctionType::FunctionType(name, function_type_id) => {
+                            let fs = module
+                                .function_types
+                                .entry(name)
+                                .or_insert_with(|| Vec::new());
+                            fs.push(function_type_id);
                         }
                     },
                 }
