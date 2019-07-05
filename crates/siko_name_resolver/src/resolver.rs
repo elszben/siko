@@ -388,6 +388,13 @@ impl Resolver {
             errors,
         );
 
+        let unused_args = type_arg_resolver.collect_unused_args();
+
+        for (unused_arg, location_id) in unused_args {
+            let err = ResolverError::UnusedTypeArgument(unused_arg, location_id);
+            errors.push(err);
+        }
+
         (result, type_arg_resolver)
     }
 
@@ -1098,9 +1105,10 @@ impl Resolver {
                     match item {
                         Item::Function(ast_function_id, ir_function_id) => {
                             let function = program.functions.get(ast_function_id);
+                            let ast_module = program.modules.get(&module.id);
                             let (type_signature_id, mut type_arg_resolver) =
                                 if let Some(function_types) =
-                                    module.function_types.get(&function.name)
+                                    ast_module.function_types.get(&function.name)
                                 {
                                     assert_eq!(function_types.len(), 1);
                                     let function_type_id = function_types[0];

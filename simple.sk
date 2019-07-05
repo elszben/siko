@@ -24,7 +24,11 @@ instance Deq String where
     deq a b = False
 
 instance Deq Vec a where
-    deq a b = deq (get a) (get b)
+    //deq a b = deq (get a) (get b)
+    deq a b = False
+
+alma a :: a -> a
+alma a = a
 
 main = do
     deq "a" "4"

@@ -3,7 +3,6 @@ use crate::import::ImportedMemberInfo;
 use crate::item::DataMember;
 use crate::item::Item;
 use siko_location_info::item::LocationId;
-use siko_syntax::function::FunctionTypeId;
 use siko_syntax::module::ModuleId;
 use std::collections::BTreeMap;
 
@@ -18,7 +17,6 @@ pub struct Module {
     pub items: BTreeMap<String, Vec<Item>>,
     pub members: BTreeMap<String, Vec<DataMember>>,
     pub location_id: LocationId,
-    pub function_types: BTreeMap<String, Vec<FunctionTypeId>>,
 }
 
 impl Module {
@@ -33,7 +31,6 @@ impl Module {
             items: BTreeMap::new(),
             members: BTreeMap::new(),
             location_id: location_id,
-            function_types: BTreeMap::new(),
         }
     }
 
