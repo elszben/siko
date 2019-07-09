@@ -79,12 +79,12 @@ pub struct Instance {
     pub id: InstanceId,
     pub class_id: ClassId,
     pub type_signature: TypeSignatureId,
-    pub members: Vec<InstanceMember>,
+    pub members: BTreeMap<String, InstanceMember>,
     pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]
-pub struct InstanceMember {
-    pub class_member_id: ClassMemberId,
-    pub function_id: FunctionId,
+pub enum InstanceMember {
+    Default(FunctionId),
+    Custom(TypeSignatureId, FunctionId)
 }

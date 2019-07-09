@@ -101,6 +101,41 @@ fn process_named_type(
     return Some(id);
 }
 
+pub fn subtitute_type_signature(
+    source: &IrTypeSignatureId,
+    from: &IrTypeSignatureId,
+    to: &IrTypeSignatureId,
+    ir_program: &mut IrProgram,
+) -> IrTypeSignatureId {
+    if source == from {
+        return *to;
+    } else {
+        let info = ir_program.type_signatures.get(source).clone();
+        let new_signature = match &info.item {
+            IrTypeSignature::Function(old_from, old_to) => {
+                let new_from = subtitute_type_signature(old_from, from, to, ir_program);
+                let new_to = subtitute_type_signature(old_to, from, to, ir_program);
+                IrTypeSignature::Function(new_from, new_to)
+            }
+            IrTypeSignature::Wildcard => {
+                return *source;
+            }
+            IrTypeSignature::Named(name, type_id, items) => {
+                let new_items: Vec<_> = items
+                    .iter()
+                    .map(|item| subtitute_type_signature(item, from, to, ir_program))
+                    .collect();
+                IrTypeSignature::Named(name.clone(), *type_id, new_items)
+            }
+            _ => unimplemented!(),
+        };
+        let id = ir_program.type_signatures.get_id();
+        let type_info = ItemInfo::new(new_signature, info.location_id);
+        ir_program.type_signatures.add_item(id, type_info);
+        id
+    }
+}
+
 pub fn collect_type_args(
     type_signature_id: &TypeSignatureId,
     program: &Program,

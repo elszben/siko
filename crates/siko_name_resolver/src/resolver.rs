@@ -14,6 +14,7 @@ use crate::type_arg_resolver::TypeArgResolver;
 use crate::type_processor::collect_type_args;
 use crate::type_processor::process_class_type_signature;
 use crate::type_processor::process_type_signature;
+use crate::type_processor::subtitute_type_signature;
 use siko_constants::BOOL_NAME;
 use siko_constants::FLOAT_NAME;
 use siko_constants::INT_NAME;
@@ -904,10 +905,10 @@ impl Resolver {
             return;
         }
 
-        if let Some(type_signature) = result {
+        if let Some(instance_type_signature) = result {
             let id = ir_program.instances.get_id();
 
-            let mut members = Vec::new();
+            let mut members = BTreeMap::new();
             let mut implemented_members = BTreeSet::new();
 
             for (_, member_function_ids) in &instance.member_functions {
@@ -917,12 +918,23 @@ impl Resolver {
                 let member_name = &function.name;
                 if let Some(class_member_id) = ir_class.members.get(member_name) {
                     let ir_function_id = ir_program.functions.get_id();
-                    let ir_class_member = ir_program.class_members.get(class_member_id);
-                    let ir_instance_member = IrInstanceMember {
-                        class_member_id: *class_member_id,
-                        function_id: ir_function_id,
+                    let ir_class_member = ir_program.class_members.get(class_member_id).clone();
+                    let member_function_type_signature_id = if let Some(function_type) =
+                        instance.member_function_types.get(member_name)
+                    {
+                        // TODO: the instance impl has its own type signature, compare it with the class member
+                        unimplemented!()
+                    } else {
+                        subtitute_type_signature(
+                            &ir_class_member.type_signature,
+                            &ir_class_member.class_type_signature,
+                            &instance_type_signature,
+                            ir_program,
+                        )
                     };
-                    members.push(ir_instance_member);
+                    let ir_instance_member =
+                        IrInstanceMember::Custom(member_function_type_signature_id, ir_function_id);
+                    members.insert(member_name.clone(), ir_instance_member);
                     let class_member_type_signature_id = ir_class_member.type_signature;
                     self.process_function(
                         program,
@@ -950,11 +962,8 @@ impl Resolver {
                     let ir_class_member = ir_program.class_members.get(ir_class_member_id);
                     match ir_class_member.default_implementation {
                         Some(default_impl) => {
-                            let ir_instance_member = IrInstanceMember {
-                                class_member_id: *ir_class_member_id,
-                                function_id: default_impl,
-                            };
-                            members.push(ir_instance_member);
+                            let ir_instance_member = IrInstanceMember::Default(default_impl);
+                            members.insert(class_member.clone(), ir_instance_member);
                         }
                         None => {
                             if !implemented_members.contains(class_member) {
@@ -973,7 +982,7 @@ impl Resolver {
             let ir_instance = IrInstance {
                 id: id,
                 class_id: ir_class_id,
-                type_signature: type_signature,
+                type_signature: instance_type_signature,
                 members: members,
                 location_id: instance.location_id,
             };
