@@ -925,12 +925,19 @@ impl Resolver {
                         // TODO: the instance impl has its own type signature, compare it with the class member
                         unimplemented!()
                     } else {
-                        subtitute_type_signature(
-                            &ir_class_member.type_signature,
-                            &ir_class_member.class_type_signature,
-                            &instance_type_signature,
-                            ir_program,
-                        )
+                        let item = &ir_program
+                            .type_signatures
+                            .get(&ir_class_member.class_type_signature)
+                            .item;
+                        match item {
+                            TypeSignature::TypeArgument(index, _, _) => subtitute_type_signature(
+                                &ir_class_member.type_signature,
+                                *index,
+                                &instance_type_signature,
+                                ir_program,
+                            ),
+                            _ => panic!("Invalid class type signature"),
+                        }
                     };
                     let ir_instance_member =
                         IrInstanceMember::Custom(member_function_type_signature_id, ir_function_id);
