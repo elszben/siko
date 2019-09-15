@@ -665,6 +665,25 @@ pub fn process_expr(
             let ir_expr = IrExpr::Tuple(ir_items);
             return add_expr(ir_expr, id, ir_program, program);
         }
+        Expr::List(items) => {
+            let ir_items: Vec<IrExprId> = items
+                .iter()
+                .map(|id| {
+                    process_expr(
+                        *id,
+                        program,
+                        module,
+                        environment,
+                        ir_program,
+                        errors,
+                        lambda_helper.clone(),
+                        type_arg_resolver,
+                    )
+                })
+                .collect(); 
+            let ir_expr = IrExpr::List(ir_items);
+            return add_expr(ir_expr, id, ir_program, program);
+        }
         Expr::Path(path) => {
             match resolve_item_path(
                 path,

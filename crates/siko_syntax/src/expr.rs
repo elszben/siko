@@ -53,6 +53,7 @@ pub enum Expr {
     Builtin(BuiltinOperator),
     If(ExprId, ExprId, ExprId),
     Tuple(Vec<ExprId>),
+    List(Vec<ExprId>),
     Path(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
@@ -84,6 +85,7 @@ impl fmt::Display for Expr {
                 write!(f, "If({}, {}, {})", cond, true_branch, false_branch)
             }
             Expr::Tuple(items) => write!(f, "Tuple({})", format_list(items)),
+            Expr::List(items) => write!(f, "[{}]", format_list(items)),
             Expr::Path(path) => write!(f, "Path({})", path),
             Expr::IntegerLiteral(v) => write!(f, "Integer({})", v),
             Expr::FloatLiteral(v) => write!(f, "Float({})", v),

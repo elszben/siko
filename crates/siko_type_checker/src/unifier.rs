@@ -141,7 +141,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .unify_variables(&var, &expr_var, location, self.errors);
     }
 
-    fn get_builtin_type(&mut self, typedef_id: TypeDefId) -> TypeVariable {
+    fn get_builtin_type(&mut self, typedef_id: TypeDefId, args: Vec<TypeVariable>) -> TypeVariable {
         let name = self
             .get_program()
             .typedefs
@@ -149,7 +149,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .get_record()
             .name
             .clone();
-        let ty = Type::Named(name, typedef_id, vec![]);
+        let ty = Type::Named(name, typedef_id, args);
         let var = self.expr_processor.type_store.add_type(ty);
         var
     }
@@ -160,6 +160,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
                 .builtin_types
                 .bool_id
                 .expect("Type bool not found"),
+            vec![],
         )
     }
 
@@ -169,6 +170,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
                 .builtin_types
                 .int_id
                 .expect("Type int not found"),
+            vec![],
         )
     }
 
@@ -178,6 +180,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
                 .builtin_types
                 .string_id
                 .expect("Type string not found"),
+            vec![],
         )
     }
 
@@ -187,6 +190,17 @@ impl<'a, 'b> Unifier<'a, 'b> {
                 .builtin_types
                 .float_id
                 .expect("Type float not found"),
+            vec![],
+        )
+    }
+
+    fn get_list_type(&mut self, type_var: TypeVariable) -> TypeVariable {
+        self.get_builtin_type(
+            self.get_program()
+                .builtin_types
+                .list_id
+                .expect("Type list not found"),
+            vec![type_var],
         )
     }
 
@@ -348,6 +362,14 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 let tuple_ty = Type::Tuple(vars);
                 let tuple_var = self.expr_processor.type_store.add_type(tuple_ty);
                 self.match_expr_with(&expr_id, &tuple_var);
+            }
+            Expr::List(items) => {
+                let vars: Vec<_> = items
+                    .iter()
+                    .map(|i| self.expr_processor.lookup_type_var_for_expr(i))
+                    .collect();
+                let list_type_var = self.get_list_type(vars[0]);
+                self.match_expr_with(&expr_id, &list_type_var);
             }
             Expr::TupleFieldAccess(index, tuple_expr) => {
                 let tuple_var = self.expr_processor.lookup_type_var_for_expr(tuple_expr);

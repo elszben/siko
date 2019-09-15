@@ -78,7 +78,7 @@ impl Lexer {
 
     fn is_identifier(c: char) -> bool {
         match c {
-            'a'...'z' | 'A'...'Z' | '0'...'9' | '_' => true,
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => true,
             _ => false,
         }
     }

@@ -243,6 +243,13 @@ impl<'a> Interpreter<'a> {
                     .collect();
                 return Value::Tuple(values);
             }
+            Expr::List(exprs) => {
+                let values: Vec<_> = exprs
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment))
+                    .collect();
+                return Value::List(values);
+            }
             Expr::TupleFieldAccess(index, tuple) => {
                 let tuple_value = self.eval_expr(program, *tuple, environment);
                 if let Value::Tuple(t) = tuple_value {

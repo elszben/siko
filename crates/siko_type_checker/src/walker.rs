@@ -35,6 +35,11 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
                 walk_expr(item, visitor);
             }
         }
+        Expr::List(items) => {
+            for item in items {
+                walk_expr(item, visitor);
+            }
+        }
         Expr::IntegerLiteral(_) => {}
         Expr::FloatLiteral(_) => {}
         Expr::BoolLiteral(_) => {}

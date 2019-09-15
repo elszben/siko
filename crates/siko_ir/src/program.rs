@@ -23,6 +23,7 @@ pub struct BuiltinTypes {
     pub float_id: Option<TypeDefId>,
     pub bool_id: Option<TypeDefId>,
     pub string_id: Option<TypeDefId>,
+    pub list_id: Option<TypeDefId>
 }
 
 #[derive(Debug)]
@@ -45,6 +46,7 @@ impl Program {
             float_id: None,
             bool_id: None,
             string_id: None,
+            list_id: None
         };
         Program {
             type_signatures: ItemContainer::new(),

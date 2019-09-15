@@ -18,6 +18,7 @@ use crate::type_processor::subtitute_type_signature;
 use siko_constants::BOOL_NAME;
 use siko_constants::FLOAT_NAME;
 use siko_constants::INT_NAME;
+use siko_constants::LIST_NAME;
 use siko_constants::PRELUDE_NAME;
 use siko_constants::STRING_NAME;
 use siko_ir::class::Class as IrClass;
@@ -176,6 +177,7 @@ impl Resolver {
                         FLOAT_NAME => ir_program.builtin_types.float_id = Some(ir_typedef_id),
                         BOOL_NAME => ir_program.builtin_types.bool_id = Some(ir_typedef_id),
                         STRING_NAME => ir_program.builtin_types.string_id = Some(ir_typedef_id),
+                        "List" => ir_program.builtin_types.list_id = Some(ir_typedef_id),
                         _ => {}
                     }
                 }

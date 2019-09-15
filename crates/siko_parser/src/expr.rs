@@ -11,9 +11,9 @@ use siko_syntax::expr::Expr;
 use siko_syntax::expr::ExprId;
 use siko_syntax::expr::RecordConstructionItem;
 use siko_syntax::pattern::Pattern;
-
 use siko_syntax::pattern::PatternId;
 use siko_syntax::pattern::RecordFieldPattern;
+
 fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, ParseError> {
     let start_index = parser.get_index();
     let res = parse_parens(parser, |p| p.parse_expr(), " expression")?;
@@ -27,6 +27,27 @@ fn parse_paren_expr(parser: &mut Parser) -> Result<ExprId, ParseError> {
             return Ok(id);
         }
     }
+}
+
+fn parse_list_expr(parser: &mut Parser) -> Result<ExprId, ParseError> {
+    let start_index = parser.get_index();
+    parser.expect(TokenKind::LBracket)?;
+    let mut items = Vec::new();
+    loop {
+        if parser.current(TokenKind::RBracket) {
+            break;
+        }
+        let expr = parser.parse_expr()?;
+        items.push(expr);
+        if parser.current(TokenKind::Comma) {
+            parser.expect(TokenKind::Comma)?;
+            continue;
+        }
+    }
+    parser.expect(TokenKind::RBracket)?;
+    let expr = Expr::List(items);
+    let id = parser.add_expr(expr, start_index);
+    return Ok(id);
 }
 
 fn parse_lambda(parser: &mut Parser) -> Result<ExprId, ParseError> {
@@ -363,6 +384,9 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, ParseError> {
         }
         Token::LParen => {
             return parse_paren_expr(parser);
+        }
+        Token::LBracket => {
+            return parse_list_expr(parser);
         }
         Token::KeywordIf => {
             return parse_if(parser);

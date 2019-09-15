@@ -31,8 +31,8 @@ alma a = a
 
 main = do
     //deq "a" "4"
-    bs <- empty
-    bs <- insert bs "5"
+    //bs <- ["a", "b"]
+    bs <- []
     print (show bs)
     print (show "a")
     
