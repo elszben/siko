@@ -813,6 +813,27 @@ impl Resolver {
         }
     }
 
+    fn get_instance_member_type_signature(
+        &self,
+        ir_program: &mut IrProgram,
+        ir_class_member: &IrClassMember,
+        instance_type_signature: TypeSignatureId,
+    ) -> TypeSignatureId {
+        let item = &ir_program
+            .type_signatures
+            .get(&ir_class_member.class_type_signature)
+            .item;
+        match item {
+            TypeSignature::TypeArgument(index, _, _) => subtitute_type_signature(
+                &ir_class_member.type_signature,
+                *index,
+                &instance_type_signature,
+                ir_program,
+            ),
+            _ => panic!("Invalid class type signature"),
+        }
+    }
+
     fn process_instance(
         &self,
         instance: &AstInstance,
@@ -926,19 +947,11 @@ impl Resolver {
                         // TODO: the instance impl has its own type signature, compare it with the class member
                         unimplemented!()
                     } else {
-                        let item = &ir_program
-                            .type_signatures
-                            .get(&ir_class_member.class_type_signature)
-                            .item;
-                        match item {
-                            TypeSignature::TypeArgument(index, _, _) => subtitute_type_signature(
-                                &ir_class_member.type_signature,
-                                *index,
-                                &instance_type_signature,
-                                ir_program,
-                            ),
-                            _ => panic!("Invalid class type signature"),
-                        }
+                        self.get_instance_member_type_signature(
+                            ir_program,
+                            &ir_class_member,
+                            instance_type_signature,
+                        )
                     };
                     let ir_instance_member = IrInstanceMember {
                         type_signature: member_function_type_signature_id,
@@ -969,11 +982,16 @@ impl Resolver {
 
             for (class_member, ir_class_member_id) in &ir_class.members {
                 if !implemented_members.contains(class_member) {
-                    let ir_class_member = ir_program.class_members.get(ir_class_member_id);
+                    let ir_class_member = ir_program.class_members.get(ir_class_member_id).clone();
                     match ir_class_member.default_implementation {
                         Some(default_impl) => {
+                            let type_signature = self.get_instance_member_type_signature(
+                                ir_program,
+                                &ir_class_member,
+                                instance_type_signature,
+                            );
                             let ir_instance_member = IrInstanceMember {
-                                type_signature: ir_class_member.type_signature,
+                                type_signature: type_signature,
                                 function_id: default_impl,
                             };
                             members.insert(class_member.clone(), ir_instance_member);
