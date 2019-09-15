@@ -9,7 +9,7 @@ use crate::token::Token;
 use crate::token::TokenInfo;
 use crate::token::TokenKind;
 use siko_constants::BuiltinOperator;
-use siko_constants::LIST_NAME;
+use siko_constants::FULL_LIST_NAME;
 use siko_constants::PRELUDE_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
@@ -444,7 +444,7 @@ impl<'a> Parser<'a> {
                     self.expect(TokenKind::LBracket)?;
                     let arg = self.parse_function_type(parsing_variant, allow_wildcard)?;
                     self.expect(TokenKind::RBracket)?;
-                    let ty = TypeSignature::Named(LIST_NAME.to_string(), vec![arg]);
+                    let ty = TypeSignature::Named(FULL_LIST_NAME.to_string(), vec![arg]);
                     let id = self.add_type_signature(ty, start_index);
                     return Ok(id);
                 }

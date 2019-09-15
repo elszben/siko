@@ -9,6 +9,7 @@ use siko_util::Collector;
 use siko_util::Counter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use siko_ir::types::TypeDefId;
 
 pub struct CloneContext<'a> {
     vars: BTreeMap<TypeVariable, TypeVariable>,
@@ -120,10 +121,11 @@ pub struct TypeStore {
     arg_counter: Counter,
     pub class_names: BTreeMap<ClassId, String>,
     pub instance_resolver: InstanceResolver,
+    list_type_id: TypeDefId,
 }
 
 impl TypeStore {
-    pub fn new() -> TypeStore {
+    pub fn new(list_type_id: TypeDefId) -> TypeStore {
         TypeStore {
             variables: BTreeMap::new(),
             indices: BTreeMap::new(),
@@ -132,6 +134,7 @@ impl TypeStore {
             arg_counter: Counter::new(),
             class_names: BTreeMap::new(),
             instance_resolver: InstanceResolver::new(),
+            list_type_id: list_type_id
         }
     }
 
@@ -343,7 +346,7 @@ impl TypeStore {
         } else {
             format!("({}) => ", format_list(&constraint_strings[..]))
         };
-        let type_str = ty.as_string(self, false, &type_args);
+        let type_str = ty.as_string(self, false, &type_args, self.list_type_id);
         format!("{}{}", prefix, type_str)
     }
 

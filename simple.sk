@@ -32,7 +32,7 @@ alma a = a
 main = do
     //deq "a" "4"
     //bs <- ["a", "b"]
-    bs <- []
+    bs <- ["a", 5]
     print (show bs)
     print (show "a")
     

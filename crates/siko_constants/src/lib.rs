@@ -27,4 +27,5 @@ pub const INT_NAME: &str = "Int";
 pub const FLOAT_NAME: &str = "Float";
 pub const BOOL_NAME: &str = "Bool";
 pub const STRING_NAME: &str = "String";
-pub const LIST_NAME: &str = "Prelude.List";
+pub const FULL_LIST_NAME: &str = "Prelude.List";
+pub const LIST_NAME: &str = "List";

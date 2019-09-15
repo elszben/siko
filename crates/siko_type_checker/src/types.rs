@@ -117,6 +117,7 @@ impl Type {
         type_store: &TypeStore,
         need_parens: bool,
         type_args: &BTreeMap<usize, String>,
+        list_type_id: TypeDefId,
     ) -> String {
         match self {
             Type::Tuple(type_vars) => {
@@ -124,13 +125,13 @@ impl Type {
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store, false, type_args)
+                        ty.as_string(type_store, false, type_args, list_type_id)
                     })
                     .collect();
                 format!("({})", ss.join(", "))
             }
             Type::Function(func_type) => {
-                let func_type_str = func_type.as_string(type_store, type_args);
+                let func_type_str = func_type.as_string(type_store, type_args, list_type_id);
                 if need_parens {
                     format!("({})", func_type_str)
                 } else {
@@ -142,20 +143,25 @@ impl Type {
                 type_args.get(index).expect("readable type arg not found")
             ),
             Type::FixedTypeArgument(_, name, _) => format!("{}", name),
-            Type::Named(name, _, type_vars) => {
+            Type::Named(name, id, type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store, false, type_args)
+                        ty.as_string(type_store, false, type_args, list_type_id)
                     })
                     .collect();
-                let args = if ss.is_empty() {
-                    format!("")
+                if *id == list_type_id {
+                    assert_eq!(ss.len(), 1);
+                    format!("[{}]", ss[0])
                 } else {
-                    format!(" {}", ss.join(" "))
-                };
-                format!("{}{}", name, args)
+                    let args = if ss.is_empty() {
+                        format!("")
+                    } else {
+                        format!(" {}", ss.join(" "))
+                    };
+                    format!("{}{}", name, args)
+                }
             }
         }
     }

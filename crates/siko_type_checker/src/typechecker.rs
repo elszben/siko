@@ -39,7 +39,7 @@ impl Typechecker {
     pub fn check(&mut self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
 
-        let function_processor = FunctionProcessor::new();
+        let function_processor = FunctionProcessor::new(program.builtin_types.list_id.unwrap());
 
         let (type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
             function_processor.process_functions(program, &mut errors);

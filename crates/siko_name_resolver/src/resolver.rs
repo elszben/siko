@@ -177,7 +177,7 @@ impl Resolver {
                         FLOAT_NAME => ir_program.builtin_types.float_id = Some(ir_typedef_id),
                         BOOL_NAME => ir_program.builtin_types.bool_id = Some(ir_typedef_id),
                         STRING_NAME => ir_program.builtin_types.string_id = Some(ir_typedef_id),
-                        "List" => ir_program.builtin_types.list_id = Some(ir_typedef_id),
+                        LIST_NAME => ir_program.builtin_types.list_id = Some(ir_typedef_id),
                         _ => {}
                     }
                 }

@@ -24,9 +24,9 @@ pub struct FunctionProcessor {
 }
 
 impl FunctionProcessor {
-    pub fn new() -> FunctionProcessor {
+    pub fn new(list_type_id: TypeDefId) -> FunctionProcessor {
         FunctionProcessor {
-            type_store: TypeStore::new(),
+            type_store: TypeStore::new(list_type_id),
             function_type_info_map: BTreeMap::new(),
             record_type_info_map: BTreeMap::new(),
             variant_type_info_map: BTreeMap::new(),

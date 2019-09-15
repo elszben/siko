@@ -368,7 +368,16 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     .iter()
                     .map(|i| self.expr_processor.lookup_type_var_for_expr(i))
                     .collect();
-                let list_type_var = self.get_list_type(vars[0]);
+                let item_var = if vars.is_empty() {
+                    self.expr_processor.type_store.get_new_type_var()
+                } else {
+                    let first = vars[0];
+                    for index in 1..items.len() {
+                        self.match_expr_with(&items[index], &first);
+                    }
+                    vars[0]
+                };
+                let list_type_var = self.get_list_type(item_var);
                 self.match_expr_with(&expr_id, &list_type_var);
             }
             Expr::TupleFieldAccess(index, tuple_expr) => {
