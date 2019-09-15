@@ -72,3 +72,12 @@ class Eq a where
     eq a :: a -> a -> Bool
     ne a :: a -> a -> Bool
     ne a b = not (eq a b)
+
+class Show a where
+    show a :: a -> String
+
+instance Show String where
+    show a = a 
+
+instance (Show a) => Show List a where
+    show a = extern

@@ -29,14 +29,10 @@ instance Deq Vec a where
 alma a :: a -> a
 alma a = a
 
-class Show a where
-    show a :: a -> a -> String
-
-instance Show String where
-    show a b = a 
-
 main = do
     //deq "a" "4"
-    print (show "a" "a")
-    print (show "a" "b")
+    bs <- empty
+    bs <- insert bs "5"
+    print (show bs)
+    print (show "a")
     

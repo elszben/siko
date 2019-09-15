@@ -153,7 +153,7 @@ impl Type {
                 let args = if ss.is_empty() {
                     format!("")
                 } else {
-                    ss.join(" ")
+                    format!(" {}", ss.join(" "))
                 };
                 format!("{}{}", name, args)
             }
