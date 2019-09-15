@@ -131,10 +131,16 @@ pub fn subtitute_type_signature(
                 return *source;
             }
         }
-        _ => panic!(
-            "{:?} not implemented, source {:?} from {:?}",
-            info.item, source, from
-        ),
+        IrTypeSignature::Tuple(items) => {
+            let new_items: Vec<_> = items
+                .iter()
+                .map(|item| subtitute_type_signature(item, from, to, ir_program))
+                .collect();
+            IrTypeSignature::Tuple(new_items)
+        }
+        IrTypeSignature::Variant(_, _) => {
+            unreachable!()
+        }
     };
     let id = ir_program.type_signatures.get_id();
     let type_info = ItemInfo::new(new_signature, info.location_id);
