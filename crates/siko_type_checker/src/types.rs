@@ -150,7 +150,12 @@ impl Type {
                         ty.as_string(type_store, false, type_args)
                     })
                     .collect();
-                format!("{} {}", name, ss.join(" "))
+                let args = if ss.is_empty() {
+                    format!("")
+                } else {
+                    ss.join(" ")
+                };
+                format!("{}{}", name, args)
             }
         }
     }

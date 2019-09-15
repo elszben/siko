@@ -10,7 +10,7 @@ pub trait Visitor {
     fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern);
 }
 
-pub fn walk_expr(expr_id: &ExprId, visitor: &mut Visitor) {
+pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
     let program = visitor.get_program();
     let expr = &program.exprs.get(expr_id).item.clone(); // FIXME, reorganize stuff to remove this clone
     match expr {
@@ -90,7 +90,7 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut Visitor) {
     visitor.visit_expr(*expr_id, expr);
 }
 
-fn walk_pattern(pattern_id: &PatternId, visitor: &mut Visitor) {
+fn walk_pattern(pattern_id: &PatternId, visitor: &mut dyn Visitor) {
     let program = visitor.get_program();
     let pattern = &program.patterns.get(pattern_id).item.clone(); // FIXME, reorganize stuff to remove this clone
     match pattern {

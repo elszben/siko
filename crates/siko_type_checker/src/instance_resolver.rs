@@ -28,6 +28,7 @@ impl InstanceResolver {
             return true;
         }
         if let Some(class_instances) = self.instances.get(class_id) {
+            let mut count = 0;
             for instance in class_instances {
                 let mut context = type_store.create_clone_context();
                 let instance_var = context.clone_var(instance.type_var);
@@ -35,11 +36,12 @@ impl InstanceResolver {
                 let input_var = context.clone_var(*var);
                 if type_store.unify(&input_var, &instance_var) {
                     type_store.unify(&second_instance_var, var);
+                    count += 1;
                     println!("Matching instance {}", instance.instance_id);
-                    return true;
                 }
             }
-            false
+            assert!(count < 2);
+            count == 1
         } else {
             false
         }
