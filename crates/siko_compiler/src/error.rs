@@ -557,12 +557,21 @@ impl Error {
                             arg_count,
                             signature_arg_count,
                             id,
+                            is_member,
                         ) => {
-                            eprintln!(
+                            if *is_member {
+                                eprintln!(
+                                "{} member function type signature for {} does not match its argument count",
+                                error.red(),
+                                name.yellow()
+                            );
+                            } else {
+                                eprintln!(
                                 "{} function type signature for {} does not match its argument count",
                                 error.red(),
                                 name.yellow()
                             );
+                            }
                             eprintln!(
                                 "Arguments:                      {}",
                                 format!("{}", arg_count).yellow()

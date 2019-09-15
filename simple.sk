@@ -16,12 +16,15 @@ class Deq a where
 
 data Vec a = extern
 
+get a :: a -> String
+get a = "foo"
+
 instance Deq String where
     deq a b = False
 
 instance Deq Vec a where
-    //deq a b = deq (get a) (get b)
-    deq a b = False
+    deq a b = deq (get a) (get b)
+    //deq a b = 6
 
 alma a :: a -> a
 alma a = a

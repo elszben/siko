@@ -44,6 +44,7 @@ impl FunctionProcessor {
         errors: &mut Vec<TypecheckError>,
         body: Option<ExprId>,
         location_id: LocationId,
+        is_member: bool,
     ) {
         let mut arg_map = BTreeMap::new();
         let func_type_var = process_type_signature(
@@ -66,11 +67,17 @@ impl FunctionProcessor {
                 let mut signature_vars = Vec::new();
                 func_type.get_arg_types(&self.type_store, &mut signature_vars);
                 if signature_vars.len() < arg_count {
+                    let location = if is_member {
+                        location_id
+                    } else {
+                        program.type_signatures.get(&type_signature_id).location_id
+                    };
                     let err = TypecheckError::FunctionArgAndSignatureMismatch(
                         name.clone(),
                         arg_count,
                         signature_vars.len(),
-                        program.type_signatures.get(&type_signature_id).location_id,
+                        location,
+                        is_member,
                     );
                     errors.push(err);
                     return;
@@ -96,6 +103,7 @@ impl FunctionProcessor {
                         arg_count,
                         0,
                         program.type_signatures.get(&type_signature_id).location_id,
+                        is_member,
                     );
                     errors.push(err);
                     return;
@@ -290,6 +298,7 @@ impl FunctionProcessor {
                             errors,
                             i.body,
                             i.location_id,
+                            i.is_member,
                         );
                     }
                     None => match i.body {

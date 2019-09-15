@@ -84,7 +84,7 @@ pub struct Instance {
 }
 
 #[derive(Debug, Clone)]
-pub enum InstanceMember {
-    Default(FunctionId),
-    Custom(TypeSignatureId, FunctionId)
+pub struct InstanceMember {
+    pub type_signature: TypeSignatureId,
+    pub function_id: FunctionId
 }

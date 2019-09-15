@@ -409,6 +409,7 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
         type_signature_id: Option<TypeSignatureId>,
         type_arg_resolver: &mut TypeArgResolver,
+        is_member: bool,
     ) {
         let mut body = None;
 
@@ -457,6 +458,7 @@ impl Resolver {
             module: module.name.clone(),
             type_signature: type_signature_id,
             location_id: function.location_id,
+            is_member: is_member,
         };
 
         let ir_function = IrFunction {
@@ -789,6 +791,7 @@ impl Resolver {
                             errors,
                             result,
                             &mut type_arg_resolver,
+                            true,
                         );
                         Some(ir_function_id)
                     } else {
@@ -852,7 +855,6 @@ impl Resolver {
                     return;
                 }
             };
-
         let result = process_type_signature(
             &instance.type_signature_id,
             program,
@@ -861,7 +863,6 @@ impl Resolver {
             &mut type_arg_resolver,
             errors,
         );
-
         let ir_class = ir_program.classes.get(&ir_class_id).clone();
 
         let (
@@ -939,10 +940,11 @@ impl Resolver {
                             _ => panic!("Invalid class type signature"),
                         }
                     };
-                    let ir_instance_member =
-                        IrInstanceMember::Custom(member_function_type_signature_id, ir_function_id);
+                    let ir_instance_member = IrInstanceMember {
+                        type_signature: member_function_type_signature_id,
+                        function_id: ir_function_id,
+                    };
                     members.insert(member_name.clone(), ir_instance_member);
-                    let class_member_type_signature_id = ir_class_member.type_signature;
                     self.process_function(
                         program,
                         ir_program,
@@ -950,8 +952,9 @@ impl Resolver {
                         ir_function_id,
                         module,
                         errors,
-                        Some(class_member_type_signature_id),
+                        Some(member_function_type_signature_id),
                         &mut type_arg_resolver,
+                        true,
                     );
                 } else {
                     let err = ResolverError::NotAClassMember(
@@ -969,7 +972,10 @@ impl Resolver {
                     let ir_class_member = ir_program.class_members.get(ir_class_member_id);
                     match ir_class_member.default_implementation {
                         Some(default_impl) => {
-                            let ir_instance_member = IrInstanceMember::Default(default_impl);
+                            let ir_instance_member = IrInstanceMember {
+                                type_signature: ir_class_member.type_signature,
+                                function_id: default_impl,
+                            };
                             members.insert(class_member.clone(), ir_instance_member);
                         }
                         None => {
@@ -1149,6 +1155,7 @@ impl Resolver {
                                 &mut errors,
                                 type_signature_id,
                                 &mut type_arg_resolver,
+                                false,
                             );
                         }
                         _ => {}

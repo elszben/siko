@@ -3,7 +3,7 @@ use siko_location_info::item::LocationId;
 #[derive(Debug)]
 pub enum TypecheckError {
     UntypedExternFunction(String, LocationId),
-    FunctionArgAndSignatureMismatch(String, usize, usize, LocationId),
+    FunctionArgAndSignatureMismatch(String, usize, usize, LocationId, bool),
     TypeMismatch(LocationId, String, String),
     FunctionArgumentMismatch(LocationId, String, String),
     RecursiveType(LocationId),

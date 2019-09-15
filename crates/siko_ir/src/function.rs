@@ -28,6 +28,7 @@ pub struct NamedFunctionInfo {
     pub name: String,
     pub type_signature: Option<TypeSignatureId>,
     pub location_id: LocationId,
+    pub is_member: bool
 }
 
 impl fmt::Display for NamedFunctionInfo {
