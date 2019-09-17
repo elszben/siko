@@ -1,3 +1,4 @@
+use crate::check_context::CheckContext;
 use crate::class_processor::ClassProcessor;
 use crate::error::Error;
 use crate::error::TypecheckError;
@@ -7,6 +8,8 @@ use crate::function_processor::FunctionProcessor;
 use siko_constants;
 use siko_ir::function::FunctionInfo;
 use siko_ir::program::Program;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Typechecker {}
 
@@ -39,7 +42,12 @@ impl Typechecker {
     pub fn check(&mut self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
 
-        let function_processor = FunctionProcessor::new(program.builtin_types.list_id.unwrap());
+        let check_context = Rc::new(RefCell::new(CheckContext::new()));
+
+        let function_processor = FunctionProcessor::new(
+            program.builtin_types.list_id.unwrap(),
+            check_context.clone(),
+        );
 
         let (type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
             function_processor.process_functions(program, &mut errors);
@@ -54,7 +62,7 @@ impl Typechecker {
         let (type_store, function_type_info_map, ordered_dep_groups) =
             function_dep_processor.process_functions(program);
 
-        let class_processor = ClassProcessor::new(type_store);
+        let class_processor = ClassProcessor::new(type_store, check_context.clone());
 
         let (type_store, class_type_info_map) =
             class_processor.process_classes(program, &mut errors);

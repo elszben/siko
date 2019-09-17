@@ -5,6 +5,7 @@ use crate::type_store::TypeIndex;
 use crate::type_store::TypeStore;
 use siko_ir::class::ClassId;
 use siko_ir::types::TypeDefId;
+use siko_ir::types::Type as IrType;
 use siko_util::Collector;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -30,6 +31,40 @@ impl Type {
             .type_store
             .add_var_and_type(new_var, new_ty, new_index);
         new_var
+    }
+
+    pub fn to_concrete_type(&self, type_store: &TypeStore) -> Option<IrType> {
+        match self {
+            Type::Tuple(vars) => {
+                let mut concrete_items = Vec::new();
+                for var in vars {
+                    let item = type_store.get_type(var);
+                    let concrete_item = item.to_concrete_type(type_store)?;
+                    concrete_items.push(concrete_item);
+                }
+                Some(IrType::Tuple(concrete_items))
+            }
+            Type::Function(func_type) => {
+                let from = type_store
+                    .get_type(&func_type.from)
+                    .to_concrete_type(type_store)?;
+                let to = type_store
+                    .get_type(&func_type.to)
+                    .to_concrete_type(type_store)?;
+                Some(IrType::Function(Box::new(from), Box::new(to)))
+            }
+            Type::TypeArgument(..) => None,
+            Type::FixedTypeArgument(..) => None,
+            Type::Named(name, id, vars) => {
+                let mut concrete_items = Vec::new();
+                for var in vars {
+                    let item = type_store.get_type(var);
+                    let concrete_item = item.to_concrete_type(type_store)?;
+                    concrete_items.push(concrete_item);
+                }
+                Some(IrType::Named(name.clone(), *id, concrete_items))
+            }
+        }
     }
 
     pub fn clone_type(&self, context: &mut CloneContext) -> Type {

@@ -1,15 +1,16 @@
-use crate::common::InstanceTypeInfo;
-use crate::error::TypecheckError;
-use crate::instance_resolver::InstanceResolver;
+use crate::check_context::CheckContext;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::class::ClassId;
+use siko_ir::types::Type as IrType;
+use siko_ir::types::TypeDefId;
 use siko_util::format_list;
 use siko_util::Collector;
 use siko_util::Counter;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use siko_ir::types::TypeDefId;
+use std::rc::Rc;
 
 pub struct CloneContext<'a> {
     vars: BTreeMap<TypeVariable, TypeVariable>,
@@ -119,22 +120,20 @@ pub struct TypeStore {
     var_counter: Counter,
     index_counter: Counter,
     arg_counter: Counter,
-    pub class_names: BTreeMap<ClassId, String>,
-    pub instance_resolver: InstanceResolver,
+    check_context: Rc<RefCell<CheckContext>>,
     list_type_id: TypeDefId,
 }
 
 impl TypeStore {
-    pub fn new(list_type_id: TypeDefId) -> TypeStore {
+    pub fn new(list_type_id: TypeDefId, check_context: Rc<RefCell<CheckContext>>) -> TypeStore {
         TypeStore {
             variables: BTreeMap::new(),
             indices: BTreeMap::new(),
             var_counter: Counter::new(),
             index_counter: Counter::new(),
             arg_counter: Counter::new(),
-            class_names: BTreeMap::new(),
-            instance_resolver: InstanceResolver::new(),
-            list_type_id: list_type_id
+            check_context: check_context,
+            list_type_id: list_type_id,
         }
     }
 
@@ -188,8 +187,21 @@ impl TypeStore {
     }
 
     pub fn has_class_instance(&mut self, var: &TypeVariable, class_id: &ClassId) -> bool {
-        let instance_resolver = self.instance_resolver.clone();
-        instance_resolver.has_class_instance(var, class_id, self)
+        let concrete_type = self.to_concrete_type(var);
+        let context = self.check_context.clone();
+        let context = context.borrow();
+        /*println!(
+            "Resolving instance for type: {}, {:?}",
+            self.get_resolved_type_string(var),
+            concrete_type
+        );*/
+        context.instance_resolver.has_class_instance(
+            var,
+            class_id,
+            self,
+            context.type_instance_resolver.clone(),
+            concrete_type,
+        )
     }
 
     pub fn unify(&mut self, primary: &TypeVariable, secondary: &TypeVariable) -> bool {
@@ -308,6 +320,11 @@ impl TypeStore {
             .clone()
     }
 
+    pub fn to_concrete_type(&self, var: &TypeVariable) -> Option<IrType> {
+        let ty = self.get_type(var);
+        ty.to_concrete_type(self)
+    }
+
     pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
         if self.is_recursive(*var) {
             return format!("<recursive type>");
@@ -328,7 +345,8 @@ impl TypeStore {
         let mut constraint_strings = Vec::new();
         for (c, classes) in constraints.items {
             for class_id in classes {
-                let class_name = self
+                let context = self.check_context.borrow();
+                let class_name = context
                     .class_names
                     .get(&class_id)
                     .expect("Class name not found");
@@ -390,48 +408,5 @@ impl TypeStore {
             self.get_index(var).id,
             ty.debug_dump(self)
         )
-    }
-
-    pub fn add_instance_info(
-        &mut self,
-        class_id: ClassId,
-        info: InstanceTypeInfo,
-        errors: &mut Vec<TypecheckError>,
-    ) {
-        fn is_conflicting(
-            first: &InstanceTypeInfo,
-            second: &InstanceTypeInfo,
-            type_store: &mut TypeStore,
-        ) -> bool {
-            let mut context = type_store.create_clone_context();
-            let first = context.clone_var(first.type_var);
-            let second = context.clone_var(second.type_var);
-            type_store.unify(&first, &second)
-        }
-
-        let instance_infos = self
-            .instance_resolver
-            .instances
-            .entry(class_id)
-            .or_insert_with(|| Vec::new());
-        let copy = instance_infos.clone();
-        instance_infos.push(info.clone());
-        for i in copy.iter() {
-            if is_conflicting(i, &info, self) {
-                let err = TypecheckError::ConflictingInstances(i.location_id, info.location_id);
-                errors.push(err);
-            }
-        }
-    }
-
-    pub fn finished_instance_checks(&mut self) {
-        // during instance conflict checks the instance resolver
-        // will tell that every type has an instance for every type class
-        // to ignore instance constraints
-        // e.q. these instance are conflicting even if Int does
-        // not implement Bar
-        // instance (Bar a) => Foo a
-        // instance Foo Int
-        self.instance_resolver.hide_deps = false;
     }
 }

@@ -2,6 +2,8 @@ use crate::class::ClassId;
 use crate::function::FunctionId;
 use siko_location_info::item::LocationId;
 use std::fmt;
+use crate::class::InstanceId;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeSignatureId {
@@ -135,8 +137,29 @@ impl From<usize> for TypeId {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Type {
-    Tuple(Vec<TypeId>),
-    Named(String, TypeDefId, Vec<TypeId>),
-    Function(TypeId, TypeId),
+    Tuple(Vec<Type>),
+    Named(String, TypeDefId, Vec<Type>),
+    Function(Box<Type>, Box<Type>),
+}
+
+pub struct TypeInstanceResolver {
+    pub instance_map: BTreeMap<ClassId, BTreeMap<Type, InstanceId>>,
+}
+
+impl TypeInstanceResolver {
+    pub fn new() -> TypeInstanceResolver {
+        TypeInstanceResolver {
+            instance_map: BTreeMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, class_id: ClassId, ty: Type, instance_id: InstanceId) {
+        let types = self
+            .instance_map
+            .entry(class_id)
+            .or_insert_with(|| BTreeMap::new());
+        types.insert(ty, instance_id);
+    }
 }
