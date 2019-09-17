@@ -15,10 +15,10 @@ pub struct CheckContext {
 }
 
 impl CheckContext {
-    pub fn new() -> CheckContext {
+    pub fn new(type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>) -> CheckContext {
         CheckContext {
             instance_resolver: InstanceResolver::new(),
-            type_instance_resolver: Rc::new(RefCell::new(TypeInstanceResolver::new())),
+            type_instance_resolver: type_instance_resolver,
             class_names: BTreeMap::new(),
         }
     }

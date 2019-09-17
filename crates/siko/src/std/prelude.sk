@@ -77,7 +77,9 @@ class Show a where
     show a :: a -> String
 
 instance Show String where
-    show a = a 
+    show a = do 
+        println "hihi"
+        a 
 
 instance (Show a) => Show List a where
     show a = extern

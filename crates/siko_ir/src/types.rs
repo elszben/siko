@@ -144,6 +144,7 @@ pub enum Type {
     Function(Box<Type>, Box<Type>),
 }
 
+#[derive(Debug)]
 pub struct TypeInstanceResolver {
     pub instance_map: BTreeMap<ClassId, BTreeMap<Type, InstanceId>>,
 }

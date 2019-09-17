@@ -1,5 +1,11 @@
+use siko_constants::BOOL_NAME;
+use siko_constants::FLOAT_NAME;
+use siko_constants::INT_NAME;
+use siko_constants::LIST_NAME;
+use siko_constants::STRING_NAME;
 use siko_ir::function::FunctionId;
 use siko_ir::program::Program;
+use siko_ir::types::Type;
 use siko_ir::types::TypeDefId;
 use std::fmt;
 
@@ -70,6 +76,50 @@ impl Value {
             format!("({})", v)
         } else {
             v
+        }
+    }
+
+    pub fn to_type(&self, program: &Program) -> Type {
+        match self {
+            Value::Int(v) => Type::Named(
+                INT_NAME.to_string(),
+                program.builtin_types.int_id.unwrap(),
+                vec![],
+            ),
+            Value::Float(v) => Type::Named(
+                FLOAT_NAME.to_string(),
+                program.builtin_types.float_id.unwrap(),
+                vec![],
+            ),
+            Value::Bool(v) => Type::Named(
+                BOOL_NAME.to_string(),
+                program.builtin_types.bool_id.unwrap(),
+                vec![],
+            ),
+            Value::String(v) => Type::Named(
+                STRING_NAME.to_string(),
+                program.builtin_types.string_id.unwrap(),
+                vec![],
+            ),
+            Value::Tuple(vs) => {
+                let items: Vec<_> = vs.iter().map(|v| v.to_type(program)).collect();
+                Type::Tuple(items)
+            }
+            Value::Callable(_) => unimplemented!(),
+            Value::Variant(_, _, _) => unimplemented!(),
+            Value::Record(id, vs) => {
+                let items: Vec<_> = vs.iter().map(|v| v.to_type(program)).collect();
+                let record = program.typedefs.get(id).get_record();
+                Type::Named(record.name.clone(), *id, items)
+            }
+            Value::List(vs) => {
+                let item_type = vs[0].to_type(program);
+                Type::Named(
+                    LIST_NAME.to_string(),
+                    program.builtin_types.list_id.unwrap(),
+                    vec![item_type],
+                )
+            }
         }
     }
 }

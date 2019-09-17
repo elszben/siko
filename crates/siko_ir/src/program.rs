@@ -16,6 +16,10 @@ use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
+ use crate::types::TypeInstanceResolver;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 
 #[derive(Debug)]
 pub struct BuiltinTypes {
@@ -37,6 +41,7 @@ pub struct Program {
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
     pub builtin_types: BuiltinTypes,
+    pub type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>,
 }
 
 impl Program {
@@ -58,6 +63,7 @@ impl Program {
             class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
             builtin_types: builtin_types,
+            type_instance_resolver: Rc::new(RefCell::new(TypeInstanceResolver::new())),
         }
     }
 }

@@ -328,7 +328,26 @@ impl<'a> Interpreter<'a> {
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let member = program.class_members.get(class_member_id);
                 let class = program.classes.get(&member.class_id);
-                println!("calling {} from {}", member.name, class.name);
+                let values: Vec<_> = args
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment))
+                    .collect();
+                let resolver = program.type_instance_resolver.borrow();
+                for value in &values {
+                    let ty = value.to_type(program);
+                    if let Some(instances) = resolver.instance_map.get(&member.class_id) {
+                        if let Some(instance_id) = instances.get(&ty) {
+                            let instance = program.instances.get(instance_id);
+                            let instance_member = instance.members.get(&member.name).unwrap();
+                            let callable = Value::Callable(Callable {
+                                function_id: instance_member.function_id,
+                                values: vec![],
+                            });
+                            return self.call(callable, values, program, expr_id);
+                        }
+                    }
+                }
+                println!("calling {} from {} failed", member.name, class.name);
                 unimplemented!()
             }
         }

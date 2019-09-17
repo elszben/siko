@@ -42,7 +42,9 @@ impl Typechecker {
     pub fn check(&mut self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
 
-        let check_context = Rc::new(RefCell::new(CheckContext::new()));
+        let check_context = Rc::new(RefCell::new(CheckContext::new(
+            program.type_instance_resolver.clone(),
+        )));
 
         let function_processor = FunctionProcessor::new(
             program.builtin_types.list_id.unwrap(),

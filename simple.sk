@@ -14,6 +14,6 @@ printer a = show a
 
 main = do
     bs <- ["a", "5"]
-    print (show bs)
+    print (show "5")
    // print (show "a")
     
