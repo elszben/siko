@@ -412,6 +412,7 @@ impl Resolver {
         type_signature_id: Option<TypeSignatureId>,
         type_arg_resolver: &mut TypeArgResolver,
         is_member: bool,
+        instance: Option<String>,
     ) {
         let mut body = None;
 
@@ -458,6 +459,7 @@ impl Resolver {
             body: body,
             name: function.name.clone(),
             module: module.name.clone(),
+            instance: instance,
             type_signature: type_signature_id,
             location_id: function.location_id,
             is_member: is_member,
@@ -794,6 +796,7 @@ impl Resolver {
                             result,
                             &mut type_arg_resolver,
                             true,
+                            None,
                         );
                         Some(ir_function_id)
                     } else {
@@ -970,6 +973,7 @@ impl Resolver {
                         Some(member_function_type_signature_id),
                         &mut type_arg_resolver,
                         true,
+                        instance.name.clone(),
                     );
                 } else {
                     let err = ResolverError::NotAClassMember(
@@ -1101,7 +1105,11 @@ impl Resolver {
                 let instance = program.instances.get(&instance_id);
                 if let Some(name) = &instance.name {
                     if !named_instances.insert(name) {
-                        let err = ResolverError::NamedInstancedNotUnique(module.name.clone(), name.clone(), instance.location_id);
+                        let err = ResolverError::NamedInstancedNotUnique(
+                            module.name.clone(),
+                            name.clone(),
+                            instance.location_id,
+                        );
                         errors.push(err);
                     }
                 }
@@ -1184,6 +1192,7 @@ impl Resolver {
                                 type_signature_id,
                                 &mut type_arg_resolver,
                                 false,
+                                None,
                             );
                         }
                         _ => {}

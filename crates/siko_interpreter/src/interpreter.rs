@@ -360,6 +360,7 @@ impl<'a> Interpreter<'a> {
         environment: &mut Environment,
         program: &Program,
         current_expr: Option<ExprId>,
+        instance: Option<String>,
     ) -> Value {
         match (module, name) {
             (PRELUDE_NAME, "op_add") => {
@@ -426,6 +427,18 @@ impl<'a> Interpreter<'a> {
                     unreachable!();
                 }
             }
+            (PRELUDE_NAME, "show") => match instance {
+                Some(instance_name) => match instance_name.as_ref() {
+                    "ListShow" => {
+                        let list = environment.get_arg_by_index(0);
+                        return Value::String(list.debug(program, false));
+                    }
+                    _ => {
+                        panic!("Unimplemented show function {}/{}", module, instance_name);
+                    }
+                },
+                None => unreachable!(),
+            },
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);
             }
@@ -452,6 +465,7 @@ impl<'a> Interpreter<'a> {
                         environment,
                         program,
                         current_expr,
+                        info.instance.clone(),
                     );
                 }
             },

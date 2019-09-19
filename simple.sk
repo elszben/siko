@@ -17,7 +17,7 @@ boo = None
 
 main = do
     bs <- ["a", "5"]
-    print (show "5")
-    print (show 5)
+    //print (show "5")
+    print (show bs)
    // print (show "a")
     
