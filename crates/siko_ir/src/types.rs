@@ -138,15 +138,15 @@ impl From<usize> for TypeId {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Type {
-    Tuple(Vec<Type>),
-    Named(String, TypeDefId, Vec<Type>),
-    Function(Box<Type>, Box<Type>),
+pub enum ConcreteType {
+    Tuple(Vec<ConcreteType>),
+    Named(String, TypeDefId, Vec<ConcreteType>),
+    Function(Box<ConcreteType>, Box<ConcreteType>),
 }
 
 #[derive(Debug)]
 pub struct TypeInstanceResolver {
-    pub instance_map: BTreeMap<ClassId, BTreeMap<Type, InstanceId>>,
+    pub instance_map: BTreeMap<ClassId, BTreeMap<ConcreteType, InstanceId>>,
 }
 
 impl TypeInstanceResolver {
@@ -156,7 +156,7 @@ impl TypeInstanceResolver {
         }
     }
 
-    pub fn add(&mut self, class_id: ClassId, ty: Type, instance_id: InstanceId) {
+    pub fn add(&mut self, class_id: ClassId, ty: ConcreteType, instance_id: InstanceId) {
         let types = self
             .instance_map
             .entry(class_id)

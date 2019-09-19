@@ -5,6 +5,7 @@ use crate::error::TypecheckError;
 use crate::expr_processor::ExprProcessor;
 use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::function_processor::FunctionProcessor;
+use crate::type_store::TypeStore;
 use siko_constants;
 use siko_ir::function::FunctionInfo;
 use siko_ir::program::Program;
@@ -46,10 +47,12 @@ impl Typechecker {
             program.type_instance_resolver.clone(),
         )));
 
-        let function_processor = FunctionProcessor::new(
+        let type_store = TypeStore::new(
             program.builtin_types.list_id.unwrap(),
             check_context.clone(),
         );
+
+        let function_processor = FunctionProcessor::new(type_store);
 
         let (type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
             function_processor.process_functions(program, &mut errors);

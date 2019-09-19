@@ -2,7 +2,7 @@ use crate::check_context::CheckContext;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::class::ClassId;
-use siko_ir::types::Type as IrType;
+use siko_ir::types::ConcreteType;
 use siko_ir::types::TypeDefId;
 use siko_util::format_list;
 use siko_util::Collector;
@@ -320,7 +320,7 @@ impl TypeStore {
             .clone()
     }
 
-    pub fn to_concrete_type(&self, var: &TypeVariable) -> Option<IrType> {
+    pub fn to_concrete_type(&self, var: &TypeVariable) -> Option<ConcreteType> {
         let ty = self.get_type(var);
         ty.to_concrete_type(self)
     }

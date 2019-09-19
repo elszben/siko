@@ -14,10 +14,7 @@ use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
-use crate::check_context::CheckContext;
 use std::collections::BTreeMap;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 pub struct FunctionProcessor {
     type_store: TypeStore,
@@ -27,9 +24,9 @@ pub struct FunctionProcessor {
 }
 
 impl FunctionProcessor {
-    pub fn new(list_type_id: TypeDefId, check_context: Rc<RefCell<CheckContext>>) -> FunctionProcessor {
+    pub fn new(type_store: TypeStore) -> FunctionProcessor {
         FunctionProcessor {
-            type_store: TypeStore::new(list_type_id, check_context),
+            type_store: type_store,
             function_type_info_map: BTreeMap::new(),
             record_type_info_map: BTreeMap::new(),
             variant_type_info_map: BTreeMap::new(),

@@ -2,7 +2,7 @@ use crate::common::InstanceTypeInfo;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use siko_ir::class::ClassId;
-use siko_ir::types::Type;
+use siko_ir::types::ConcreteType;
 use siko_ir::types::TypeInstanceResolver;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -28,7 +28,7 @@ impl InstanceResolver {
         class_id: &ClassId,
         type_store: &mut TypeStore,
         type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>,
-        concrete_type: Option<Type>,
+        concrete_type: Option<ConcreteType>,
     ) -> bool {
         if self.hide_deps {
             return true;
