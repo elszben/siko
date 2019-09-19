@@ -44,6 +44,7 @@ pub enum ResolverError {
     FunctionTypeWithoutImplementationInModule(String, String, LocationId),
     InvalidClassArgument(LocationId),
     InvalidTypeArgInInstanceConstraint(String, LocationId),
+    NamedInstancedNotUnique(String, String, LocationId),
 }
 
 #[derive(Debug)]

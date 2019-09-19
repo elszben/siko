@@ -81,5 +81,10 @@ instance Show String where
         println "hihi"
         a 
 
-instance (Show a) => Show List a where
+instance Show Int where
+    show a = do 
+        println "hehe"
+        "int" 
+
+instance as ListShow (Show a) => Show List a where
     show a = extern

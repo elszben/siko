@@ -518,6 +518,15 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::NamedInstancedNotUnique(module, instance, id) => {
+                            eprintln!(
+                                "named instance {} is not unique in module {}",
+                                instance.yellow(),
+                                module.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

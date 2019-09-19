@@ -1014,6 +1014,7 @@ impl Resolver {
 
             let ir_instance = IrInstance {
                 id: id,
+                name: instance.name.clone(),
                 class_id: ir_class_id,
                 type_signature: instance_type_signature,
                 members: members,
@@ -1095,8 +1096,15 @@ impl Resolver {
 
         for (_, module) in &self.modules {
             let ast_module = program.modules.get(&module.id);
+            let mut named_instances = BTreeSet::new();
             for instance_id in &ast_module.instances {
                 let instance = program.instances.get(&instance_id);
+                if let Some(name) = &instance.name {
+                    if !named_instances.insert(name) {
+                        let err = ResolverError::NamedInstancedNotUnique(module.name.clone(), name.clone(), instance.location_id);
+                        errors.push(err);
+                    }
+                }
                 self.process_instance(instance, program, &mut ir_program, module, &mut errors);
             }
         }

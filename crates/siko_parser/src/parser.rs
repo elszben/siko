@@ -916,6 +916,13 @@ impl<'a> Parser<'a> {
 
     fn parse_instance(&mut self, module: &mut Module) -> Result<Instance, ParseError> {
         self.expect(TokenKind::KeywordInstance)?;
+        let name = if self.current_kind() == TokenKind::KeywordAs {
+            self.expect(TokenKind::KeywordAs)?;
+            let name = self.type_identifier("instance name")?;
+            Some(name)
+        } else {
+            None
+        };
         let constraints = if self.current_kind() == TokenKind::LParen {
             let cs = self.parse_list1_in_parens(parse_class_constraint)?;
             self.expect(TokenKind::KeywordConstraint)?;
@@ -954,6 +961,7 @@ impl<'a> Parser<'a> {
         module.instances.push(id);
         let instance = Instance {
             id: id,
+            name: name,
             class_name: class_name,
             type_signature_id: type_signature_id,
             constraints: constraints,

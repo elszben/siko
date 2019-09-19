@@ -77,6 +77,7 @@ impl From<usize> for InstanceId {
 #[derive(Debug, Clone)]
 pub struct Instance {
     pub id: InstanceId,
+    pub name: Option<String>,
     pub class_id: ClassId,
     pub type_signature: TypeSignatureId,
     pub members: BTreeMap<String, InstanceMember>,

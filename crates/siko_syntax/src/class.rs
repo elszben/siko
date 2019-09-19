@@ -18,6 +18,7 @@ pub struct Class {
 #[derive(Debug, Clone)]
 pub struct Instance {
     pub id: InstanceId,
+    pub name: Option<String>,
     pub class_name: String,
     pub type_signature_id: TypeSignatureId,
     pub constraints: Vec<Constraint>,
