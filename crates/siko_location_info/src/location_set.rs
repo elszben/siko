@@ -2,7 +2,7 @@ use crate::filepath::FilePath;
 use crate::location::Location;
 use std::collections::BTreeMap;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Range {
     pub start: usize,
     pub end: usize,
@@ -33,6 +33,10 @@ impl LocationSet {
         for range in ranges.iter_mut() {
             if range.end == location.span.start {
                 range.end = location.span.end;
+                merged = true;
+            } else if range.start == location.span.start && range.end == location.span.end {
+                // TODO: figure out why this happens
+                unreachable!();
                 merged = true;
             }
         }
