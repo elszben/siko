@@ -62,12 +62,6 @@ data Option a = Some a | None
 
 data List a = extern
 
-empty a :: List a
-empty = extern
-
-insert a :: List a -> a -> List a
-insert list item = extern
-
 class Eq a where
     eq a :: a -> a -> Bool
     ne a :: a -> a -> Bool

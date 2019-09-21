@@ -1,9 +1,9 @@
 use crate::class::ClassId;
+use crate::class::InstanceId;
 use crate::function::FunctionId;
 use siko_location_info::item::LocationId;
-use std::fmt;
-use crate::class::InstanceId;
 use std::collections::BTreeMap;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeSignatureId {
@@ -163,4 +163,12 @@ impl TypeInstanceResolver {
             .or_insert_with(|| BTreeMap::new());
         types.insert(ty, instance_id);
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Type {
+    Tuple(Vec<TypeId>),
+    Function(TypeId, TypeId),
+    TypeArgument(usize, Vec<ClassId>),
+    Named(String, TypeDefId, Vec<TypeId>),
 }

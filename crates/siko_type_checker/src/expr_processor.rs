@@ -6,6 +6,7 @@ use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
+use crate::types::Type;
 use crate::unifier::Unifier;
 use crate::walker::walk_expr;
 use crate::walker::Visitor;
@@ -16,9 +17,46 @@ use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
+use siko_ir::types::Type as IrType;
 use siko_ir::types::TypeDefId;
+use siko_ir::types::TypeId as IrTypeId;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
+
+pub fn convert_to_ir_type(
+    var: &TypeVariable,
+    program: &mut Program,
+    type_store: &TypeStore,
+) -> IrTypeId {
+    let expr_ty = type_store.get_type(var);
+    let ir_type = match expr_ty {
+        Type::TypeArgument(arg, constraints) => IrType::TypeArgument(arg, constraints),
+        Type::FixedTypeArgument(arg, _, constraints) => IrType::TypeArgument(arg, constraints),
+        Type::Function(func_type) => {
+            let from = convert_to_ir_type(&func_type.from, program, type_store);
+            let to = convert_to_ir_type(&func_type.to, program, type_store);
+            IrType::Function(from, to)
+        }
+        Type::Named(name, def_id, items) => {
+            let items: Vec<_> = items
+                .iter()
+                .map(|v| convert_to_ir_type(v, program, type_store))
+                .collect();
+            IrType::Named(name, def_id, items)
+        }
+        Type::Tuple(items) => {
+            let items: Vec<_> = items
+                .iter()
+                .map(|v| convert_to_ir_type(v, program, type_store))
+                .collect();
+            IrType::Tuple(items)
+        }
+    };
+    let ir_type_id = IrTypeId::from(var.id);
+    program.types.insert(ir_type_id, ir_type);
+
+    ir_type_id
+}
 
 struct TypeVarCreator<'a, 'b> {
     expr_processor: &'a mut ExprProcessor<'b>,
@@ -185,6 +223,13 @@ impl<'a> ExprProcessor<'a> {
             false
         } else {
             true
+        }
+    }
+
+    pub fn export_expr_types(&mut self) {
+        for (expr_id, var) in &self.expression_type_var_map {
+            let ir_type_id = convert_to_ir_type(var, &mut self.program, &self.type_store);
+            self.program.expr_types.insert(*expr_id, ir_type_id);
         }
     }
 }

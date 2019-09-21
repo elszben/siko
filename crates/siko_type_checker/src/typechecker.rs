@@ -42,7 +42,6 @@ impl Typechecker {
 
     pub fn check(&mut self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
-
         let check_context = Rc::new(RefCell::new(CheckContext::new(
             program.type_instance_resolver.clone(),
         )));
@@ -66,6 +65,8 @@ impl Typechecker {
 
         let (type_store, function_type_info_map, ordered_dep_groups) =
             function_dep_processor.process_functions(program);
+
+        self.check_main(program, &mut errors);
 
         let class_processor = ClassProcessor::new(type_store, check_context.clone());
 
@@ -98,12 +99,12 @@ impl Typechecker {
 
         expr_processor.check_recursive_types(&mut errors);
 
-        self.check_main(program, &mut errors);
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(Error::typecheck_err(errors))
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
         }
+
+        expr_processor.export_expr_types();
+
+        Ok(())
     }
 }

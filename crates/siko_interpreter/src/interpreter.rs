@@ -414,19 +414,6 @@ impl<'a> Interpreter<'a> {
                 println!("{}", v);
                 return Value::Tuple(vec![]);
             }
-            (PRELUDE_NAME, "empty") => {
-                return Value::List(vec![]);
-            }
-            (PRELUDE_NAME, "insert") => {
-                let list = environment.get_arg_by_index(0);
-                let item = environment.get_arg_by_index(1);
-                if let Value::List(mut vs) = list {
-                    vs.push(item);
-                    return Value::List(vs);
-                } else {
-                    unreachable!();
-                }
-            }
             (PRELUDE_NAME, "show") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "ListShow" => {
