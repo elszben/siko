@@ -15,10 +15,6 @@ printer a = show a
 boo a :: Option a
 boo = None
 
-//foo :: ()
-foo = do
-    a <- []
-
 main = do
     bs <- ["a", "5"]
     //print (show "5")
