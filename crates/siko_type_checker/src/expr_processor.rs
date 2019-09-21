@@ -21,7 +21,6 @@ use siko_ir::types::Type as IrType;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId as IrTypeId;
 use siko_location_info::item::LocationId;
-use siko_util::Collector;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -36,7 +35,7 @@ impl<'a, 'b> Visitor for UndefinedGenericsChecker<'a, 'b> {
         &self.expr_processor.program
     }
 
-    fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
+    fn visit_expr(&mut self, expr_id: ExprId, _: &Expr) {
         let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
         let args = self.expr_processor.type_store.get_type_args(&var);
         for arg in args {
@@ -49,7 +48,7 @@ impl<'a, 'b> Visitor for UndefinedGenericsChecker<'a, 'b> {
         }
     }
 
-    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {}
+    fn visit_pattern(&mut self, _: PatternId, _: &Pattern) {}
 }
 
 pub fn convert_to_ir_type(

@@ -134,11 +134,11 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .unify_variables(&var, &pattern_var, location, self.errors);
     }
 
-    fn match_expr_with(&mut self, expr: &ExprId, var: &TypeVariable) {
+    fn match_expr_with(&mut self, expr: &ExprId, var: &TypeVariable) -> bool {
         let expr_var = self.expr_processor.lookup_type_var_for_expr(expr);
         let location = self.expr_processor.program.exprs.get(expr).location_id;
         self.expr_processor
-            .unify_variables(&var, &expr_var, location, self.errors);
+            .unify_variables(&var, &expr_var, location, self.errors)
     }
 
     fn get_builtin_type(&mut self, typedef_id: TypeDefId, args: Vec<TypeVariable>) -> TypeVariable {
@@ -204,53 +204,50 @@ impl<'a, 'b> Unifier<'a, 'b> {
         )
     }
 
-    fn static_function_call(
+    fn check_function_call(
         &mut self,
-        orig_function_type_var: TypeVariable,
-        args: &Vec<ExprId>,
+        orig_func_var: TypeVariable,
         expr_id: ExprId,
+        args: &Vec<ExprId>,
     ) {
-        let mut function_type_var = orig_function_type_var;
-        let orig_arg_vars: Vec<_> = args
+        let mut gen_args = Vec::new();
+        let (gen_func, gen_result) = create_general_function_type(
+            args.len(),
+            &mut gen_args,
+            &mut self.expr_processor.type_store,
+        );
+        let arg_vars: Vec<_> = args
             .iter()
             .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
             .collect();
-        let mut arg_vars = orig_arg_vars.clone();
-        let mut failed = false;
-        while !arg_vars.is_empty() {
-            if let Type::Function(func_type) =
-                self.expr_processor.type_store.get_type(&function_type_var)
-            {
-                let first_arg = arg_vars.first().unwrap();
-                if !self
-                    .expr_processor
-                    .type_store
-                    .unify(&func_type.from, first_arg)
-                {
+        let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
+        if self
+            .expr_processor
+            .unify_variables(&gen_func, &orig_func_var, location, self.errors)
+        {
+            let mut failed = false;
+            for (arg, gen_arg) in arg_vars.iter().zip(gen_args.iter()) {
+                if !self.expr_processor.type_store.unify(arg, gen_arg) {
                     failed = true;
                     break;
-                } else {
-                    function_type_var = func_type.to;
-                    arg_vars.remove(0);
                 }
-            } else {
-                failed = true;
-                break;
             }
-        }
-        let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
-        if failed {
-            let function_type_string = self.get_type_string(&orig_function_type_var);
-            let arg_type_strings: Vec<_> = orig_arg_vars
-                .iter()
-                .map(|arg_var| self.get_type_string(arg_var))
-                .collect();
-            let arguments = format_list(&arg_type_strings[..]);
-            let err =
-                TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
-            self.errors.push(err);
-        } else {
-            self.match_expr_with(&expr_id, &function_type_var);
+            if failed {
+                let function_type_string = self.get_type_string(&gen_func);
+                let arg_type_strings: Vec<_> = arg_vars
+                    .iter()
+                    .map(|arg_var| self.get_type_string(arg_var))
+                    .collect();
+                let arguments = format_list(&arg_type_strings[..]);
+                let err = TypecheckError::FunctionArgumentMismatch(
+                    location,
+                    arguments,
+                    function_type_string,
+                );
+                self.errors.push(err);
+            } else {
+                self.match_expr_with(&expr_id, &gen_result);
+            }
         }
     }
 }
@@ -287,58 +284,11 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             }
             Expr::StaticFunctionCall(function_id, args) => {
                 let orig_function_type_var = self.get_function_type_var(function_id);
-                self.static_function_call(orig_function_type_var, args, expr_id);
+                self.check_function_call(orig_function_type_var, expr_id, args);
             }
             Expr::DynamicFunctionCall(func_expr, args) => {
-                let mut gen_args = Vec::new();
-                let (gen_func, gen_result) = create_general_function_type(
-                    args.len(),
-                    &mut gen_args,
-                    &mut self.expr_processor.type_store,
-                );
-                let mut failed = false;
-                let mut func_var_error = false;
-                let func_expr_var = self.expr_processor.lookup_type_var_for_expr(func_expr);
-                let arg_vars: Vec<_> = args
-                    .iter()
-                    .map(|arg| self.expr_processor.lookup_type_var_for_expr(arg))
-                    .collect();
-                if !self
-                    .expr_processor
-                    .type_store
-                    .unify(&func_expr_var, &gen_func)
-                {
-                    failed = true;
-                    func_var_error = true;
-                } else {
-                    for (arg, gen_arg) in arg_vars.iter().zip(gen_args.iter()) {
-                        if !self.expr_processor.type_store.unify(arg, gen_arg) {
-                            failed = true;
-                            break;
-                        }
-                    }
-                }
-                let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
-                if failed {
-                    let function_type_string = if func_var_error {
-                        self.get_type_string(&func_expr_var)
-                    } else {
-                        self.get_type_string(&gen_func)
-                    };
-                    let arg_type_strings: Vec<_> = arg_vars
-                        .iter()
-                        .map(|arg_var| self.get_type_string(arg_var))
-                        .collect();
-                    let arguments = format_list(&arg_type_strings[..]);
-                    let err = TypecheckError::FunctionArgumentMismatch(
-                        location,
-                        arguments,
-                        function_type_string,
-                    );
-                    self.errors.push(err);
-                } else {
-                    self.match_expr_with(&expr_id, &gen_result);
-                }
+                let func_var = self.expr_processor.lookup_type_var_for_expr(func_expr);
+                self.check_function_call(func_var, expr_id, args);
             }
             Expr::ArgRef(arg_ref) => {
                 let func = self.expr_processor.program.functions.get(&arg_ref.id);
@@ -530,7 +480,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let orig_function_type_var = self.get_class_member_type_var(class_member_id);
-                self.static_function_call(orig_function_type_var, args, expr_id);
+                self.check_function_call(orig_function_type_var, expr_id, args);
             }
         }
     }

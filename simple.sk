@@ -15,7 +15,7 @@ printer a = show a
 boo a :: Option a
 boo = do
         a <- 4
-        a 5
+        show 
 
 main = do
     bs <- ["a", "5"]
