@@ -297,6 +297,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     &mut self.expr_processor.type_store,
                 );
                 let mut failed = false;
+                let mut func_var_error = false;
                 let func_expr_var = self.expr_processor.lookup_type_var_for_expr(func_expr);
                 let arg_vars: Vec<_> = args
                     .iter()
@@ -308,6 +309,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     .unify(&func_expr_var, &gen_func)
                 {
                     failed = true;
+                    func_var_error = true;
                 } else {
                     for (arg, gen_arg) in arg_vars.iter().zip(gen_args.iter()) {
                         if !self.expr_processor.type_store.unify(arg, gen_arg) {
@@ -318,7 +320,11 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 }
                 let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
                 if failed {
-                    let function_type_string = self.get_type_string(&gen_func);
+                    let function_type_string = if func_var_error {
+                        self.get_type_string(&func_expr_var)
+                    } else {
+                        self.get_type_string(&gen_func)
+                    };
                     let arg_type_strings: Vec<_> = arg_vars
                         .iter()
                         .map(|arg_var| self.get_type_string(arg_var))

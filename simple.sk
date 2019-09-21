@@ -13,7 +13,9 @@ printer a :: (Show a) => [a] -> String
 printer a = show a
 
 boo a :: Option a
-boo = None
+boo = do
+        a <- 4
+        a 5
 
 main = do
     bs <- ["a", "5"]
