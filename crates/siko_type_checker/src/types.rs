@@ -1,7 +1,6 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
 use crate::type_store::CloneContext;
-use crate::type_store::TypeIndex;
 use crate::type_store::TypeStore;
 use siko_ir::class::ClassId;
 use siko_ir::types::ConcreteType;
@@ -103,7 +102,6 @@ impl Type {
         &self,
         vars: &mut BTreeSet<TypeVariable>,
         args: &mut BTreeSet<usize>,
-        indices: &mut BTreeSet<TypeIndex>,
         constraints: &mut Collector<usize, ClassId>,
         type_store: &TypeStore,
     ) {
@@ -111,17 +109,15 @@ impl Type {
             Type::Tuple(type_vars) => {
                 for var in type_vars {
                     vars.insert(*var);
-                    indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, indices, constraints, type_store);
+                    ty.collect(vars, args, constraints, type_store);
                 }
             }
             Type::Function(func_type) => {
                 for var in &[func_type.from, func_type.to] {
                     vars.insert(*var);
-                    indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, indices, constraints, type_store);
+                    ty.collect(vars, args, constraints, type_store);
                 }
             }
             Type::TypeArgument(index, type_constraints) => {
@@ -139,9 +135,8 @@ impl Type {
             Type::Named(_, _, type_vars) => {
                 for var in type_vars {
                     vars.insert(*var);
-                    indices.insert(type_store.get_index(var));
                     let ty = type_store.get_type(var);
-                    ty.collect(vars, args, indices, constraints, type_store);
+                    ty.collect(vars, args, constraints, type_store);
                 }
             }
         }

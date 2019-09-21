@@ -61,6 +61,7 @@ impl DependencyGroup {
     }
 }
 
+#[derive(Clone)]
 pub struct FunctionTypeInfo {
     pub displayed_name: String,
     pub args: Vec<TypeVariable>,

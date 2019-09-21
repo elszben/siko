@@ -99,6 +99,8 @@ impl Typechecker {
 
         expr_processor.check_recursive_types(&mut errors);
 
+        expr_processor.check_undefined_generics(&mut errors);
+
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }

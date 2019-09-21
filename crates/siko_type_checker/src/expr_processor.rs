@@ -21,7 +21,36 @@ use siko_ir::types::Type as IrType;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId as IrTypeId;
 use siko_location_info::item::LocationId;
+use siko_util::Collector;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+
+struct UndefinedGenericsChecker<'a, 'b> {
+    expr_processor: &'a mut ExprProcessor<'b>,
+    errors: &'a mut Vec<TypecheckError>,
+    args: BTreeSet<usize>,
+}
+
+impl<'a, 'b> Visitor for UndefinedGenericsChecker<'a, 'b> {
+    fn get_program(&self) -> &Program {
+        &self.expr_processor.program
+    }
+
+    fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
+        let var = self.expr_processor.lookup_type_var_for_expr(&expr_id);
+        let args = self.expr_processor.type_store.get_type_args(&var);
+        for arg in args {
+            if !self.args.contains(&arg) {
+                let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
+                let err = TypecheckError::TypeAnnotationNeeded(location);
+                self.errors.push(err);
+                break;
+            }
+        }
+    }
+
+    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {}
+}
 
 pub fn convert_to_ir_type(
     var: &TypeVariable,
@@ -204,6 +233,21 @@ impl<'a> ExprProcessor<'a> {
             if self.type_store.is_recursive(info.function_type) {
                 let err = TypecheckError::RecursiveType(info.location_id);
                 errors.push(err);
+            }
+        }
+    }
+
+    pub fn check_undefined_generics(&mut self, errors: &mut Vec<TypecheckError>) {
+        let fn_info_map = self.function_type_info_map.clone();
+        for (_, info) in &fn_info_map {
+            let args = self.type_store.get_type_args(&info.function_type);
+            if let Some(body) = info.body {
+                let mut checker = UndefinedGenericsChecker {
+                    expr_processor: self,
+                    errors: errors,
+                    args: args,
+                };
+                walk_expr(&body, &mut checker);
             }
         }
     }
