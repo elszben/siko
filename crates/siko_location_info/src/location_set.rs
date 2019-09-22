@@ -36,7 +36,6 @@ impl LocationSet {
                 merged = true;
             } else if range.start == location.span.start && range.end == location.span.end {
                 // TODO: figure out why this happens
-                unreachable!();
                 merged = true;
             }
         }

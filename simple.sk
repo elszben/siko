@@ -12,11 +12,6 @@ actor FooActor Foo where
 printer a :: (Show a) => [a] -> String
 printer a = show a
 
-boo a :: Option a
-boo = do
-        a <- 4
-        show 
-
 main = do
     bs <- ["a", "5"]
     //print (show "5")

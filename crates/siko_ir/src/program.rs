@@ -10,6 +10,7 @@ use crate::function::Function;
 use crate::function::FunctionId;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
+use crate::types::ConcreteType;
 use crate::types::Type;
 use crate::types::TypeDef;
 use crate::types::TypeDefId;
@@ -46,6 +47,7 @@ pub struct Program {
     pub type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>,
     pub types: BTreeMap<TypeId, Type>,
     pub expr_types: BTreeMap<ExprId, TypeId>,
+    pub function_types: BTreeMap<FunctionId, TypeId>
 }
 
 impl Program {
@@ -70,6 +72,27 @@ impl Program {
             type_instance_resolver: Rc::new(RefCell::new(TypeInstanceResolver::new())),
             types: BTreeMap::new(),
             expr_types: BTreeMap::new(),
+            function_types: BTreeMap::new()
+        }
+    }
+
+    pub fn to_concrete_type(&self, type_id: &TypeId) -> ConcreteType {
+        let ty = self.types.get(type_id).expect("Type not found");
+        match ty {
+            Type::Function(from, to) => {
+                let from = self.to_concrete_type(from);
+                let to = self.to_concrete_type(to);
+                ConcreteType::Function(Box::new(from), Box::new(to))
+            }
+            Type::Named(name, id, items) => {
+                let items = items.iter().map(|i| self.to_concrete_type(i)).collect();
+                ConcreteType::Named(name.clone(), id.clone(), items)
+            }
+            Type::Tuple(items) => {
+                let items = items.iter().map(|i| self.to_concrete_type(i)).collect();
+                ConcreteType::Tuple(items)
+            }
+            Type::TypeArgument(_, _) => unreachable!(),
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::environment::Environment;
 use crate::value::Callable;
 use crate::value::Value;
+use crate::value::ValueCore;
 use siko_constants::MAIN_FUNCTION;
 use siko_constants::MAIN_MODULE;
 use siko_constants::PRELUDE_NAME;
@@ -11,6 +12,7 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
+use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
 
 pub struct Interpreter<'a> {
@@ -30,16 +32,17 @@ impl<'a> Interpreter<'a> {
         args: Vec<Value>,
         program: &Program,
         expr_id: ExprId,
+        ty_id: TypeId,
     ) -> Value {
-        match callable {
-            Value::Callable(mut callable) => {
+        match callable.core {
+            ValueCore::Callable(mut callable) => {
                 callable.values.extend(args);
                 loop {
                     let func_info = program.functions.get(&callable.function_id);
                     let needed_arg_count =
                         func_info.arg_locations.len() + func_info.implicit_arg_count;
                     if needed_arg_count > callable.values.len() {
-                        return Value::Callable(callable);
+                        return Value::new(ValueCore::Callable(callable), ty_id);
                     } else {
                         let rest = callable.values.split_off(needed_arg_count);
                         let mut call_args = Vec::new();
@@ -56,7 +59,7 @@ impl<'a> Interpreter<'a> {
                             Some(expr_id),
                         );
                         if !rest.is_empty() {
-                            if let Value::Callable(new_callable) = result {
+                            if let ValueCore::Callable(new_callable) = result.core {
                                 callable = new_callable;
                                 callable.values.extend(rest);
                             } else {
@@ -85,8 +88,8 @@ impl<'a> Interpreter<'a> {
                 environment.add(*pattern_id, value.clone());
                 return true;
             }
-            Pattern::Tuple(ids) => match value {
-                Value::Tuple(vs) => {
+            Pattern::Tuple(ids) => match &value.core {
+                ValueCore::Tuple(vs) => {
                     for (index, id) in ids.iter().enumerate() {
                         let v = &vs[index];
                         if !self.match_pattern(id, v, program, environment) {
@@ -99,8 +102,8 @@ impl<'a> Interpreter<'a> {
                     return false;
                 }
             },
-            Pattern::Record(p_type_id, p_ids) => match value {
-                Value::Record(type_id, vs) => {
+            Pattern::Record(p_type_id, p_ids) => match &value.core {
+                ValueCore::Record(type_id, vs) => {
                     if type_id == p_type_id {
                         for (index, p_id) in p_ids.iter().enumerate() {
                             let v = &vs[index];
@@ -116,8 +119,8 @@ impl<'a> Interpreter<'a> {
                     return false;
                 }
             },
-            Pattern::Variant(p_type_id, p_index, p_ids) => match value {
-                Value::Variant(type_id, index, vs) => {
+            Pattern::Variant(p_type_id, p_index, p_ids) => match &value.core {
+                ValueCore::Variant(type_id, index, vs) => {
                     if type_id == p_type_id && index == p_index {
                         for (index, p_id) in p_ids.iter().enumerate() {
                             let v = &vs[index];
@@ -136,7 +139,7 @@ impl<'a> Interpreter<'a> {
             Pattern::Guarded(id, guard_expr_id) => {
                 if self.match_pattern(id, value, program, environment) {
                     let guard_value = self.eval_expr(program, *guard_expr_id, environment);
-                    return guard_value.as_bool();
+                    return guard_value.core.as_bool();
                 } else {
                     return false;
                 }
@@ -146,29 +149,29 @@ impl<'a> Interpreter<'a> {
                 return true;
             }
             Pattern::IntegerLiteral(p_v) => {
-                let r = match value {
-                    Value::Int(v) => p_v == v,
+                let r = match &value.core {
+                    ValueCore::Int(v) => p_v == v,
                     _ => false,
                 };
                 return r;
             }
             Pattern::FloatLiteral(p_v) => {
-                let r = match value {
-                    Value::Float(v) => p_v == v,
+                let r = match &value.core {
+                    ValueCore::Float(v) => p_v == v,
                     _ => false,
                 };
                 return r;
             }
             Pattern::StringLiteral(p_v) => {
-                let r = match value {
-                    Value::String(v) => p_v == v,
+                let r = match &value.core {
+                    ValueCore::String(v) => p_v == v,
                     _ => false,
                 };
                 return r;
             }
             Pattern::BoolLiteral(p_v) => {
-                let r = match value {
-                    Value::Bool(v) => p_v == v,
+                let r = match &value.core {
+                    ValueCore::Bool(v) => p_v == v,
                     _ => false,
                 };
                 return r;
@@ -184,24 +187,39 @@ impl<'a> Interpreter<'a> {
     ) -> Value {
         let expr = &program.exprs.get(&expr_id).item;
         //println!("Eval {} {}", expr_id, expr);
+        let expr_ty_id = program
+            .expr_types
+            .get(&expr_id)
+            .expect("Untyped expr")
+            .clone();
         match expr {
-            Expr::IntegerLiteral(v) => Value::Int(*v),
-            Expr::StringLiteral(v) => Value::String(v.clone()),
-            Expr::FloatLiteral(v) => Value::Float(v.clone()),
-            Expr::BoolLiteral(v) => Value::Bool(v.clone()),
+            Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty_id),
+            Expr::StringLiteral(v) => Value::new(ValueCore::String(v.clone()), expr_ty_id),
+            Expr::FloatLiteral(v) => Value::new(ValueCore::Float(v.clone()), expr_ty_id),
+            Expr::BoolLiteral(v) => Value::new(ValueCore::Bool(v.clone()), expr_ty_id),
             Expr::ArgRef(arg_ref) => {
                 return environment.get_arg(arg_ref);
             }
             Expr::StaticFunctionCall(function_id, args) => {
-                let callable = Value::Callable(Callable {
-                    function_id: *function_id,
-                    values: vec![],
-                });
+                let func = program.functions.get(function_id);
+                let func_ty = program
+                    .function_types
+                    .get(function_id)
+                    .expect("untyped func");
+                let concrete = program.to_concrete_type(func_ty);
+                println!("func {} {}", func.info, concrete);
+                let callable = Value::new(
+                    ValueCore::Callable(Callable {
+                        function_id: *function_id,
+                        values: vec![],
+                    }),
+                    expr_ty_id,
+                );
                 let arg_values: Vec<_> = args
                     .iter()
                     .map(|arg| self.eval_expr(program, *arg, environment))
                     .collect();
-                return self.call(callable, arg_values, program, expr_id);
+                return self.call(callable, arg_values, program, expr_id, expr_ty_id);
             }
             Expr::DynamicFunctionCall(function_expr_id, args) => {
                 let function_expr_id = self.eval_expr(program, *function_expr_id, environment);
@@ -209,11 +227,12 @@ impl<'a> Interpreter<'a> {
                     .iter()
                     .map(|arg| self.eval_expr(program, *arg, environment))
                     .collect();
-                return self.call(function_expr_id, arg_values, program, expr_id);
+                return self.call(function_expr_id, arg_values, program, expr_id, expr_ty_id);
             }
             Expr::Do(exprs) => {
                 let mut environment = Environment::block_child(environment);
-                let mut result = Value::Bool(false);
+                let mut result = Value::new(ValueCore::Tuple(vec![]), expr_ty_id);
+                assert!(!exprs.is_empty());
                 for expr in exprs {
                     result = self.eval_expr(program, *expr, &mut environment);
                 }
@@ -223,14 +242,14 @@ impl<'a> Interpreter<'a> {
                 let value = self.eval_expr(program, *expr_id, environment);
                 let r = self.match_pattern(pattern_id, &value, program, environment);
                 assert!(r);
-                return Value::Tuple(vec![]);
+                return Value::new(ValueCore::Tuple(vec![]), expr_ty_id);
             }
             Expr::ExprValue(_, pattern_id) => {
                 return environment.get_value(pattern_id);
             }
             Expr::If(cond, true_branch, false_branch) => {
                 let cond_value = self.eval_expr(program, *cond, environment);
-                if cond_value.as_bool() {
+                if cond_value.core.as_bool() {
                     return self.eval_expr(program, *true_branch, environment);
                 } else {
                     return self.eval_expr(program, *false_branch, environment);
@@ -241,18 +260,18 @@ impl<'a> Interpreter<'a> {
                     .iter()
                     .map(|e| self.eval_expr(program, *e, environment))
                     .collect();
-                return Value::Tuple(values);
+                return Value::new(ValueCore::Tuple(values), expr_ty_id);
             }
             Expr::List(exprs) => {
                 let values: Vec<_> = exprs
                     .iter()
                     .map(|e| self.eval_expr(program, *e, environment))
                     .collect();
-                return Value::List(values);
+                return Value::new(ValueCore::List(values), expr_ty_id);
             }
             Expr::TupleFieldAccess(index, tuple) => {
                 let tuple_value = self.eval_expr(program, *tuple, environment);
-                if let Value::Tuple(t) = tuple_value {
+                if let ValueCore::Tuple(t) = &tuple_value.core {
                     return t[*index].clone();
                 } else {
                     unreachable!()
@@ -268,20 +287,20 @@ impl<'a> Interpreter<'a> {
                 for (index, sub) in subs.iter().enumerate() {
                     result += sub;
                     if values.len() > index {
-                        result += &values[index].debug(program, false);
+                        result += &values[index].core.debug(program, false);
                     }
                 }
-                return Value::String(result);
+                return Value::new(ValueCore::String(result), expr_ty_id);
             }
             Expr::FieldAccess(infos, record_expr) => {
                 let record = self.eval_expr(program, *record_expr, environment);
-                let (id, values) = if let Value::Record(id, values) = record {
+                let (id, values) = if let ValueCore::Record(id, values) = &record.core {
                     (id, values)
                 } else {
                     unreachable!()
                 };
                 for info in infos {
-                    if info.record_id != id {
+                    if info.record_id != *id {
                         continue;
                     }
                     return values[info.index].clone();
@@ -302,24 +321,24 @@ impl<'a> Interpreter<'a> {
             Expr::RecordInitialization(type_id, items) => {
                 let mut values: Vec<_> = Vec::with_capacity(items.len());
                 for _ in 0..items.len() {
-                    values.push(Value::Bool(false)); // dummy value
+                    values.push(Value::new(ValueCore::Bool(false), expr_ty_id)); // dummy value
                 }
                 for item in items {
                     let value = self.eval_expr(program, item.expr_id, environment);
                     values[item.index] = value;
                 }
-                return Value::Record(*type_id, values);
+                return Value::new(ValueCore::Record(*type_id, values), expr_ty_id);
             }
             Expr::RecordUpdate(record_expr_id, updates) => {
                 let value = self.eval_expr(program, *record_expr_id, environment);
-                if let Value::Record(id, mut values) = value {
+                if let ValueCore::Record(id, mut values) = value.core {
                     for update in updates {
                         if id == update.record_id {
                             for item in &update.items {
                                 let value = self.eval_expr(program, item.expr_id, environment);
                                 values[item.index] = value;
                             }
-                            return Value::Record(id, values);
+                            return Value::new(ValueCore::Record(id, values), expr_ty_id);
                         }
                     }
                 }
@@ -334,16 +353,25 @@ impl<'a> Interpreter<'a> {
                     .collect();
                 let resolver = program.type_instance_resolver.borrow();
                 for value in &values {
-                    let ty = value.to_type(program);
+                    let ty = value.core.to_type(program);
                     if let Some(instances) = resolver.instance_map.get(&member.class_id) {
                         if let Some(instance_id) = instances.get(&ty) {
                             let instance = program.instances.get(instance_id);
                             let instance_member = instance.members.get(&member.name).unwrap();
-                            let callable = Value::Callable(Callable {
-                                function_id: instance_member.function_id,
-                                values: vec![],
-                            });
-                            return self.call(callable, values, program, expr_id);
+                            let callable = Value::new(
+                                ValueCore::Callable(Callable {
+                                    function_id: instance_member.function_id,
+                                    values: vec![],
+                                }),
+                                expr_ty_id,
+                            );
+                            let func_ty = program
+                                .function_types
+                                .get(&instance_member.function_id)
+                                .expect("untyped func");
+                            let concrete = program.to_concrete_type(func_ty);
+                            println!("class func {}", concrete);
+                            return self.call(callable, values, program, expr_id, expr_ty_id);
                         }
                     }
                 }
@@ -361,40 +389,41 @@ impl<'a> Interpreter<'a> {
         program: &Program,
         current_expr: Option<ExprId>,
         instance: Option<String>,
+        type_id: TypeId,
     ) -> Value {
         match (module, name) {
             (PRELUDE_NAME, "op_add") => {
-                let l = environment.get_arg_by_index(0).as_int();
-                let r = environment.get_arg_by_index(1).as_int();
-                return Value::Int(l + r);
+                let l = environment.get_arg_by_index(0).core.as_int();
+                let r = environment.get_arg_by_index(1).core.as_int();
+                return Value::new(ValueCore::Int(l + r), type_id);
             }
             (PRELUDE_NAME, "op_sub") => {
-                let l = environment.get_arg_by_index(0).as_int();
-                let r = environment.get_arg_by_index(1).as_int();
-                return Value::Int(l - r);
+                let l = environment.get_arg_by_index(0).core.as_int();
+                let r = environment.get_arg_by_index(1).core.as_int();
+                return Value::new(ValueCore::Int(l - r), type_id);
             }
             (PRELUDE_NAME, "op_mul") => {
-                let l = environment.get_arg_by_index(0).as_int();
-                let r = environment.get_arg_by_index(1).as_int();
-                return Value::Int(l * r);
+                let l = environment.get_arg_by_index(0).core.as_int();
+                let r = environment.get_arg_by_index(1).core.as_int();
+                return Value::new(ValueCore::Int(l * r), type_id);
             }
             (PRELUDE_NAME, "op_lessthan") => {
-                let l = environment.get_arg_by_index(0).as_int();
-                let r = environment.get_arg_by_index(1).as_int();
-                return Value::Bool(l < r);
+                let l = environment.get_arg_by_index(0).core.as_int();
+                let r = environment.get_arg_by_index(1).core.as_int();
+                return Value::new(ValueCore::Bool(l < r), type_id);
             }
             (PRELUDE_NAME, "op_equals") => {
-                let l = environment.get_arg_by_index(0).as_int();
-                let r = environment.get_arg_by_index(1).as_int();
-                return Value::Bool(l == r);
+                let l = environment.get_arg_by_index(0).core.as_int();
+                let r = environment.get_arg_by_index(1).core.as_int();
+                return Value::new(ValueCore::Bool(l == r), type_id);
             }
             (PRELUDE_NAME, "op_notequals") => {
-                let l = environment.get_arg_by_index(0).as_int();
-                let r = environment.get_arg_by_index(1).as_int();
-                return Value::Bool(l != r);
+                let l = environment.get_arg_by_index(0).core.as_int();
+                let r = environment.get_arg_by_index(1).core.as_int();
+                return Value::new(ValueCore::Bool(l != r), type_id);
             }
             ("Std.Util", "assert") => {
-                let v = environment.get_arg_by_index(0).as_bool();
+                let v = environment.get_arg_by_index(0).core.as_bool();
                 if !v {
                     let current_expr = current_expr.expect("No current expr");
                     let location_id = program.exprs.get(&current_expr).location_id;
@@ -402,23 +431,26 @@ impl<'a> Interpreter<'a> {
                         .report_error(format!("Assertion failed"), location_id);
                     panic!("Abort not implemented");
                 }
-                return Value::Tuple(vec![]);
+                return Value::new(ValueCore::Tuple(vec![]), type_id);
             }
             (PRELUDE_NAME, "print") => {
-                let v = environment.get_arg_by_index(0).debug(program, false);
+                let v = environment.get_arg_by_index(0).core.debug(program, false);
                 print!("{}", v);
-                return Value::Tuple(vec![]);
+                return Value::new(ValueCore::Tuple(vec![]), type_id);
             }
             (PRELUDE_NAME, "println") => {
-                let v = environment.get_arg_by_index(0).debug(program, false);
+                let v = environment.get_arg_by_index(0).core.debug(program, false);
                 println!("{}", v);
-                return Value::Tuple(vec![]);
+                return Value::new(ValueCore::Tuple(vec![]), type_id);
             }
             (PRELUDE_NAME, "show") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "ListShow" => {
                         let list = environment.get_arg_by_index(0);
-                        return Value::String(list.debug(program, false));
+                        return Value::new(
+                            ValueCore::String(list.core.debug(program, false)),
+                            type_id,
+                        );
                     }
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
@@ -440,6 +472,11 @@ impl<'a> Interpreter<'a> {
         current_expr: Option<ExprId>,
     ) -> Value {
         let function = program.functions.get(&id);
+        let function_type = program
+            .function_types
+            .get(&id)
+            .expect("untyped func")
+            .clone();
         match &function.info {
             FunctionInfo::NamedFunction(info) => match info.body {
                 Some(body) => {
@@ -453,6 +490,7 @@ impl<'a> Interpreter<'a> {
                         program,
                         current_expr,
                         info.instance.clone(),
+                        function_type,
                     );
                 }
             },
@@ -467,7 +505,10 @@ impl<'a> Interpreter<'a> {
                     let v = environment.get_arg_by_index(index);
                     values.push(v);
                 }
-                return Value::Variant(info.type_id, info.index, values);
+                return Value::new(
+                    ValueCore::Variant(info.type_id, info.index, values),
+                    function_type,
+                );
             }
             FunctionInfo::RecordConstructor(info) => {
                 let record = program.typedefs.get(&info.type_id).get_record();
@@ -476,7 +517,7 @@ impl<'a> Interpreter<'a> {
                     let v = environment.get_arg_by_index(index);
                     values.push(v);
                 }
-                return Value::Record(info.type_id, values);
+                return Value::new(ValueCore::Record(info.type_id, values), function_type);
             }
         }
     }

@@ -275,4 +275,11 @@ impl<'a> ExprProcessor<'a> {
             self.program.expr_types.insert(*expr_id, ir_type_id);
         }
     }
+
+    pub fn export_func_types(&mut self) {
+        for (id, info) in &self.function_type_info_map {
+            let ty = convert_to_ir_type(&info.function_type, &mut self.program, &self.type_store);
+            self.program.function_types.insert(*id, ty);
+        }
+    }
 }

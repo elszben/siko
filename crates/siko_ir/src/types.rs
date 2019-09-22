@@ -144,6 +144,27 @@ pub enum ConcreteType {
     Function(Box<ConcreteType>, Box<ConcreteType>),
 }
 
+impl fmt::Display for ConcreteType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConcreteType::Tuple(items) => {
+                let ss: Vec<_> = items.iter().map(|i| format!("{}", i)).collect();
+                write!(f, "({})", ss.join(", "))
+            }
+            ConcreteType::Named(name, _, items) => {
+                let ss: Vec<_> = items.iter().map(|i| format!("{}", i)).collect();
+                let args = if ss.is_empty() {
+                    "".to_string()
+                } else {
+                    format!(" {}", ss.join(" "))
+                };
+                write!(f, "{}{}", name, args)
+            }
+            ConcreteType::Function(from, to) => write!(f, "{} -> {}", from, to),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct TypeInstanceResolver {
     pub instance_map: BTreeMap<ClassId, BTreeMap<ConcreteType, InstanceId>>,
