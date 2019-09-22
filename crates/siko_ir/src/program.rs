@@ -47,7 +47,8 @@ pub struct Program {
     pub type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>,
     pub types: BTreeMap<TypeId, Type>,
     pub expr_types: BTreeMap<ExprId, TypeId>,
-    pub function_types: BTreeMap<FunctionId, TypeId>
+    pub function_types: BTreeMap<FunctionId, TypeId>,
+    pub class_member_types: BTreeMap<ClassMemberId, TypeId>,
 }
 
 impl Program {
@@ -72,16 +73,17 @@ impl Program {
             type_instance_resolver: Rc::new(RefCell::new(TypeInstanceResolver::new())),
             types: BTreeMap::new(),
             expr_types: BTreeMap::new(),
-            function_types: BTreeMap::new()
+            function_types: BTreeMap::new(),
+            class_member_types: BTreeMap::new(),
         }
     }
 
     pub fn to_concrete_type(&self, type_id: &TypeId) -> ConcreteType {
         let ty = self.types.get(type_id).expect("Type not found");
         match ty {
-            Type::Function(from, to) => {
-                let from = self.to_concrete_type(from);
-                let to = self.to_concrete_type(to);
+            Type::Function(func_type) => {
+                let from = self.to_concrete_type(&func_type.from);
+                let to = self.to_concrete_type(&func_type.to);
                 ConcreteType::Function(Box::new(from), Box::new(to))
             }
             Type::Named(name, id, items) => {
@@ -92,7 +94,7 @@ impl Program {
                 let items = items.iter().map(|i| self.to_concrete_type(i)).collect();
                 ConcreteType::Tuple(items)
             }
-            Type::TypeArgument(_, _) => unreachable!(),
+            Type::TypeArgument(_, _) => ConcreteType::Generic,
         }
     }
 }

@@ -107,6 +107,7 @@ impl Typechecker {
 
         expr_processor.export_expr_types();
         expr_processor.export_func_types();
+        expr_processor.export_class_member_types();
 
         Ok(())
     }

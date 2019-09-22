@@ -13,6 +13,8 @@ use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeId;
+use siko_ir::types::Type;
+use siko_ir::types::FunctionType;
 use siko_location_info::error_context::ErrorContext;
 
 pub struct Interpreter<'a> {
@@ -347,12 +349,34 @@ impl<'a> Interpreter<'a> {
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let member = program.class_members.get(class_member_id);
                 let class = program.classes.get(&member.class_id);
-                let values: Vec<_> = args
+                let arg_values: Vec<_> = args
                     .iter()
                     .map(|e| self.eval_expr(program, *e, environment))
                     .collect();
+                let ty = program
+                    .class_member_types
+                    .get(class_member_id)
+                    .expect("untyped class member");
+                for arg in args {
+                    let arg_ty = program.expr_types.get(arg).expect("untyped expr");
+                    let concrete = program.to_concrete_type(arg_ty);
+                    println!("arg {}", concrete);
+                }
+                let return_type = match program.types.get(ty).expect("type not found") {
+                    Type::Function(func_type) => {
+                        func_type.get_return_type(program, args.len())
+                    }
+                    _ => {
+                        *ty
+                    }
+                };
+                let return_type_concrete = program.to_concrete_type(&return_type);
+                println!("return type {}", return_type_concrete);
+                let class_func_concrete = program.to_concrete_type(ty);
+                println!("class func {}", class_func_concrete);
+                /*
                 let resolver = program.type_instance_resolver.borrow();
-                for value in &values {
+                for value in &arg_values {
                     let ty = value.core.to_type(program);
                     if let Some(instances) = resolver.instance_map.get(&member.class_id) {
                         if let Some(instance_id) = instances.get(&ty) {
@@ -371,10 +395,11 @@ impl<'a> Interpreter<'a> {
                                 .expect("untyped func");
                             let concrete = program.to_concrete_type(func_ty);
                             println!("class func {}", concrete);
-                            return self.call(callable, values, program, expr_id, expr_ty_id);
+                            return self.call(callable, arg_values, program, expr_id, expr_ty_id);
                         }
                     }
                 }
+                */
                 println!("calling {} from {} failed", member.name, class.name);
                 unimplemented!()
             }

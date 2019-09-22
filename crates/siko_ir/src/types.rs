@@ -4,6 +4,7 @@ use crate::function::FunctionId;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 use std::fmt;
+use crate::program::Program;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeSignatureId {
@@ -142,6 +143,7 @@ pub enum ConcreteType {
     Tuple(Vec<ConcreteType>),
     Named(String, TypeDefId, Vec<ConcreteType>),
     Function(Box<ConcreteType>, Box<ConcreteType>),
+    Generic,
 }
 
 impl fmt::Display for ConcreteType {
@@ -161,6 +163,7 @@ impl fmt::Display for ConcreteType {
                 write!(f, "{}{}", name, args)
             }
             ConcreteType::Function(from, to) => write!(f, "{} -> {}", from, to),
+            ConcreteType::Generic => write!(f, "<a>"),
         }
     }
 }
@@ -187,9 +190,41 @@ impl TypeInstanceResolver {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FunctionType {
+    pub from: TypeId,
+    pub to: TypeId,
+}
+
+impl FunctionType {
+    pub fn new(from: TypeId, to: TypeId) -> FunctionType {
+        FunctionType { from: from, to: to }
+    }
+
+    pub fn get_return_type(&self, program: &Program, arg_count: usize) -> TypeId {
+        if arg_count == 1 {
+            self.to
+        } else {
+            if let Type::Function(to_func_type) = program.types.get(&self.to).expect("Type not found") {
+                to_func_type.get_return_type(program, arg_count - 1)
+            } else {
+                self.to
+            }
+        }
+    }
+
+    pub fn get_arg_types(&self, program: &Program, arg_vars: &mut Vec<TypeId>) {
+        arg_vars.push(self.from);
+        if let Type::Function(to_func_type) = program.types.get(&self.to).expect("Type not found") {
+            to_func_type.get_arg_types(program, arg_vars);
+        }
+    }
+
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
     Tuple(Vec<TypeId>),
-    Function(TypeId, TypeId),
+    Function(FunctionType),
     TypeArgument(usize, Vec<ClassId>),
     Named(String, TypeDefId, Vec<TypeId>),
 }

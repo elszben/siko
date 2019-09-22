@@ -18,6 +18,7 @@ use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::Type as IrType;
+use siko_ir::types::FunctionType as IrFunctionType;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId as IrTypeId;
 use siko_location_info::item::LocationId;
@@ -63,7 +64,7 @@ pub fn convert_to_ir_type(
         Type::Function(func_type) => {
             let from = convert_to_ir_type(&func_type.from, program, type_store);
             let to = convert_to_ir_type(&func_type.to, program, type_store);
-            IrType::Function(from, to)
+            IrType::Function(IrFunctionType::new(from, to))
         }
         Type::Named(name, def_id, items) => {
             let items: Vec<_> = items
@@ -280,6 +281,13 @@ impl<'a> ExprProcessor<'a> {
         for (id, info) in &self.function_type_info_map {
             let ty = convert_to_ir_type(&info.function_type, &mut self.program, &self.type_store);
             self.program.function_types.insert(*id, ty);
+        }
+    }
+
+    pub fn export_class_member_types(&mut self) {
+        for (id, info) in &self.class_member_type_info_map {
+            let ty = convert_to_ir_type(&info.member_type_var, &mut self.program, &self.type_store);
+            self.program.class_member_types.insert(*id, ty);
         }
     }
 }
