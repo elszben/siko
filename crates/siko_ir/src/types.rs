@@ -218,7 +218,6 @@ impl FunctionType {
             to_func_type.get_arg_types(program, arg_vars);
         }
     }
-
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

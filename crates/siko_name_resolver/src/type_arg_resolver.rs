@@ -11,6 +11,7 @@ pub struct TypeArgInfo {
     pub location_id: LocationId,
 }
 
+#[derive(Clone)]
 pub struct TypeArgResolver {
     args: BTreeMap<String, TypeArgInfo>,
     index: Counter,

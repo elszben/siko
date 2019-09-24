@@ -33,7 +33,7 @@ pub enum ResolverError {
     InvalidArgumentInTypeClassConstraint(String, LocationId),
     NotAClassMember(String, String, LocationId),
     MissingClassMemberInInstance(String, String, LocationId),
-    ClassMemberTypeArgMismatch(String, String, Vec<String>, LocationId),
+    ClassMemberTypeArgMissing(String, String, LocationId),
     ExtraConstraintInClassMember(String, LocationId),
     ConflictingDefaultClassMember(String, String, Vec<LocationId>),
     ConflictingFunctionTypesInModule(String, String, Vec<LocationId>),

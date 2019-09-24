@@ -10,6 +10,20 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 
+pub struct ClassTypeVariableHandler {
+    pub class_arg_index: usize,
+    pub class_type_var: Option<TypeVariable>,
+ }
+
+impl ClassTypeVariableHandler {
+    pub fn new(index: usize) -> ClassTypeVariableHandler {
+        ClassTypeVariableHandler {
+            class_arg_index: index,
+            class_type_var: None
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct InstanceTypeInfo {
     pub instance_id: InstanceId,

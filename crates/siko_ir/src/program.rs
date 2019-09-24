@@ -97,4 +97,16 @@ impl Program {
             Type::TypeArgument(_, _) => ConcreteType::Generic,
         }
     }
+
+    pub fn match_generic_types(&self, concrete_type_id: &TypeId, generic_type_id: &TypeId) {
+        let concrete_type = self.types.get(concrete_type_id).expect("Type not found");
+        let generic_type = self.types.get(generic_type_id).expect("Type not found");
+        match (concrete_type, generic_type) {
+            (_, Type::TypeArgument(index, _)) => {
+                println!("{} {} {}", concrete_type_id, generic_type_id, index);
+            }
+            (Type::Function(f1), Type::Function(f2)) => {}
+            _ => {}
+        }
+    }
 }

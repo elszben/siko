@@ -12,9 +12,9 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use siko_ir::types::TypeId;
-use siko_ir::types::Type;
 use siko_ir::types::FunctionType;
+use siko_ir::types::Type;
+use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
 
 pub struct Interpreter<'a> {
@@ -357,19 +357,25 @@ impl<'a> Interpreter<'a> {
                     .class_member_types
                     .get(class_member_id)
                     .expect("untyped class member");
+                let mut arg_types = Vec::new();
                 for arg in args {
                     let arg_ty = program.expr_types.get(arg).expect("untyped expr");
+                    arg_types.push(arg_ty);
                     let concrete = program.to_concrete_type(arg_ty);
                     println!("arg {}", concrete);
                 }
-                let return_type = match program.types.get(ty).expect("type not found") {
+                let (return_type, func_arg_types) = match program.types.get(ty).expect("type not found")
+                {
                     Type::Function(func_type) => {
-                        func_type.get_return_type(program, args.len())
+                        let mut arg_types = Vec::new();
+                        func_type.get_arg_types(program, &mut arg_types);
+                        (func_type.get_return_type(program, args.len()), arg_types)
                     }
-                    _ => {
-                        *ty
-                    }
+                    _ => (*ty, vec![]),
                 };
+                for (arg_type, func_arg_type) in arg_types.iter().zip(func_arg_types.iter()) {
+                    program.match_generic_types(arg_type, func_arg_type);
+                }
                 let return_type_concrete = program.to_concrete_type(&return_type);
                 println!("return type {}", return_type_concrete);
                 let class_func_concrete = program.to_concrete_type(ty);

@@ -739,8 +739,6 @@ impl Resolver {
             errors.push(err);
         }
 
-        if !errors.is_empty() {}
-
         let ir_class = ir_program.classes.get(ir_class_id).clone();
         for (name, function_type_ids) in &class.member_function_types {
             assert_eq!(function_type_ids.len(), 1);
@@ -749,25 +747,34 @@ impl Resolver {
             let ir_class_member_id = *ir_class.members.get(name).expect("Class member not found");
             let signature_type_args: BTreeSet<_> =
                 class_member.type_args.iter().map(|i| i.0.clone()).collect();
-            if !signature_type_args.contains(&class_arg) || signature_type_args.len() != 1 {
-                let err = ResolverError::ClassMemberTypeArgMismatch(
+            if !signature_type_args.contains(&class_arg) {
+                let err = ResolverError::ClassMemberTypeArgMissing(
                     class_member.name.clone(),
                     class_arg.clone(),
-                    signature_type_args.into_iter().collect(),
                     class_member.location_id,
                 );
                 errors.push(err);
                 continue;
             }
-            if !class_member.constraints.is_empty() {
-                for constraint in &class_member.constraints {
-                    let err = ResolverError::ExtraConstraintInClassMember(
-                        class_member.name.clone(),
-                        constraint.location_id,
-                    );
-                    errors.push(err);
+
+            let mut type_arg_resolver = type_arg_resolver.clone();
+
+            for (type_arg, location) in &class_member.type_args {
+                if *type_arg == class_arg {
+                    continue;
                 }
-                continue;
+                type_arg_resolver.add_explicit(type_arg.clone(), vec![], *location);
+            }
+
+            for constraint in &class_member.constraints {
+                if let Some(ir_class_id) = self.lookup_class(
+                    &constraint.class_name,
+                    constraint.location_id,
+                    module,
+                    errors,
+                ) {
+                    type_arg_resolver.add_constraint(&constraint.arg, ir_class_id);
+                }
             }
 
             let result = process_type_signature(

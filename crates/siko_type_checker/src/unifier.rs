@@ -599,6 +599,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     type_signature_id,
                     self.expr_processor.program,
                     &mut arg_map,
+                    &mut None,
                 );
                 self.match_pattern_with(inner, &pattern_signature_type_var);
             }
