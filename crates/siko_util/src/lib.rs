@@ -1,6 +1,26 @@
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
+use std::rc::Rc;
+
+#[derive(Debug, Clone)]
+pub struct RcCounter {
+    c: Rc<RefCell<Counter>>,
+}
+
+impl RcCounter {
+    pub fn new() -> RcCounter {
+        RcCounter {
+            c: Rc::new(RefCell::new(Counter::new())),
+        }
+    }
+
+    pub fn next(&self) -> usize {
+        let mut b = self.c.borrow_mut();
+        b.next()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Counter {

@@ -17,8 +17,8 @@ use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use siko_ir::types::Type as IrType;
 use siko_ir::types::FunctionType as IrFunctionType;
+use siko_ir::types::Type as IrType;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId as IrTypeId;
 use siko_location_info::item::LocationId;
@@ -286,8 +286,13 @@ impl<'a> ExprProcessor<'a> {
 
     pub fn export_class_member_types(&mut self) {
         for (id, info) in &self.class_member_type_info_map {
-            let ty = convert_to_ir_type(&info.member_type_var, &mut self.program, &self.type_store);
-            self.program.class_member_types.insert(*id, ty);
+            let member_ty =
+                convert_to_ir_type(&info.member_type_var, &mut self.program, &self.type_store);
+            let class_type =
+                convert_to_ir_type(&info.class_type_var, &mut self.program, &self.type_store);
+            self.program
+                .class_member_types
+                .insert(*id, (member_ty, class_type));
         }
     }
 }

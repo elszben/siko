@@ -47,7 +47,6 @@ use siko_syntax::class::ClassId as AstClassId;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordId;
-
 use siko_syntax::function::Function as AstFunction;
 use siko_syntax::function::FunctionBody as AstFunctionBody;
 use siko_syntax::function::FunctionId as AstFunctionId;
@@ -55,6 +54,7 @@ use siko_syntax::function::FunctionType as AstFunctionType;
 use siko_syntax::function::FunctionTypeId as AstFunctionTypeId;
 use siko_syntax::module::Module as AstModule;
 use siko_syntax::program::Program;
+use siko_util::RcCounter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -102,12 +102,14 @@ fn check_function_and_function_type_consistency(
 #[derive(Debug)]
 pub struct Resolver {
     modules: BTreeMap<String, Module>,
+    counter: RcCounter,
 }
 
 impl Resolver {
     pub fn new() -> Resolver {
         Resolver {
             modules: BTreeMap::new(),
+            counter: RcCounter::new(),
         }
     }
 
@@ -365,7 +367,7 @@ impl Resolver {
         ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
     ) -> (Option<TypeSignatureId>, TypeArgResolver) {
-        let mut type_arg_resolver = TypeArgResolver::new();
+        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
 
         for (type_arg, location_id) in function_type.type_args.iter() {
             type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
@@ -490,7 +492,7 @@ impl Resolver {
             type_signature_ids.push(variant.type_signature_id);
         }
 
-        let mut type_arg_resolver = TypeArgResolver::new();
+        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
 
         for (type_arg, location_id) in adt.type_args.iter() {
             type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
@@ -588,7 +590,7 @@ impl Resolver {
             type_signature_ids.push(field.type_signature_id);
         }
 
-        let mut type_arg_resolver = TypeArgResolver::new();
+        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
 
         for (type_arg, location_id) in record.type_args.iter() {
             type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
@@ -677,7 +679,7 @@ impl Resolver {
     ) {
         let class = program.classes.get(class_id);
 
-        let mut type_arg_resolver = TypeArgResolver::new();
+        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
 
         let (class_type_signature_id, class_arg) = if let Some(class_type_signature_id) =
             process_class_type_signature(
@@ -854,7 +856,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let mut type_arg_resolver = TypeArgResolver::new();
+        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
 
         let mut type_args = BTreeMap::new();
 
@@ -1187,7 +1189,7 @@ impl Resolver {
                                         &mut errors,
                                     )
                                 } else {
-                                    (None, TypeArgResolver::new())
+                                    (None, TypeArgResolver::new(self.counter.clone()))
                                 };
                             self.process_function(
                                 program,

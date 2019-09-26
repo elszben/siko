@@ -18,6 +18,7 @@ use crate::types::TypeId;
 use crate::types::TypeInstanceResolver;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
+use crate::types::SubstitutionContext;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
@@ -48,7 +49,7 @@ pub struct Program {
     pub types: BTreeMap<TypeId, Type>,
     pub expr_types: BTreeMap<ExprId, TypeId>,
     pub function_types: BTreeMap<FunctionId, TypeId>,
-    pub class_member_types: BTreeMap<ClassMemberId, TypeId>,
+    pub class_member_types: BTreeMap<ClassMemberId, (TypeId, TypeId)>,
 }
 
 impl Program {
@@ -78,23 +79,29 @@ impl Program {
         }
     }
 
-    pub fn to_concrete_type(&self, type_id: &TypeId) -> ConcreteType {
+    pub fn to_concrete_type(
+        &self,
+        type_id: &TypeId,
+        context: &SubstitutionContext,
+    ) -> ConcreteType {
         let ty = self.types.get(type_id).expect("Type not found");
         match ty {
             Type::Function(func_type) => {
-                let from = self.to_concrete_type(&func_type.from);
-                let to = self.to_concrete_type(&func_type.to);
+                let from = self.to_concrete_type(&func_type.from, context);
+                let to = self.to_concrete_type(&func_type.to, context);
                 ConcreteType::Function(Box::new(from), Box::new(to))
             }
             Type::Named(name, id, items) => {
-                let items = items.iter().map(|i| self.to_concrete_type(i)).collect();
+                let items = items.iter().map(|i| self.to_concrete_type(i, context)).collect();
                 ConcreteType::Named(name.clone(), id.clone(), items)
             }
             Type::Tuple(items) => {
-                let items = items.iter().map(|i| self.to_concrete_type(i)).collect();
+                let items = items.iter().map(|i| self.to_concrete_type(i, context)).collect();
                 ConcreteType::Tuple(items)
             }
-            Type::TypeArgument(_, _) => ConcreteType::Generic,
+            Type::TypeArgument(index, _) => { let replaced = context.get_type_id(index);
+                self.to_concrete_type(replaced, context)
+             },
         }
     }
 

@@ -59,8 +59,11 @@ impl ClassProcessor {
                 &mut handler,
             );
 
+            let handler = handler.unwrap();
+
             let info = ClassMemberTypeInfo {
                 member_type_var: var,
+                class_type_var: handler.class_type_var.expect("Class type var not found")
             };
             self.class_member_type_info_map
                 .insert(*class_member_id, info);

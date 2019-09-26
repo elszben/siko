@@ -43,7 +43,6 @@ pub fn process_type_signature(
             });
             if let Some(handler) = class_type_var_handler {
                 if handler.class_arg_index == *index && handler.class_type_var.is_none() {
-                    println!("class arg found {}", name);
                     handler.class_type_var = Some(*var);
                 }
             }

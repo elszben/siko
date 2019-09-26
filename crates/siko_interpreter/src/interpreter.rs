@@ -12,7 +12,7 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use siko_ir::types::FunctionType;
+use siko_ir::types::SubstitutionContext;
 use siko_ir::types::Type;
 use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
@@ -203,12 +203,13 @@ impl<'a> Interpreter<'a> {
                 return environment.get_arg(arg_ref);
             }
             Expr::StaticFunctionCall(function_id, args) => {
+                let sub_context = SubstitutionContext::new();
                 let func = program.functions.get(function_id);
                 let func_ty = program
                     .function_types
                     .get(function_id)
                     .expect("untyped func");
-                let concrete = program.to_concrete_type(func_ty);
+                let concrete = program.to_concrete_type(func_ty, &sub_context);
                 println!("func {} {}", func.info, concrete);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
@@ -347,13 +348,14 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
+                let sub_context = SubstitutionContext::new();
                 let member = program.class_members.get(class_member_id);
                 let class = program.classes.get(&member.class_id);
                 let arg_values: Vec<_> = args
                     .iter()
                     .map(|e| self.eval_expr(program, *e, environment))
                     .collect();
-                let ty = program
+                let (ty, _) = program
                     .class_member_types
                     .get(class_member_id)
                     .expect("untyped class member");
@@ -361,7 +363,7 @@ impl<'a> Interpreter<'a> {
                 for arg in args {
                     let arg_ty = program.expr_types.get(arg).expect("untyped expr");
                     arg_types.push(arg_ty);
-                    let concrete = program.to_concrete_type(arg_ty);
+                    let concrete = program.to_concrete_type(arg_ty, &sub_context);
                     println!("arg {}", concrete);
                 }
                 let (return_type, func_arg_types) = match program.types.get(ty).expect("type not found")
@@ -376,9 +378,9 @@ impl<'a> Interpreter<'a> {
                 for (arg_type, func_arg_type) in arg_types.iter().zip(func_arg_types.iter()) {
                     program.match_generic_types(arg_type, func_arg_type);
                 }
-                let return_type_concrete = program.to_concrete_type(&return_type);
+                let return_type_concrete = program.to_concrete_type(&return_type, &sub_context);
                 println!("return type {}", return_type_concrete);
-                let class_func_concrete = program.to_concrete_type(ty);
+                let class_func_concrete = program.to_concrete_type(ty, &sub_context);
                 println!("class func {}", class_func_concrete);
                 /*
                 let resolver = program.type_instance_resolver.borrow();

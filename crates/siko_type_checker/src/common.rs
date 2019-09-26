@@ -13,13 +13,13 @@ use std::fmt;
 pub struct ClassTypeVariableHandler {
     pub class_arg_index: usize,
     pub class_type_var: Option<TypeVariable>,
- }
+}
 
 impl ClassTypeVariableHandler {
     pub fn new(index: usize) -> ClassTypeVariableHandler {
         ClassTypeVariableHandler {
             class_arg_index: index,
-            class_type_var: None
+            class_type_var: None,
         }
     }
 }
@@ -48,6 +48,7 @@ impl InstanceTypeInfo {
 #[derive(Debug, Clone)]
 pub struct ClassMemberTypeInfo {
     pub member_type_var: TypeVariable,
+    pub class_type_var: TypeVariable,
 }
 
 #[derive(Debug, Clone)]

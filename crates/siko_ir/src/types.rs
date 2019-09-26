@@ -1,10 +1,10 @@
 use crate::class::ClassId;
 use crate::class::InstanceId;
 use crate::function::FunctionId;
+use crate::program::Program;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 use std::fmt;
-use crate::program::Program;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub struct TypeSignatureId {
@@ -143,7 +143,6 @@ pub enum ConcreteType {
     Tuple(Vec<ConcreteType>),
     Named(String, TypeDefId, Vec<ConcreteType>),
     Function(Box<ConcreteType>, Box<ConcreteType>),
-    Generic,
 }
 
 impl fmt::Display for ConcreteType {
@@ -163,7 +162,6 @@ impl fmt::Display for ConcreteType {
                 write!(f, "{}{}", name, args)
             }
             ConcreteType::Function(from, to) => write!(f, "{} -> {}", from, to),
-            ConcreteType::Generic => write!(f, "<a>"),
         }
     }
 }
@@ -204,7 +202,9 @@ impl FunctionType {
         if arg_count == 1 {
             self.to
         } else {
-            if let Type::Function(to_func_type) = program.types.get(&self.to).expect("Type not found") {
+            if let Type::Function(to_func_type) =
+                program.types.get(&self.to).expect("Type not found")
+            {
                 to_func_type.get_return_type(program, arg_count - 1)
             } else {
                 self.to
@@ -226,4 +226,21 @@ pub enum Type {
     Function(FunctionType),
     TypeArgument(usize, Vec<ClassId>),
     Named(String, TypeDefId, Vec<TypeId>),
+}
+
+pub struct SubstitutionContext {
+    type_args: BTreeMap<usize, TypeId>,
+}
+
+impl SubstitutionContext {
+    pub fn new() -> SubstitutionContext {
+        SubstitutionContext {
+            type_args: BTreeMap::new(),
+        }
+    }
+    pub fn get_type_id(&self, index: &usize) -> &TypeId {
+        self.type_args
+            .get(index)
+            .expect("index not found in substitution context")
+    }
 }

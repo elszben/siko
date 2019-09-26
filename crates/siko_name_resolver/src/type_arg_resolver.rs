@@ -1,6 +1,6 @@
 use siko_ir::class::ClassId;
 use siko_location_info::item::LocationId;
-use siko_util::Counter;
+use siko_util::RcCounter;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
@@ -14,14 +14,14 @@ pub struct TypeArgInfo {
 #[derive(Clone)]
 pub struct TypeArgResolver {
     args: BTreeMap<String, TypeArgInfo>,
-    index: Counter,
+    index: RcCounter,
 }
 
 impl TypeArgResolver {
-    pub fn new() -> TypeArgResolver {
+    pub fn new(counter: RcCounter) -> TypeArgResolver {
         TypeArgResolver {
             args: BTreeMap::new(),
-            index: Counter::new(),
+            index: counter,
         }
     }
 
