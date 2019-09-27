@@ -243,4 +243,9 @@ impl SubstitutionContext {
             .get(index)
             .expect("index not found in substitution context")
     }
+
+    pub fn add_generic(&mut self, index: usize, type_id: TypeId) {
+        let r = self.type_args.insert(index, type_id);
+        assert_eq!(r, None);
+    }
 }

@@ -348,14 +348,14 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
-                let sub_context = SubstitutionContext::new();
+                let mut sub_context = SubstitutionContext::new();
                 let member = program.class_members.get(class_member_id);
                 let class = program.classes.get(&member.class_id);
                 let arg_values: Vec<_> = args
                     .iter()
                     .map(|e| self.eval_expr(program, *e, environment))
                     .collect();
-                let (ty, _) = program
+                let (class_member_type_id, class_arg_ty_id) = program
                     .class_member_types
                     .get(class_member_id)
                     .expect("untyped class member");
@@ -366,48 +366,43 @@ impl<'a> Interpreter<'a> {
                     let concrete = program.to_concrete_type(arg_ty, &sub_context);
                     println!("arg {}", concrete);
                 }
-                let (return_type, func_arg_types) = match program.types.get(ty).expect("type not found")
+                let (return_type, func_arg_types) = match program
+                    .types
+                    .get(class_member_type_id)
+                    .expect("type not found")
                 {
                     Type::Function(func_type) => {
                         let mut arg_types = Vec::new();
                         func_type.get_arg_types(program, &mut arg_types);
                         (func_type.get_return_type(program, args.len()), arg_types)
                     }
-                    _ => (*ty, vec![]),
+                    _ => (*class_member_type_id, vec![]),
                 };
                 for (arg_type, func_arg_type) in arg_types.iter().zip(func_arg_types.iter()) {
-                    program.match_generic_types(arg_type, func_arg_type);
+                    program.match_generic_types(arg_type, func_arg_type, &mut sub_context);
                 }
                 let return_type_concrete = program.to_concrete_type(&return_type, &sub_context);
                 println!("return type {}", return_type_concrete);
-                let class_func_concrete = program.to_concrete_type(ty, &sub_context);
+                let class_func_concrete =
+                    program.to_concrete_type(class_member_type_id, &sub_context);
                 println!("class func {}", class_func_concrete);
-                /*
+                let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &sub_context);
+                println!("instance selector {}", instance_selector_ty);
                 let resolver = program.type_instance_resolver.borrow();
-                for value in &arg_values {
-                    let ty = value.core.to_type(program);
-                    if let Some(instances) = resolver.instance_map.get(&member.class_id) {
-                        if let Some(instance_id) = instances.get(&ty) {
-                            let instance = program.instances.get(instance_id);
-                            let instance_member = instance.members.get(&member.name).unwrap();
-                            let callable = Value::new(
-                                ValueCore::Callable(Callable {
-                                    function_id: instance_member.function_id,
-                                    values: vec![],
-                                }),
-                                expr_ty_id,
-                            );
-                            let func_ty = program
-                                .function_types
-                                .get(&instance_member.function_id)
-                                .expect("untyped func");
-                            let concrete = program.to_concrete_type(func_ty);
-                            println!("class func {}", concrete);
-                            return self.call(callable, arg_values, program, expr_id, expr_ty_id);
-                        }
+                if let Some(instances) = resolver.instance_map.get(&member.class_id) {
+                    if let Some(instance_id) = instances.get(&instance_selector_ty) {
+                        let instance = program.instances.get(instance_id);
+                        let instance_member = instance.members.get(&member.name).unwrap();
+                        let callable = Value::new(
+                            ValueCore::Callable(Callable {
+                                function_id: instance_member.function_id,
+                                values: vec![],
+                            }),
+                            expr_ty_id,
+                        );
+                        return self.call(callable, arg_values, program, expr_id, expr_ty_id);
                     }
                 }
-                */
                 println!("calling {} from {} failed", member.name, class.name);
                 unimplemented!()
             }

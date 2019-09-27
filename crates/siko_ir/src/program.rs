@@ -11,6 +11,7 @@ use crate::function::FunctionId;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::types::ConcreteType;
+use crate::types::SubstitutionContext;
 use crate::types::Type;
 use crate::types::TypeDef;
 use crate::types::TypeDefId;
@@ -18,7 +19,6 @@ use crate::types::TypeId;
 use crate::types::TypeInstanceResolver;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
-use crate::types::SubstitutionContext;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
@@ -92,25 +92,37 @@ impl Program {
                 ConcreteType::Function(Box::new(from), Box::new(to))
             }
             Type::Named(name, id, items) => {
-                let items = items.iter().map(|i| self.to_concrete_type(i, context)).collect();
+                let items = items
+                    .iter()
+                    .map(|i| self.to_concrete_type(i, context))
+                    .collect();
                 ConcreteType::Named(name.clone(), id.clone(), items)
             }
             Type::Tuple(items) => {
-                let items = items.iter().map(|i| self.to_concrete_type(i, context)).collect();
+                let items = items
+                    .iter()
+                    .map(|i| self.to_concrete_type(i, context))
+                    .collect();
                 ConcreteType::Tuple(items)
             }
-            Type::TypeArgument(index, _) => { let replaced = context.get_type_id(index);
+            Type::TypeArgument(index, _) => {
+                let replaced = context.get_type_id(index);
                 self.to_concrete_type(replaced, context)
-             },
+            }
         }
     }
 
-    pub fn match_generic_types(&self, concrete_type_id: &TypeId, generic_type_id: &TypeId) {
-        let concrete_type = self.types.get(concrete_type_id).expect("Type not found");
+    pub fn match_generic_types(
+        &self,
+        specific_type_id: &TypeId,
+        generic_type_id: &TypeId,
+        context: &mut SubstitutionContext,
+    ) {
+        let specific_type = self.types.get(specific_type_id).expect("Type not found");
         let generic_type = self.types.get(generic_type_id).expect("Type not found");
-        match (concrete_type, generic_type) {
+        match (specific_type, generic_type) {
             (_, Type::TypeArgument(index, _)) => {
-                println!("{} {} {}", concrete_type_id, generic_type_id, index);
+                context.add_generic(*index, *specific_type_id);
             }
             (Type::Function(f1), Type::Function(f2)) => {}
             _ => {}

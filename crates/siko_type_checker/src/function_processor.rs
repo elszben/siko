@@ -52,7 +52,7 @@ impl FunctionProcessor {
             &type_signature_id,
             program,
             &mut arg_map,
-           &mut  None
+            &mut None,
         );
         /*
         println!(
@@ -184,7 +184,7 @@ impl FunctionProcessor {
                             &field.type_signature_id,
                             program,
                             &mut arg_map,
-                            &mut None
+                            &mut None,
                         );
                         let r = self.type_store.unify(&arg_var, &args[index]);
                         assert!(r);
@@ -242,7 +242,7 @@ impl FunctionProcessor {
                             &item.type_signature_id,
                             program,
                             &mut arg_map,
-                           &mut  None
+                            &mut None,
                         );
                         let r = self.type_store.unify(&arg_var, &args[index]);
                         assert!(r);
