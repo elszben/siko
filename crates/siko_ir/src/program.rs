@@ -50,6 +50,7 @@ pub struct Program {
     pub expr_types: BTreeMap<ExprId, TypeId>,
     pub function_types: BTreeMap<FunctionId, TypeId>,
     pub class_member_types: BTreeMap<ClassMemberId, (TypeId, TypeId)>,
+    pub class_names: BTreeMap<String, ClassId>
 }
 
 impl Program {
@@ -76,6 +77,7 @@ impl Program {
             expr_types: BTreeMap::new(),
             function_types: BTreeMap::new(),
             class_member_types: BTreeMap::new(),
+            class_names: BTreeMap::new()
         }
     }
 

@@ -5,6 +5,7 @@ use crate::value::ValueCore;
 use siko_constants::MAIN_FUNCTION;
 use siko_constants::MAIN_MODULE;
 use siko_constants::PRELUDE_NAME;
+use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
@@ -217,6 +218,49 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn call_class_member(
+        &mut self,
+        program: &Program,
+        class_member_id: &ClassMemberId,
+        args: &[ExprId],
+        expr_id: ExprId,
+        environment: &mut Environment,
+        caller_context: &SubstitutionContext,
+        expr_ty_id: TypeId,
+    ) -> Value {
+        let member = program.class_members.get(class_member_id);
+        let (class_member_type_id, class_arg_ty_id) = program
+            .class_member_types
+            .get(class_member_id)
+            .expect("untyped class member");
+        let func_arg_types = self.get_func_arg_types(program, class_member_type_id);
+        let callee_sub_context =
+            self.get_callee_subtitution_context(program, &func_arg_types[..], args, caller_context);
+        let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &callee_sub_context);
+        println!("instance selector {}", instance_selector_ty);
+        let resolver = program.type_instance_resolver.borrow();
+        if let Some(instances) = resolver.instance_map.get(&member.class_id) {
+            if let Some(instance_id) = instances.get(&instance_selector_ty) {
+                let instance = program.instances.get(instance_id);
+                let instance_member = instance.members.get(&member.name).unwrap();
+                let callable = Value::new(
+                    ValueCore::Callable(Callable {
+                        function_id: instance_member.function_id,
+                        values: vec![],
+                        sub_context: callee_sub_context,
+                    }),
+                    expr_ty_id,
+                );
+                let arg_values: Vec<_> = args
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment, caller_context))
+                    .collect();
+                return self.call(callable, arg_values, program, expr_id, expr_ty_id);
+            }
+        }
+        unimplemented!()
+    }
+
     fn eval_expr(
         &mut self,
         program: &Program,
@@ -402,41 +446,15 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
-                let member = program.class_members.get(class_member_id);
-                let (class_member_type_id, class_arg_ty_id) = program
-                    .class_member_types
-                    .get(class_member_id)
-                    .expect("untyped class member");
-                let func_arg_types = self.get_func_arg_types(program, class_member_type_id);
-                let callee_sub_context = self.get_callee_subtitution_context(
+                return self.call_class_member(
                     program,
-                    &func_arg_types[..],
+                    class_member_id,
                     args,
+                    expr_id,
+                    environment,
                     caller_context,
+                    expr_ty_id,
                 );
-                let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &callee_sub_context);
-                println!("instance selector {}", instance_selector_ty);
-                let resolver = program.type_instance_resolver.borrow();
-                if let Some(instances) = resolver.instance_map.get(&member.class_id) {
-                    if let Some(instance_id) = instances.get(&instance_selector_ty) {
-                        let instance = program.instances.get(instance_id);
-                        let instance_member = instance.members.get(&member.name).unwrap();
-                        let callable = Value::new(
-                            ValueCore::Callable(Callable {
-                                function_id: instance_member.function_id,
-                                values: vec![],
-                                sub_context: callee_sub_context,
-                            }),
-                            expr_ty_id,
-                        );
-                        let arg_values: Vec<_> = args
-                            .iter()
-                            .map(|e| self.eval_expr(program, *e, environment, caller_context))
-                            .collect();
-                        return self.call(callable, arg_values, program, expr_id, expr_ty_id);
-                    }
-                }
-                unimplemented!()
             }
         }
     }
@@ -506,6 +524,9 @@ impl<'a> Interpreter<'a> {
             (PRELUDE_NAME, "show") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "ListShow" => {
+                        let class_id = program.class_names.get("Show").expect("Show not found");
+                        let class = program.classes.get(class_id);
+                        let class_member_id = class.members.get("show").expect("show not found");
                         let list = environment.get_arg_by_index(0);
                         return Value::new(
                             ValueCore::String(list.core.debug(program, false)),

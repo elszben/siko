@@ -1212,6 +1212,12 @@ impl Resolver {
 
         if !errors.is_empty() {
             return Err(Error::resolve_err(errors));
+        } else {
+            let mut class_names = BTreeMap::new();
+            for (class_id, class) in &ir_program.classes.items {
+                class_names.insert(class.name.clone(), *class_id);
+            }
+            ir_program.class_names = class_names;
         }
 
         Ok(ir_program)
