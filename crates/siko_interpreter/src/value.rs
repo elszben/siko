@@ -5,15 +5,17 @@ use siko_constants::LIST_NAME;
 use siko_constants::STRING_NAME;
 use siko_ir::function::FunctionId;
 use siko_ir::program::Program;
+use siko_ir::types::ConcreteType;
+use siko_ir::types::SubstitutionContext;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId;
-use siko_ir::types::ConcreteType;
 use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Callable {
     pub function_id: FunctionId,
     pub values: Vec<Value>,
+    pub sub_context: SubstitutionContext,
 }
 
 #[derive(Debug, Clone)]
@@ -24,10 +26,7 @@ pub struct Value {
 
 impl Value {
     pub fn new(core: ValueCore, ty: TypeId) -> Value {
-        Value {
-            core: core,
-            ty: ty,
-        }
+        Value { core: core, ty: ty }
     }
 }
 

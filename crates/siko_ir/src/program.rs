@@ -116,13 +116,14 @@ impl Program {
         &self,
         specific_type_id: &TypeId,
         generic_type_id: &TypeId,
-        context: &mut SubstitutionContext,
+        caller_context: &SubstitutionContext,
+        callee_context: &mut SubstitutionContext,
     ) {
         let specific_type = self.types.get(specific_type_id).expect("Type not found");
         let generic_type = self.types.get(generic_type_id).expect("Type not found");
         match (specific_type, generic_type) {
             (_, Type::TypeArgument(index, _)) => {
-                context.add_generic(*index, *specific_type_id);
+                callee_context.add_generic(*index, *specific_type_id);
             }
             (Type::Function(f1), Type::Function(f2)) => {}
             _ => {}

@@ -228,6 +228,7 @@ pub enum Type {
     Named(String, TypeDefId, Vec<TypeId>),
 }
 
+#[derive(Debug, Clone)]
 pub struct SubstitutionContext {
     type_args: BTreeMap<usize, TypeId>,
 }
