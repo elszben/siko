@@ -28,6 +28,36 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn get_func_arg_types(&self, program: &Program, ty_id: &TypeId) -> Vec<TypeId> {
+        let func_arg_types = match program.types.get(ty_id).expect("type not found") {
+            Type::Function(func_type) => {
+                let mut arg_types = Vec::new();
+                func_type.get_arg_types(program, &mut arg_types);
+                arg_types
+            }
+            _ => vec![],
+        };
+        func_arg_types
+    }
+
+    fn get_subtitution_context(
+        &self,
+        program: &Program,
+        func_arg_types: &[TypeId],
+        args: &[ExprId],
+    ) -> SubstitutionContext {
+        let mut sub_context = SubstitutionContext::new();
+        let mut arg_types = Vec::new();
+        for arg in args {
+            let arg_ty = program.expr_types.get(arg).expect("untyped expr");
+            arg_types.push(arg_ty);
+        }
+        for (arg_type, func_arg_type) in arg_types.iter().zip(func_arg_types.iter()) {
+            program.match_generic_types(arg_type, func_arg_type, &mut sub_context);
+        }
+        sub_context
+    }
+
     fn call(
         &mut self,
         callable: Value,
@@ -203,14 +233,12 @@ impl<'a> Interpreter<'a> {
                 return environment.get_arg(arg_ref);
             }
             Expr::StaticFunctionCall(function_id, args) => {
-                let sub_context = SubstitutionContext::new();
-                let func = program.functions.get(function_id);
                 let func_ty = program
                     .function_types
                     .get(function_id)
                     .expect("untyped func");
-                let concrete = program.to_concrete_type(func_ty, &sub_context);
-                println!("func {} {}", func.info, concrete);
+                let func_arg_types = self.get_func_arg_types(program, func_ty);
+                let sub_context = self.get_subtitution_context(program, &func_arg_types[..], args);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
                         function_id: *function_id,
@@ -348,44 +376,13 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
-                let mut sub_context = SubstitutionContext::new();
                 let member = program.class_members.get(class_member_id);
-                let class = program.classes.get(&member.class_id);
-                let arg_values: Vec<_> = args
-                    .iter()
-                    .map(|e| self.eval_expr(program, *e, environment))
-                    .collect();
                 let (class_member_type_id, class_arg_ty_id) = program
                     .class_member_types
                     .get(class_member_id)
                     .expect("untyped class member");
-                let mut arg_types = Vec::new();
-                for arg in args {
-                    let arg_ty = program.expr_types.get(arg).expect("untyped expr");
-                    arg_types.push(arg_ty);
-                    let concrete = program.to_concrete_type(arg_ty, &sub_context);
-                    println!("arg {}", concrete);
-                }
-                let (return_type, func_arg_types) = match program
-                    .types
-                    .get(class_member_type_id)
-                    .expect("type not found")
-                {
-                    Type::Function(func_type) => {
-                        let mut arg_types = Vec::new();
-                        func_type.get_arg_types(program, &mut arg_types);
-                        (func_type.get_return_type(program, args.len()), arg_types)
-                    }
-                    _ => (*class_member_type_id, vec![]),
-                };
-                for (arg_type, func_arg_type) in arg_types.iter().zip(func_arg_types.iter()) {
-                    program.match_generic_types(arg_type, func_arg_type, &mut sub_context);
-                }
-                let return_type_concrete = program.to_concrete_type(&return_type, &sub_context);
-                println!("return type {}", return_type_concrete);
-                let class_func_concrete =
-                    program.to_concrete_type(class_member_type_id, &sub_context);
-                println!("class func {}", class_func_concrete);
+                let func_arg_types = self.get_func_arg_types(program, class_member_type_id);
+                let sub_context = self.get_subtitution_context(program, &func_arg_types[..], args);
                 let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &sub_context);
                 println!("instance selector {}", instance_selector_ty);
                 let resolver = program.type_instance_resolver.borrow();
@@ -400,10 +397,13 @@ impl<'a> Interpreter<'a> {
                             }),
                             expr_ty_id,
                         );
+                        let arg_values: Vec<_> = args
+                            .iter()
+                            .map(|e| self.eval_expr(program, *e, environment))
+                            .collect();
                         return self.call(callable, arg_values, program, expr_id, expr_ty_id);
                     }
                 }
-                println!("calling {} from {} failed", member.name, class.name);
                 unimplemented!()
             }
         }
