@@ -19,6 +19,7 @@ use crate::types::TypeId;
 use crate::types::TypeInstanceResolver;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
+use siko_constants::STRING_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
@@ -50,7 +51,7 @@ pub struct Program {
     pub expr_types: BTreeMap<ExprId, TypeId>,
     pub function_types: BTreeMap<FunctionId, TypeId>,
     pub class_member_types: BTreeMap<ClassMemberId, (TypeId, TypeId)>,
-    pub class_names: BTreeMap<String, ClassId>
+    pub class_names: BTreeMap<String, ClassId>,
 }
 
 impl Program {
@@ -77,7 +78,7 @@ impl Program {
             expr_types: BTreeMap::new(),
             function_types: BTreeMap::new(),
             class_member_types: BTreeMap::new(),
-            class_names: BTreeMap::new()
+            class_names: BTreeMap::new(),
         }
     }
 
@@ -107,9 +108,7 @@ impl Program {
                     .collect();
                 ConcreteType::Tuple(items)
             }
-            Type::TypeArgument(index, _) => {
-                context.get_type_id(index).clone()
-            }
+            Type::TypeArgument(index, _) => context.get_type_id(index).clone(),
         }
     }
 
@@ -127,5 +126,13 @@ impl Program {
             (ConcreteType::Function(from, to), Type::Function(f2)) => {}
             _ => {}
         }
+    }
+
+    pub fn string_concrete_type(&self) -> ConcreteType {
+        ConcreteType::Named(
+            STRING_NAME.to_string(),
+            self.builtin_types.string_id.expect("string ty not found"),
+            vec![],
+        )
     }
 }

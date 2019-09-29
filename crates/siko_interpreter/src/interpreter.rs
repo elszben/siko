@@ -60,7 +60,7 @@ impl<'a> Interpreter<'a> {
         callable_value: Value,
         args: Vec<Value>,
         program: &Program,
-        expr_id: ExprId,
+        expr_id: Option<ExprId>,
     ) -> Value {
         match callable_value.core {
             ValueCore::Callable(mut callable) => {
@@ -84,7 +84,7 @@ impl<'a> Interpreter<'a> {
                             program,
                             callable.function_id,
                             &mut environment,
-                            Some(expr_id),
+                            expr_id,
                             &callable.sub_context,
                             callable_value.ty.clone(),
                         );
@@ -217,16 +217,10 @@ impl<'a> Interpreter<'a> {
         &mut self,
         program: &Program,
         class_member_id: &ClassMemberId,
-        args: &[ExprId],
-        expr_id: ExprId,
-        environment: &mut Environment,
-        sub_context: &SubstitutionContext,
+        arg_values: Vec<Value>,
+        expr_id: Option<ExprId>,
         expr_ty: ConcreteType,
     ) -> Value {
-        let arg_values: Vec<_> = args
-            .iter()
-            .map(|e| self.eval_expr(program, *e, environment, sub_context))
-            .collect();
         let member = program.class_members.get(class_member_id);
         let (class_member_type_id, class_arg_ty_id) = program
             .class_member_types
@@ -299,7 +293,7 @@ impl<'a> Interpreter<'a> {
                     }),
                     expr_ty,
                 );
-                return self.call(callable, arg_values, program, expr_id);
+                return self.call(callable, arg_values, program, Some(expr_id));
             }
             Expr::DynamicFunctionCall(function_expr_id, args) => {
                 let function_expr_id =
@@ -308,7 +302,7 @@ impl<'a> Interpreter<'a> {
                     .iter()
                     .map(|arg| self.eval_expr(program, *arg, environment, sub_context))
                     .collect();
-                return self.call(function_expr_id, arg_values, program, expr_id);
+                return self.call(function_expr_id, arg_values, program, Some(expr_id));
             }
             Expr::Do(exprs) => {
                 let mut environment = Environment::block_child(environment);
@@ -433,13 +427,15 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
+                let arg_values: Vec<_> = args
+                    .iter()
+                    .map(|e| self.eval_expr(program, *e, environment, sub_context))
+                    .collect();
                 return self.call_class_member(
                     program,
                     class_member_id,
-                    args,
-                    expr_id,
-                    environment,
-                    sub_context,
+                    arg_values,
+                    Some(expr_id),
                     expr_ty,
                 );
             }
@@ -447,7 +443,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn call_extern(
-        &self,
+        &mut self,
         module: &str,
         name: &str,
         environment: &mut Environment,
@@ -577,7 +573,30 @@ impl<'a> Interpreter<'a> {
                         let class = program.classes.get(class_id);
                         let class_member_id = class.members.get("show").expect("show not found");
                         let list = environment.get_arg_by_index(0);
-                        return Value::new(ValueCore::String(list.core.debug(program, false)), ty);
+                        let string_ty = program.string_concrete_type();
+                        if let ValueCore::List(items) = list.core {
+                            let mut subs = Vec::new();
+                            for item in items {
+                                let v = self.call_class_member(
+                                    program,
+                                    class_member_id,
+                                    vec![item],
+                                    None,
+                                    string_ty.clone(),
+                                );
+                                if let ValueCore::String(s) = v.core {
+                                    subs.push(s);
+                                } else {
+                                    unreachable!();
+                                }
+                            }
+                            return Value::new(
+                                ValueCore::String(format!("({})", subs.join(", "))),
+                                ty,
+                            );
+                        } else {
+                            unreachable!()
+                        }
                     }
                     "IntShow" => {
                         let value = environment.get_arg_by_index(0);

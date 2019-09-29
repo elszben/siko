@@ -26,8 +26,6 @@ main = do
     a <- 20 / 5
     b <- 20.0 / 3.0
     println "{} {}" % (a, b)
-    //bs <- ["a", "5"]
-    //print (show "5")
-    //print (show bs)
-   // print (show "a")
+    bs <- ["a", "5"]
+    print (show bs)
     

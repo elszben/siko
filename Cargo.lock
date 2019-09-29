@@ -149,6 +149,7 @@ dependencies = [
 name = "siko_ir"
 version = "0.1.0"
 dependencies = [
+ "siko_constants 0.1.0",
  "siko_location_info 0.1.0",
  "siko_util 0.1.0",
 ]
