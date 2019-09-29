@@ -7,6 +7,7 @@ use crate::type_processor::process_type_signature;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use crate::walker::Visitor;
+use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -152,6 +153,23 @@ impl<'a, 'b> Unifier<'a, 'b> {
         let ty = Type::Named(name, typedef_id, args);
         let var = self.expr_processor.type_store.add_type(ty);
         var
+    }
+
+    fn get_type_class_var(&mut self, class_id: ClassId) -> TypeVariable {
+        let type_arg = self.expr_processor.type_store.get_unique_type_arg();
+        let ty = Type::TypeArgument(type_arg, vec![class_id]);
+        let var = self.expr_processor.type_store.add_type(ty);
+        var
+    }
+
+    fn get_show_type(&mut self) -> TypeVariable {
+        let class_id = self
+            .expr_processor
+            .program
+            .class_names
+            .get("Show")
+            .expect("Show not found").clone();
+        self.get_type_class_var(class_id)
     }
 
     fn get_bool_type(&mut self) -> TypeVariable {
@@ -368,6 +386,10 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
                     let err = TypecheckError::InvalidFormatString(location);
                     self.errors.push(err);
+                }
+                for arg in args {
+                    let var = self.get_show_type();
+                    self.match_expr_with(arg, &var);
                 }
             }
             Expr::FieldAccess(infos, record_expr) => {

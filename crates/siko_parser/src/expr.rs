@@ -416,6 +416,7 @@ fn parse_primary(parser: &mut Parser) -> Result<ExprId, ParseError> {
             TokenKind::Op(BuiltinOperator::Not)
             | TokenKind::VarIdentifier
             | TokenKind::IntegerLiteral
+            | TokenKind::FloatLiteral
             | TokenKind::BoolLiteral
             | TokenKind::StringLiteral
             | TokenKind::LParen

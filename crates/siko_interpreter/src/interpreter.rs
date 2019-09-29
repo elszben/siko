@@ -625,6 +625,10 @@ impl<'a> Interpreter<'a> {
                         let value = environment.get_arg_by_index(0);
                         return Value::new(ValueCore::String(value.core.debug(program, false)), ty);
                     }
+                    "FloatShow" => {
+                        let value = environment.get_arg_by_index(0);
+                        return Value::new(ValueCore::String(value.core.debug(program, false)), ty);
+                    }
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
                     }
