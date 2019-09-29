@@ -17,11 +17,32 @@ instance as FloatAdd Add Float where
 instance as StringAdd Add String where
     op_add a b = extern
 
-op_sub :: Int -> Int -> Int
-op_sub x y = extern
+class Sub a where
+    op_sub a :: a -> a -> a
 
-op_mul :: Int -> Int -> Int
-op_mul x y = extern
+instance as IntSub Sub Int where
+    op_sub a b = extern
+
+instance as FloatSub Sub Float where
+    op_sub a b = extern
+
+class Mul a where
+    op_mul a :: a -> a -> a
+
+instance as IntMul Mul Int where
+    op_mul a b = extern
+
+instance as FloatMul Mul Float where
+    op_mul a b = extern
+
+class Div a where
+    op_div a :: a -> a -> a
+
+instance as IntDiv Div Int where
+    op_div a b = extern
+
+instance as FloatDiv Div Float where
+    op_div a b = extern
 
 op_and :: Bool -> Bool -> Bool
 op_and a b = extern

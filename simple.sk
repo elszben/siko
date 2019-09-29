@@ -16,7 +16,16 @@ main = do
     a <- 4 + 5
     b <- 4.0 + 5.9
     c <- "4" + "5"
-    print "{} {} {}" % (a, b, c)
+    println "{} {} {}" % (a, b, c)
+    a <- 4 - 5
+    b <- 4.0 - 5.0
+    println "{} {}" % (a, b)
+    a <- 4 * 5
+    b <- 4.0 * 5.2
+    println "{} {}" % (a, b)
+    a <- 20 / 5
+    b <- 20.0 / 3.0
+    println "{} {}" % (a, b)
     //bs <- ["a", "5"]
     //print (show "5")
     //print (show bs)
