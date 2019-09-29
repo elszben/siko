@@ -8,14 +8,14 @@ data Int = extern
 class Add a where
     op_add a :: a -> a -> a
 
-instance Add Int where
-    op_add a = extern
+instance as IntAdd Add Int where
+    op_add a b = extern
 
 instance Add Float where
-    op_add a = extern
+    op_add a b = extern
 
 instance Add String where
-    op_add a = extern
+    op_add a b = extern
 
 op_sub :: Int -> Int -> Int
 op_sub x y = extern
@@ -74,10 +74,8 @@ instance Show String where
         println "hihi"
         a 
 
-instance Show Int where
-    show a = do 
-        println "hehe"
-        "int" 
+instance as IntShow Show Int where
+    show a = extern 
 
 instance as ListShow (Show a) => Show List a where
     show a = extern

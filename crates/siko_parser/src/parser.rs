@@ -155,6 +155,9 @@ impl<'a> Parser<'a> {
     pub fn irrefutable_pattern_follows(&self) -> bool {
         let mut index = self.index;
         while index < self.tokens.len() {
+            if self.tokens[index].token.kind() == TokenKind::EndOfItem {
+                return false;
+            }
             if self.tokens[index].token.kind() == TokenKind::KeywordDo {
                 return false;
             }

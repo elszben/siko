@@ -108,26 +108,23 @@ impl Program {
                 ConcreteType::Tuple(items)
             }
             Type::TypeArgument(index, _) => {
-                let replaced = context.get_type_id(index);
-                self.to_concrete_type(replaced, context)
+                context.get_type_id(index).clone()
             }
         }
     }
 
     pub fn match_generic_types(
         &self,
-        specific_type_id: &TypeId,
+        concrete_type: &ConcreteType,
         generic_type_id: &TypeId,
-        caller_context: &SubstitutionContext,
-        callee_context: &mut SubstitutionContext,
+        sub_context: &mut SubstitutionContext,
     ) {
-        let specific_type = self.types.get(specific_type_id).expect("Type not found");
         let generic_type = self.types.get(generic_type_id).expect("Type not found");
-        match (specific_type, generic_type) {
+        match (concrete_type, generic_type) {
             (_, Type::TypeArgument(index, _)) => {
-                callee_context.add_generic(*index, *specific_type_id);
+                sub_context.add_generic(*index, concrete_type.clone());
             }
-            (Type::Function(f1), Type::Function(f2)) => {}
+            (ConcreteType::Function(from, to), Type::Function(f2)) => {}
             _ => {}
         }
     }

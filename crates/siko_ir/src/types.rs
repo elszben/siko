@@ -230,7 +230,7 @@ pub enum Type {
 
 #[derive(Debug, Clone)]
 pub struct SubstitutionContext {
-    type_args: BTreeMap<usize, TypeId>,
+    type_args: BTreeMap<usize, ConcreteType>,
 }
 
 impl SubstitutionContext {
@@ -239,14 +239,20 @@ impl SubstitutionContext {
             type_args: BTreeMap::new(),
         }
     }
-    pub fn get_type_id(&self, index: &usize) -> &TypeId {
+    pub fn get_type_id(&self, index: &usize) -> &ConcreteType {
         self.type_args
             .get(index)
             .expect("index not found in substitution context")
     }
 
-    pub fn add_generic(&mut self, index: usize, type_id: TypeId) {
-        let r = self.type_args.insert(index, type_id);
-        assert_eq!(r, None);
+    pub fn add_generic(&mut self, index: usize, concrete_ty: ConcreteType) {
+        match self.type_args.get(&index) {
+            Some(ty) => {
+                assert_eq!(*ty, concrete_ty);
+            }
+            None => {
+                self.type_args.insert(index, concrete_ty);
+            }
+        }
     }
 }

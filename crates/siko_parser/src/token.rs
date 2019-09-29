@@ -169,6 +169,7 @@ impl TokenKind {
             TokenKind::Op(BuiltinOperator::Bind) => format!("<-"),
             TokenKind::Op(BuiltinOperator::Arrow) => format!("->"),
             TokenKind::KeywordConstraint => format!("=>"),
+            TokenKind::StringLiteral => format!("string literal"),
             _ => {
                 let name = format!("{:?}", self);
                 let name = name.to_lowercase();

@@ -1,14 +1,8 @@
-use siko_constants::BOOL_NAME;
-use siko_constants::FLOAT_NAME;
-use siko_constants::INT_NAME;
-use siko_constants::LIST_NAME;
-use siko_constants::STRING_NAME;
 use siko_ir::function::FunctionId;
 use siko_ir::program::Program;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::SubstitutionContext;
 use siko_ir::types::TypeDefId;
-use siko_ir::types::TypeId;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -21,11 +15,11 @@ pub struct Callable {
 #[derive(Debug, Clone)]
 pub struct Value {
     pub core: ValueCore,
-    pub ty: TypeId,
+    pub ty: ConcreteType,
 }
 
 impl Value {
-    pub fn new(core: ValueCore, ty: TypeId) -> Value {
+    pub fn new(core: ValueCore, ty: ConcreteType) -> Value {
         Value { core: core, ty: ty }
     }
 }
@@ -91,50 +85,6 @@ impl ValueCore {
             format!("({})", v)
         } else {
             v
-        }
-    }
-
-    pub fn to_type(&self, program: &Program) -> ConcreteType {
-        match self {
-            ValueCore::Int(v) => ConcreteType::Named(
-                INT_NAME.to_string(),
-                program.builtin_types.int_id.unwrap(),
-                vec![],
-            ),
-            ValueCore::Float(v) => ConcreteType::Named(
-                FLOAT_NAME.to_string(),
-                program.builtin_types.float_id.unwrap(),
-                vec![],
-            ),
-            ValueCore::Bool(v) => ConcreteType::Named(
-                BOOL_NAME.to_string(),
-                program.builtin_types.bool_id.unwrap(),
-                vec![],
-            ),
-            ValueCore::String(v) => ConcreteType::Named(
-                STRING_NAME.to_string(),
-                program.builtin_types.string_id.unwrap(),
-                vec![],
-            ),
-            ValueCore::Tuple(vs) => {
-                let items: Vec<_> = vs.iter().map(|v| v.core.to_type(program)).collect();
-                ConcreteType::Tuple(items)
-            }
-            ValueCore::Callable(_) => unimplemented!(),
-            ValueCore::Variant(_, _, _) => unimplemented!(),
-            ValueCore::Record(id, vs) => {
-                let items: Vec<_> = vs.iter().map(|v| v.core.to_type(program)).collect();
-                let record = program.typedefs.get(id).get_record();
-                ConcreteType::Named(record.name.clone(), *id, items)
-            }
-            ValueCore::List(vs) => {
-                let item_type = vs[0].core.to_type(program);
-                ConcreteType::Named(
-                    LIST_NAME.to_string(),
-                    program.builtin_types.list_id.unwrap(),
-                    vec![item_type],
-                )
-            }
         }
     }
 }

@@ -13,8 +13,10 @@ printer a :: (Show a) => [a] -> String
 printer a = show a
 
 main = do
-    bs <- ["a", "5"]
+    a <- 4 + 5
+    print (show a)
+    //bs <- ["a", "5"]
     //print (show "5")
-    print (show bs)
+    //print (show bs)
    // print (show "a")
     
