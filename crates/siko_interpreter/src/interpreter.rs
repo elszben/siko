@@ -213,6 +213,20 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn call_show(&mut self, program: &Program, arg: Value) -> String {
+        let string_ty = program.string_concrete_type();
+        let class_id = program.class_names.get("Show").expect("Show not found");
+        let class = program.classes.get(class_id);
+        let class_member_id = class.members.get("show").expect("show not found");
+        let v =
+            self.call_class_member(program, class_member_id, vec![arg], None, string_ty.clone());
+        if let ValueCore::String(s) = v.core {
+            return s;
+        } else {
+            unreachable!();
+        }
+    }
+
     fn call_class_member(
         &mut self,
         program: &Program,
@@ -230,7 +244,7 @@ impl<'a> Interpreter<'a> {
         let callee_sub_context =
             self.get_subtitution_context(program, &func_arg_types[..], &arg_values[..]);
         let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &callee_sub_context);
-        //println!("instance selector {}", instance_selector_ty);
+        //println!("instance selector {} {}", instance_selector_ty, member.name);
         let resolver = program.type_instance_resolver.borrow();
         if let Some(instances) = resolver.instance_map.get(&member.class_id) {
             if let Some(instance_id) = instances.get(&instance_selector_ty) {
@@ -245,9 +259,15 @@ impl<'a> Interpreter<'a> {
                     expr_ty,
                 );
                 return self.call(callable, arg_values, program, expr_id);
+            } else {
+                for (a, b) in instances {
+                    println!("{} {}", a, b);
+                }
+                panic!("Did not find {}", instance_selector_ty);
             }
+        } else {
+            unreachable!()
         }
-        unimplemented!()
     }
 
     fn eval_expr(
@@ -362,7 +382,8 @@ impl<'a> Interpreter<'a> {
                 for (index, sub) in subs.iter().enumerate() {
                     result += sub;
                     if values.len() > index {
-                        result += &values[index].core.debug(program, false);
+                        let value_as_string = self.call_show(program, values[index].clone());
+                        result += &value_as_string;
                     }
                 }
                 return Value::new(ValueCore::String(result), expr_ty);
@@ -561,16 +582,6 @@ impl<'a> Interpreter<'a> {
                 let r = environment.get_arg_by_index(1).core.as_int();
                 return Value::new(ValueCore::Bool(l < r), ty);
             }
-            (PRELUDE_NAME, "op_equals") => {
-                let l = environment.get_arg_by_index(0).core.as_int();
-                let r = environment.get_arg_by_index(1).core.as_int();
-                return Value::new(ValueCore::Bool(l == r), ty);
-            }
-            (PRELUDE_NAME, "op_notequals") => {
-                let l = environment.get_arg_by_index(0).core.as_int();
-                let r = environment.get_arg_by_index(1).core.as_int();
-                return Value::new(ValueCore::Bool(l != r), ty);
-            }
             ("Std.Util", "assert") => {
                 let v = environment.get_arg_by_index(0).core.as_bool();
                 if !v {
@@ -595,26 +606,12 @@ impl<'a> Interpreter<'a> {
             (PRELUDE_NAME, "show") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "ListShow" => {
-                        let class_id = program.class_names.get("Show").expect("Show not found");
-                        let class = program.classes.get(class_id);
-                        let class_member_id = class.members.get("show").expect("show not found");
                         let list = environment.get_arg_by_index(0);
-                        let string_ty = program.string_concrete_type();
                         if let ValueCore::List(items) = list.core {
                             let mut subs = Vec::new();
                             for item in items {
-                                let v = self.call_class_member(
-                                    program,
-                                    class_member_id,
-                                    vec![item],
-                                    None,
-                                    string_ty.clone(),
-                                );
-                                if let ValueCore::String(s) = v.core {
-                                    subs.push(s);
-                                } else {
-                                    unreachable!();
-                                }
+                                let s = self.call_show(program, item);
+                                subs.push(s);
                             }
                             return Value::new(
                                 ValueCore::String(format!("({})", subs.join(", "))),
