@@ -6,43 +6,43 @@ data String = extern
 data Int = extern
 
 class Add a where
-    op_add a :: a -> a -> a
+    opAdd a :: a -> a -> a
 
 instance as IntAdd Add Int where
-    op_add a b = extern
+    opAdd a b = extern
 
 instance as FloatAdd Add Float where
-    op_add a b = extern
+    opAdd a b = extern
 
 instance as StringAdd Add String where
-    op_add a b = extern
+    opAdd a b = extern
 
 class Sub a where
-    op_sub a :: a -> a -> a
+    opSub a :: a -> a -> a
 
 instance as IntSub Sub Int where
-    op_sub a b = extern
+    opSub a b = extern
 
 instance as FloatSub Sub Float where
-    op_sub a b = extern
+    opSub a b = extern
 
 class Mul a where
-    op_mul a :: a -> a -> a
+    opMul a :: a -> a -> a
 
 instance as IntMul Mul Int where
-    op_mul a b = extern
+    opMul a b = extern
 
 instance as FloatMul Mul Float where
-    op_mul a b = extern
+    opMul a b = extern
 
 class Div a where
-    op_div a :: a -> a -> a
+    opDiv a :: a -> a -> a
 
 instance as IntDiv Div Int where
-    op_div a b = extern
+    opDiv a b = extern
 
 instance as FloatDiv Div Float where
-    op_div a b = extern
+    opDiv a b = extern
 
 op_and :: Bool -> Bool -> Bool
 op_and a b = extern
@@ -55,9 +55,6 @@ op_not a  = not a
 
 op_lessthan :: Int -> Int -> Bool
 op_lessthan a b = extern
-
-op_equals :: Int -> Int -> Bool
-op_equals a b = extern
 
 op_notequals :: Int -> Int -> Bool
 op_notequals a b = extern
@@ -83,17 +80,22 @@ data Option a = Some a | None
 data List a = extern
 
 class Eq a where
-    eq a :: a -> a -> Bool
-    ne a :: a -> a -> Bool
-    ne a b = not (eq a b)
+    opEq a :: a -> a -> Bool
+    opNotEq a :: a -> a -> Bool
+    opNotEq a b = not (opEq a b)
+
+instance as BoolEq Eq Bool where
+    opEq a b = extern
+    opNotEq a b = extern
 
 class Show a where
     show a :: a -> String
 
 instance Show String where
-    show a = do 
-        println "hihi"
-        a 
+    show a = a
+
+instance Show Bool where
+    show a = if a == True then "True" else "False"
 
 instance as IntShow Show Int where
     show a = extern 

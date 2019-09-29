@@ -27,5 +27,8 @@ main = do
     b <- 20.0 / 3.0
     println "{} {}" % (a, b)
     bs <- ["a", "5"]
-    print (show bs)
+    println (show bs)
+    bs <- [False, True]
+    println (show (False != True))
+    println (show bs)
     

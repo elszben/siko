@@ -20,6 +20,20 @@ pub enum BuiltinOperator {
     Composition,
 }
 
+impl BuiltinOperator {
+    pub fn get_function_name(&self) -> String {
+        match self {
+            BuiltinOperator::Add => format!("opAdd"),
+            BuiltinOperator::Sub => format!("opSub"),
+            BuiltinOperator::Mul => format!("opMul"),
+            BuiltinOperator::Div => format!("opDiv"),
+            BuiltinOperator::Equals => format!("opEq"),
+            BuiltinOperator::NotEquals => format!("opNotEq"),
+            _ => panic!("Op {:?} has no func name", self),
+        }
+    }
+}
+
 pub const MAIN_MODULE: &str = "Main";
 pub const MAIN_FUNCTION: &str = "main";
 pub const PRELUDE_NAME: &str = "Prelude";

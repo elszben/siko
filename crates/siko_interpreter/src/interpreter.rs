@@ -453,7 +453,7 @@ impl<'a> Interpreter<'a> {
         ty: ConcreteType,
     ) -> Value {
         match (module, name) {
-            (PRELUDE_NAME, "op_add") => match instance {
+            (PRELUDE_NAME, "opAdd") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "IntAdd" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
@@ -476,7 +476,7 @@ impl<'a> Interpreter<'a> {
                 },
                 None => unreachable!(),
             },
-            (PRELUDE_NAME, "op_sub") => match instance {
+            (PRELUDE_NAME, "opSub") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "IntSub" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
@@ -494,7 +494,7 @@ impl<'a> Interpreter<'a> {
                 },
                 None => unreachable!(),
             },
-            (PRELUDE_NAME, "op_mul") => match instance {
+            (PRELUDE_NAME, "opMul") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "IntMul" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
@@ -512,7 +512,7 @@ impl<'a> Interpreter<'a> {
                 },
                 None => unreachable!(),
             },
-            (PRELUDE_NAME, "op_div") => match instance {
+            (PRELUDE_NAME, "opDiv") => match instance {
                 Some(instance_name) => match instance_name.as_ref() {
                     "IntDiv" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
@@ -523,6 +523,32 @@ impl<'a> Interpreter<'a> {
                         let l = environment.get_arg_by_index(0).core.as_float();
                         let r = environment.get_arg_by_index(1).core.as_float();
                         return Value::new(ValueCore::Float(l / r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                    }
+                },
+                None => unreachable!(),
+            },
+            (PRELUDE_NAME, "opEq") => match instance {
+                Some(instance_name) => match instance_name.as_ref() {
+                    "BoolEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_bool();
+                        let r = environment.get_arg_by_index(1).core.as_bool();
+                        return Value::new(ValueCore::Bool(l == r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                    }
+                },
+                None => unreachable!(),
+            },
+            (PRELUDE_NAME, "opNotEq") => match instance {
+                Some(instance_name) => match instance_name.as_ref() {
+                    "BoolEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_bool();
+                        let r = environment.get_arg_by_index(1).core.as_bool();
+                        return Value::new(ValueCore::Bool(l != r), ty);
                     }
                     _ => {
                         panic!("Unimplemented sub function {}/{}", module, instance_name);
