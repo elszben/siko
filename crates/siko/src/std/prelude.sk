@@ -11,10 +11,10 @@ class Add a where
 instance as IntAdd Add Int where
     op_add a b = extern
 
-instance Add Float where
+instance as FloatAdd Add Float where
     op_add a b = extern
 
-instance Add String where
+instance as StringAdd Add String where
     op_add a b = extern
 
 op_sub :: Int -> Int -> Int

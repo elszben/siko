@@ -14,7 +14,9 @@ printer a = show a
 
 main = do
     a <- 4 + 5
-    print (show a)
+    b <- 4.0 + 5.9
+    c <- "4" + "5"
+    print "{} {} {}" % (a, b, c)
     //bs <- ["a", "5"]
     //print (show "5")
     //print (show bs)

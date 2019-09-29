@@ -464,6 +464,16 @@ impl<'a> Interpreter<'a> {
                         let r = environment.get_arg_by_index(1).core.as_int();
                         return Value::new(ValueCore::Int(l + r), ty);
                     }
+                    "FloatAdd" => {
+                        let l = environment.get_arg_by_index(0).core.as_float();
+                        let r = environment.get_arg_by_index(1).core.as_float();
+                        return Value::new(ValueCore::Float(l + r), ty);
+                    }
+                    "StringAdd" => {
+                        let l = environment.get_arg_by_index(0).core.as_string();
+                        let r = environment.get_arg_by_index(1).core.as_string();
+                        return Value::new(ValueCore::String(l + &r), ty);
+                    }
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
                     }

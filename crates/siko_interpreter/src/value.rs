@@ -45,6 +45,20 @@ impl ValueCore {
         }
     }
 
+    pub fn as_float(&self) -> f64 {
+        match self {
+            ValueCore::Float(i) => *i,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn as_string(&self) -> String {
+        match self {
+            ValueCore::String(i) => i.clone(),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn as_bool(&self) -> bool {
         match self {
             ValueCore::Bool(b) => *b,
