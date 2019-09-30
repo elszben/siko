@@ -9,26 +9,6 @@ actor FooActor Foo where
     FooProtocol -> foo
 */
 
-printer a :: (Show a) => [a] -> String
-printer a = show a
-
 main = do
-    a <- 4 + 5
-    b <- 4.0 + 5.9
-    c <- "4" + "5"
-    println "{} {} {}" % (a, b, c)
-    a <- 4 - 5
-    b <- 4.0 - 5.0
-    println "{} {}" % (a, b)
-    a <- 4 * 5
-    b <- 4.0 * 5.2
-    println "{} {}" % (a, b)
-    a <- 20 / 5
-    b <- 20.0 / 3.0
-    println "{} {}" % (a, b)
-    bs <- ["a", "5"]
-    println "{}" % bs
-    bs <- [False, True]
-    println "{}" % False != True
-    println "{}" % bs
+    "a" |> show
     

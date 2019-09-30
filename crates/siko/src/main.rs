@@ -16,7 +16,13 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
         name: PRELUDE_NAME.to_string(),
         content: prelude_source.to_string(),
     };
+    let std_source = include_str!("std/std.sk");
+    let std = CompilerInput::Memory {
+        name: "std.sk".to_string(),
+        content: std_source.to_string(),
+    };
     inputs.push(prelude);
+    inputs.push(std);
     for arg in args {
         if arg == "-v" {
             config.verbose = true;

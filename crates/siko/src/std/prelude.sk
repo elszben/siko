@@ -53,9 +53,6 @@ op_or a b = extern
 op_not :: Bool -> Bool
 op_not a  = not a
 
-op_lessthan :: Int -> Int -> Bool
-op_lessthan a b = extern
-
 op_notequals :: Int -> Int -> Bool
 op_notequals a b = extern
 
@@ -64,6 +61,12 @@ op_greaterthan a b = extern
 
 op_composition a b c :: (a -> b) -> (b -> c) -> a -> c
 op_composition f g x = g (f x)
+
+class LessThan a where
+    opLessThan a :: a -> a -> Bool
+
+instance as IntLessThan LessThan Int where
+    opLessThan a b = extern
 
 not :: Bool -> Bool
 not a = if a then False
@@ -85,6 +88,18 @@ class Eq a where
     opNotEq a b = not (opEq a b)
 
 instance as BoolEq Eq Bool where
+    opEq a b = extern
+    opNotEq a b = extern
+
+instance as IntEq Eq Int where
+    opEq a b = extern
+    opNotEq a b = extern
+
+instance as FloatEq Eq Float where
+    opEq a b = extern
+    opNotEq a b = extern
+
+instance as StringEq Eq String where
     opEq a b = extern
     opNotEq a b = extern
 

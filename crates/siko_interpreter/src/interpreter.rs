@@ -558,8 +558,23 @@ impl<'a> Interpreter<'a> {
                         let r = environment.get_arg_by_index(1).core.as_bool();
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
+                    "IntEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        return Value::new(ValueCore::Bool(l == r), ty);
+                    }
+                    "FloatEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_float();
+                        let r = environment.get_arg_by_index(1).core.as_float();
+                        return Value::new(ValueCore::Bool(l == r), ty);
+                    }
+                    "StringEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_string();
+                        let r = environment.get_arg_by_index(1).core.as_string();
+                        return Value::new(ValueCore::Bool(l == r), ty);
+                    }
                     _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                        panic!("Unimplemented eq function {}/{}", module, instance_name);
                     }
                 },
                 None => unreachable!(),
@@ -572,7 +587,23 @@ impl<'a> Interpreter<'a> {
                         return Value::new(ValueCore::Bool(l != r), ty);
                     }
                     _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                        panic!("Unimplemented notEq function {}/{}", module, instance_name);
+                    }
+                },
+                None => unreachable!(),
+            },
+            (PRELUDE_NAME, "opLessThan") => match instance {
+                Some(instance_name) => match instance_name.as_ref() {
+                    "IntLessThan" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        return Value::new(ValueCore::Bool(l < r), ty);
+                    }
+                    _ => {
+                        panic!(
+                            "Unimplemented less than function {}/{}",
+                            module, instance_name
+                        );
                     }
                 },
                 None => unreachable!(),

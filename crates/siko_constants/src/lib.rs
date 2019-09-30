@@ -29,6 +29,7 @@ impl BuiltinOperator {
             BuiltinOperator::Div => format!("opDiv"),
             BuiltinOperator::Equals => format!("opEq"),
             BuiltinOperator::NotEquals => format!("opNotEq"),
+            BuiltinOperator::LessThan => format!("opLessThan"),
             _ => panic!("Op {:?} has no func name", self),
         }
     }
