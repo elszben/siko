@@ -123,8 +123,21 @@ impl Program {
             (_, Type::TypeArgument(index, _)) => {
                 sub_context.add_generic(*index, concrete_type.clone());
             }
-            (ConcreteType::Function(from, to), Type::Function(f2)) => {}
-            _ => {}
+            (ConcreteType::Function(from, to), Type::Function(f2)) => {
+                self.match_generic_types(from, &f2.from, sub_context);
+                self.match_generic_types(to, &f2.to, sub_context);
+            }
+            (ConcreteType::Named(_, _, sub_types1), Type::Named(_, _, sub_types2)) => {
+                for (sub_ty1, sub_ty2) in sub_types1.iter().zip(sub_types2.iter()) {
+                    self.match_generic_types(sub_ty1, sub_ty2, sub_context);
+                }
+            }
+            (ConcreteType::Tuple(sub_types1), Type::Tuple(sub_types2)) => {
+                for (sub_ty1, sub_ty2) in sub_types1.iter().zip(sub_types2.iter()) {
+                    self.match_generic_types(sub_ty1, sub_ty2, sub_context);
+                }
+            }
+            _ => panic!("{}, {:?}", concrete_type, generic_type),
         }
     }
 

@@ -9,6 +9,10 @@ actor FooActor Foo where
     FooProtocol -> foo
 */
 
+plus a b = a + b
+
 main = do
-    "a" |> show
+    123 |> plus 1 
+        |> show 
+        |> print
     
