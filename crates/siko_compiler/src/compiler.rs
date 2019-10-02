@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::error::Error;
 use siko_interpreter::interpreter::Interpreter;
+use siko_ir::expr_visualizer::ExprVisualizer;
 use siko_location_info::error_context::ErrorContext;
 use siko_location_info::file_manager::FileManager;
 use siko_location_info::filepath::FilePath;
@@ -112,6 +113,10 @@ impl Compiler {
 
         typechecker.check(&mut ir_program)?;
         let mut interpreter = Interpreter::new(self.context());
+
+        for (id, _) in &ir_program.functions.items {
+            ExprVisualizer::generate(&id, &ir_program);
+        }
 
         interpreter.run(&ir_program);
 

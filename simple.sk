@@ -9,8 +9,11 @@ actor FooActor Foo where
 
 plus a b = a + b
 
-main = do
+main2 = do
     123 |> plus 1 
         |> Prelude.show 
         |> print
     
+main = do
+    a <- plus 1 2
+    print (show a)

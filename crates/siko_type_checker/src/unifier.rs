@@ -6,7 +6,7 @@ use crate::expr_processor::ExprProcessor;
 use crate::type_processor::process_type_signature;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
-use crate::walker::Visitor;
+use siko_ir::walker::Visitor;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;

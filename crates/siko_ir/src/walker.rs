@@ -1,8 +1,8 @@
-use siko_ir::expr::Expr;
-use siko_ir::expr::ExprId;
-use siko_ir::pattern::Pattern;
-use siko_ir::pattern::PatternId;
-use siko_ir::program::Program;
+use crate::expr::Expr;
+use crate::expr::ExprId;
+use crate::pattern::Pattern;
+use crate::pattern::PatternId;
+use crate::program::Program;
 
 pub trait Visitor {
     fn get_program(&self) -> &Program;

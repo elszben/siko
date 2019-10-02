@@ -13,4 +13,3 @@ pub mod type_variable;
 pub mod typechecker;
 pub mod types;
 pub mod unifier;
-pub mod walker;
