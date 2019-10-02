@@ -17,6 +17,9 @@ use siko_location_info::item::ItemInfo;
 use siko_location_info::item::LocationId;
 use siko_location_info::location_info::LocationInfo;
 use siko_location_info::location_set::LocationSet;
+use siko_syntax::actor::Actor;
+use siko_syntax::actor::Protocol;
+use siko_syntax::actor::ProtocolHandler;
 use siko_syntax::class::Class;
 use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance;
@@ -975,6 +978,71 @@ impl<'a> Parser<'a> {
         Ok(instance)
     }
 
+    fn parse_protocol(&mut self, module: &mut Module) -> Result<Protocol, ParseError> {
+        self.expect(TokenKind::KeywordProtocol)?;
+        let start_index = self.get_index();
+        let name = self.type_identifier("protocol name")?;
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
+        self.expect(TokenKind::Equal)?;
+        let type_signature_id = self.parse_function_type(false, false)?;
+        self.expect(TokenKind::EndOfItem)?;
+        let id = self.program.protocols.get_id();
+        module.protocols.push(id);
+        let protocol = Protocol {
+            id: id,
+            name: name,
+            type_signature: type_signature_id,
+            location_id: location_id,
+        };
+        Ok(protocol)
+    }
+
+    fn parse_actor(&mut self, module: &mut Module) -> Result<Actor, ParseError> {
+        self.expect(TokenKind::KeywordActor)?;
+        let start_index = self.get_index();
+        let name = self.type_identifier("actor name")?;
+        let end_index = self.get_index();
+        let location_id = self.get_location_id(start_index, end_index);
+        let type_signature_id = self.parse_function_type(false, false)?;
+        self.expect(TokenKind::KeywordWhere)?;
+        let mut handlers = Vec::new();
+        loop {
+            let start_index = self.get_index();
+            let protocol_name = self.type_identifier("protocol name")?;
+            let end_index = self.get_index();
+            let protocol_location_id = self.get_location_id(start_index, end_index);
+            self.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
+            let start_index = self.get_index();
+            let handler_func_name = self.parse_qualified_name()?;
+            let end_index = self.get_index();
+            let handler_func_location_id = self.get_location_id(start_index, end_index);
+            let handler = ProtocolHandler {
+                protocol: protocol_name,
+                protocol_location_id: protocol_location_id,
+                handler_func: handler_func_name,
+                handler_func_location_id: handler_func_location_id,
+            };
+            handlers.push(handler);
+            self.expect(TokenKind::EndOfItem)?;
+            if self.current_kind() == TokenKind::EndOfBlock {
+                break;
+            }
+        }
+        self.expect(TokenKind::EndOfBlock)?;
+        self.expect(TokenKind::EndOfItem)?;
+        let id = self.program.actors.get_id();
+        module.actors.push(id);
+        let actor = Actor {
+            id: id,
+            name: name,
+            type_signature: type_signature_id,
+            handlers: handlers,
+            location_id: location_id,
+        };
+        Ok(actor)
+    }
+
     fn parse_module(&mut self, id: ModuleId) -> Result<Module, ParseError> {
         self.expect(TokenKind::KeywordModule)?;
         let start_index = self.get_index();
@@ -1014,6 +1082,14 @@ impl<'a> Parser<'a> {
                     TokenKind::KeywordInstance => {
                         let instance = self.parse_instance(&mut module)?;
                         self.program.instances.add_item(instance.id, instance);
+                    }
+                    TokenKind::KeywordProtocol => {
+                        let protocol = self.parse_protocol(&mut module)?;
+                        self.program.protocols.add_item(protocol.id, protocol);
+                    }
+                    TokenKind::KeywordActor => {
+                        let actor = self.parse_actor(&mut module)?;
+                        self.program.actors.add_item(actor.id, actor);
                     }
                     TokenKind::EndOfBlock => {
                         break;

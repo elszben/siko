@@ -1,3 +1,4 @@
+pub mod actor;
 pub mod class;
 pub mod data;
 pub mod export_import;

@@ -1,18 +1,16 @@
 module Main where
 
-/*
 protocol BazProtocol = Baz
 protocol FooProtocol = Foo
 
 actor FooActor Foo where
-    BazProtocol -> baz
+    BazProtocol -> Prelude.baz
     FooProtocol -> foo
-*/
 
 plus a b = a + b
 
 main = do
     123 |> plus 1 
-        |> show 
+        |> Prelude.show 
         |> print
     

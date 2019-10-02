@@ -1,3 +1,5 @@
+use crate::actor::ActorId;
+use crate::actor::ProtocolId;
 use crate::class::ClassId;
 use crate::class::InstanceId;
 use crate::data::AdtId;
@@ -31,6 +33,8 @@ pub struct Module {
     pub classes: Vec<ClassId>,
     pub instances: Vec<InstanceId>,
     pub imports: Vec<ImportId>,
+    pub protocols: Vec<ProtocolId>,
+    pub actors: Vec<ActorId>,
     pub location_id: LocationId,
     pub export_list: EIList,
 }
@@ -47,6 +51,8 @@ impl Module {
             classes: Vec::new(),
             instances: Vec::new(),
             imports: Vec::new(),
+            protocols: Vec::new(),
+            actors: Vec::new(),
             location_id: location_id,
             export_list: export_list,
         }

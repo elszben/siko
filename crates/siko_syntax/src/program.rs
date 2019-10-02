@@ -1,3 +1,7 @@
+use crate::actor::Protocol;
+use crate::actor::ProtocolId;
+use crate::actor::Actor;
+use crate::actor::ActorId;
 use crate::class::Class;
 use crate::class::ClassId;
 use crate::class::Instance;
@@ -42,6 +46,8 @@ pub struct Program {
     pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
     pub imports: ItemContainer<ImportId, Import>,
     pub record_fields: ItemContainer<RecordFieldId, RecordField>,
+    pub protocols: ItemContainer<ProtocolId, Protocol>,
+    pub actors: ItemContainer<ActorId, Actor>
 }
 
 impl Program {
@@ -60,6 +66,8 @@ impl Program {
             patterns: ItemContainer::new(),
             imports: ItemContainer::new(),
             record_fields: ItemContainer::new(),
+            protocols: ItemContainer::new(),
+            actors: ItemContainer::new(),
         }
     }
 }
