@@ -114,8 +114,10 @@ impl Compiler {
         typechecker.check(&mut ir_program)?;
         let mut interpreter = Interpreter::new(self.context());
 
-        for (id, _) in &ir_program.functions.items {
-            ExprVisualizer::generate(&id, &ir_program);
+        if self.config.visualize {
+            for (id, _) in &ir_program.functions.items {
+                ExprVisualizer::generate(&id, &ir_program);
+            }
         }
 
         interpreter.run(&ir_program);

@@ -105,7 +105,7 @@ impl<'a> Visitor for ExprVisualizer<'a> {
                 write!(
                     self.output_file,
                     "expr{} -> expr{} [label=\"{}\"]\n",
-                    func_expr.id, expr_id.id, "func_expr"
+                    func_expr.id, expr_id.id, "Func-Expr"
                 )
                 .expect("Write failed");
                 format!("DynamicFunctionCall")
@@ -128,7 +128,7 @@ impl<'a> Visitor for ExprVisualizer<'a> {
                 write!(
                     self.output_file,
                     "pattern{} -> expr{} [label=\"{}\"]\n",
-                    pattern_id.id, expr_id.id, "expr_value"
+                    pattern_id.id, expr_id.id, "Expr-Value"
                 )
                 .expect("Write failed");
                 format!("ExprValue")
@@ -150,7 +150,7 @@ impl<'a> Visitor for ExprVisualizer<'a> {
                 write!(
                     self.output_file,
                     "expr{} -> pattern{} [label=\"{}\"]\n",
-                    expr.id, pattern_id.id, "bind"
+                    expr.id, pattern_id.id, "Bind"
                 )
                 .expect("Write failed");
                 write!(

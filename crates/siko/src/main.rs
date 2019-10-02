@@ -24,35 +24,41 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     inputs.push(prelude);
     inputs.push(std);
     for arg in args {
-        if arg == "-v" {
-            config.verbose = true;
-        } else {
-            let path = Path::new(&arg);
-            if !path.exists() {
-                let path_str = format!("{}", path.display());
-                eprintln!(
-                    "{} path {} does not exist",
-                    "ERROR:".red(),
-                    path_str.yellow()
-                );
-                success = false;
-                continue;
+        match arg.as_ref() {
+            "-v" => {
+                config.verbose = true;
             }
-            if path.is_dir() {
-                for entry in WalkDir::new(path) {
-                    let entry = entry.unwrap();
-                    if let Some(ext) = entry.path().extension() {
-                        if ext == "sk" {
-                            let input = CompilerInput::File {
-                                name: format!("{}", entry.path().display()),
-                            };
-                            inputs.push(input);
+            "-i" => {
+                config.visualize = true;
+            }
+            _ => {
+                let path = Path::new(&arg);
+                if !path.exists() {
+                    let path_str = format!("{}", path.display());
+                    eprintln!(
+                        "{} path {} does not exist",
+                        "ERROR:".red(),
+                        path_str.yellow()
+                    );
+                    success = false;
+                    continue;
+                }
+                if path.is_dir() {
+                    for entry in WalkDir::new(path) {
+                        let entry = entry.unwrap();
+                        if let Some(ext) = entry.path().extension() {
+                            if ext == "sk" {
+                                let input = CompilerInput::File {
+                                    name: format!("{}", entry.path().display()),
+                                };
+                                inputs.push(input);
+                            }
                         }
                     }
+                } else if path.is_file() {
+                    let input = CompilerInput::File { name: arg };
+                    inputs.push(input);
                 }
-            } else if path.is_file() {
-                let input = CompilerInput::File { name: arg };
-                inputs.push(input);
             }
         }
     }
