@@ -40,11 +40,12 @@ impl<'a> Interpreter<'a> {
         {
             Type::Function(func_type) => {
                 let mut arg_types = Vec::new();
-                func_type.get_arg_types(program, &mut arg_types);
                 if arg_count == 0 {
                     (arg_types, *ty_id)
                 } else {
-                    (arg_types, func_type.get_return_type(program, arg_count))
+                    let return_type =
+                        func_type.get_arg_and_return_types(program, &mut arg_types, arg_count);
+                    (arg_types, return_type)
                 }
             }
             _ => (vec![], *ty_id),
@@ -77,29 +78,32 @@ impl<'a> Interpreter<'a> {
     ) -> Value {
         match callable_value.core {
             ValueCore::Callable(mut callable) => {
+                let mut callable_func_ty = callable_value.ty;
                 callable.values.extend(args);
                 loop {
                     let func_info = program.functions.get(&callable.function_id);
                     let needed_arg_count =
                         func_info.arg_locations.len() + func_info.implicit_arg_count;
                     if needed_arg_count > callable.values.len() {
-                        return Value::new(ValueCore::Callable(callable), callable_value.ty);
+                        return Value::new(ValueCore::Callable(callable), callable_func_ty);
                     } else {
                         let rest = callable.values.split_off(needed_arg_count);
                         let mut call_args = Vec::new();
                         std::mem::swap(&mut call_args, &mut callable.values);
+                        let arg_count = call_args.len();
                         let mut environment = Environment::new(
                             callable.function_id,
                             call_args,
                             func_info.implicit_arg_count,
                         );
+                        callable_func_ty = callable_func_ty.get_func_type(arg_count);
                         let result = self.execute(
                             program,
                             callable.function_id,
                             &mut environment,
                             expr_id,
                             &callable.sub_context,
-                            callable_value.ty.clone(),
+                            callable_func_ty.clone(),
                         );
                         if !rest.is_empty() {
                             if let ValueCore::Callable(new_callable) = result.core {
@@ -263,6 +267,8 @@ impl<'a> Interpreter<'a> {
             &return_type,
         );
         let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &callee_sub_context);
+        let concrete_function_type =
+            program.to_concrete_type(class_member_type_id, &callee_sub_context);
         //println!("instance selector {} {}", instance_selector_ty, member.name);
         let resolver = program.type_instance_resolver.borrow();
         if let Some(instances) = resolver.instance_map.get(&member.class_id) {
@@ -275,7 +281,7 @@ impl<'a> Interpreter<'a> {
                         values: vec![],
                         sub_context: callee_sub_context,
                     }),
-                    expr_ty,
+                    concrete_function_type,
                 );
                 return self.call(callable, arg_values, program, expr_id);
             } else {
@@ -330,13 +336,14 @@ impl<'a> Interpreter<'a> {
                     &expr_ty,
                     &return_type,
                 );
+                let concrete_function_type = program.to_concrete_type(func_ty, &callee_sub_context);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
                         function_id: *function_id,
                         values: vec![],
                         sub_context: callee_sub_context,
                     }),
-                    expr_ty,
+                    concrete_function_type,
                 );
                 return self.call(callable, arg_values, program, Some(expr_id));
             }

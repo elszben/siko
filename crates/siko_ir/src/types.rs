@@ -145,6 +145,23 @@ pub enum ConcreteType {
     Function(Box<ConcreteType>, Box<ConcreteType>),
 }
 
+impl ConcreteType {
+    pub fn get_func_type(self, arg_count: usize) -> ConcreteType {
+        if arg_count == 0 {
+            self
+        } else {
+            match self {
+                ConcreteType::Function(_, to) => to.get_func_type(arg_count - 1),
+                _ => {
+                    println!("{} with {} args", self, arg_count);
+                    assert_eq!(arg_count, 0);
+                    self
+                }
+            }
+        }
+    }
+}
+
 impl fmt::Display for ConcreteType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -198,24 +215,24 @@ impl FunctionType {
         FunctionType { from: from, to: to }
     }
 
-    pub fn get_return_type(&self, program: &Program, arg_count: usize) -> TypeId {
+    pub fn get_arg_and_return_types(
+        &self,
+        program: &Program,
+        arg_vars: &mut Vec<TypeId>,
+        arg_count: usize,
+    ) -> TypeId {
         if arg_count == 1 {
+            arg_vars.push(self.from);
             self.to
         } else {
             if let Type::Function(to_func_type) =
                 program.types.get(&self.to).expect("Type not found")
             {
-                to_func_type.get_return_type(program, arg_count - 1)
+                to_func_type.get_arg_and_return_types(program, arg_vars, arg_count - 1)
             } else {
+                assert_eq!(arg_count, 0);
                 self.to
             }
-        }
-    }
-
-    pub fn get_arg_types(&self, program: &Program, arg_vars: &mut Vec<TypeId>) {
-        arg_vars.push(self.from);
-        if let Type::Function(to_func_type) = program.types.get(&self.to).expect("Type not found") {
-            to_func_type.get_arg_types(program, arg_vars);
         }
     }
 }
