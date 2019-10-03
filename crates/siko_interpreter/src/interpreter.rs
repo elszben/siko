@@ -109,6 +109,7 @@ impl<'a> Interpreter<'a> {
                         if !rest.is_empty() {
                             if let ValueCore::Callable(new_callable) = result.core {
                                 callable = new_callable;
+                                callable_func_ty = result.ty;
                                 callable.values.extend(rest);
                             } else {
                                 unreachable!()

@@ -9,7 +9,8 @@ lambdaCreate = do
 lambdaCreate2 a = do
                 \x, y -> x + y + a
 
-
-main = do 
+main = do
+        assert (lambdaCreate 2 3 == 6) 
         assert ((lambdaCreate) 2 3 == 6)
-        assert ((lambdaCreate2 5) 2 3 == 10)
+        assert ((do lambdaCreate) 2 3 == 6)
+        assert ((lambdaCreate2 1) 2 3 == 6)
