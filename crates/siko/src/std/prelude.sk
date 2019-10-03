@@ -44,14 +44,14 @@ instance as IntDiv Div Int where
 instance as FloatDiv Div Float where
     opDiv a b = extern
 
-op_and :: Bool -> Bool -> Bool
-op_and a b = extern
+opAnd :: Bool -> Bool -> Bool
+opAnd a b = extern
 
-op_or :: Bool -> Bool -> Bool
-op_or a b = extern
+opOr :: Bool -> Bool -> Bool
+opOr a b = extern
 
-op_not :: Bool -> Bool
-op_not a  = not a
+opNot :: Bool -> Bool
+opNot a  = not a
 
 op_notequals :: Int -> Int -> Bool
 op_notequals a b = extern
@@ -81,6 +81,8 @@ println msg = extern
 data Option a = Some a | None
 
 data List a = extern
+
+class Eq a
 
 class PartialEq a where
     opEq a :: a -> a -> Bool

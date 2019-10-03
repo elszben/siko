@@ -682,6 +682,20 @@ impl<'a> Interpreter<'a> {
                 println!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
+            (PRELUDE_NAME, "opAnd") => {
+                let l = environment.get_arg_by_index(0).core.as_bool();
+                let r = environment.get_arg_by_index(1).core.as_bool();
+                return Value::new(ValueCore::Bool(l && r), ty);
+            }
+            (PRELUDE_NAME, "opOr") => {
+                let l = environment.get_arg_by_index(0).core.as_bool();
+                if l {
+                    return Value::new(ValueCore::Bool(l), ty);
+                } else {
+                    let r = environment.get_arg_by_index(1).core.as_bool();
+                    return Value::new(ValueCore::Bool(r), ty);
+                }
+            }
             (PRELUDE_NAME, "show") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {

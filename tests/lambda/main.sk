@@ -1,4 +1,4 @@
-module Test.Lambda where
+module Main where
 
 import Std.Util
 
@@ -10,6 +10,6 @@ lambdaCreate2 a = do
                 \x, y -> x + y + a
 
 
-run = do 
+main = do 
         assert ((lambdaCreate) 2 3 == 6)
         assert ((lambdaCreate2 5) 2 3 == 10)

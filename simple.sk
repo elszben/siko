@@ -13,6 +13,6 @@ main2 = do
     123 |> plus 1 
         |> Prelude.show 
         |> print
-    
+
 main = do
     (True != False) |> show |> println
