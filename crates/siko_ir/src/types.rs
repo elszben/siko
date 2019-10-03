@@ -36,6 +36,7 @@ pub struct RecordField {
 #[derive(Debug, Clone)]
 pub struct Record {
     pub name: String,
+    pub module: String,
     pub id: TypeDefId,
     pub type_args: Vec<usize>,
     pub fields: Vec<RecordField>,
@@ -59,6 +60,7 @@ pub struct Variant {
 #[derive(Debug, Clone)]
 pub struct Adt {
     pub name: String,
+    pub module: String,
     pub id: TypeDefId,
     pub type_args: Vec<usize>,
     pub variants: Vec<Variant>,

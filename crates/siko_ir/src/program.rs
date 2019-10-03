@@ -19,6 +19,7 @@ use crate::types::TypeId;
 use crate::types::TypeInstanceResolver;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
+use siko_constants::PRELUDE_NAME;
 use siko_constants::STRING_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
@@ -52,6 +53,7 @@ pub struct Program {
     pub function_types: BTreeMap<FunctionId, TypeId>,
     pub class_member_types: BTreeMap<ClassMemberId, (TypeId, TypeId)>,
     pub class_names: BTreeMap<String, ClassId>,
+    pub named_types: BTreeMap<String, BTreeMap<String, TypeDefId>>,
 }
 
 impl Program {
@@ -79,6 +81,7 @@ impl Program {
             function_types: BTreeMap::new(),
             class_member_types: BTreeMap::new(),
             class_names: BTreeMap::new(),
+            named_types: BTreeMap::new(),
         }
     }
 
@@ -144,8 +147,17 @@ impl Program {
     pub fn string_concrete_type(&self) -> ConcreteType {
         ConcreteType::Named(
             STRING_NAME.to_string(),
-            self.builtin_types.string_id.expect("string ty not found"),
+            self.get_named_type(PRELUDE_NAME, STRING_NAME),
             vec![],
         )
+    }
+
+    pub fn get_named_type(&self, module: &str, name: &str) -> TypeDefId {
+        self.named_types
+            .get(module)
+            .expect("Module not found")
+            .get(name)
+            .expect("Typedef not found")
+            .clone()
     }
 }

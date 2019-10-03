@@ -30,9 +30,9 @@ use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionInfo;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::function::RecordConstructorInfo;
 use siko_ir::function::VariantConstructorInfo;
-use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Adt;
 use siko_ir::types::Record;
@@ -202,6 +202,7 @@ impl Resolver {
 
                 let ir_record = Record {
                     name: record.name.clone(),
+                    module: ast_module.name.clone(),
                     id: ir_typedef_id,
                     type_args: (0..record.type_args.len()).collect(),
                     fields: Vec::new(),
@@ -230,6 +231,7 @@ impl Resolver {
                 let ir_typedef_id = ir_program.typedefs.get_id();
                 let ir_adt = Adt {
                     name: adt.name.clone(),
+                    module: ast_module.name.clone(),
                     id: ir_typedef_id,
                     type_args: (0..adt.type_args.len()).collect(),
                     variants: Vec::new(),
@@ -463,7 +465,7 @@ impl Resolver {
             module: module.name.clone(),
             type_signature: type_signature_id,
             location_id: function.location_id,
-            kind: kind
+            kind: kind,
         };
 
         let ir_function = IrFunction {
@@ -803,7 +805,7 @@ impl Resolver {
                             errors,
                             result,
                             &mut type_arg_resolver,
-                            NamedFunctionKind::DefaultClassMember(ir_class_member_id)
+                            NamedFunctionKind::DefaultClassMember(ir_class_member_id),
                         );
                         Some(ir_function_id)
                     } else {
@@ -979,7 +981,7 @@ impl Resolver {
                         errors,
                         Some(member_function_type_signature_id),
                         &mut type_arg_resolver,
-                        NamedFunctionKind::InstanceMember(instance.name.clone())
+                        NamedFunctionKind::InstanceMember(instance.name.clone()),
                     );
                 } else {
                     let err = ResolverError::NotAClassMember(
@@ -1181,7 +1183,7 @@ impl Resolver {
                                 &mut errors,
                                 type_signature_id,
                                 &mut type_arg_resolver,
-                                NamedFunctionKind::Free
+                                NamedFunctionKind::Free,
                             );
                         }
                         _ => {}
@@ -1198,6 +1200,25 @@ impl Resolver {
                 class_names.insert(class.name.clone(), *class_id);
             }
             ir_program.class_names = class_names;
+            let mut named_types = BTreeMap::new();
+            for (id, typedef) in &ir_program.typedefs.items {
+                match typedef {
+                    TypeDef::Adt(adt) => {
+                        let types = named_types
+                            .entry(adt.module.clone())
+                            .or_insert_with(|| BTreeMap::new());
+                        types.insert(adt.name.clone(), *id);
+                    }
+                    TypeDef::Record(record) => {
+                        let types = named_types
+                            .entry(record.module.clone())
+                            .or_insert_with(|| BTreeMap::new());
+                        types.insert(record.name.clone(), *id);
+                    }
+                    _ => {}
+                }
+            }
+            ir_program.named_types = named_types;
         }
 
         Ok(ir_program)

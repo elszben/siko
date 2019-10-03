@@ -62,11 +62,6 @@ op_greaterthan a b = extern
 op_composition a b c :: (a -> b) -> (b -> c) -> a -> c
 op_composition f g x = g (f x)
 
-class LessThan a where
-    opLessThan a :: a -> a -> Bool
-
-instance as IntLessThan LessThan Int where
-    opLessThan a b = extern
 
 not :: Bool -> Bool
 not a = if a then False
@@ -81,6 +76,32 @@ println msg = extern
 data Option a = Some a | None
 
 data List a = extern
+
+data Ordering = Less | Equal | Greater
+
+class PartialOrd a where
+    partialCmp a :: a -> a -> Option Ordering
+    opLessThan a :: a -> a -> Bool
+    /*
+    opLessThan a b = case partialCmp a b of
+                        Some Less -> True
+                        _ -> False
+    */
+    opLessThan a b = case partialCmp a b of
+                        Some Less -> do
+                                print "a"
+                                True
+                        Some Greater -> do
+                                print "b"
+                                True
+                        Some Equal -> do
+                                print "c"
+                                True
+                        None -> do
+                                print "none"
+                                False
+instance as IntPartialOrd PartialOrd Int where
+    partialCmp a b = extern
 
 class Eq a
 

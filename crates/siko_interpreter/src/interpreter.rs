@@ -4,6 +4,8 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_constants::MAIN_FUNCTION;
 use siko_constants::MAIN_MODULE;
+use siko_constants::OPTION_NAME;
+use siko_constants::ORDERING_NAME;
 use siko_constants::PRELUDE_NAME;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
@@ -17,17 +19,26 @@ use siko_ir::program::Program;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::SubstitutionContext;
 use siko_ir::types::Type;
+use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
+use std::cmp::Ordering;
+
+struct TypeDefIdCache {
+    option_id: TypeDefId,
+    ordering_id: TypeDefId,
+}
 
 pub struct Interpreter<'a> {
     error_context: ErrorContext<'a>,
+    typedefid_cache: Option<TypeDefIdCache>,
 }
 
 impl<'a> Interpreter<'a> {
     pub fn new(error_context: ErrorContext<'a>) -> Interpreter<'a> {
         Interpreter {
             error_context: error_context,
+            typedefid_cache: None,
         }
     }
 
@@ -504,6 +515,55 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn create_some(&self, value: Value) -> Value {
+        let cache = self.get_typedef_id_cache();
+        let concrete_type = ConcreteType::Named(
+            OPTION_NAME.to_string(),
+            cache.option_id,
+            vec![value.ty.clone()],
+        );
+        let core = ValueCore::Variant(cache.option_id, 0, vec![value]);
+        let some_value = Value::new(core, concrete_type);
+        some_value
+    }
+
+    fn create_none(&self, value: Value) -> Value {
+        let cache = self.get_typedef_id_cache();
+        let concrete_type = ConcreteType::Named(
+            OPTION_NAME.to_string(),
+            cache.option_id,
+            vec![value.ty.clone()],
+        );
+        let core = ValueCore::Variant(cache.option_id, 0, vec![]);
+        let none_value = Value::new(core, concrete_type);
+        none_value
+    }
+
+    fn create_ordering(&self, index: usize) -> Value {
+        let cache = self.get_typedef_id_cache();
+        let concrete_type = ConcreteType::Named(OPTION_NAME.to_string(), cache.ordering_id, vec![]);
+        let core = ValueCore::Variant(cache.option_id, index, vec![]);
+        let value = Value::new(core, concrete_type);
+        value
+    }
+
+    fn get_ordering_value(&self, ordering: Option<Ordering>) -> Value {
+        match ordering {
+            Some(ordering) => {
+                let value = match ordering {
+                    Ordering::Less => self.create_ordering(0),
+                    Ordering::Equal => self.create_ordering(1),
+                    Ordering::Greater => self.create_ordering(2),
+                };
+                return self.create_some(value);
+            }
+            None => {
+                let value = self.create_ordering(0);
+                return self.create_none(value);
+            }
+        }
+    }
+
     fn call_extern(
         &mut self,
         module: &str,
@@ -641,26 +701,22 @@ impl<'a> Interpreter<'a> {
                     }
                 }
             }
-            (PRELUDE_NAME, "opLessThan") => {
+            (PRELUDE_NAME, "partialCmp") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "IntLessThan" => {
+                    "IntPartialOrd" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Bool(l < r), ty);
+                        let ord = l.partial_cmp(&r);
+                        return self.get_ordering_value(ord);
                     }
                     _ => {
                         panic!(
-                            "Unimplemented less than function {}/{}",
+                            "Unimplemented partial cmp function {}/{}",
                             module, instance_name
                         );
                     }
                 }
-            }
-            (PRELUDE_NAME, "op_lessthan") => {
-                let l = environment.get_arg_by_index(0).core.as_int();
-                let r = environment.get_arg_by_index(1).core.as_int();
-                return Value::new(ValueCore::Bool(l < r), ty);
             }
             ("Std.Util", "assert") => {
                 let v = environment.get_arg_by_index(0).core.as_bool();
@@ -790,7 +846,24 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn build_typedefid_cache(&mut self, program: &Program) {
+        let option_id = program.get_named_type(PRELUDE_NAME, OPTION_NAME);
+        let ordering_id = program.get_named_type(PRELUDE_NAME, ORDERING_NAME);
+        let cache = TypeDefIdCache {
+            option_id: option_id,
+            ordering_id: ordering_id,
+        };
+        self.typedefid_cache = Some(cache);
+    }
+
+    fn get_typedef_id_cache(&self) -> &TypeDefIdCache {
+        self.typedefid_cache
+            .as_ref()
+            .expect("Typedefid cache not initialized")
+    }
+
     pub fn run(&mut self, program: &Program) -> Value {
+        self.build_typedefid_cache(program);
         for (id, function) in &program.functions.items {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
