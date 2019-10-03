@@ -82,24 +82,23 @@ data Option a = Some a | None
 
 data List a = extern
 
-class Eq a where
+class PartialEq a where
     opEq a :: a -> a -> Bool
     opNotEq a :: a -> a -> Bool
     opNotEq a b = not (opEq a b)
 
-instance as BoolEq Eq Bool where
+instance as BoolEq PartialEq Bool where
+    opEq a b = extern
+
+instance as IntEq PartialEq Int where
     opEq a b = extern
     opNotEq a b = extern
 
-instance as IntEq Eq Int where
+instance as FloatEq PartialEq Float where
     opEq a b = extern
     opNotEq a b = extern
 
-instance as FloatEq Eq Float where
-    opEq a b = extern
-    opNotEq a b = extern
-
-instance as StringEq Eq String where
+instance as StringEq PartialEq String where
     opEq a b = extern
     opNotEq a b = extern
 

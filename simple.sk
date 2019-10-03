@@ -15,5 +15,4 @@ main2 = do
         |> print
     
 main = do
-    a <- plus 1 2
-    print (show a)
+    True != False

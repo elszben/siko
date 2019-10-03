@@ -274,10 +274,17 @@ impl<'a> Interpreter<'a> {
         if let Some(instances) = resolver.instance_map.get(&member.class_id) {
             if let Some(instance_id) = instances.get(&instance_selector_ty) {
                 let instance = program.instances.get(instance_id);
-                let instance_member = instance.members.get(&member.name).unwrap();
+                let member_function_id =
+                    if let Some(instance_member) = instance.members.get(&member.name) {
+                        instance_member.function_id
+                    } else {
+                        member
+                            .default_implementation
+                            .expect("Default implementation not found")
+                    };
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
-                        function_id: instance_member.function_id,
+                        function_id: member_function_id,
                         values: vec![],
                         sub_context: callee_sub_context,
                     }),
