@@ -51,10 +51,15 @@ impl Typechecker {
             check_context.clone(),
         );
 
+        let class_processor = ClassProcessor::new(type_store, check_context.clone());
+
+        let (type_store, class_member_type_info_map) =
+            class_processor.process_classes(program, &mut errors);
+
         let function_processor = FunctionProcessor::new(type_store);
 
         let (type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
-            function_processor.process_functions(program, &mut errors);
+            function_processor.process_functions(program, &mut errors, &class_member_type_info_map);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
@@ -68,11 +73,6 @@ impl Typechecker {
 
         self.check_main(program, &mut errors);
 
-        let class_processor = ClassProcessor::new(type_store, check_context.clone());
-
-        let (type_store, class_type_info_map) =
-            class_processor.process_classes(program, &mut errors);
-
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
@@ -82,7 +82,7 @@ impl Typechecker {
             function_type_info_map,
             record_type_info_map,
             variant_type_info_map,
-            class_type_info_map,
+            class_member_type_info_map,
             program,
         );
 

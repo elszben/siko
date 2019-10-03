@@ -1,4 +1,5 @@
 use crate::common::create_general_function_type;
+use crate::common::ClassMemberTypeInfo;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
@@ -6,10 +7,12 @@ use crate::error::TypecheckError;
 use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
 use crate::types::Type;
+use siko_ir::class::ClassMemberId;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
 use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeSignatureId;
@@ -44,16 +47,28 @@ impl FunctionProcessor {
         errors: &mut Vec<TypecheckError>,
         body: Option<ExprId>,
         location_id: LocationId,
-        is_member: bool,
+        kind: &NamedFunctionKind,
+        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
     ) {
-        let mut arg_map = BTreeMap::new();
-        let func_type_var = process_type_signature(
-            &mut self.type_store,
-            &type_signature_id,
-            program,
-            &mut arg_map,
-            &mut None,
-        );
+        let (arg_map, func_type_var) =
+            if let NamedFunctionKind::DefaultClassMember(class_member_id) = kind {
+                let info = class_member_type_info_map
+                    .get(class_member_id)
+                    .expect("class member type info not found");
+                (info.arg_map.clone(), info.member_type_var)
+            } else {
+                let mut arg_map = BTreeMap::new();
+                let func_type_var = process_type_signature(
+                    &mut self.type_store,
+                    &type_signature_id,
+                    program,
+                    &mut arg_map,
+                    &mut None,
+                );
+                (arg_map, func_type_var)
+            };
+        let is_member = *kind != NamedFunctionKind::Free;
+
         /*
         println!(
             "Registering named function {} {} with type {}",
@@ -157,6 +172,7 @@ impl FunctionProcessor {
         mut self,
         program: &Program,
         errors: &mut Vec<TypecheckError>,
+        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
     ) -> (
         TypeStore,
         BTreeMap<FunctionId, FunctionTypeInfo>,
@@ -301,7 +317,8 @@ impl FunctionProcessor {
                             errors,
                             i.body,
                             i.location_id,
-                            i.is_member,
+                            &i.kind,
+                            class_member_type_info_map,
                         );
                     }
                     None => match i.body {

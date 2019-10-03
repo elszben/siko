@@ -32,6 +32,7 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionInfo;
 use siko_ir::function::RecordConstructorInfo;
 use siko_ir::function::VariantConstructorInfo;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Adt;
 use siko_ir::types::Record;
@@ -413,8 +414,7 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
         type_signature_id: Option<TypeSignatureId>,
         type_arg_resolver: &mut TypeArgResolver,
-        is_member: bool,
-        instance: Option<String>,
+        kind: NamedFunctionKind,
     ) {
         let mut body = None;
 
@@ -461,10 +461,9 @@ impl Resolver {
             body: body,
             name: function.name.clone(),
             module: module.name.clone(),
-            instance: instance,
             type_signature: type_signature_id,
             location_id: function.location_id,
-            is_member: is_member,
+            kind: kind
         };
 
         let ir_function = IrFunction {
@@ -804,8 +803,7 @@ impl Resolver {
                             errors,
                             result,
                             &mut type_arg_resolver,
-                            true,
-                            None,
+                            NamedFunctionKind::DefaultClassMember(ir_class_member_id)
                         );
                         Some(ir_function_id)
                     } else {
@@ -981,8 +979,7 @@ impl Resolver {
                         errors,
                         Some(member_function_type_signature_id),
                         &mut type_arg_resolver,
-                        true,
-                        instance.name.clone(),
+                        NamedFunctionKind::InstanceMember(instance.name.clone())
                     );
                 } else {
                     let err = ResolverError::NotAClassMember(
@@ -1184,8 +1181,7 @@ impl Resolver {
                                 &mut errors,
                                 type_signature_id,
                                 &mut type_arg_resolver,
-                                false,
-                                None,
+                                NamedFunctionKind::Free
                             );
                         }
                         _ => {}

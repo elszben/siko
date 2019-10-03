@@ -15,4 +15,4 @@ main2 = do
         |> print
     
 main = do
-    True != False
+    (True != False) |> show |> println

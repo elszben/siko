@@ -49,6 +49,7 @@ impl InstanceTypeInfo {
 pub struct ClassMemberTypeInfo {
     pub member_type_var: TypeVariable,
     pub class_type_var: TypeVariable,
+    pub arg_map: BTreeMap<usize, TypeVariable>,
 }
 
 #[derive(Debug, Clone)]

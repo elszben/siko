@@ -1,3 +1,4 @@
+use crate::class::ClassMemberId;
 use crate::expr::ExprId;
 use crate::types::TypeDefId;
 use crate::types::TypeSignatureId;
@@ -21,15 +22,21 @@ impl From<usize> for FunctionId {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum NamedFunctionKind {
+    Free,
+    DefaultClassMember(ClassMemberId),
+    InstanceMember(Option<String>),
+}
+
 #[derive(Debug, Clone)]
 pub struct NamedFunctionInfo {
     pub body: Option<ExprId>,
     pub module: String,
     pub name: String,
-    pub instance: Option<String>,
     pub type_signature: Option<TypeSignatureId>,
     pub location_id: LocationId,
-    pub is_member: bool
+    pub kind: NamedFunctionKind,
 }
 
 impl fmt::Display for NamedFunctionInfo {

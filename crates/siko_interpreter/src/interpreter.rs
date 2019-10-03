@@ -10,6 +10,7 @@ use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
@@ -509,12 +510,21 @@ impl<'a> Interpreter<'a> {
         environment: &mut Environment,
         program: &Program,
         current_expr: Option<ExprId>,
-        instance: Option<String>,
+        kind: &NamedFunctionKind,
         ty: ConcreteType,
     ) -> Value {
+        fn get_instance_name_from_kind(kind: &NamedFunctionKind) -> &str {
+            if let NamedFunctionKind::InstanceMember(Some(s)) = kind {
+                s.as_ref()
+            } else {
+                unreachable!()
+            }
+        }
+
         match (module, name) {
-            (PRELUDE_NAME, "opAdd") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+            (PRELUDE_NAME, "opAdd") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "IntAdd" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
@@ -533,11 +543,11 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented add function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
-            (PRELUDE_NAME, "opSub") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+                }
+            }
+            (PRELUDE_NAME, "opSub") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "IntSub" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
@@ -551,11 +561,11 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented sub function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
-            (PRELUDE_NAME, "opMul") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+                }
+            }
+            (PRELUDE_NAME, "opMul") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "IntMul" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
@@ -569,11 +579,11 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented sub function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
-            (PRELUDE_NAME, "opDiv") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+                }
+            }
+            (PRELUDE_NAME, "opDiv") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "IntDiv" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
@@ -587,11 +597,11 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented sub function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
-            (PRELUDE_NAME, "opEq") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+                }
+            }
+            (PRELUDE_NAME, "opEq") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "BoolEq" => {
                         let l = environment.get_arg_by_index(0).core.as_bool();
                         let r = environment.get_arg_by_index(1).core.as_bool();
@@ -615,11 +625,11 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented eq function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
-            (PRELUDE_NAME, "opNotEq") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+                }
+            }
+            (PRELUDE_NAME, "opNotEq") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "BoolEq" => {
                         let l = environment.get_arg_by_index(0).core.as_bool();
                         let r = environment.get_arg_by_index(1).core.as_bool();
@@ -628,11 +638,11 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented notEq function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
-            (PRELUDE_NAME, "opLessThan") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+                }
+            }
+            (PRELUDE_NAME, "opLessThan") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "IntLessThan" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
@@ -644,9 +654,8 @@ impl<'a> Interpreter<'a> {
                             module, instance_name
                         );
                     }
-                },
-                None => unreachable!(),
-            },
+                }
+            }
             (PRELUDE_NAME, "op_lessthan") => {
                 let l = environment.get_arg_by_index(0).core.as_int();
                 let r = environment.get_arg_by_index(1).core.as_int();
@@ -673,8 +682,9 @@ impl<'a> Interpreter<'a> {
                 println!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
-            (PRELUDE_NAME, "show") => match instance {
-                Some(instance_name) => match instance_name.as_ref() {
+            (PRELUDE_NAME, "show") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
                     "ListShow" => {
                         let list = environment.get_arg_by_index(0);
                         if let ValueCore::List(items) = list.core {
@@ -702,9 +712,8 @@ impl<'a> Interpreter<'a> {
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
                     }
-                },
-                None => unreachable!(),
-            },
+                }
+            }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);
             }
@@ -733,7 +742,7 @@ impl<'a> Interpreter<'a> {
                         environment,
                         program,
                         current_expr,
-                        info.instance.clone(),
+                        &info.kind,
                         expr_ty,
                     );
                 }
