@@ -1,8 +1,9 @@
 use siko_ir::function::FunctionId;
-use siko_ir::program::Program;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::SubstitutionContext;
 use siko_ir::types::TypeDefId;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -24,6 +25,26 @@ impl Value {
     }
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        false
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        None
+    }
+}
+
+impl Eq for Value {}
+
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
+        Ordering::Less
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ValueCore {
     Int(i64),
@@ -35,6 +56,7 @@ pub enum ValueCore {
     Variant(TypeDefId, usize, Vec<Value>),
     Record(TypeDefId, Vec<Value>),
     List(Vec<Value>),
+    Map(BTreeMap<Value, Value>),
 }
 
 impl ValueCore {
@@ -69,43 +91,7 @@ impl ValueCore {
     pub fn as_simple_enum_variant(&self) -> (TypeDefId, usize) {
         match self {
             ValueCore::Variant(id, index, _) => (id.clone(), index.clone()),
-            _ => unreachable!()
-        }
-    }
-
-    pub fn debug(&self, program: &Program, inner: bool) -> String {
-        let mut parens_needed = false;
-        let v = match self {
-            ValueCore::Int(v) => format!("{}", v),
-            ValueCore::Float(v) => format!("{}", v),
-            ValueCore::Bool(v) => format!("{}", v),
-            ValueCore::String(v) => format!("{}", v),
-            ValueCore::Tuple(vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| v.core.debug(program, true)).collect();
-                format!("({})", ss.join(", "))
-            }
-            ValueCore::Callable(_) => format!("<closure>"),
-            ValueCore::Variant(id, index, vs) => {
-                parens_needed = !vs.is_empty();
-                let ss: Vec<_> = vs.iter().map(|v| v.core.debug(program, true)).collect();
-                let adt = program.typedefs.get(id).get_adt();
-                let variant = &adt.variants[*index];
-                format!("{} {}", variant.name, ss.join(" "))
-            }
-            ValueCore::Record(id, vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| v.core.debug(program, true)).collect();
-                let record = program.typedefs.get(id).get_record();
-                format!("{} {}", record.name, ss.join(" "))
-            }
-            ValueCore::List(vs) => {
-                let ss: Vec<_> = vs.iter().map(|v| v.core.debug(program, true)).collect();
-                format!("[{}]", ss.join(", "))
-            }
-        };
-        if inner && parens_needed {
-            format!("({})", v)
-        } else {
-            v
+            _ => unreachable!(),
         }
     }
 }
@@ -133,6 +119,13 @@ impl fmt::Display for ValueCore {
             ValueCore::List(vs) => {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v.core)).collect();
                 write!(f, "[{}]", ss.join(", "))
+            }
+            ValueCore::Map(vs) => {
+                let ss: Vec<_> = vs
+                    .iter()
+                    .map(|(k, v)| format!("{}:{}", k.core, v.core))
+                    .collect();
+                write!(f, "{{{}}}", ss.join(", "))
             }
         }
     }

@@ -1,0 +1,6 @@
+module Data.Map where
+
+data Map k v = extern
+
+empty k v :: (Ord k) => Map k v
+empty = extern

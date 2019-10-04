@@ -787,12 +787,12 @@ impl<'a> Interpreter<'a> {
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
             (PRELUDE_NAME, "print") => {
-                let v = environment.get_arg_by_index(0).core.debug(program, false);
+                let v = environment.get_arg_by_index(0).core.as_string();
                 print!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
             (PRELUDE_NAME, "println") => {
-                let v = environment.get_arg_by_index(0).core.debug(program, false);
+                let v = environment.get_arg_by_index(0).core.as_string();
                 println!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
@@ -830,17 +830,20 @@ impl<'a> Interpreter<'a> {
                         }
                     }
                     "IntShow" => {
-                        let value = environment.get_arg_by_index(0);
-                        return Value::new(ValueCore::String(value.core.debug(program, false)), ty);
+                        let value = environment.get_arg_by_index(0).core.as_int();
+                        return Value::new(ValueCore::String(value.to_string()), ty);
                     }
                     "FloatShow" => {
-                        let value = environment.get_arg_by_index(0);
-                        return Value::new(ValueCore::String(value.core.debug(program, false)), ty);
+                        let value = environment.get_arg_by_index(0).core.as_float();
+                        return Value::new(ValueCore::String(value.to_string( )), ty);
                     }
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
                     }
                 }
+            }
+            ("Data.Map", "empty") => {
+                return Value::new(ValueCore::Map(BTreeMap::new()), ty); 
             }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);
