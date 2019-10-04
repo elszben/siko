@@ -16,6 +16,7 @@ use siko_ir::function::NamedFunctionKind;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
+use siko_ir::types::Adt;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::SubstitutionContext;
 use siko_ir::types::Type;
@@ -23,10 +24,31 @@ use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
+
+struct VariantCache {
+    variants: BTreeMap<String, usize>,
+}
+
+impl VariantCache {
+    pub fn new(adt: &Adt) -> VariantCache {
+        let mut variants = BTreeMap::new();
+        for (index, variant) in adt.variants.iter().enumerate() {
+            variants.insert(variant.name.clone(), index);
+        }
+        VariantCache { variants: variants }
+    }
+
+    pub fn get_index(&self, name: &str) -> usize {
+        self.variants.get(name).expect("Variant not found").clone()
+    }
+}
 
 struct TypeDefIdCache {
     option_id: TypeDefId,
     ordering_id: TypeDefId,
+    option_variants: VariantCache,
+    ordering_variants: VariantCache,
 }
 
 pub struct Interpreter<'a> {
@@ -522,7 +544,11 @@ impl<'a> Interpreter<'a> {
             cache.option_id,
             vec![value.ty.clone()],
         );
-        let core = ValueCore::Variant(cache.option_id, 0, vec![value]);
+        let core = ValueCore::Variant(
+            cache.option_id,
+            cache.option_variants.get_index("Some"),
+            vec![value],
+        );
         let some_value = Value::new(core, concrete_type);
         some_value
     }
@@ -534,26 +560,38 @@ impl<'a> Interpreter<'a> {
             cache.option_id,
             vec![value.ty.clone()],
         );
-        let core = ValueCore::Variant(cache.option_id, 0, vec![]);
+        let core = ValueCore::Variant(
+            cache.option_id,
+            cache.option_variants.get_index("None"),
+            vec![],
+        );
         let none_value = Value::new(core, concrete_type);
         none_value
     }
 
     fn create_ordering(&self, index: usize) -> Value {
         let cache = self.get_typedef_id_cache();
-        let concrete_type = ConcreteType::Named(OPTION_NAME.to_string(), cache.ordering_id, vec![]);
-        let core = ValueCore::Variant(cache.option_id, index, vec![]);
+        let concrete_type =
+            ConcreteType::Named(ORDERING_NAME.to_string(), cache.ordering_id, vec![]);
+        let core = ValueCore::Variant(cache.ordering_id, index, vec![]);
         let value = Value::new(core, concrete_type);
         value
     }
 
     fn get_ordering_value(&self, ordering: Option<Ordering>) -> Value {
+        let cache = self.get_typedef_id_cache();
         match ordering {
             Some(ordering) => {
                 let value = match ordering {
-                    Ordering::Less => self.create_ordering(0),
-                    Ordering::Equal => self.create_ordering(1),
-                    Ordering::Greater => self.create_ordering(2),
+                    Ordering::Less => {
+                        self.create_ordering(cache.ordering_variants.get_index("Less"))
+                    }
+                    Ordering::Equal => {
+                        self.create_ordering(cache.ordering_variants.get_index("Equal"))
+                    }
+                    Ordering::Greater => {
+                        self.create_ordering(cache.ordering_variants.get_index("Greater"))
+                    }
                 };
                 return self.create_some(value);
             }
@@ -847,11 +885,13 @@ impl<'a> Interpreter<'a> {
     }
 
     fn build_typedefid_cache(&mut self, program: &Program) {
-        let option_id = program.get_named_type(PRELUDE_NAME, OPTION_NAME);
-        let ordering_id = program.get_named_type(PRELUDE_NAME, ORDERING_NAME);
+        let option = program.get_adt_by_name(PRELUDE_NAME, OPTION_NAME);
+        let ordering = program.get_adt_by_name(PRELUDE_NAME, ORDERING_NAME);
         let cache = TypeDefIdCache {
-            option_id: option_id,
-            ordering_id: ordering_id,
+            option_id: option.id,
+            ordering_id: ordering.id,
+            option_variants: VariantCache::new(option),
+            ordering_variants: VariantCache::new(ordering),
         };
         self.typedefid_cache = Some(cache);
     }

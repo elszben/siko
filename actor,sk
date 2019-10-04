@@ -1,0 +1,11 @@
+module Main where
+
+protocol BazProtocol = Baz
+protocol FooProtocol = Foo
+
+actor FooActor Foo where
+    BazProtocol -> Prelude.baz
+    FooProtocol -> foo
+
+main = do
+    (True != False) |> show |> println

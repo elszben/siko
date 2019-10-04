@@ -81,25 +81,29 @@ data Ordering = Less | Equal | Greater
 
 class PartialOrd a where
     partialCmp a :: a -> a -> Option Ordering
+    
     opLessThan a :: a -> a -> Bool
-    /*
     opLessThan a b = case partialCmp a b of
                         Some Less -> True
                         _ -> False
-    */
-    opLessThan a b = case partialCmp a b of
-                        Some Less -> do
-                                print "a"
-                                True
-                        Some Greater -> do
-                                print "b"
-                                True
-                        Some Equal -> do
-                                print "c"
-                                True
-                        None -> do
-                                print "none"
-                                False
+    
+    opLessEqual a :: a -> a -> Bool
+    opLessEqual a b = case partialCmp a b of
+                         Some Less -> True
+                         Some Equal -> True
+                         _ -> False
+
+    opGreaterThan a :: a -> a -> Bool
+    opGreaterThan a b = case partialCmp a b of
+                         Some Greater -> True
+                         _ -> False
+
+    opGreaterEqual a :: a -> a -> Bool
+    opGreaterEqual a b = case partialCmp a b of
+                         Some Greater -> True
+                         Some Equal -> True
+                         _ -> False
+
 instance as IntPartialOrd PartialOrd Int where
     partialCmp a b = extern
 

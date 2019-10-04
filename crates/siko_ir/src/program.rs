@@ -10,6 +10,7 @@ use crate::function::Function;
 use crate::function::FunctionId;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
+use crate::types::Adt;
 use crate::types::ConcreteType;
 use crate::types::SubstitutionContext;
 use crate::types::Type;
@@ -150,6 +151,20 @@ impl Program {
             self.get_named_type(PRELUDE_NAME, STRING_NAME),
             vec![],
         )
+    }
+
+    pub fn get_adt_by_name(&self, module: &str, name: &str) -> &Adt {
+        let id = self
+            .named_types
+            .get(module)
+            .expect("Module not found")
+            .get(name)
+            .expect("Typedef not found");
+        if let TypeDef::Adt(adt) = self.typedefs.get(id) {
+            adt
+        } else {
+            unreachable!()
+        }
     }
 
     pub fn get_named_type(&self, module: &str, name: &str) -> TypeDefId {
