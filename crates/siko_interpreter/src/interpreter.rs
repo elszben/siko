@@ -578,21 +578,19 @@ impl<'a> Interpreter<'a> {
         value
     }
 
-    fn get_ordering_value(&self, ordering: Option<Ordering>) -> Value {
+    fn get_ordering_value(&self, ordering: Ordering) -> Value {
         let cache = self.get_typedef_id_cache();
         match ordering {
+            Ordering::Less => self.create_ordering(cache.ordering_variants.get_index("Less")),
+            Ordering::Equal => self.create_ordering(cache.ordering_variants.get_index("Equal")),
+            Ordering::Greater => self.create_ordering(cache.ordering_variants.get_index("Greater")),
+        }
+    }
+
+    fn get_opt_ordering_value(&self, ordering: Option<Ordering>) -> Value {
+        match ordering {
             Some(ordering) => {
-                let value = match ordering {
-                    Ordering::Less => {
-                        self.create_ordering(cache.ordering_variants.get_index("Less"))
-                    }
-                    Ordering::Equal => {
-                        self.create_ordering(cache.ordering_variants.get_index("Equal"))
-                    }
-                    Ordering::Greater => {
-                        self.create_ordering(cache.ordering_variants.get_index("Greater"))
-                    }
-                };
+                let value = self.get_ordering_value(ordering);
                 return self.create_some(value);
             }
             None => {
@@ -721,21 +719,13 @@ impl<'a> Interpreter<'a> {
                         let r = environment.get_arg_by_index(1).core.as_string();
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
+                    "OrderingEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_simple_enum_variant();
+                        let r = environment.get_arg_by_index(1).core.as_simple_enum_variant();
+                        return Value::new(ValueCore::Bool(l == r), ty);
+                    }
                     _ => {
                         panic!("Unimplemented eq function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            (PRELUDE_NAME, "opNotEq") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "BoolEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_bool();
-                        let r = environment.get_arg_by_index(1).core.as_bool();
-                        return Value::new(ValueCore::Bool(l != r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented notEq function {}/{}", module, instance_name);
                     }
                 }
             }
@@ -746,6 +736,35 @@ impl<'a> Interpreter<'a> {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
                         let ord = l.partial_cmp(&r);
+                        return self.get_opt_ordering_value(ord);
+                    }
+                    "StringPartialOrd" => {
+                        let l = environment.get_arg_by_index(0).core.as_string();
+                        let r = environment.get_arg_by_index(1).core.as_string();
+                        let ord = l.partial_cmp(&r);
+                        return self.get_opt_ordering_value(ord);
+                    }
+                    _ => {
+                        panic!(
+                            "Unimplemented partial cmp function {}/{}",
+                            module, instance_name
+                        );
+                    }
+                }
+            }
+            (PRELUDE_NAME, "cmp") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntOrd" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        let ord = l.cmp(&r);
+                        return self.get_ordering_value(ord);
+                    }
+                    "StringOrd" => {
+                        let l = environment.get_arg_by_index(0).core.as_string();
+                        let r = environment.get_arg_by_index(1).core.as_string();
+                        let ord = l.cmp(&r);
                         return self.get_ordering_value(ord);
                     }
                     _ => {

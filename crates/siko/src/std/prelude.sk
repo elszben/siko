@@ -108,7 +108,27 @@ class PartialOrd a where
 instance as IntPartialOrd PartialOrd Int where
     partialCmp a b = extern
 
-class Eq a
+instance as StringPartialOrd PartialOrd String where
+    partialCmp a b = extern
+
+class (PartialOrd a, Eq a) => Ord a where
+    cmp a :: a -> a -> Ordering
+
+    max a :: a -> a -> a
+    max a b = if a >= b then a else b
+
+    min a :: a -> a -> a
+    min a b = if a <= b then a else b
+
+instance as IntOrd Ord Int where
+    cmp a b = extern
+
+instance as StringOrd Ord String where
+    cmp a b = extern
+
+class (PartialEq a) => Eq a
+
+instance Eq Int
 
 class PartialEq a where
     opEq a :: a -> a -> Bool
@@ -120,15 +140,15 @@ instance as BoolEq PartialEq Bool where
 
 instance as IntEq PartialEq Int where
     opEq a b = extern
-    opNotEq a b = extern
 
 instance as FloatEq PartialEq Float where
     opEq a b = extern
-    opNotEq a b = extern
 
 instance as StringEq PartialEq String where
     opEq a b = extern
-    opNotEq a b = extern
+
+instance as OrderingEq PartialEq Ordering where
+    opEq a b = extern
 
 class Show a where
     show a :: a -> String

@@ -66,6 +66,13 @@ impl ValueCore {
         }
     }
 
+    pub fn as_simple_enum_variant(&self) -> (TypeDefId, usize) {
+        match self {
+            ValueCore::Variant(id, index, _) => (id.clone(), index.clone()),
+            _ => unreachable!()
+        }
+    }
+
     pub fn debug(&self, program: &Program, inner: bool) -> String {
         let mut parens_needed = false;
         let v = match self {
