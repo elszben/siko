@@ -15,12 +15,6 @@ use crate::type_processor::collect_type_args;
 use crate::type_processor::process_class_type_signature;
 use crate::type_processor::process_type_signature;
 use crate::type_processor::subtitute_type_signature;
-use siko_constants::BOOL_NAME;
-use siko_constants::FLOAT_NAME;
-use siko_constants::INT_NAME;
-use siko_constants::LIST_NAME;
-use siko_constants::PRELUDE_NAME;
-use siko_constants::STRING_NAME;
 use siko_ir::class::Class as IrClass;
 use siko_ir::class::ClassId as IrClassId;
 use siko_ir::class::ClassMember as IrClassMember;
@@ -168,22 +162,11 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
         ir_program: &mut IrProgram,
     ) {
-        for (module_name, module) in &mut self.modules {
-            let is_prelude = module_name == PRELUDE_NAME;
+        for (_, module) in &mut self.modules {
             let ast_module = program.modules.get(&module.id);
             for record_id in &ast_module.records {
                 let record = program.records.get(record_id);
                 let ir_typedef_id = ir_program.typedefs.get_id();
-                if is_prelude {
-                    match record.name.as_ref() {
-                        INT_NAME => ir_program.builtin_types.int_id = Some(ir_typedef_id),
-                        FLOAT_NAME => ir_program.builtin_types.float_id = Some(ir_typedef_id),
-                        BOOL_NAME => ir_program.builtin_types.bool_id = Some(ir_typedef_id),
-                        STRING_NAME => ir_program.builtin_types.string_id = Some(ir_typedef_id),
-                        LIST_NAME => ir_program.builtin_types.list_id = Some(ir_typedef_id),
-                        _ => {}
-                    }
-                }
                 let ir_ctor_id = ir_program.functions.get_id();
                 let record_ctor_info = RecordConstructorInfo {
                     type_id: ir_typedef_id,
@@ -1215,7 +1198,6 @@ impl Resolver {
                             .or_insert_with(|| BTreeMap::new());
                         types.insert(record.name.clone(), *id);
                     }
-                    _ => {}
                 }
             }
             ir_program.named_types = named_types;

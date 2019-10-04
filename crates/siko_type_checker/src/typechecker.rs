@@ -6,7 +6,8 @@ use crate::expr_processor::ExprProcessor;
 use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::function_processor::FunctionProcessor;
 use crate::type_store::TypeStore;
-use siko_constants;
+use siko_constants::PRELUDE_NAME;
+use siko_constants::LIST_NAME;
 use siko_ir::function::FunctionInfo;
 use siko_ir::program::Program;
 use std::cell::RefCell;
@@ -47,7 +48,7 @@ impl Typechecker {
         )));
 
         let type_store = TypeStore::new(
-            program.builtin_types.list_id.unwrap(),
+            program.get_named_type(PRELUDE_NAME, LIST_NAME),
             check_context.clone(),
         );
 

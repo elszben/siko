@@ -6,7 +6,12 @@ use crate::expr_processor::ExprProcessor;
 use crate::type_processor::process_type_signature;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
-use siko_ir::walker::Visitor;
+use siko_constants::BOOL_NAME;
+use siko_constants::FLOAT_NAME;
+use siko_constants::INT_NAME;
+use siko_constants::PRELUDE_NAME;
+use siko_constants::STRING_NAME;
+use siko_constants::LIST_NAME;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
@@ -17,6 +22,7 @@ use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
+use siko_ir::walker::Visitor;
 use siko_util::format_list;
 use std::collections::BTreeMap;
 
@@ -168,56 +174,42 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .program
             .class_names
             .get("Show")
-            .expect("Show not found").clone();
+            .expect("Show not found")
+            .clone();
         self.get_type_class_var(class_id)
     }
 
     fn get_bool_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program()
-                .builtin_types
-                .bool_id
-                .expect("Type bool not found"),
+            self.get_program().get_named_type(PRELUDE_NAME, BOOL_NAME),
             vec![],
         )
     }
 
     fn get_int_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program()
-                .builtin_types
-                .int_id
-                .expect("Type int not found"),
+            self.get_program().get_named_type(PRELUDE_NAME, INT_NAME),
             vec![],
         )
     }
 
     fn get_string_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program()
-                .builtin_types
-                .string_id
-                .expect("Type string not found"),
+            self.get_program().get_named_type(PRELUDE_NAME, STRING_NAME),
             vec![],
         )
     }
 
     fn get_float_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program()
-                .builtin_types
-                .float_id
-                .expect("Type float not found"),
+            self.get_program().get_named_type(PRELUDE_NAME, FLOAT_NAME),
             vec![],
         )
     }
 
     fn get_list_type(&mut self, type_var: TypeVariable) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program()
-                .builtin_types
-                .list_id
-                .expect("Type list not found"),
+            self.get_program().get_named_type(PRELUDE_NAME, LIST_NAME),
             vec![type_var],
         )
     }

@@ -29,15 +29,6 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct BuiltinTypes {
-    pub int_id: Option<TypeDefId>,
-    pub float_id: Option<TypeDefId>,
-    pub bool_id: Option<TypeDefId>,
-    pub string_id: Option<TypeDefId>,
-    pub list_id: Option<TypeDefId>,
-}
-
-#[derive(Debug)]
 pub struct Program {
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
@@ -47,7 +38,6 @@ pub struct Program {
     pub classes: ItemContainer<ClassId, Class>,
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
-    pub builtin_types: BuiltinTypes,
     pub type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>,
     pub types: BTreeMap<TypeId, Type>,
     pub expr_types: BTreeMap<ExprId, TypeId>,
@@ -59,13 +49,6 @@ pub struct Program {
 
 impl Program {
     pub fn new() -> Program {
-        let builtin_types = BuiltinTypes {
-            int_id: None,
-            float_id: None,
-            bool_id: None,
-            string_id: None,
-            list_id: None,
-        };
         Program {
             type_signatures: ItemContainer::new(),
             exprs: ItemContainer::new(),
@@ -75,7 +58,6 @@ impl Program {
             classes: ItemContainer::new(),
             class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
-            builtin_types: builtin_types,
             type_instance_resolver: Rc::new(RefCell::new(TypeInstanceResolver::new())),
             types: BTreeMap::new(),
             expr_types: BTreeMap::new(),
