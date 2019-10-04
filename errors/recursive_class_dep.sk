@@ -1,0 +1,10 @@
+module Main where
+
+class Boo a 
+
+instance (Boo a) => Boo a
+
+foo a :: (Boo a) => a -> Bool
+foo a = True
+
+main = foo 2
