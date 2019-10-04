@@ -251,8 +251,8 @@ fn parse_case(parser: &mut Parser) -> Result<ExprId, ParseError> {
     loop {
         let start_index = parser.get_index();
         let mut pattern_id = parse_pattern(parser)?;
-        if parser.current(TokenKind::Pipe) {
-            parser.expect(TokenKind::Pipe)?;
+        if parser.current(TokenKind::KeywordIf) {
+            parser.expect(TokenKind::KeywordIf)?;
             let guard_expr = parser.parse_expr()?;
             let pattern = Pattern::Guarded(pattern_id, guard_expr);
             pattern_id = parser.add_pattern(pattern, start_index);
