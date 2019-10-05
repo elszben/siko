@@ -3,13 +3,9 @@ module Prelude where
 data Float = extern
 data Bool = extern
 data String = extern
-data Int = extern
 
 class Add a where
     opAdd a :: a -> a -> a
-
-instance as IntAdd Add Int where
-    opAdd a b = extern
 
 instance as FloatAdd Add Float where
     opAdd a b = extern
@@ -20,26 +16,17 @@ instance as StringAdd Add String where
 class Sub a where
     opSub a :: a -> a -> a
 
-instance as IntSub Sub Int where
-    opSub a b = extern
-
 instance as FloatSub Sub Float where
     opSub a b = extern
 
 class Mul a where
     opMul a :: a -> a -> a
 
-instance as IntMul Mul Int where
-    opMul a b = extern
-
 instance as FloatMul Mul Float where
     opMul a b = extern
 
 class Div a where
     opDiv a :: a -> a -> a
-
-instance as IntDiv Div Int where
-    opDiv a b = extern
 
 instance as FloatDiv Div Float where
     opDiv a b = extern
@@ -52,12 +39,6 @@ opOr a b = extern
 
 opNot :: Bool -> Bool
 opNot a  = not a
-
-op_notequals :: Int -> Int -> Bool
-op_notequals a b = extern
-
-op_greaterthan :: Int -> Int -> Bool
-op_greaterthan a b = extern
 
 op_composition a b c :: (a -> b) -> (b -> c) -> a -> c
 op_composition f g x = g (f x)
@@ -105,9 +86,6 @@ class PartialOrd a where
                          Some Equal -> True
                          _ -> False
 
-instance as IntPartialOrd PartialOrd Int where
-    partialCmp a b = extern
-
 instance as StringPartialOrd PartialOrd String where
     partialCmp a b = extern
 
@@ -120,15 +98,11 @@ class (PartialOrd a, Eq a) => Ord a where
     min a :: a -> a -> a
     min a b = if a <= b then a else b
 
-instance as IntOrd Ord Int where
-    cmp a b = extern
 
 instance as StringOrd Ord String where
     cmp a b = extern
 
 class (PartialEq a) => Eq a
-
-instance Eq Int
 
 class PartialEq a where
     opEq a :: a -> a -> Bool
@@ -136,9 +110,6 @@ class PartialEq a where
     opNotEq a b = not (opEq a b)
 
 instance as BoolEq PartialEq Bool where
-    opEq a b = extern
-
-instance as IntEq PartialEq Int where
     opEq a b = extern
 
 instance as FloatEq PartialEq Float where
@@ -158,9 +129,6 @@ instance Show String where
 
 instance Show Bool where
     show a = if a == True then "True" else "False"
-
-instance as IntShow Show Int where
-    show a = extern 
 
 instance as FloatShow Show Float where
     show a = extern 

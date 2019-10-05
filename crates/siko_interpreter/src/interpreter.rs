@@ -1,4 +1,6 @@
 use crate::environment::Environment;
+use crate::extern_function::ExternFunction;
+use crate::extern_function::IntAdd;
 use crate::value::Callable;
 use crate::value::Value;
 use crate::value::ValueCore;
@@ -69,6 +71,7 @@ pub struct Interpreter {
     program: Program,
     error_context: ErrorContext,
     typedefid_cache: Option<TypeDefIdCache>,
+    extern_functions: BTreeMap<(String, String), Box<dyn ExternFunction>>,
 }
 
 impl Interpreter {
@@ -77,6 +80,7 @@ impl Interpreter {
             program: program,
             error_context: error_context,
             typedefid_cache: None,
+            extern_functions: BTreeMap::new(),
         }
     }
 
@@ -647,15 +651,19 @@ impl Interpreter {
             }
         }
 
+        if let Some(f) = self
+            .extern_functions
+            .get(&(module.to_string(), name.to_string()))
+        {
+            return f.call(environment, current_expr, kind, ty);
+        } else {
+            println!("{} {}", module, name);
+        }
+
         match (module, name) {
             (PRELUDE_NAME, "opAdd") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "IntAdd" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l + r), ty);
-                    }
                     "FloatAdd" => {
                         let l = environment.get_arg_by_index(0).core.as_float();
                         let r = environment.get_arg_by_index(1).core.as_float();
@@ -671,14 +679,22 @@ impl Interpreter {
                     }
                 }
             }
+            ("Data.Int", "opAdd") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntAdd" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        return Value::new(ValueCore::Int(l + r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented add function {}/{}", module, instance_name);
+                    }
+                }
+            }
             (PRELUDE_NAME, "opSub") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "IntSub" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l - r), ty);
-                    }
                     "FloatSub" => {
                         let l = environment.get_arg_by_index(0).core.as_float();
                         let r = environment.get_arg_by_index(1).core.as_float();
@@ -689,14 +705,22 @@ impl Interpreter {
                     }
                 }
             }
+            ("Data.Int", "opSub") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntSub" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        return Value::new(ValueCore::Int(l - r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                    }
+                }
+            }
             (PRELUDE_NAME, "opMul") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "IntMul" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l * r), ty);
-                    }
                     "FloatMul" => {
                         let l = environment.get_arg_by_index(0).core.as_float();
                         let r = environment.get_arg_by_index(1).core.as_float();
@@ -707,7 +731,33 @@ impl Interpreter {
                     }
                 }
             }
+            ("Data.Int", "opMul") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntMul" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        return Value::new(ValueCore::Int(l * r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                    }
+                }
+            }
             (PRELUDE_NAME, "opDiv") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "FloatDiv" => {
+                        let l = environment.get_arg_by_index(0).core.as_float();
+                        let r = environment.get_arg_by_index(1).core.as_float();
+                        return Value::new(ValueCore::Float(l / r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented div function {}/{}", module, instance_name);
+                    }
+                }
+            }
+            ("Data.Int", "opDiv") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
                     "IntDiv" => {
@@ -715,13 +765,8 @@ impl Interpreter {
                         let r = environment.get_arg_by_index(1).core.as_int();
                         return Value::new(ValueCore::Int(l / r), ty);
                     }
-                    "FloatDiv" => {
-                        let l = environment.get_arg_by_index(0).core.as_float();
-                        let r = environment.get_arg_by_index(1).core.as_float();
-                        return Value::new(ValueCore::Float(l / r), ty);
-                    }
                     _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
+                        panic!("Unimplemented div function {}/{}", module, instance_name);
                     }
                 }
             }
@@ -731,11 +776,6 @@ impl Interpreter {
                     "BoolEq" => {
                         let l = environment.get_arg_by_index(0).core.as_bool();
                         let r = environment.get_arg_by_index(1).core.as_bool();
-                        return Value::new(ValueCore::Bool(l == r), ty);
-                    }
-                    "IntEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
                     "FloatEq" => {
@@ -764,15 +804,22 @@ impl Interpreter {
                     }
                 }
             }
+            ("Data.Int", "opEq") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntEq" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        return Value::new(ValueCore::Bool(l == r), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented eq function {}/{}", module, instance_name);
+                    }
+                }
+            }
             (PRELUDE_NAME, "partialCmp") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "IntPartialOrd" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        let ord = l.partial_cmp(&r);
-                        return self.get_opt_ordering_value(ord);
-                    }
                     "StringPartialOrd" => {
                         let l = environment.get_arg_by_index(0).core.as_string();
                         let r = environment.get_arg_by_index(1).core.as_string();
@@ -787,18 +834,46 @@ impl Interpreter {
                     }
                 }
             }
+            ("Data.Int", "partialCmp") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntPartialOrd" => {
+                        let l = environment.get_arg_by_index(0).core.as_int();
+                        let r = environment.get_arg_by_index(1).core.as_int();
+                        let ord = l.partial_cmp(&r);
+                        return self.get_opt_ordering_value(ord);
+                    }
+                    _ => {
+                        panic!(
+                            "Unimplemented partial cmp function {}/{}",
+                            module, instance_name
+                        );
+                    }
+                }
+            }
             (PRELUDE_NAME, "cmp") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "StringOrd" => {
+                        let l = environment.get_arg_by_index(0).core.as_string();
+                        let r = environment.get_arg_by_index(1).core.as_string();
+                        let ord = l.cmp(&r);
+                        return self.get_ordering_value(ord);
+                    }
+                    _ => {
+                        panic!(
+                            "Unimplemented partial cmp function {}/{}",
+                            module, instance_name
+                        );
+                    }
+                }
+            }
+            ("Data.Int", "cmp") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
                     "IntOrd" => {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
-                        let ord = l.cmp(&r);
-                        return self.get_ordering_value(ord);
-                    }
-                    "StringOrd" => {
-                        let l = environment.get_arg_by_index(0).core.as_string();
-                        let r = environment.get_arg_by_index(1).core.as_string();
                         let ord = l.cmp(&r);
                         return self.get_ordering_value(ord);
                     }
@@ -864,12 +939,20 @@ impl Interpreter {
                             unreachable!()
                         }
                     }
-                    "IntShow" => {
-                        let value = environment.get_arg_by_index(0).core.as_int();
-                        return Value::new(ValueCore::String(value.to_string()), ty);
-                    }
                     "FloatShow" => {
                         let value = environment.get_arg_by_index(0).core.as_float();
+                        return Value::new(ValueCore::String(value.to_string()), ty);
+                    }
+                    _ => {
+                        panic!("Unimplemented show function {}/{}", module, instance_name);
+                    }
+                }
+            }
+            ("Data.Int", "show") => {
+                let instance_name = get_instance_name_from_kind(kind);
+                match instance_name {
+                    "IntShow" => {
+                        let value = environment.get_arg_by_index(0).core.as_int();
                         return Value::new(ValueCore::String(value.to_string()), ty);
                     }
                     _ => {
@@ -1010,8 +1093,19 @@ impl Interpreter {
         );
     }
 
+    fn add_extern_function(
+        &mut self,
+        module: &str,
+        name: &str,
+        extern_function: Box<dyn ExternFunction>,
+    ) {
+        self.extern_functions
+            .insert((module.to_string(), name.to_string()), extern_function);
+    }
+
     pub fn run(program: Program, error_context: ErrorContext) -> Value {
         let mut interpreter = Interpreter::new(program, error_context);
+        interpreter.add_extern_function("Data.Int", "opAdd", Box::new(IntAdd {}));
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();

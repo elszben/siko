@@ -188,7 +188,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
 
     fn get_int_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program().get_named_type(PRELUDE_NAME, INT_NAME),
+            self.get_program().get_named_type("Data.Int", INT_NAME),
             vec![],
         )
     }

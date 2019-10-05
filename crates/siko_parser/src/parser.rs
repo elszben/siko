@@ -10,7 +10,6 @@ use crate::token::TokenInfo;
 use crate::token::TokenKind;
 use siko_constants::BuiltinOperator;
 use siko_constants::FULL_LIST_NAME;
-use siko_constants::PRELUDE_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
 use siko_location_info::item::ItemInfo;
@@ -1124,37 +1123,30 @@ impl<'a> Parser<'a> {
             self.program.modules.add_item(m_id, module);
         }
 
-        let mut prelude_exists = false;
-        for (_, module) in &self.program.modules.items {
-            if module.name == PRELUDE_NAME {
-                prelude_exists = true;
-                break;
-            }
-        }
-
-        if prelude_exists {
-            let mut modules_without_prelude = Vec::new();
+        let implicit_modules = vec!["Prelude", "Data.Int"];
+        for implicit_module in implicit_modules {
+            let mut modules_without_implicit_module = Vec::new();
             for (module_id, module) in &self.program.modules.items {
-                let mut prelude_imported = false;
-                if module.name == PRELUDE_NAME {
+                let mut implicit_imported = false;
+                if module.name == implicit_module {
                     continue;
                 }
                 for import_id in &module.imports {
                     let import = self.program.imports.get(import_id);
-                    if import.module_path == PRELUDE_NAME {
-                        prelude_imported = true;
+                    if import.module_path == implicit_module {
+                        implicit_imported = true;
                         break;
                     }
                 }
-                if !prelude_imported {
-                    modules_without_prelude.push(*module_id);
+                if !implicit_imported {
+                    modules_without_implicit_module.push(*module_id);
                 }
             }
-            for module_id in modules_without_prelude {
+            for module_id in modules_without_implicit_module {
                 let import_id = self.program.imports.get_id();
                 let import = Import {
                     id: import_id,
-                    module_path: PRELUDE_NAME.to_string(),
+                    module_path: implicit_module.to_string(),
                     kind: ImportKind::ImportList {
                         items: EIList::ImplicitAll,
                         alternative_name: None,
@@ -1166,7 +1158,6 @@ impl<'a> Parser<'a> {
                 module.imports.push(import_id);
             }
         }
-
         Ok(())
     }
 }
