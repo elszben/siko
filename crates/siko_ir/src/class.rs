@@ -87,5 +87,5 @@ pub struct Instance {
 #[derive(Debug, Clone)]
 pub struct InstanceMember {
     pub type_signature: TypeSignatureId,
-    pub function_id: FunctionId
+    pub function_id: FunctionId,
 }

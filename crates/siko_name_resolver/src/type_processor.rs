@@ -138,9 +138,7 @@ pub fn subtitute_type_signature(
                 .collect();
             IrTypeSignature::Tuple(new_items)
         }
-        IrTypeSignature::Variant(_, _) => {
-            unreachable!()
-        }
+        IrTypeSignature::Variant(_, _) => unreachable!(),
     };
     let id = ir_program.type_signatures.get_id();
     let type_info = ItemInfo::new(new_signature, info.location_id);

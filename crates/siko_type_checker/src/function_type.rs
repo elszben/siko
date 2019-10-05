@@ -1,9 +1,9 @@
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
+use siko_ir::types::TypeDefId;
 use std::collections::BTreeMap;
 use std::fmt;
-use siko_ir::types::TypeDefId;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FunctionType {
@@ -35,10 +35,16 @@ impl FunctionType {
         }
     }
 
-    pub fn as_string(&self, type_store: &TypeStore, type_args: &BTreeMap<usize, String>, list_type_id: TypeDefId) -> String {
-        let from = type_store
-            .get_type(&self.from)
-            .as_string(type_store, true, type_args,list_type_id);
+    pub fn as_string(
+        &self,
+        type_store: &TypeStore,
+        type_args: &BTreeMap<usize, String>,
+        list_type_id: TypeDefId,
+    ) -> String {
+        let from =
+            type_store
+                .get_type(&self.from)
+                .as_string(type_store, true, type_args, list_type_id);
         let to = type_store
             .get_type(&self.to)
             .as_string(type_store, true, type_args, list_type_id);

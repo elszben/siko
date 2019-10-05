@@ -137,15 +137,12 @@ impl ValueCore {
         }
     }
 
-    pub fn as_map(
-        &self
-    ) -> BTreeMap<Value, Value> {
+    pub fn as_map(&self) -> BTreeMap<Value, Value> {
         match self {
             ValueCore::Map(m) => m.clone(),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
-
 }
 
 impl fmt::Display for ValueCore {

@@ -165,10 +165,8 @@ impl ConcreteType {
 
     pub fn get_type_args(&self) -> Vec<ConcreteType> {
         match self {
-            ConcreteType::Named(_, _, items) => {
-                items.clone()
-            }
-            _ => unreachable!()
+            ConcreteType::Named(_, _, items) => items.clone(),
+            _ => unreachable!(),
         }
     }
 }

@@ -74,11 +74,8 @@ impl TypeArgResolver {
             .collect()
     }
 
- pub fn collect_args(&self) -> Vec<usize> {
-        self.args
-            .iter()
-            .map(|(_, info)| info.index)
-            .collect()
+    pub fn collect_args(&self) -> Vec<usize> {
+        self.args.iter().map(|(_, info)| info.index).collect()
     }
 
     pub fn reset_unused_flag(&mut self) {
