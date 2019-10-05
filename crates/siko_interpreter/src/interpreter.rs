@@ -1,5 +1,6 @@
+use crate::data_float;
+use crate::data_int;
 use crate::environment::Environment;
-use crate::extern_function::register_extern_functions;
 use crate::extern_function::ExternFunction;
 use crate::util::*;
 use crate::value::Callable;
@@ -677,23 +678,6 @@ impl Interpreter {
                     }
                 }
             }
-            ("Data.Int", "cmp") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntOrd" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        let ord = l.cmp(&r);
-                        return get_ordering_value(ord);
-                    }
-                    _ => {
-                        panic!(
-                            "Unimplemented partial cmp function {}/{}",
-                            module, instance_name
-                        );
-                    }
-                }
-            }
             ("Std.Util", "assert") => {
                 let v = environment.get_arg_by_index(0).core.as_bool();
                 if !v {
@@ -747,22 +731,6 @@ impl Interpreter {
                         } else {
                             unreachable!()
                         }
-                    }
-                    "FloatShow" => {
-                        let value = environment.get_arg_by_index(0).core.as_float();
-                        return Value::new(ValueCore::String(value.to_string()), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented show function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            ("Data.Int", "show") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntShow" => {
-                        let value = environment.get_arg_by_index(0).core.as_int();
-                        return Value::new(ValueCore::String(value.to_string()), ty);
                     }
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
@@ -915,7 +883,8 @@ impl Interpreter {
 
     pub fn run(program: Program, error_context: ErrorContext) -> Value {
         let mut interpreter = Interpreter::new(program, error_context);
-        register_extern_functions(&mut interpreter);
+        data_int::register_extern_functions(&mut interpreter);
+        data_float::register_extern_functions(&mut interpreter);
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();
