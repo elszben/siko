@@ -2,34 +2,46 @@ use colored::*;
 use siko_compiler::compiler::Compiler;
 use siko_compiler::compiler::CompilerInput;
 use siko_compiler::config::Config;
-use siko_constants::PRELUDE_NAME;
 use std::env;
 use std::path::Path;
 use walkdir::WalkDir;
+
+fn process_dir(arg: String, inputs: &mut Vec<CompilerInput>) -> bool {
+    let path = Path::new(&arg);
+    if !path.exists() {
+        let path_str = format!("{}", path.display());
+        eprintln!(
+            "{} path {} does not exist",
+            "ERROR:".red(),
+            path_str.yellow()
+        );
+        return false;
+    }
+    if path.is_dir() {
+        for entry in WalkDir::new(path) {
+            let entry = entry.unwrap();
+            if let Some(ext) = entry.path().extension() {
+                if ext == "sk" {
+                    let input = CompilerInput::File {
+                        name: format!("{}", entry.path().display()),
+                    };
+                    inputs.push(input);
+                }
+            }
+        }
+    } else if path.is_file() {
+        let input = CompilerInput::File { name: arg };
+        inputs.push(input);
+    }
+    true
+}
 
 fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     let mut inputs = Vec::new();
     let mut config = Config::new();
     let mut success = true;
-    let prelude_source = include_str!("std/prelude.sk");
-    let prelude = CompilerInput::Memory {
-        name: PRELUDE_NAME.to_string(),
-        content: prelude_source.to_string(),
-    };
-    inputs.push(prelude);
-    let map_source = include_str!("std/map.sk");
-    let map = CompilerInput::Memory {
-        name: "map.sk".to_string(),
-        content: map_source.to_string(),
-    };
-    inputs.push(map);
-    let std_source = include_str!("std/std.sk");
-    let std = CompilerInput::Memory {
-        name: "std.sk".to_string(),
-        content: std_source.to_string(),
-    };
-    inputs.push(std);
-    for arg in args {
+    let mut std_path = format!("std");
+    for (index, arg) in args.iter().enumerate() {
         match arg.as_ref() {
             "-v" => {
                 config.verbose = true;
@@ -37,35 +49,24 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
             "-i" => {
                 config.visualize = true;
             }
-            _ => {
-                let path = Path::new(&arg);
-                if !path.exists() {
-                    let path_str = format!("{}", path.display());
-                    eprintln!(
-                        "{} path {} does not exist",
-                        "ERROR:".red(),
-                        path_str.yellow()
-                    );
+            "-s" => {
+                if index + 1 >= args.len() {
+                    eprintln!("{} missing path after -s", "ERROR:".red(),);
                     success = false;
-                    continue;
-                }
-                if path.is_dir() {
-                    for entry in WalkDir::new(path) {
-                        let entry = entry.unwrap();
-                        if let Some(ext) = entry.path().extension() {
-                            if ext == "sk" {
-                                let input = CompilerInput::File {
-                                    name: format!("{}", entry.path().display()),
-                                };
-                                inputs.push(input);
-                            }
-                        }
-                    }
-                } else if path.is_file() {
-                    let input = CompilerInput::File { name: arg };
-                    inputs.push(input);
+                } else {
+                    std_path = args[index + 1].to_string();
                 }
             }
+            _ => {
+                if !process_dir(arg.clone(), &mut inputs) {
+                    success = false;
+                }
+            }
+        }
+    }
+    if success {
+        if !process_dir(std_path, &mut inputs) {
+            success = false;
         }
     }
     //println!("Compiling {} file(s)", inputs.len());
