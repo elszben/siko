@@ -187,7 +187,7 @@ impl Resolver {
                     name: record.name.clone(),
                     module: ast_module.name.clone(),
                     id: ir_typedef_id,
-                    type_args: (0..record.type_args.len()).collect(),
+                    type_args: Vec::new(),
                     fields: Vec::new(),
                     constructor: ir_ctor_id,
                     location_id: record.location_id,
@@ -616,6 +616,7 @@ impl Resolver {
             }
 
             let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
+            ir_record.type_args = type_arg_resolver.collect_args();
             ir_record.fields = ir_fields;
         }
     }

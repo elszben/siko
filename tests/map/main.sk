@@ -5,10 +5,10 @@ import Data.Map
 
 -- get_stuff k v :: (Ord k, Show v) => Map k v -> k -> ()
 get_stuff m k = case get m k of
-                    Some v -> println "Found {}" % v
-                    None -> println "Not found"
+                    Some v -> assert True
+                    None -> assert False
 
 main = do
     m :: Map String String <- empty
     (m, _) <- insert m "alma" "korte"
-    get_stuff m "4"
+    get_stuff m "alma"
