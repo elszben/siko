@@ -1,6 +1,7 @@
 use crate::environment::Environment;
+use crate::extern_function::register_extern_functions;
 use crate::extern_function::ExternFunction;
-use crate::extern_function::IntAdd;
+use crate::util::*;
 use crate::value::Callable;
 use crate::value::Value;
 use crate::value::ValueCore;
@@ -26,7 +27,6 @@ use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
 use std::cell::RefCell;
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::thread_local;
 
@@ -42,8 +42,9 @@ pub fn eval_with_context(eval_fn: Box<dyn FnOnce(&Interpreter) -> Value>) -> Val
     v
 }
 
-struct VariantCache {
-    variants: BTreeMap<String, usize>,
+#[derive(Clone)]
+pub struct VariantCache {
+    pub variants: BTreeMap<String, usize>,
 }
 
 impl VariantCache {
@@ -60,11 +61,12 @@ impl VariantCache {
     }
 }
 
-struct TypeDefIdCache {
-    option_id: TypeDefId,
-    ordering_id: TypeDefId,
-    option_variants: VariantCache,
-    ordering_variants: VariantCache,
+#[derive(Clone)]
+pub struct TypeDefIdCache {
+    pub option_id: TypeDefId,
+    pub ordering_id: TypeDefId,
+    pub option_variants: VariantCache,
+    pub ordering_variants: VariantCache,
 }
 
 pub struct Interpreter {
@@ -574,66 +576,6 @@ impl Interpreter {
         }
     }
 
-    fn create_some(&self, value: Value) -> Value {
-        let cache = self.get_typedef_id_cache();
-        let concrete_type = ConcreteType::Named(
-            OPTION_NAME.to_string(),
-            cache.option_id,
-            vec![value.ty.clone()],
-        );
-        let core = ValueCore::Variant(
-            cache.option_id,
-            cache.option_variants.get_index("Some"),
-            vec![value],
-        );
-        let some_value = Value::new(core, concrete_type);
-        some_value
-    }
-
-    fn create_none(&self, value_ty: ConcreteType) -> Value {
-        let cache = self.get_typedef_id_cache();
-        let concrete_type =
-            ConcreteType::Named(OPTION_NAME.to_string(), cache.option_id, vec![value_ty]);
-        let core = ValueCore::Variant(
-            cache.option_id,
-            cache.option_variants.get_index("None"),
-            vec![],
-        );
-        let none_value = Value::new(core, concrete_type);
-        none_value
-    }
-
-    fn create_ordering(&self, index: usize) -> Value {
-        let cache = self.get_typedef_id_cache();
-        let concrete_type =
-            ConcreteType::Named(ORDERING_NAME.to_string(), cache.ordering_id, vec![]);
-        let core = ValueCore::Variant(cache.ordering_id, index, vec![]);
-        let value = Value::new(core, concrete_type);
-        value
-    }
-
-    fn get_ordering_value(&self, ordering: Ordering) -> Value {
-        let cache = self.get_typedef_id_cache();
-        match ordering {
-            Ordering::Less => self.create_ordering(cache.ordering_variants.get_index("Less")),
-            Ordering::Equal => self.create_ordering(cache.ordering_variants.get_index("Equal")),
-            Ordering::Greater => self.create_ordering(cache.ordering_variants.get_index("Greater")),
-        }
-    }
-
-    fn get_opt_ordering_value(&self, ordering: Option<Ordering>) -> Value {
-        match ordering {
-            Some(ordering) => {
-                let value = self.get_ordering_value(ordering);
-                return self.create_some(value);
-            }
-            None => {
-                let value = self.create_ordering(0);
-                return self.create_none(value.ty);
-            }
-        }
-    }
-
     fn call_extern(
         &self,
         module: &str,
@@ -656,19 +598,12 @@ impl Interpreter {
             .get(&(module.to_string(), name.to_string()))
         {
             return f.call(environment, current_expr, kind, ty);
-        } else {
-            println!("{} {}", module, name);
         }
 
         match (module, name) {
             (PRELUDE_NAME, "opAdd") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "FloatAdd" => {
-                        let l = environment.get_arg_by_index(0).core.as_float();
-                        let r = environment.get_arg_by_index(1).core.as_float();
-                        return Value::new(ValueCore::Float(l + r), ty);
-                    }
                     "StringAdd" => {
                         let l = environment.get_arg_by_index(0).core.as_string();
                         let r = environment.get_arg_by_index(1).core.as_string();
@@ -679,108 +614,12 @@ impl Interpreter {
                     }
                 }
             }
-            ("Data.Int", "opAdd") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntAdd" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l + r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented add function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            (PRELUDE_NAME, "opSub") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "FloatSub" => {
-                        let l = environment.get_arg_by_index(0).core.as_float();
-                        let r = environment.get_arg_by_index(1).core.as_float();
-                        return Value::new(ValueCore::Float(l - r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            ("Data.Int", "opSub") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntSub" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l - r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            (PRELUDE_NAME, "opMul") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "FloatMul" => {
-                        let l = environment.get_arg_by_index(0).core.as_float();
-                        let r = environment.get_arg_by_index(1).core.as_float();
-                        return Value::new(ValueCore::Float(l * r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            ("Data.Int", "opMul") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntMul" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l * r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented sub function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            (PRELUDE_NAME, "opDiv") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "FloatDiv" => {
-                        let l = environment.get_arg_by_index(0).core.as_float();
-                        let r = environment.get_arg_by_index(1).core.as_float();
-                        return Value::new(ValueCore::Float(l / r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented div function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            ("Data.Int", "opDiv") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntDiv" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Int(l / r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented div function {}/{}", module, instance_name);
-                    }
-                }
-            }
             (PRELUDE_NAME, "opEq") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
                     "BoolEq" => {
                         let l = environment.get_arg_by_index(0).core.as_bool();
                         let r = environment.get_arg_by_index(1).core.as_bool();
-                        return Value::new(ValueCore::Bool(l == r), ty);
-                    }
-                    "FloatEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_float();
-                        let r = environment.get_arg_by_index(1).core.as_float();
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
                     "StringEq" => {
@@ -804,19 +643,6 @@ impl Interpreter {
                     }
                 }
             }
-            ("Data.Int", "opEq") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        return Value::new(ValueCore::Bool(l == r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented eq function {}/{}", module, instance_name);
-                    }
-                }
-            }
             (PRELUDE_NAME, "partialCmp") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
@@ -824,24 +650,7 @@ impl Interpreter {
                         let l = environment.get_arg_by_index(0).core.as_string();
                         let r = environment.get_arg_by_index(1).core.as_string();
                         let ord = l.partial_cmp(&r);
-                        return self.get_opt_ordering_value(ord);
-                    }
-                    _ => {
-                        panic!(
-                            "Unimplemented partial cmp function {}/{}",
-                            module, instance_name
-                        );
-                    }
-                }
-            }
-            ("Data.Int", "partialCmp") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "IntPartialOrd" => {
-                        let l = environment.get_arg_by_index(0).core.as_int();
-                        let r = environment.get_arg_by_index(1).core.as_int();
-                        let ord = l.partial_cmp(&r);
-                        return self.get_opt_ordering_value(ord);
+                        return get_opt_ordering_value(ord);
                     }
                     _ => {
                         panic!(
@@ -858,7 +667,7 @@ impl Interpreter {
                         let l = environment.get_arg_by_index(0).core.as_string();
                         let r = environment.get_arg_by_index(1).core.as_string();
                         let ord = l.cmp(&r);
-                        return self.get_ordering_value(ord);
+                        return get_ordering_value(ord);
                     }
                     _ => {
                         panic!(
@@ -875,7 +684,7 @@ impl Interpreter {
                         let l = environment.get_arg_by_index(0).core.as_int();
                         let r = environment.get_arg_by_index(1).core.as_int();
                         let ord = l.cmp(&r);
-                        return self.get_ordering_value(ord);
+                        return get_ordering_value(ord);
                     }
                     _ => {
                         panic!(
@@ -971,8 +780,8 @@ impl Interpreter {
                 let value = environment.get_arg_by_index(2);
                 let res = map.insert(key, value);
                 let v = match res {
-                    Some(v) => self.create_some(v),
-                    None => self.create_none(map_type_args.remove(1)),
+                    Some(v) => create_some(v),
+                    None => create_none(map_type_args.remove(1)),
                 };
                 first_arg.core = ValueCore::Map(map);
                 let tuple = Value::new(ValueCore::Tuple(vec![first_arg, v]), ty);
@@ -985,8 +794,8 @@ impl Interpreter {
                 let key = environment.get_arg_by_index(1);
                 let res = map.get(&key);
                 let v = match res {
-                    Some(v) => self.create_some(v.clone()),
-                    None => self.create_none(map_type_args.remove(1)),
+                    Some(v) => create_some(v.clone()),
+                    None => create_none(map_type_args.remove(1)),
                 };
                 return v;
             }
@@ -1061,10 +870,11 @@ impl Interpreter {
         self.typedefid_cache = Some(cache);
     }
 
-    fn get_typedef_id_cache(&self) -> &TypeDefIdCache {
-        self.typedefid_cache
-            .as_ref()
-            .expect("Typedefid cache not initialized")
+    pub fn get_typedef_id_cache() -> TypeDefIdCache {
+        INTERPRETER_CONTEXT.with(|i| {
+            let i = i.borrow();
+;            i.as_ref().expect(".").typedefid_cache.clone().expect("..")
+        })
     }
 
     fn execute_main(interpreter: &Interpreter) -> Value {
@@ -1093,7 +903,7 @@ impl Interpreter {
         );
     }
 
-    fn add_extern_function(
+    pub fn add_extern_function(
         &mut self,
         module: &str,
         name: &str,
@@ -1105,7 +915,7 @@ impl Interpreter {
 
     pub fn run(program: Program, error_context: ErrorContext) -> Value {
         let mut interpreter = Interpreter::new(program, error_context);
-        interpreter.add_extern_function("Data.Int", "opAdd", Box::new(IntAdd {}));
+        register_extern_functions(&mut interpreter);
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();

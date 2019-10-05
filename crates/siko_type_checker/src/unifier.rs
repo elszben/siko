@@ -202,7 +202,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
 
     fn get_float_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program().get_named_type(PRELUDE_NAME, FLOAT_NAME),
+            self.get_program().get_named_type("Data.Float", FLOAT_NAME),
             vec![],
         )
     }
