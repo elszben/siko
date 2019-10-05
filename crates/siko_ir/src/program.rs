@@ -20,9 +20,11 @@ use crate::types::TypeId;
 use crate::types::TypeInstanceResolver;
 use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
+use siko_constants::BOOL_NAME;
+use siko_constants::OPTION_NAME;
+use siko_constants::ORDERING_NAME;
 use siko_constants::PRELUDE_NAME;
 use siko_constants::STRING_NAME;
-use siko_constants::BOOL_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
@@ -140,6 +142,22 @@ impl Program {
         ConcreteType::Named(
             BOOL_NAME.to_string(),
             self.get_named_type(PRELUDE_NAME, BOOL_NAME),
+            vec![],
+        )
+    }
+
+    pub fn option_concrete_type(&self, inner: ConcreteType) -> ConcreteType {
+        ConcreteType::Named(
+            OPTION_NAME.to_string(),
+            self.get_named_type(PRELUDE_NAME, OPTION_NAME),
+            vec![inner],
+        )
+    }
+
+    pub fn ordering_concrete_type(&self) -> ConcreteType {
+        ConcreteType::Named(
+            ORDERING_NAME.to_string(),
+            self.get_named_type(PRELUDE_NAME, ORDERING_NAME),
             vec![],
         )
     }

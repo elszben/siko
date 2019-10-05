@@ -5,3 +5,4 @@ import Data.Map
 
 main = do
     m :: Map String String <- empty
+    insert m "alma" "korte"

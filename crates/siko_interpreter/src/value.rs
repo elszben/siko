@@ -34,17 +34,21 @@ impl PartialEq for Value {
         let func: Box<dyn FnOnce(&Interpreter) -> Value> =
             Box::new(|interpreter: &Interpreter| interpreter.call_op_eq(copy, other));
         let v = eval_with_context(func);
-        if let ValueCore::Bool(b) = v.core {
-            return b;
-        } else {
-            unreachable!();
-        }
+        v.core.as_bool()
     }
 }
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        None
+        let copy = self.clone();
+        let other = other.clone();
+        let func: Box<dyn FnOnce(&Interpreter) -> Value> =
+            Box::new(|interpreter: &Interpreter| interpreter.call_op_partial_cmp(copy, other));
+        let v = eval_with_context(func);
+        match v.core.as_option(0, 1) {
+            Some(v) => Some(v.core.as_ordering(0, 1, 2)),
+            None => None,
+        }
     }
 }
 
@@ -52,7 +56,12 @@ impl Eq for Value {}
 
 impl Ord for Value {
     fn cmp(&self, other: &Self) -> Ordering {
-        Ordering::Less
+        let copy = self.clone();
+        let other = other.clone();
+        let func: Box<dyn FnOnce(&Interpreter) -> Value> =
+            Box::new(|interpreter: &Interpreter| interpreter.call_op_cmp(copy, other));
+        let v = eval_with_context(func);
+        v.core.as_ordering(0, 1, 2)
     }
 }
 
@@ -102,6 +111,28 @@ impl ValueCore {
     pub fn as_simple_enum_variant(&self) -> (TypeDefId, usize) {
         match self {
             ValueCore::Variant(id, index, _) => (id.clone(), index.clone()),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn as_option(&self, some_index: usize, none_index: usize) -> Option<Value> {
+        match self {
+            ValueCore::Variant(_, index, items) if *index == some_index => Some(items[0].clone()),
+            ValueCore::Variant(_, index, _) if *index == none_index => None,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn as_ordering(
+        &self,
+        less_index: usize,
+        equal_index: usize,
+        greater_index: usize,
+    ) -> Ordering {
+        match self {
+            ValueCore::Variant(_, index, _) if *index == less_index => Ordering::Less,
+            ValueCore::Variant(_, index, _) if *index == equal_index => Ordering::Equal,
+            ValueCore::Variant(_, index, _) if *index == greater_index => Ordering::Greater,
             _ => unreachable!(),
         }
     }

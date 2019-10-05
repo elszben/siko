@@ -298,6 +298,38 @@ impl Interpreter {
         self.call_class_member(class_member_id, vec![arg1, arg2], None, bool_ty)
     }
 
+    pub fn call_op_partial_cmp(&self, arg1: Value, arg2: Value) -> Value {
+        let option_ordering_ty = self
+            .program
+            .option_concrete_type(self.program.ordering_concrete_type());
+        let class_id = self
+            .program
+            .class_names
+            .get("PartialOrd")
+            .expect("PartialOrd not found");
+        let class = self.program.classes.get(class_id);
+        let class_member_id = class
+            .members
+            .get("partialCmp")
+            .expect("partialCmp not found");
+        self.call_class_member(class_member_id, vec![arg1, arg2], None, option_ordering_ty)
+    }
+
+    pub fn call_op_cmp(&self, arg1: Value, arg2: Value) -> Value {
+        let ordering_ty = self.program.ordering_concrete_type();
+        let class_id = self
+            .program
+            .class_names
+            .get("Ord")
+            .expect("Ord not found");
+        let class = self.program.classes.get(class_id);
+        let class_member_id = class
+            .members
+            .get("cmp")
+            .expect("cmp not found");
+        self.call_class_member(class_member_id, vec![arg1, arg2], None, ordering_ty)
+    }
+
     fn call_class_member(
         &self,
         class_member_id: &ClassMemberId,

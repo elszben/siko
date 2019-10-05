@@ -4,3 +4,6 @@ data Map k v = extern
 
 empty k v :: (Ord k) => Map k v
 empty = extern
+
+insert k v :: (Ord k) => Map k v -> k -> v -> Map k v
+insert m k v = extern
