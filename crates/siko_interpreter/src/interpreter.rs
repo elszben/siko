@@ -1,5 +1,6 @@
 use crate::data_float;
 use crate::data_int;
+use crate::data_string;
 use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
 use crate::util::*;
@@ -602,30 +603,12 @@ impl Interpreter {
         }
 
         match (module, name) {
-            (PRELUDE_NAME, "opAdd") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "StringAdd" => {
-                        let l = environment.get_arg_by_index(0).core.as_string();
-                        let r = environment.get_arg_by_index(1).core.as_string();
-                        return Value::new(ValueCore::String(l + &r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented add function {}/{}", module, instance_name);
-                    }
-                }
-            }
             (PRELUDE_NAME, "opEq") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
                     "BoolEq" => {
                         let l = environment.get_arg_by_index(0).core.as_bool();
                         let r = environment.get_arg_by_index(1).core.as_bool();
-                        return Value::new(ValueCore::Bool(l == r), ty);
-                    }
-                    "StringEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_string();
-                        let r = environment.get_arg_by_index(1).core.as_string();
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
                     "OrderingEq" => {
@@ -641,40 +624,6 @@ impl Interpreter {
                     }
                     _ => {
                         panic!("Unimplemented eq function {}/{}", module, instance_name);
-                    }
-                }
-            }
-            (PRELUDE_NAME, "partialCmp") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "StringPartialOrd" => {
-                        let l = environment.get_arg_by_index(0).core.as_string();
-                        let r = environment.get_arg_by_index(1).core.as_string();
-                        let ord = l.partial_cmp(&r);
-                        return get_opt_ordering_value(ord);
-                    }
-                    _ => {
-                        panic!(
-                            "Unimplemented partial cmp function {}/{}",
-                            module, instance_name
-                        );
-                    }
-                }
-            }
-            (PRELUDE_NAME, "cmp") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "StringOrd" => {
-                        let l = environment.get_arg_by_index(0).core.as_string();
-                        let r = environment.get_arg_by_index(1).core.as_string();
-                        let ord = l.cmp(&r);
-                        return get_ordering_value(ord);
-                    }
-                    _ => {
-                        panic!(
-                            "Unimplemented partial cmp function {}/{}",
-                            module, instance_name
-                        );
                     }
                 }
             }
@@ -885,6 +834,7 @@ impl Interpreter {
         let mut interpreter = Interpreter::new(program, error_context);
         data_int::register_extern_functions(&mut interpreter);
         data_float::register_extern_functions(&mut interpreter);
+        data_string::register_extern_functions(&mut interpreter);
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();

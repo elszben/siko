@@ -1123,7 +1123,7 @@ impl<'a> Parser<'a> {
             self.program.modules.add_item(m_id, module);
         }
 
-        let implicit_modules = vec!["Prelude", "Data.Int", "Data.Float"];
+        let implicit_modules = vec!["Prelude", "Data.Int", "Data.Float", "Data.String"];
         for implicit_module in implicit_modules {
             let mut modules_without_implicit_module = Vec::new();
             for (module_id, module) in &self.program.modules.items {

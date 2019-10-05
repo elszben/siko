@@ -121,7 +121,6 @@ impl ExternFunction for FloatShow {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    // Float
     interpreter.add_extern_function("Data.Float", "opAdd", Box::new(FloatAdd {}));
     interpreter.add_extern_function("Data.Float", "opSub", Box::new(FloatSub {}));
     interpreter.add_extern_function("Data.Float", "opMul", Box::new(FloatMul {}));

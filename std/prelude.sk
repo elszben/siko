@@ -1,13 +1,9 @@
 module Prelude where
 
 data Bool = extern
-data String = extern
 
 class Add a where
     opAdd a :: a -> a -> a
-
-instance as StringAdd Add String where
-    opAdd a b = extern
 
 class Sub a where
     opSub a :: a -> a -> a
@@ -73,9 +69,6 @@ class PartialOrd a where
                          Some Equal -> True
                          _ -> False
 
-instance as StringPartialOrd PartialOrd String where
-    partialCmp a b = extern
-
 class (PartialOrd a, Eq a) => Ord a where
     cmp a :: a -> a -> Ordering
 
@@ -84,10 +77,6 @@ class (PartialOrd a, Eq a) => Ord a where
 
     min a :: a -> a -> a
     min a b = if a <= b then a else b
-
-
-instance as StringOrd Ord String where
-    cmp a b = extern
 
 class (PartialEq a) => Eq a
 
@@ -99,17 +88,11 @@ class PartialEq a where
 instance as BoolEq PartialEq Bool where
     opEq a b = extern
 
-instance as StringEq PartialEq String where
-    opEq a b = extern
-
 instance as OrderingEq PartialEq Ordering where
     opEq a b = extern
 
 class Show a where
     show a :: a -> String
-
-instance Show String where
-    show a = a
 
 instance Show Bool where
     show a = if a == True then "True" else "False"

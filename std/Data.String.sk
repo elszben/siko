@@ -1,0 +1,20 @@
+module Data.String where
+
+data String = extern
+
+instance as StringAdd Add String where
+    opAdd a b = extern
+
+instance as StringPartialOrd PartialOrd String where
+    partialCmp a b = extern
+
+instance as StringOrd Ord String where
+    cmp a b = extern
+
+instance as StringPartialEq PartialEq String where
+    opEq a b = extern
+
+instance Eq String
+
+instance Show String where
+    show a = a

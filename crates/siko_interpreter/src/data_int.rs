@@ -139,7 +139,6 @@ impl ExternFunction for IntShow {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    // Int
     interpreter.add_extern_function("Data.Int", "opAdd", Box::new(IntAdd {}));
     interpreter.add_extern_function("Data.Int", "opSub", Box::new(IntSub {}));
     interpreter.add_extern_function("Data.Int", "opMul", Box::new(IntMul {}));
