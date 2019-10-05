@@ -1,3 +1,5 @@
+use crate::interpreter::eval_with_context;
+use crate::interpreter::Interpreter;
 use siko_ir::function::FunctionId;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::SubstitutionContext;
@@ -27,7 +29,16 @@ impl Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        false
+        let copy = self.clone();
+        let other = other.clone();
+        let func: Box<dyn FnOnce(&Interpreter) -> Value> =
+            Box::new(|interpreter: &Interpreter| interpreter.call_op_eq(copy, other));
+        let v = eval_with_context(func);
+        if let ValueCore::Bool(b) = v.core {
+            return b;
+        } else {
+            unreachable!();
+        }
     }
 }
 

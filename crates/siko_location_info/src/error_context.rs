@@ -2,12 +2,12 @@ use crate::file_manager::FileManager;
 use crate::item::LocationId;
 use crate::location_info::LocationInfo;
 
-pub struct ErrorContext<'a> {
-    pub file_manager: &'a FileManager,
-    pub location_info: &'a LocationInfo,
+pub struct ErrorContext {
+    pub file_manager: FileManager,
+    pub location_info: LocationInfo,
 }
 
-impl<'a> ErrorContext<'a> {
+impl ErrorContext {
     pub fn report_error(&self, msg: String, location: LocationId) {
         println!("ERROR: {}", msg); // TODO
     }

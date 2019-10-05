@@ -22,6 +22,7 @@ use crate::types::TypeSignature;
 use crate::types::TypeSignatureId;
 use siko_constants::PRELUDE_NAME;
 use siko_constants::STRING_NAME;
+use siko_constants::BOOL_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
@@ -131,6 +132,14 @@ impl Program {
         ConcreteType::Named(
             STRING_NAME.to_string(),
             self.get_named_type(PRELUDE_NAME, STRING_NAME),
+            vec![],
+        )
+    }
+
+    pub fn bool_concrete_type(&self) -> ConcreteType {
+        ConcreteType::Named(
+            BOOL_NAME.to_string(),
+            self.get_named_type(PRELUDE_NAME, BOOL_NAME),
             vec![],
         )
     }

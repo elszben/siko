@@ -112,7 +112,6 @@ impl Compiler {
         let mut typechecker = Typechecker::new();
 
         typechecker.check(&mut ir_program)?;
-        let mut interpreter = Interpreter::new(self.context());
 
         if self.config.visualize {
             for (id, _) in &ir_program.functions.items {
@@ -120,7 +119,7 @@ impl Compiler {
             }
         }
 
-        interpreter.run(&ir_program);
+        Interpreter::run(ir_program, self.context());
 
         //println!("Result {}", value);
         Ok(())
@@ -128,8 +127,8 @@ impl Compiler {
 
     fn context(&self) -> ErrorContext {
         ErrorContext {
-            file_manager: &self.file_manager,
-            location_info: &self.location_info,
+            file_manager: self.file_manager.clone(),
+            location_info: self.location_info.clone(),
         }
     }
 

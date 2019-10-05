@@ -1,5 +1,6 @@
 use crate::location_set::LocationSet;
 
+#[derive(Clone)]
 pub struct Item {
     pub location: LocationSet,
 }

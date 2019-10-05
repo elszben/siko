@@ -23,8 +23,22 @@ use siko_ir::types::Type;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId;
 use siko_location_info::error_context::ErrorContext;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::thread_local;
+
+thread_local! {
+    static INTERPRETER_CONTEXT: RefCell<Option<Interpreter>> = RefCell::new(None);
+}
+
+pub fn eval_with_context(eval_fn: Box<dyn FnOnce(&Interpreter) -> Value>) -> Value {
+    let v = INTERPRETER_CONTEXT.with(|c| {
+        let interpreter = c.borrow();
+        eval_fn(interpreter.as_ref().unwrap())
+    });
+    v
+}
 
 struct VariantCache {
     variants: BTreeMap<String, usize>,
@@ -51,45 +65,44 @@ struct TypeDefIdCache {
     ordering_variants: VariantCache,
 }
 
-pub struct Interpreter<'a> {
-    error_context: ErrorContext<'a>,
+pub struct Interpreter {
+    program: Program,
+    error_context: ErrorContext,
     typedefid_cache: Option<TypeDefIdCache>,
 }
 
-impl<'a> Interpreter<'a> {
-    pub fn new(error_context: ErrorContext<'a>) -> Interpreter<'a> {
+impl Interpreter {
+    fn new(program: Program, error_context: ErrorContext) -> Interpreter {
         Interpreter {
+            program: program,
             error_context: error_context,
             typedefid_cache: None,
         }
     }
 
-    fn get_func_arg_types(
-        &self,
-        program: &Program,
-        ty_id: &TypeId,
-        arg_count: usize,
-    ) -> (Vec<TypeId>, TypeId) {
-        let (func_arg_types, return_type) = match program.types.get(ty_id).expect("type not found")
-        {
-            Type::Function(func_type) => {
-                let mut arg_types = Vec::new();
-                if arg_count == 0 {
-                    (arg_types, *ty_id)
-                } else {
-                    let return_type =
-                        func_type.get_arg_and_return_types(program, &mut arg_types, arg_count);
-                    (arg_types, return_type)
+    fn get_func_arg_types(&self, ty_id: &TypeId, arg_count: usize) -> (Vec<TypeId>, TypeId) {
+        let (func_arg_types, return_type) =
+            match self.program.types.get(ty_id).expect("type not found") {
+                Type::Function(func_type) => {
+                    let mut arg_types = Vec::new();
+                    if arg_count == 0 {
+                        (arg_types, *ty_id)
+                    } else {
+                        let return_type = func_type.get_arg_and_return_types(
+                            &self.program,
+                            &mut arg_types,
+                            arg_count,
+                        );
+                        (arg_types, return_type)
+                    }
                 }
-            }
-            _ => (vec![], *ty_id),
-        };
+                _ => (vec![], *ty_id),
+            };
         (func_arg_types, return_type)
     }
 
     fn get_subtitution_context(
         &self,
-        program: &Program,
         func_arg_types: &[TypeId],
         args: &[Value],
         return_type: &ConcreteType,
@@ -97,25 +110,21 @@ impl<'a> Interpreter<'a> {
     ) -> SubstitutionContext {
         let mut sub_context = SubstitutionContext::new();
         for (arg_type, func_arg_type) in args.iter().zip(func_arg_types.iter()) {
-            program.match_generic_types(&arg_type.ty, func_arg_type, &mut sub_context);
+            self.program
+                .match_generic_types(&arg_type.ty, func_arg_type, &mut sub_context);
         }
-        program.match_generic_types(&return_type, func_return_type, &mut sub_context);
+        self.program
+            .match_generic_types(&return_type, func_return_type, &mut sub_context);
         sub_context
     }
 
-    fn call(
-        &mut self,
-        callable_value: Value,
-        args: Vec<Value>,
-        program: &Program,
-        expr_id: Option<ExprId>,
-    ) -> Value {
+    fn call(&self, callable_value: Value, args: Vec<Value>, expr_id: Option<ExprId>) -> Value {
         match callable_value.core {
             ValueCore::Callable(mut callable) => {
                 let mut callable_func_ty = callable_value.ty;
                 callable.values.extend(args);
                 loop {
-                    let func_info = program.functions.get(&callable.function_id);
+                    let func_info = self.program.functions.get(&callable.function_id);
                     let needed_arg_count =
                         func_info.arg_locations.len() + func_info.implicit_arg_count;
                     if needed_arg_count > callable.values.len() {
@@ -132,7 +141,6 @@ impl<'a> Interpreter<'a> {
                         );
                         callable_func_ty = callable_func_ty.get_func_type(arg_count);
                         let result = self.execute(
-                            program,
                             callable.function_id,
                             &mut environment,
                             expr_id,
@@ -158,14 +166,13 @@ impl<'a> Interpreter<'a> {
     }
 
     fn match_pattern(
-        &mut self,
+        &self,
         pattern_id: &PatternId,
         value: &Value,
-        program: &Program,
         environment: &mut Environment,
         sub_context: &SubstitutionContext,
     ) -> bool {
-        let pattern = &program.patterns.get(pattern_id).item;
+        let pattern = &self.program.patterns.get(pattern_id).item;
         match pattern {
             Pattern::Binding(_) => {
                 environment.add(*pattern_id, value.clone());
@@ -175,7 +182,7 @@ impl<'a> Interpreter<'a> {
                 ValueCore::Tuple(vs) => {
                     for (index, id) in ids.iter().enumerate() {
                         let v = &vs[index];
-                        if !self.match_pattern(id, v, program, environment, sub_context) {
+                        if !self.match_pattern(id, v, environment, sub_context) {
                             return false;
                         }
                     }
@@ -190,7 +197,7 @@ impl<'a> Interpreter<'a> {
                     if type_id == p_type_id {
                         for (index, p_id) in p_ids.iter().enumerate() {
                             let v = &vs[index];
-                            if !self.match_pattern(p_id, v, program, environment, sub_context) {
+                            if !self.match_pattern(p_id, v, environment, sub_context) {
                                 return false;
                             }
                         }
@@ -207,7 +214,7 @@ impl<'a> Interpreter<'a> {
                     if type_id == p_type_id && index == p_index {
                         for (index, p_id) in p_ids.iter().enumerate() {
                             let v = &vs[index];
-                            if !self.match_pattern(p_id, v, program, environment, sub_context) {
+                            if !self.match_pattern(p_id, v, environment, sub_context) {
                                 return false;
                             }
                         }
@@ -220,17 +227,14 @@ impl<'a> Interpreter<'a> {
                 }
             },
             Pattern::Guarded(id, guard_expr_id) => {
-                if self.match_pattern(id, value, program, environment, sub_context) {
-                    let guard_value =
-                        self.eval_expr(program, *guard_expr_id, environment, sub_context);
+                if self.match_pattern(id, value, environment, sub_context) {
+                    let guard_value = self.eval_expr(*guard_expr_id, environment, sub_context);
                     return guard_value.core.as_bool();
                 } else {
                     return false;
                 }
             }
-            Pattern::Typed(id, _) => {
-                self.match_pattern(id, value, program, environment, sub_context)
-            }
+            Pattern::Typed(id, _) => self.match_pattern(id, value, environment, sub_context),
             Pattern::Wildcard => {
                 return true;
             }
@@ -265,13 +269,16 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn call_show(&mut self, program: &Program, arg: Value) -> String {
-        let string_ty = program.string_concrete_type();
-        let class_id = program.class_names.get("Show").expect("Show not found");
-        let class = program.classes.get(class_id);
+    fn call_show(&self, arg: Value) -> String {
+        let string_ty = self.program.string_concrete_type();
+        let class_id = self
+            .program
+            .class_names
+            .get("Show")
+            .expect("Show not found");
+        let class = self.program.classes.get(class_id);
         let class_member_id = class.members.get("show").expect("show not found");
-        let v =
-            self.call_class_member(program, class_member_id, vec![arg], None, string_ty.clone());
+        let v = self.call_class_member(class_member_id, vec![arg], None, string_ty);
         if let ValueCore::String(s) = v.core {
             return s;
         } else {
@@ -279,36 +286,50 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    pub fn call_op_eq(&self, arg1: Value, arg2: Value) -> Value {
+        let bool_ty = self.program.bool_concrete_type();
+        let class_id = self
+            .program
+            .class_names
+            .get("PartialEq")
+            .expect("PartialEq not found");
+        let class = self.program.classes.get(class_id);
+        let class_member_id = class.members.get("opEq").expect("opEq not found");
+        self.call_class_member(class_member_id, vec![arg1, arg2], None, bool_ty)
+    }
+
     fn call_class_member(
-        &mut self,
-        program: &Program,
+        &self,
         class_member_id: &ClassMemberId,
         arg_values: Vec<Value>,
         expr_id: Option<ExprId>,
         expr_ty: ConcreteType,
     ) -> Value {
-        let member = program.class_members.get(class_member_id);
-        let (class_member_type_id, class_arg_ty_id) = program
+        let member = self.program.class_members.get(class_member_id);
+        let (class_member_type_id, class_arg_ty_id) = self
+            .program
             .class_member_types
             .get(class_member_id)
             .expect("untyped class member");
         let (func_arg_types, return_type) =
-            self.get_func_arg_types(program, class_member_type_id, arg_values.len());
+            self.get_func_arg_types(class_member_type_id, arg_values.len());
         let callee_sub_context = self.get_subtitution_context(
-            program,
             &func_arg_types[..],
             &arg_values[..],
             &expr_ty,
             &return_type,
         );
-        let instance_selector_ty = program.to_concrete_type(class_arg_ty_id, &callee_sub_context);
-        let concrete_function_type =
-            program.to_concrete_type(class_member_type_id, &callee_sub_context);
+        let instance_selector_ty = self
+            .program
+            .to_concrete_type(class_arg_ty_id, &callee_sub_context);
+        let concrete_function_type = self
+            .program
+            .to_concrete_type(class_member_type_id, &callee_sub_context);
         //println!("instance selector {} {}", instance_selector_ty, member.name);
-        let resolver = program.type_instance_resolver.borrow();
+        let resolver = self.program.type_instance_resolver.borrow();
         if let Some(instances) = resolver.instance_map.get(&member.class_id) {
             if let Some(instance_id) = instances.get(&instance_selector_ty) {
-                let instance = program.instances.get(instance_id);
+                let instance = self.program.instances.get(instance_id);
                 let member_function_id =
                     if let Some(instance_member) = instance.members.get(&member.name) {
                         instance_member.function_id
@@ -325,7 +346,7 @@ impl<'a> Interpreter<'a> {
                     }),
                     concrete_function_type,
                 );
-                return self.call(callable, arg_values, program, expr_id);
+                return self.call(callable, arg_values, expr_id);
             } else {
                 for (a, b) in instances {
                     println!("{} {}", a, b);
@@ -338,20 +359,20 @@ impl<'a> Interpreter<'a> {
     }
 
     fn eval_expr(
-        &mut self,
-        program: &Program,
+        &self,
         expr_id: ExprId,
         environment: &mut Environment,
         sub_context: &SubstitutionContext,
     ) -> Value {
-        let expr = &program.exprs.get(&expr_id).item;
+        let expr = &self.program.exprs.get(&expr_id).item;
         //println!("Eval {} {}", expr_id, expr);
-        let expr_ty_id = program
+        let expr_ty_id = self
+            .program
             .expr_types
             .get(&expr_id)
             .expect("Untyped expr")
             .clone();
-        let expr_ty = program.to_concrete_type(&expr_ty_id, sub_context);
+        let expr_ty = self.program.to_concrete_type(&expr_ty_id, sub_context);
         match expr {
             Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty),
             Expr::StringLiteral(v) => Value::new(ValueCore::String(v.clone()), expr_ty),
@@ -361,24 +382,24 @@ impl<'a> Interpreter<'a> {
                 return environment.get_arg(arg_ref);
             }
             Expr::StaticFunctionCall(function_id, args) => {
-                let func_ty = program
+                let func_ty = self
+                    .program
                     .function_types
                     .get(function_id)
                     .expect("untyped func");
-                let (func_arg_types, return_type) =
-                    self.get_func_arg_types(program, func_ty, args.len());
+                let (func_arg_types, return_type) = self.get_func_arg_types(func_ty, args.len());
                 let arg_values: Vec<_> = args
                     .iter()
-                    .map(|arg| self.eval_expr(program, *arg, environment, sub_context))
+                    .map(|arg| self.eval_expr(*arg, environment, sub_context))
                     .collect();
                 let callee_sub_context = self.get_subtitution_context(
-                    program,
                     &func_arg_types[..],
                     &arg_values[..],
                     &expr_ty,
                     &return_type,
                 );
-                let concrete_function_type = program.to_concrete_type(func_ty, &callee_sub_context);
+                let concrete_function_type =
+                    self.program.to_concrete_type(func_ty, &callee_sub_context);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
                         function_id: *function_id,
@@ -387,29 +408,28 @@ impl<'a> Interpreter<'a> {
                     }),
                     concrete_function_type,
                 );
-                return self.call(callable, arg_values, program, Some(expr_id));
+                return self.call(callable, arg_values, Some(expr_id));
             }
             Expr::DynamicFunctionCall(function_expr_id, args) => {
-                let function_expr_id =
-                    self.eval_expr(program, *function_expr_id, environment, sub_context);
+                let function_expr_id = self.eval_expr(*function_expr_id, environment, sub_context);
                 let arg_values: Vec<_> = args
                     .iter()
-                    .map(|arg| self.eval_expr(program, *arg, environment, sub_context))
+                    .map(|arg| self.eval_expr(*arg, environment, sub_context))
                     .collect();
-                return self.call(function_expr_id, arg_values, program, Some(expr_id));
+                return self.call(function_expr_id, arg_values, Some(expr_id));
             }
             Expr::Do(exprs) => {
                 let mut environment = Environment::block_child(environment);
                 let mut result = Value::new(ValueCore::Tuple(vec![]), expr_ty);
                 assert!(!exprs.is_empty());
                 for expr in exprs {
-                    result = self.eval_expr(program, *expr, &mut environment, sub_context);
+                    result = self.eval_expr(*expr, &mut environment, sub_context);
                 }
                 return result;
             }
             Expr::Bind(pattern_id, expr_id) => {
-                let value = self.eval_expr(program, *expr_id, environment, sub_context);
-                let r = self.match_pattern(pattern_id, &value, program, environment, sub_context);
+                let value = self.eval_expr(*expr_id, environment, sub_context);
+                let r = self.match_pattern(pattern_id, &value, environment, sub_context);
                 assert!(r);
                 return Value::new(ValueCore::Tuple(vec![]), expr_ty);
             }
@@ -417,29 +437,29 @@ impl<'a> Interpreter<'a> {
                 return environment.get_value(pattern_id);
             }
             Expr::If(cond, true_branch, false_branch) => {
-                let cond_value = self.eval_expr(program, *cond, environment, sub_context);
+                let cond_value = self.eval_expr(*cond, environment, sub_context);
                 if cond_value.core.as_bool() {
-                    return self.eval_expr(program, *true_branch, environment, sub_context);
+                    return self.eval_expr(*true_branch, environment, sub_context);
                 } else {
-                    return self.eval_expr(program, *false_branch, environment, sub_context);
+                    return self.eval_expr(*false_branch, environment, sub_context);
                 }
             }
             Expr::Tuple(exprs) => {
                 let values: Vec<_> = exprs
                     .iter()
-                    .map(|e| self.eval_expr(program, *e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, sub_context))
                     .collect();
                 return Value::new(ValueCore::Tuple(values), expr_ty);
             }
             Expr::List(exprs) => {
                 let values: Vec<_> = exprs
                     .iter()
-                    .map(|e| self.eval_expr(program, *e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, sub_context))
                     .collect();
                 return Value::new(ValueCore::List(values), expr_ty);
             }
             Expr::TupleFieldAccess(index, tuple) => {
-                let tuple_value = self.eval_expr(program, *tuple, environment, sub_context);
+                let tuple_value = self.eval_expr(*tuple, environment, sub_context);
                 if let ValueCore::Tuple(t) = &tuple_value.core {
                     return t[*index].clone();
                 } else {
@@ -450,20 +470,20 @@ impl<'a> Interpreter<'a> {
                 let subs: Vec<_> = fmt.split("{}").collect();
                 let values: Vec<_> = args
                     .iter()
-                    .map(|e| self.eval_expr(program, *e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, sub_context))
                     .collect();
                 let mut result = String::new();
                 for (index, sub) in subs.iter().enumerate() {
                     result += sub;
                     if values.len() > index {
-                        let value_as_string = self.call_show(program, values[index].clone());
+                        let value_as_string = self.call_show(values[index].clone());
                         result += &value_as_string;
                     }
                 }
                 return Value::new(ValueCore::String(result), expr_ty);
             }
             Expr::FieldAccess(infos, record_expr) => {
-                let record = self.eval_expr(program, *record_expr, environment, sub_context);
+                let record = self.eval_expr(*record_expr, environment, sub_context);
                 let (id, values) = if let ValueCore::Record(id, values) = &record.core {
                     (id, values)
                 } else {
@@ -478,17 +498,12 @@ impl<'a> Interpreter<'a> {
                 unreachable!()
             }
             Expr::CaseOf(body, cases) => {
-                let case_value = self.eval_expr(program, *body, environment, sub_context);
+                let case_value = self.eval_expr(*body, environment, sub_context);
                 for case in cases {
                     let mut case_env = Environment::block_child(environment);
-                    if self.match_pattern(
-                        &case.pattern_id,
-                        &case_value,
-                        program,
-                        &mut case_env,
-                        sub_context,
-                    ) {
-                        let val = self.eval_expr(program, case.body, &mut case_env, sub_context);
+                    if self.match_pattern(&case.pattern_id, &case_value, &mut case_env, sub_context)
+                    {
+                        let val = self.eval_expr(case.body, &mut case_env, sub_context);
                         return val;
                     }
                 }
@@ -500,19 +515,18 @@ impl<'a> Interpreter<'a> {
                     values.push(Value::new(ValueCore::Bool(false), expr_ty.clone())); // dummy value
                 }
                 for item in items {
-                    let value = self.eval_expr(program, item.expr_id, environment, sub_context);
+                    let value = self.eval_expr(item.expr_id, environment, sub_context);
                     values[item.index] = value;
                 }
                 return Value::new(ValueCore::Record(*type_id, values), expr_ty);
             }
             Expr::RecordUpdate(record_expr_id, updates) => {
-                let value = self.eval_expr(program, *record_expr_id, environment, sub_context);
+                let value = self.eval_expr(*record_expr_id, environment, sub_context);
                 if let ValueCore::Record(id, mut values) = value.core {
                     for update in updates {
                         if id == update.record_id {
                             for item in &update.items {
-                                let value =
-                                    self.eval_expr(program, item.expr_id, environment, sub_context);
+                                let value = self.eval_expr(item.expr_id, environment, sub_context);
                                 values[item.index] = value;
                             }
                             return Value::new(ValueCore::Record(id, values), expr_ty);
@@ -524,15 +538,9 @@ impl<'a> Interpreter<'a> {
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let arg_values: Vec<_> = args
                     .iter()
-                    .map(|e| self.eval_expr(program, *e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, sub_context))
                     .collect();
-                return self.call_class_member(
-                    program,
-                    class_member_id,
-                    arg_values,
-                    Some(expr_id),
-                    expr_ty,
-                );
+                return self.call_class_member(class_member_id, arg_values, Some(expr_id), expr_ty);
             }
         }
     }
@@ -601,11 +609,10 @@ impl<'a> Interpreter<'a> {
     }
 
     fn call_extern(
-        &mut self,
+        &self,
         module: &str,
         name: &str,
         environment: &mut Environment,
-        program: &Program,
         current_expr: Option<ExprId>,
         kind: &NamedFunctionKind,
         ty: ConcreteType,
@@ -720,8 +727,14 @@ impl<'a> Interpreter<'a> {
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
                     "OrderingEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_simple_enum_variant();
-                        let r = environment.get_arg_by_index(1).core.as_simple_enum_variant();
+                        let l = environment
+                            .get_arg_by_index(0)
+                            .core
+                            .as_simple_enum_variant();
+                        let r = environment
+                            .get_arg_by_index(1)
+                            .core
+                            .as_simple_enum_variant();
                         return Value::new(ValueCore::Bool(l == r), ty);
                     }
                     _ => {
@@ -779,7 +792,7 @@ impl<'a> Interpreter<'a> {
                 let v = environment.get_arg_by_index(0).core.as_bool();
                 if !v {
                     let current_expr = current_expr.expect("No current expr");
-                    let location_id = program.exprs.get(&current_expr).location_id;
+                    let location_id = self.program.exprs.get(&current_expr).location_id;
                     self.error_context
                         .report_error(format!("Assertion failed"), location_id);
                     panic!("Abort not implemented");
@@ -818,7 +831,7 @@ impl<'a> Interpreter<'a> {
                         if let ValueCore::List(items) = list.core {
                             let mut subs = Vec::new();
                             for item in items {
-                                let s = self.call_show(program, item);
+                                let s = self.call_show(item);
                                 subs.push(s);
                             }
                             return Value::new(
@@ -835,7 +848,7 @@ impl<'a> Interpreter<'a> {
                     }
                     "FloatShow" => {
                         let value = environment.get_arg_by_index(0).core.as_float();
-                        return Value::new(ValueCore::String(value.to_string( )), ty);
+                        return Value::new(ValueCore::String(value.to_string()), ty);
                     }
                     _ => {
                         panic!("Unimplemented show function {}/{}", module, instance_name);
@@ -843,7 +856,7 @@ impl<'a> Interpreter<'a> {
                 }
             }
             ("Data.Map", "empty") => {
-                return Value::new(ValueCore::Map(BTreeMap::new()), ty); 
+                return Value::new(ValueCore::Map(BTreeMap::new()), ty);
             }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);
@@ -852,26 +865,24 @@ impl<'a> Interpreter<'a> {
     }
 
     fn execute(
-        &mut self,
-        program: &Program,
+        &self,
         id: FunctionId,
         environment: &mut Environment,
         current_expr: Option<ExprId>,
         sub_context: &SubstitutionContext,
         expr_ty: ConcreteType,
     ) -> Value {
-        let function = program.functions.get(&id);
+        let function = self.program.functions.get(&id);
         match &function.info {
             FunctionInfo::NamedFunction(info) => match info.body {
                 Some(body) => {
-                    return self.eval_expr(program, body, environment, sub_context);
+                    return self.eval_expr(body, environment, sub_context);
                 }
                 None => {
                     return self.call_extern(
                         &info.module,
                         &info.name,
                         environment,
-                        program,
                         current_expr,
                         &info.kind,
                         expr_ty,
@@ -879,10 +890,10 @@ impl<'a> Interpreter<'a> {
                 }
             },
             FunctionInfo::Lambda(info) => {
-                return self.eval_expr(program, info.body, environment, sub_context);
+                return self.eval_expr(info.body, environment, sub_context);
             }
             FunctionInfo::VariantConstructor(info) => {
-                let adt = program.typedefs.get(&info.type_id).get_adt();
+                let adt = self.program.typedefs.get(&info.type_id).get_adt();
                 let variant = &adt.variants[info.index];
                 let mut values = Vec::new();
                 for index in 0..variant.items.len() {
@@ -895,7 +906,7 @@ impl<'a> Interpreter<'a> {
                 );
             }
             FunctionInfo::RecordConstructor(info) => {
-                let record = program.typedefs.get(&info.type_id).get_record();
+                let record = self.program.typedefs.get(&info.type_id).get_record();
                 let mut values = Vec::new();
                 for index in 0..record.fields.len() {
                     let v = environment.get_arg_by_index(index);
@@ -906,9 +917,9 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn build_typedefid_cache(&mut self, program: &Program) {
-        let option = program.get_adt_by_name(PRELUDE_NAME, OPTION_NAME);
-        let ordering = program.get_adt_by_name(PRELUDE_NAME, ORDERING_NAME);
+    fn build_typedefid_cache(&mut self) {
+        let option = self.program.get_adt_by_name(PRELUDE_NAME, OPTION_NAME);
+        let ordering = self.program.get_adt_by_name(PRELUDE_NAME, ORDERING_NAME);
         let cache = TypeDefIdCache {
             option_id: option.id,
             ordering_id: ordering.id,
@@ -924,16 +935,14 @@ impl<'a> Interpreter<'a> {
             .expect("Typedefid cache not initialized")
     }
 
-    pub fn run(&mut self, program: &Program) -> Value {
-        self.build_typedefid_cache(program);
-        for (id, function) in &program.functions.items {
+    fn execute_main(interpreter: &Interpreter) -> Value {
+        for (id, function) in &interpreter.program.functions.items {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
                     if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
                         let mut environment = Environment::new(*id, vec![], 0);
                         let sub_context = SubstitutionContext::new();
-                        return self.execute(
-                            program,
+                        return interpreter.execute(
                             *id,
                             &mut environment,
                             None,
@@ -950,5 +959,15 @@ impl<'a> Interpreter<'a> {
             "Cannot find function {} in module {}",
             MAIN_FUNCTION, MAIN_MODULE
         );
+    }
+
+    pub fn run(program: Program, error_context: ErrorContext) -> Value {
+        let mut interpreter = Interpreter::new(program, error_context);
+        interpreter.build_typedefid_cache();
+        INTERPRETER_CONTEXT.with(|c| {
+            let mut p = c.borrow_mut();
+            *p = Some(interpreter);
+        });
+        eval_with_context(Box::new(&Interpreter::execute_main))
     }
 }

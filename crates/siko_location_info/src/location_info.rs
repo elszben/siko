@@ -4,6 +4,7 @@ use crate::location_set::LocationSet;
 use siko_util::Counter;
 use std::collections::BTreeMap;
 
+#[derive(Clone)]
 pub struct LocationInfo {
     items: BTreeMap<LocationId, Item>,
     id: Counter,

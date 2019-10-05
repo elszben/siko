@@ -106,8 +106,8 @@ impl Error {
     }
 
     pub fn report_error(&self, context: &ErrorContext) {
-        let file_manager = context.file_manager;
-        let location_info = context.location_info;
+        let file_manager = &context.file_manager;
+        let location_info = &context.location_info;
         let error = "ERROR:";
         match self {
             Error::LexerError(errors) => {

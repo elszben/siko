@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::Error;
 
+#[derive(Clone)]
 pub struct FileManager {
     pub files: BTreeMap<FilePath, String>,
 }
