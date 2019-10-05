@@ -588,11 +588,8 @@ impl Interpreter {
 
     fn create_none(&self, value_ty: ConcreteType) -> Value {
         let cache = self.get_typedef_id_cache();
-        let concrete_type = ConcreteType::Named(
-            OPTION_NAME.to_string(),
-            cache.option_id,
-            vec![value_ty],
-        );
+        let concrete_type =
+            ConcreteType::Named(OPTION_NAME.to_string(), cache.option_id, vec![value_ty]);
         let core = ValueCore::Variant(
             cache.option_id,
             cache.option_variants.get_index("None"),

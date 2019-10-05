@@ -216,7 +216,7 @@ impl Resolver {
                     name: adt.name.clone(),
                     module: ast_module.name.clone(),
                     id: ir_typedef_id,
-                    type_args: (0..adt.type_args.len()).collect(),
+                    type_args: Vec::new(),
                     variants: Vec::new(),
                 };
                 let typedef = TypeDef::Adt(ir_adt);
@@ -554,6 +554,7 @@ impl Resolver {
             }
 
             let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
+            ir_adt.type_args = type_arg_resolver.collect_args();
             ir_adt.variants = ir_variants;
         }
     }

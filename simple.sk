@@ -10,5 +10,5 @@ get_stuff m k = case get m k of
 
 main = do
     m :: Map String String <- empty
-    insert m "alma" "korte"
-    get m "alma"
+    (m, _) <- insert m "alma" "korte"
+    get_stuff m "alma"

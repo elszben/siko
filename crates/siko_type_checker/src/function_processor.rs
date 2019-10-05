@@ -267,7 +267,9 @@ impl FunctionProcessor {
                     for arg in &adt.type_args {
                         let var = match arg_map.get(arg) {
                             Some(v) => *v,
-                            None => self.type_store.get_new_type_var(),
+                            None => {
+                                self.type_store.get_new_type_var()
+                            }
                         };
                         type_args.push(var);
                     }

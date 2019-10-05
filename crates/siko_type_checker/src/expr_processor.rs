@@ -8,8 +8,6 @@ use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use crate::unifier::Unifier;
-use siko_ir::walker::walk_expr;
-use siko_ir::walker::Visitor;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -21,6 +19,8 @@ use siko_ir::types::FunctionType as IrFunctionType;
 use siko_ir::types::Type as IrType;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeId as IrTypeId;
+use siko_ir::walker::walk_expr;
+use siko_ir::walker::Visitor;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -42,6 +42,12 @@ impl<'a, 'b> Visitor for UndefinedGenericsChecker<'a, 'b> {
         for arg in args {
             if !self.args.contains(&arg) {
                 let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
+                println!(
+                    "Type {}",
+                    self.expr_processor
+                        .type_store
+                        .get_resolved_type_string(&var)
+                );
                 let err = TypecheckError::TypeAnnotationNeeded(location);
                 self.errors.push(err);
                 break;
@@ -241,6 +247,7 @@ impl<'a> ExprProcessor<'a> {
         let fn_info_map = self.function_type_info_map.clone();
         for (_, info) in &fn_info_map {
             let args = self.type_store.get_type_args(&info.function_type);
+            //println!("{} {}", info.displayed_name, self.type_store.get_resolved_type_string(&info.function_type));
             if let Some(body) = info.body {
                 let mut checker = UndefinedGenericsChecker {
                     expr_processor: self,
