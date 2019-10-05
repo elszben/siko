@@ -648,12 +648,12 @@ impl Interpreter {
                 println!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
-            (PRELUDE_NAME, "opAnd") => {
+            ("Std.Ops", "opAnd") => {
                 let l = environment.get_arg_by_index(0).core.as_bool();
                 let r = environment.get_arg_by_index(1).core.as_bool();
                 return Value::new(ValueCore::Bool(l && r), ty);
             }
-            (PRELUDE_NAME, "opOr") => {
+            ("Std.Ops", "opOr") => {
                 let l = environment.get_arg_by_index(0).core.as_bool();
                 if l {
                     return Value::new(ValueCore::Bool(l), ty);

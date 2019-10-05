@@ -567,7 +567,7 @@ pub fn process_expr(
                         let ir_expr = IrExpr::DynamicFunctionCall(right, vec![left]);
                         return add_expr(ir_expr, id, ir_program, program);
                     } else {
-                        let path = format!("{}.{}", PRELUDE_NAME, op.get_function_name());
+                        let path = op.get_function_name();
                         match resolve_item_path(
                             &path,
                             module,

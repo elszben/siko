@@ -23,19 +23,19 @@ pub enum BuiltinOperator {
 impl BuiltinOperator {
     pub fn get_function_name(&self) -> String {
         match self {
-            BuiltinOperator::Add => format!("opAdd"),
-            BuiltinOperator::Sub => format!("opSub"),
-            BuiltinOperator::Mul => format!("opMul"),
-            BuiltinOperator::Div => format!("opDiv"),
-            BuiltinOperator::Equals => format!("opEq"),
-            BuiltinOperator::NotEquals => format!("opNotEq"),
-            BuiltinOperator::LessThan => format!("opLessThan"),
-            BuiltinOperator::LessOrEqualThan => format!("opLessEqual"),
-            BuiltinOperator::GreaterThan => format!("opGreaterThan"),
-            BuiltinOperator::GreaterOrEqualThan => format!("opGreaterEqual"),
-            BuiltinOperator::And => format!("opAnd"),
-            BuiltinOperator::Or => format!("opOr"),
-            BuiltinOperator::Not => format!("opNot"),
+            BuiltinOperator::Add => format!("Std.Ops.opAdd"),
+            BuiltinOperator::Sub => format!("Std.Ops.opSub"),
+            BuiltinOperator::Mul => format!("Std.Ops.opMul"),
+            BuiltinOperator::Div => format!("Std.Ops.opDiv"),
+            BuiltinOperator::Equals => format!("Std.Ops.opEq"),
+            BuiltinOperator::NotEquals => format!("Std.Ops.opNotEq"),
+            BuiltinOperator::LessThan => format!("Std.Ops.opLessThan"),
+            BuiltinOperator::LessOrEqualThan => format!("Std.Ops.opLessEqual"),
+            BuiltinOperator::GreaterThan => format!("Std.Ops.opGreaterThan"),
+            BuiltinOperator::GreaterOrEqualThan => format!("Std.Ops.opGreaterEqual"),
+            BuiltinOperator::And => format!("Std.Ops.opAnd"),
+            BuiltinOperator::Or => format!("Std.Ops.opOr"),
+            BuiltinOperator::Not => format!("Std.Ops.opNot"),
             _ => panic!("Op {:?} has no func name", self),
         }
     }
