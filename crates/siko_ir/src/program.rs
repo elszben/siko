@@ -101,6 +101,30 @@ impl Program {
         }
     }
 
+    pub fn to_debug_string(&self, type_id: &TypeId) -> String {
+        let ty = self.types.get(type_id).expect("Type not found");
+        match ty {
+            Type::Function(func_type) => {
+                let from = self.to_debug_string(&func_type.from);
+                let to = self.to_debug_string(&func_type.to);
+                format!("{} -> {}", from, to)
+            }
+            Type::Named(name, _, items) => {
+                let items: Vec<_> = items.iter().map(|i| self.to_debug_string(i)).collect();
+                if items.is_empty() {
+                    format!("{}", name)
+                } else {
+                    format!("{} {}", name, items.join(" "))
+                }
+            }
+            Type::Tuple(items) => {
+                let items: Vec<_> = items.iter().map(|i| self.to_debug_string(i)).collect();
+                format!("({})", items.join(", "))
+            }
+            Type::TypeArgument(index, _) => format!("{}", index),
+        }
+    }
+
     pub fn match_generic_types(
         &self,
         concrete_type: &ConcreteType,
@@ -108,6 +132,7 @@ impl Program {
         sub_context: &mut SubstitutionContext,
     ) {
         let generic_type = self.types.get(generic_type_id).expect("Type not found");
+        //println!("Matching {} and {}", concrete_type, self.to_debug_string(generic_type_id));
         match (concrete_type, generic_type) {
             (_, Type::TypeArgument(index, _)) => {
                 sub_context.add_generic(*index, concrete_type.clone());

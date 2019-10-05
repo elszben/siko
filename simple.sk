@@ -3,6 +3,12 @@ module Main where
 import Std.Util
 import Data.Map
 
+get_stuff k v :: (Ord k, Show v) => Map k v -> k -> ()
+get_stuff m k = case get m k of
+                    Some v -> println "Found {}" % v
+                    None -> println "Not found"
+
 main = do
     m :: Map String String <- empty
     insert m "alma" "korte"
+    get m "alma"

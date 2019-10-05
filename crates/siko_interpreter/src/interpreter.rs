@@ -317,16 +317,9 @@ impl Interpreter {
 
     pub fn call_op_cmp(&self, arg1: Value, arg2: Value) -> Value {
         let ordering_ty = self.program.ordering_concrete_type();
-        let class_id = self
-            .program
-            .class_names
-            .get("Ord")
-            .expect("Ord not found");
+        let class_id = self.program.class_names.get("Ord").expect("Ord not found");
         let class = self.program.classes.get(class_id);
-        let class_member_id = class
-            .members
-            .get("cmp")
-            .expect("cmp not found");
+        let class_member_id = class.members.get("cmp").expect("cmp not found");
         self.call_class_member(class_member_id, vec![arg1, arg2], None, ordering_ty)
     }
 
@@ -593,12 +586,12 @@ impl Interpreter {
         some_value
     }
 
-    fn create_none(&self, value: Value) -> Value {
+    fn create_none(&self, value_ty: ConcreteType) -> Value {
         let cache = self.get_typedef_id_cache();
         let concrete_type = ConcreteType::Named(
             OPTION_NAME.to_string(),
             cache.option_id,
-            vec![value.ty.clone()],
+            vec![value_ty],
         );
         let core = ValueCore::Variant(
             cache.option_id,
@@ -635,7 +628,7 @@ impl Interpreter {
             }
             None => {
                 let value = self.create_ordering(0);
-                return self.create_none(value);
+                return self.create_none(value.ty);
             }
         }
     }
@@ -889,6 +882,33 @@ impl Interpreter {
             }
             ("Data.Map", "empty") => {
                 return Value::new(ValueCore::Map(BTreeMap::new()), ty);
+            }
+            ("Data.Map", "insert") => {
+                let mut first_arg = environment.get_arg_by_index(0);
+                let mut map_type_args = first_arg.ty.get_type_args();
+                let mut map = first_arg.core.as_map();
+                let key = environment.get_arg_by_index(1);
+                let value = environment.get_arg_by_index(2);
+                let res = map.insert(key, value);
+                let v = match res {
+                    Some(v) => self.create_some(v),
+                    None => self.create_none(map_type_args.remove(1)),
+                };
+                first_arg.core = ValueCore::Map(map);
+                let tuple = Value::new(ValueCore::Tuple(vec![first_arg, v]), ty);
+                return tuple;
+            }
+            ("Data.Map", "get") => {
+                let first_arg = environment.get_arg_by_index(0);
+                let mut map_type_args = first_arg.ty.get_type_args();
+                let map = first_arg.core.as_map();
+                let key = environment.get_arg_by_index(1);
+                let res = map.get(&key);
+                let v = match res {
+                    Some(v) => self.create_some(v.clone()),
+                    None => self.create_none(map_type_args.remove(1)),
+                };
+                return v;
             }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);

@@ -162,6 +162,15 @@ impl ConcreteType {
             }
         }
     }
+
+    pub fn get_type_args(&self) -> Vec<ConcreteType> {
+        match self {
+            ConcreteType::Named(_, _, items) => {
+                items.clone()
+            }
+            _ => unreachable!()
+        }
+    }
 }
 
 impl fmt::Display for ConcreteType {
@@ -230,6 +239,7 @@ impl FunctionType {
             if let Type::Function(to_func_type) =
                 program.types.get(&self.to).expect("Type not found")
             {
+                arg_vars.push(self.from);
                 to_func_type.get_arg_and_return_types(program, arg_vars, arg_count - 1)
             } else {
                 assert_eq!(arg_count, 0);

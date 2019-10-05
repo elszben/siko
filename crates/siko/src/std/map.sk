@@ -5,5 +5,8 @@ data Map k v = extern
 empty k v :: (Ord k) => Map k v
 empty = extern
 
-insert k v :: (Ord k) => Map k v -> k -> v -> Map k v
+insert k v :: (Ord k) => Map k v -> k -> v -> (Map k v, Option v)
 insert m k v = extern
+
+get k v :: (Ord k) => Map k v -> k -> Option v
+get m k = extern
