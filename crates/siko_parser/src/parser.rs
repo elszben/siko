@@ -23,7 +23,9 @@ use siko_syntax::class::Class;
 use siko_syntax::class::Constraint;
 use siko_syntax::class::Instance;
 use siko_syntax::data::Adt;
+use siko_syntax::data::AutoDeriveMode;
 use siko_syntax::data::Data;
+use siko_syntax::data::DerivedClass;
 use siko_syntax::data::Record;
 use siko_syntax::data::RecordField;
 use siko_syntax::data::Variant;
@@ -715,6 +717,7 @@ impl<'a> Parser<'a> {
         }
         let end_index = self.get_index();
         let location_id = self.get_location_id(start_index, end_index);
+        let auto_derive_method = self.parse_auto_derive_method()?;
         let record = Record {
             name: name,
             id: self.program.records.get_id(),
@@ -722,6 +725,7 @@ impl<'a> Parser<'a> {
             fields: fields,
             location_id: location_id,
             external: false,
+            auto_derive_method: auto_derive_method,
         };
         Ok(record)
     }
@@ -742,6 +746,38 @@ impl<'a> Parser<'a> {
         };
         self.program.variants.add_item(id, variant);
         Ok(id)
+    }
+
+    fn parse_auto_derive_method(&mut self) -> Result<AutoDeriveMode, ParseError> {
+        if self.current(TokenKind::KeywordDeriving) {
+            self.expect(TokenKind::KeywordDeriving)?;
+            if self.current(TokenKind::LParen) {
+                self.expect(TokenKind::LParen)?;
+                self.expect(TokenKind::RParen)?;
+                return Ok(AutoDeriveMode::Explicit(Vec::new()));
+            } else {
+                let mut derived_classes = Vec::new();
+                loop {
+                    let start_index = self.get_index();
+                    let name = self.parse_qualified_type_name()?;
+                    let end_index = self.get_index();
+                    let location_id = self.get_location_id(start_index, end_index);
+                    let derived_class = DerivedClass {
+                        name: name,
+                        location_id: location_id,
+                    };
+                    derived_classes.push(derived_class);
+                    if self.current(TokenKind::EndOfItem) {
+                        break;
+                    } else {
+                        self.expect(TokenKind::Comma)?;
+                    }
+                }
+                return Ok(AutoDeriveMode::Explicit(derived_classes));
+            }
+        } else {
+            return Ok(AutoDeriveMode::Implicit);
+        }
     }
 
     fn parse_data(&mut self) -> Result<Data, ParseError> {
@@ -765,6 +801,7 @@ impl<'a> Parser<'a> {
                 fields: Vec::new(),
                 location_id: location_id,
                 external: true,
+                auto_derive_method: AutoDeriveMode::Implicit,
             };
             Ok(Data::Record(record))
         } else {
@@ -780,12 +817,14 @@ impl<'a> Parser<'a> {
             }
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
+            let auto_derive_method = self.parse_auto_derive_method()?;
             let adt = Adt {
                 name: name,
                 id: self.program.adts.get_id(),
                 type_args: args,
                 variants: variants,
                 location_id: location_id,
+                auto_derive_method: auto_derive_method,
             };
             Ok(Data::Adt(adt))
         }

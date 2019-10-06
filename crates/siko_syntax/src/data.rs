@@ -1,6 +1,18 @@
 use crate::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 
+#[derive(Debug, Clone)]
+pub struct DerivedClass {
+    pub name: String,
+    pub location_id: LocationId,
+}
+
+#[derive(Debug, Clone)]
+pub enum AutoDeriveMode {
+    Implicit,
+    Explicit(Vec<DerivedClass>),
+}
+
 pub enum Data {
     Adt(Adt),
     Record(Record),
@@ -13,6 +25,7 @@ pub struct Adt {
     pub type_args: Vec<(String, LocationId)>,
     pub variants: Vec<VariantId>,
     pub location_id: LocationId,
+    pub auto_derive_method: AutoDeriveMode,
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +66,7 @@ pub struct Record {
     pub fields: Vec<RecordFieldId>,
     pub location_id: LocationId,
     pub external: bool,
+    pub auto_derive_method: AutoDeriveMode,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

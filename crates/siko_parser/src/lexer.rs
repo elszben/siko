@@ -139,6 +139,7 @@ impl Lexer {
             "instance" => Token::KeywordInstance,
             "protocol" => Token::KeywordProtocol,
             "actor" => Token::KeywordActor,
+            "deriving" => Token::KeywordDeriving,
             "_" => Token::Wildcard,
             _ => match identifier.parse::<i64>() {
                 Ok(v) => Token::IntegerLiteral(v),
