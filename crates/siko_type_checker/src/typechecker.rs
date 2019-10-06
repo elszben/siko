@@ -44,12 +44,8 @@ impl Typechecker {
     fn process_auto_derives(&self, program: &mut Program, errors: &mut Vec<TypecheckError>) {
         for (_, typedef) in &program.typedefs.items {
             match typedef {
-                TypeDef::Adt(adt) => {
-
-                }
-                TypeDef::Record(record) => {
-                    
-                }
+                TypeDef::Adt(adt) => {}
+                TypeDef::Record(record) => {}
             }
         }
     }
@@ -82,8 +78,7 @@ impl Typechecker {
         let function_dep_processor =
             FunctionDependencyProcessor::new(program, &function_type_info_map);
 
-        let ordered_dep_groups =
-            function_dep_processor.process_functions(program);
+        let ordered_dep_groups = function_dep_processor.process_functions(program);
 
         self.check_main(program, &mut errors);
 

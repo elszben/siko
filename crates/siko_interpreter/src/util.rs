@@ -3,9 +3,9 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_constants::OPTION_NAME;
 use siko_constants::ORDERING_NAME;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::ConcreteType;
 use std::cmp::Ordering;
-use siko_ir::function::NamedFunctionKind;
 
 pub fn get_instance_name_from_kind(kind: &NamedFunctionKind) -> &str {
     if let NamedFunctionKind::InstanceMember(Some(s)) = kind {
