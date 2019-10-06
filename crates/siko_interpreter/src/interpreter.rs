@@ -39,14 +39,6 @@ thread_local! {
     static INTERPRETER_CONTEXT: RefCell<Option<Interpreter>> = RefCell::new(None);
 }
 
-pub fn eval_with_context(eval_fn: Box<dyn FnOnce(&Interpreter) -> Value>) -> Value {
-    let v = INTERPRETER_CONTEXT.with(|c| {
-        let interpreter = c.borrow();
-        eval_fn(interpreter.as_ref().unwrap())
-    });
-    v
-}
-
 #[derive(Clone)]
 pub struct VariantCache {
     pub variants: BTreeMap<String, usize>,
@@ -281,22 +273,73 @@ impl Interpreter {
     }
 
     pub fn call_show(arg: Value) -> String {
+        let string_ty = Interpreter::get_string_concrete_type();
+        let v = Interpreter::call_specific_class_member(vec![arg], "Show", "show", string_ty);
+        v.core.as_string()
+    }
+
+    pub fn get_string_concrete_type() -> ConcreteType {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
-            let i = b.as_ref().expect(".");
+            let i = b.as_ref().expect("Interpreter not set");
             let string_ty = i.program.string_concrete_type();
-            let class_id = i.program.class_names.get("Show").expect("Show not found");
+            string_ty
+        })
+    }
+
+    pub fn get_bool_concrete_type() -> ConcreteType {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect("Interpreter not set");
+            let string_ty = i.program.bool_concrete_type();
+            string_ty
+        })
+    }
+
+    pub fn get_optional_ordering_concrete_type() -> ConcreteType {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect("Interpreter not set");
+            let option_ordering_ty = i
+                .program
+                .option_concrete_type(i.program.ordering_concrete_type());
+            option_ordering_ty
+        })
+    }
+
+    pub fn get_ordering_concrete_type() -> ConcreteType {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect("Interpreter not set");
+            i.program.ordering_concrete_type()
+        })
+    }
+
+    pub fn call_specific_class_member(
+        args: Vec<Value>,
+        class_name: &str,
+        member_name: &str,
+        expr_ty: ConcreteType,
+    ) -> Value {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect("Interpreter not set");
+            let class_id = i
+                .program
+                .class_names
+                .get(class_name)
+                .expect("Show not found");
             let class = i.program.classes.get(class_id);
-            let class_member_id = class.members.get("show").expect("show not found");
-            let v = i.call_class_member(class_member_id, vec![arg], None, string_ty);
-            v.core.as_string()
+            let class_member_id = class.members.get(member_name).expect("show not found");
+            let v = i.call_class_member(class_member_id, args, None, expr_ty);
+            v
         })
     }
 
     pub fn call_abort(current_expr: ExprId) {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
-            let i = b.as_ref().expect(".");
+            let i = b.as_ref().expect("Interpreter not set");
             let location_id = i.program.exprs.get(&current_expr).location_id;
             i.error_context
                 .report_error(format!("Assertion failed"), location_id);
@@ -304,41 +347,24 @@ impl Interpreter {
         })
     }
 
-    pub fn call_op_eq(&self, arg1: Value, arg2: Value) -> Value {
-        let bool_ty = self.program.bool_concrete_type();
-        let class_id = self
-            .program
-            .class_names
-            .get("PartialEq")
-            .expect("PartialEq not found");
-        let class = self.program.classes.get(class_id);
-        let class_member_id = class.members.get("opEq").expect("opEq not found");
-        self.call_class_member(class_member_id, vec![arg1, arg2], None, bool_ty)
+    pub fn call_op_eq(arg1: Value, arg2: Value) -> Value {
+        let bool_ty = Interpreter::get_bool_concrete_type();
+        Interpreter::call_specific_class_member(vec![arg1, arg2], "PartialEq", "opEq", bool_ty)
     }
 
-    pub fn call_op_partial_cmp(&self, arg1: Value, arg2: Value) -> Value {
-        let option_ordering_ty = self
-            .program
-            .option_concrete_type(self.program.ordering_concrete_type());
-        let class_id = self
-            .program
-            .class_names
-            .get("PartialOrd")
-            .expect("PartialOrd not found");
-        let class = self.program.classes.get(class_id);
-        let class_member_id = class
-            .members
-            .get("partialCmp")
-            .expect("partialCmp not found");
-        self.call_class_member(class_member_id, vec![arg1, arg2], None, option_ordering_ty)
+    pub fn call_op_partial_cmp(arg1: Value, arg2: Value) -> Value {
+        let option_ordering_ty = Interpreter::get_optional_ordering_concrete_type();
+        Interpreter::call_specific_class_member(
+            vec![arg1, arg2],
+            "PartialOrd",
+            "partialCmp",
+            option_ordering_ty,
+        )
     }
 
-    pub fn call_op_cmp(&self, arg1: Value, arg2: Value) -> Value {
-        let ordering_ty = self.program.ordering_concrete_type();
-        let class_id = self.program.class_names.get("Ord").expect("Ord not found");
-        let class = self.program.classes.get(class_id);
-        let class_member_id = class.members.get("cmp").expect("cmp not found");
-        self.call_class_member(class_member_id, vec![arg1, arg2], None, ordering_ty)
+    pub fn call_op_cmp(arg1: Value, arg2: Value) -> Value {
+        let ordering_ty = Interpreter::get_ordering_concrete_type();
+        Interpreter::call_specific_class_member(vec![arg1, arg2], "Ord", "cmp", ordering_ty)
     }
 
     fn call_class_member(
@@ -675,7 +701,11 @@ impl Interpreter {
     pub fn get_typedef_id_cache() -> TypeDefIdCache {
         INTERPRETER_CONTEXT.with(|i| {
             let i = i.borrow();
-;            i.as_ref().expect(".").typedefid_cache.clone().expect("..")
+;            i.as_ref()
+                .expect("Interpreter not set")
+                .typedefid_cache
+                .clone()
+                .expect("TypedefId cache not set")
         })
     }
 
@@ -730,6 +760,10 @@ impl Interpreter {
             let mut p = c.borrow_mut();
             *p = Some(interpreter);
         });
-        eval_with_context(Box::new(&Interpreter::execute_main))
+        INTERPRETER_CONTEXT.with(|c| {
+            let p = c.borrow();
+            let i = p.as_ref().expect("Interpreter not set");
+            Interpreter::execute_main(i)
+        })
     }
 }

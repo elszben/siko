@@ -1,5 +1,5 @@
 module Main where
 
-main = do 
-        print "alma"
-        println "korte"
+import Std.Util
+
+main = assert False

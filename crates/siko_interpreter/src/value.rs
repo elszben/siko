@@ -1,4 +1,3 @@
-use crate::interpreter::eval_with_context;
 use crate::interpreter::Interpreter;
 use siko_ir::function::FunctionId;
 use siko_ir::types::ConcreteType;
@@ -31,9 +30,7 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         let copy = self.clone();
         let other = other.clone();
-        let func: Box<dyn FnOnce(&Interpreter) -> Value> =
-            Box::new(|interpreter: &Interpreter| interpreter.call_op_eq(copy, other));
-        let v = eval_with_context(func);
+        let v = Interpreter::call_op_eq(copy, other);
         v.core.as_bool()
     }
 }
@@ -42,9 +39,7 @@ impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let copy = self.clone();
         let other = other.clone();
-        let func: Box<dyn FnOnce(&Interpreter) -> Value> =
-            Box::new(|interpreter: &Interpreter| interpreter.call_op_partial_cmp(copy, other));
-        let v = eval_with_context(func);
+        let v = Interpreter::call_op_partial_cmp(copy, other);
         match v.core.as_option(0, 1) {
             Some(v) => Some(v.core.as_ordering(0, 1, 2)),
             None => None,
@@ -58,9 +53,7 @@ impl Ord for Value {
     fn cmp(&self, other: &Self) -> Ordering {
         let copy = self.clone();
         let other = other.clone();
-        let func: Box<dyn FnOnce(&Interpreter) -> Value> =
-            Box::new(|interpreter: &Interpreter| interpreter.call_op_cmp(copy, other));
-        let v = eval_with_context(func);
+        let v = Interpreter::call_op_cmp(copy, other);
         v.core.as_ordering(0, 1, 2)
     }
 }
