@@ -2,16 +2,16 @@ module Data.String where
 
 data String = extern
 
-instance as StringAdd Add String where
+instance Add String where
     opAdd a b = extern
 
-instance as StringPartialOrd PartialOrd String where
+instance PartialOrd String where
     partialCmp a b = extern
 
-instance as StringOrd Ord String where
+instance Ord String where
     cmp a b = extern
 
-instance as StringPartialEq PartialEq String where
+instance PartialEq String where
     opEq a b = extern
 
 instance Eq String

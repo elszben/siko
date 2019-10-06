@@ -4,11 +4,17 @@ import Std.Util
 import Data.Map
 
 -- get_stuff k v :: (Ord k, Show v) => Map k v -> k -> ()
-get_stuff m k = case get m k of
+get_stuff1 m k = case get m k of
                     Some v -> assert True
                     None -> assert False
+
+get_stuff2 m k = case get m k of
+                    Some v -> assert False
+                    None -> assert True
 
 main = do
     m :: Map String String <- empty
     (m, _) <- insert m "alma" "korte"
-    get_stuff m "alma"
+    get_stuff1 m "alma"
+    (m, _) <- remove m "alma"
+    get_stuff2 m "alma"

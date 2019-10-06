@@ -699,6 +699,20 @@ impl Interpreter {
                 let tuple = Value::new(ValueCore::Tuple(vec![first_arg, v]), ty);
                 return tuple;
             }
+            ("Data.Map", "remove") => {
+                let mut first_arg = environment.get_arg_by_index(0);
+                let mut map_type_args = first_arg.ty.get_type_args();
+                let mut map = first_arg.core.as_map();
+                let key = environment.get_arg_by_index(1);
+                let res = map.remove(&key);
+                let v = match res {
+                    Some(v) => create_some(v),
+                    None => create_none(map_type_args.remove(1)),
+                };
+                first_arg.core = ValueCore::Map(map);
+                let tuple = Value::new(ValueCore::Tuple(vec![first_arg, v]), ty);
+                return tuple;
+            }
             ("Data.Map", "get") => {
                 let first_arg = environment.get_arg_by_index(0);
                 let mut map_type_args = first_arg.ty.get_type_args();

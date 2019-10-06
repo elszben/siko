@@ -10,3 +10,6 @@ insert m k v = extern
 
 get k v :: (Ord k) => Map k v -> k -> Option v
 get m k = extern
+
+remove k v :: (Ord k) => Map k v -> k -> (Map k v, Option v)
+remove m k = extern
