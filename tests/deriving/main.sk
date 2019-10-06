@@ -2,12 +2,12 @@ module Main where
 
 data Foo = { alma :: String } 
 data Foo2 = { alma :: String } deriving ()
-data Foo3 = { alma :: String } deriving Alma
-data Foo4 = { alma :: String } deriving Alma, Korte
+data Foo3 = { alma :: String } deriving Show
+data Foo4 = { alma :: String } deriving Eq, PartialEq
 
 data Boo = One | Two
 data Boo2 = One2 | Two2 deriving ()
-data Boo3 = One3 | Two3 deriving Alma
-data Boo4 = One4 | Two4 deriving Alma, Korte
+data Boo3 = One3 | Two3 deriving Show
+data Boo4 = One4 | Two4 deriving Eq, PartialEq
 
 main = ()
