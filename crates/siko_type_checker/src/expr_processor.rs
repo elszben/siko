@@ -1,5 +1,5 @@
 use crate::common::ClassMemberTypeInfo;
-use crate::common::DependencyGroup;
+use crate::dependency_processor::DependencyGroup;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
@@ -177,8 +177,8 @@ impl<'a> ExprProcessor<'a> {
             .expect("Type var for pattern not found")
     }
 
-    pub fn process_dep_group(&mut self, group: &DependencyGroup, errors: &mut Vec<TypecheckError>) {
-        for function in &group.functions {
+    pub fn process_dep_group(&mut self, group: &DependencyGroup<FunctionId>, errors: &mut Vec<TypecheckError>) {
+        for function in &group.items {
             self.process_function(function, errors, group);
         }
     }
@@ -187,7 +187,7 @@ impl<'a> ExprProcessor<'a> {
         &mut self,
         function_id: &FunctionId,
         errors: &mut Vec<TypecheckError>,
-        group: &DependencyGroup,
+        group: &DependencyGroup<FunctionId>,
     ) {
         let type_info = self
             .function_type_info_map

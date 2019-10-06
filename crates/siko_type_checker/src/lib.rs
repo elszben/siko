@@ -1,6 +1,7 @@
 pub mod check_context;
 pub mod class_processor;
 pub mod common;
+pub mod dependency_processor;
 pub mod error;
 pub mod expr_processor;
 pub mod function_dep_processor;

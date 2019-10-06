@@ -109,7 +109,7 @@ impl Compiler {
             println!("program {:#?}", ir_program);
         }
 
-        let mut typechecker = Typechecker::new();
+        let typechecker = Typechecker::new();
 
         typechecker.check(&mut ir_program)?;
 

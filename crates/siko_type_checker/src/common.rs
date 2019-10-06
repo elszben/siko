@@ -65,19 +65,6 @@ pub struct VariantTypeInfo {
 }
 
 #[derive(Clone)]
-pub struct DependencyGroup {
-    pub functions: BTreeSet<FunctionId>,
-}
-
-impl DependencyGroup {
-    pub fn new() -> DependencyGroup {
-        DependencyGroup {
-            functions: BTreeSet::new(),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct FunctionTypeInfo {
     pub displayed_name: String,
     pub args: Vec<TypeVariable>,

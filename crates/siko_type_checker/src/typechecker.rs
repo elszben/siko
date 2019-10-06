@@ -9,6 +9,7 @@ use crate::type_store::TypeStore;
 use siko_constants::LIST_NAME;
 use siko_ir::function::FunctionInfo;
 use siko_ir::program::Program;
+use siko_ir::types::TypeDef;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,7 +41,20 @@ impl Typechecker {
         }
     }
 
-    pub fn check(&mut self, program: &mut Program) -> Result<(), Error> {
+    fn process_auto_derives(&self, program: &mut Program, errors: &mut Vec<TypecheckError>) {
+        for (_, typedef) in &program.typedefs.items {
+            match typedef {
+                TypeDef::Adt(adt) => {
+
+                }
+                TypeDef::Record(record) => {
+                    
+                }
+            }
+        }
+    }
+
+    pub fn check(&self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
         let check_context = Rc::new(RefCell::new(CheckContext::new(
             program.type_instance_resolver.clone(),
@@ -66,9 +80,9 @@ impl Typechecker {
         }
 
         let function_dep_processor =
-            FunctionDependencyProcessor::new(type_store, function_type_info_map);
+            FunctionDependencyProcessor::new(program, &function_type_info_map);
 
-        let (type_store, function_type_info_map, ordered_dep_groups) =
+        let ordered_dep_groups =
             function_dep_processor.process_functions(program);
 
         self.check_main(program, &mut errors);
@@ -76,6 +90,8 @@ impl Typechecker {
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
+
+        self.process_auto_derives(program, &mut errors);
 
         let mut expr_processor = ExprProcessor::new(
             type_store,

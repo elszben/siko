@@ -1,6 +1,6 @@
 use crate::common::create_general_function_type;
-use crate::common::DependencyGroup;
 use crate::common::RecordTypeInfo;
+use crate::dependency_processor::DependencyGroup;
 use crate::error::TypecheckError;
 use crate::expr_processor::ExprProcessor;
 use crate::type_processor::process_type_signature;
@@ -28,7 +28,7 @@ use std::collections::BTreeMap;
 pub struct Unifier<'a, 'b> {
     expr_processor: &'a mut ExprProcessor<'b>,
     errors: &'a mut Vec<TypecheckError>,
-    group: &'a DependencyGroup,
+    group: &'a DependencyGroup<FunctionId>,
     arg_map: BTreeMap<usize, TypeVariable>,
 }
 
@@ -36,7 +36,7 @@ impl<'a, 'b: 'a> Unifier<'a, 'b> {
     pub fn new(
         expr_processor: &'a mut ExprProcessor<'b>,
         errors: &'a mut Vec<TypecheckError>,
-        group: &'a DependencyGroup,
+        group: &'a DependencyGroup<FunctionId>,
         arg_map: BTreeMap<usize, TypeVariable>,
     ) -> Unifier<'a, 'b> {
         Unifier {
@@ -55,7 +55,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .function_type_info_map
             .get(function_id)
             .expect("Type info not found");
-        if self.group.functions.contains(function_id) {
+        if self.group.items.contains(function_id) {
             return type_info.function_type;
         }
         let mut context = self.expr_processor.type_store.create_clone_context();
