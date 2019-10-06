@@ -4,10 +4,8 @@ use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::class::InstanceId;
 use siko_ir::expr::ExprId;
-use siko_ir::function::FunctionId;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::fmt;
 
 pub struct ClassTypeVariableHandler {

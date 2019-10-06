@@ -1,3 +1,4 @@
+use crate::auto_derive_processor::TypedefDependencyProcessor;
 use crate::check_context::CheckContext;
 use crate::class_processor::ClassProcessor;
 use crate::error::Error;
@@ -41,15 +42,6 @@ impl Typechecker {
         }
     }
 
-    fn process_auto_derives(&self, program: &mut Program, errors: &mut Vec<TypecheckError>) {
-        for (_, typedef) in &program.typedefs.items {
-            match typedef {
-                TypeDef::Adt(adt) => {}
-                TypeDef::Record(record) => {}
-            }
-        }
-    }
-
     pub fn check(&self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
         let check_context = Rc::new(RefCell::new(CheckContext::new(
@@ -68,7 +60,7 @@ impl Typechecker {
 
         let function_processor = FunctionProcessor::new(type_store);
 
-        let (type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
+        let (mut type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
             function_processor.process_functions(program, &mut errors, &class_member_type_info_map);
 
         if !errors.is_empty() {
@@ -78,7 +70,7 @@ impl Typechecker {
         let function_dep_processor =
             FunctionDependencyProcessor::new(program, &function_type_info_map);
 
-        let ordered_dep_groups = function_dep_processor.process_functions(program);
+        let ordered_dep_groups = function_dep_processor.process_functions();
 
         self.check_main(program, &mut errors);
 
@@ -86,7 +78,8 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        self.process_auto_derives(program, &mut errors);
+        let mut processor = TypedefDependencyProcessor::new(program, &mut type_store);
+        processor.process_functions();
 
         let mut expr_processor = ExprProcessor::new(
             type_store,

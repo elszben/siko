@@ -2,4 +2,10 @@ module Main where
 
 import Std.Util
 
-main = assert False
+data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Option Int)
+
+data Simple = { alma :: String }
+data Simple2 a = { alma :: Option a } deriving Eq
+data Simple3 a = extern 
+
+main = assert True

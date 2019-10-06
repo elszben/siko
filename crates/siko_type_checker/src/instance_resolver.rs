@@ -36,10 +36,10 @@ impl InstanceResolver {
         if let Some(class_instances) = self.instances.get(class_id) {
             for instance in class_instances {
                 let mut context = type_store.create_clone_context();
-                let instance_var = context.clone_var(instance.type_var);
+                let test_instance_var = context.clone_var(instance.type_var);
                 let second_instance_var = context.clone_var(instance.type_var);
-                let input_var = context.clone_var(*var);
-                if type_store.unify(&input_var, &instance_var) {
+                let test_input_var = context.clone_var(*var);
+                if type_store.unify(&test_input_var, &test_instance_var) {
                     type_store.unify(&second_instance_var, var);
                     if let Some(concrete_type) = concrete_type {
                         let mut r = type_instance_resolver.borrow_mut();

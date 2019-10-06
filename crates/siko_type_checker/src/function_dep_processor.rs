@@ -65,9 +65,9 @@ impl<'a> FunctionDependencyProcessor<'a> {
         }
     }
 
-    pub fn process_functions(&self, program: &Program) -> Vec<DependencyGroup<FunctionId>> {
+    pub fn process_functions(&self) -> Vec<DependencyGroup<FunctionId>> {
         let mut functions = Vec::new();
-        for (id, _) in &program.functions.items {
+        for (id, _) in &self.program.functions.items {
             if let Some(type_info) = self.function_type_info_map.get(id) {
                 if let Some(_) = type_info.body {
                     functions.push(*id);
