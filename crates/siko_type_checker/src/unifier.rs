@@ -181,7 +181,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
 
     fn get_bool_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program().get_named_type(PRELUDE_NAME, BOOL_NAME),
+            self.get_program().get_named_type("Data.Bool", BOOL_NAME),
             vec![],
         )
     }

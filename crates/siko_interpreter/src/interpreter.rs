@@ -606,11 +606,6 @@ impl Interpreter {
             (PRELUDE_NAME, "opEq") => {
                 let instance_name = get_instance_name_from_kind(kind);
                 match instance_name {
-                    "BoolEq" => {
-                        let l = environment.get_arg_by_index(0).core.as_bool();
-                        let r = environment.get_arg_by_index(1).core.as_bool();
-                        return Value::new(ValueCore::Bool(l == r), ty);
-                    }
                     "OrderingEq" => {
                         let l = environment
                             .get_arg_by_index(0)

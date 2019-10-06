@@ -2,23 +2,23 @@ module Data.Float where
 
 data Float = extern
 
-instance as FloatAdd Add Float where
+instance Add Float where
     opAdd a b = extern
 
-instance as FloatSub Sub Float where
+instance Sub Float where
     opSub a b = extern
 
-instance as FloatMul Mul Float where
+instance Mul Float where
     opMul a b = extern
 
-instance as FloatDiv Div Float where
+instance Div Float where
     opDiv a b = extern
 
-instance as FloatPartialOrd PartialOrd Float where
+instance PartialOrd Float where
     partialCmp a b = extern
 
-instance as FloatPartialEq PartialEq Float where
+instance PartialEq Float where
     opEq a b = extern
 
-instance as FloatShow Show Float where
+instance Show Float where
     show a = extern 

@@ -178,6 +178,7 @@ impl TokenKind {
             TokenKind::StringLiteral => format!("string literal"),
             TokenKind::FloatLiteral => format!("float literal"),
             TokenKind::IntegerLiteral => format!("integer literal"),
+            TokenKind::BoolLiteral => format!("bool literal"),
             _ => {
                 let name = format!("{:?}", self);
                 let name = name.to_lowercase();

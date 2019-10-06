@@ -2,28 +2,28 @@ module Data.Int where
 
 data Int = extern
 
-instance as IntAdd Add Int where
+instance Add Int where
     opAdd a b = extern
 
-instance as IntSub Sub Int where
+instance Sub Int where
     opSub a b = extern
 
-instance as IntMul Mul Int where
+instance Mul Int where
     opMul a b = extern
 
-instance as IntDiv Div Int where
+instance Div Int where
     opDiv a b = extern
 
-instance as IntPartialOrd PartialOrd Int where
+instance PartialOrd Int where
     partialCmp a b = extern
 
-instance as IntOrd Ord Int where
+instance Ord Int where
     cmp a b = extern
 
 instance Eq Int
 
-instance as IntEq PartialEq Int where
+instance PartialEq Int where
     opEq a b = extern
 
-instance as IntShow Show Int where
+instance Show Int where
     show a = extern 

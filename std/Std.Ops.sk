@@ -44,6 +44,15 @@ class PartialEq a where
 
 class (PartialEq a) => Eq a
 
+class (PartialOrd a, Eq a) => Ord a where
+    cmp a :: a -> a -> Ordering
+
+    max a :: a -> a -> a
+    max a b = if a >= b then a else b
+
+    min a :: a -> a -> a
+    min a b = if a <= b then a else b
+
 opAnd :: Bool -> Bool -> Bool
 opAnd a b = extern
 
