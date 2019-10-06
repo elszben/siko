@@ -194,7 +194,8 @@ impl<'a, 'b> Unifier<'a, 'b> {
 
     fn get_string_type(&mut self) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program().get_named_type("Data.String", STRING_NAME),
+            self.get_program()
+                .get_named_type("Data.String", STRING_NAME),
             vec![],
         )
     }
@@ -382,6 +383,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     let var = self.get_show_type();
                     self.match_expr_with(arg, &var);
                 }
+                let s_var = self.get_string_type();
+                self.match_expr_with(&expr_id, &s_var);
             }
             Expr::FieldAccess(infos, record_expr) => {
                 let mut possible_records = Vec::new();

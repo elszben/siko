@@ -1,6 +1,5 @@
 module Main where
 
-import Std.Util
-import Data.Map
-
-main = 1 + 2
+main = do 
+        print "alma"
+        println "korte"

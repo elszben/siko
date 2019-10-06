@@ -36,6 +36,7 @@ impl BuiltinOperator {
             BuiltinOperator::And => format!("Std.Ops.opAnd"),
             BuiltinOperator::Or => format!("Std.Ops.opOr"),
             BuiltinOperator::Not => format!("Std.Ops.opNot"),
+            BuiltinOperator::Composition => format!("Std.Ops.opComposition"),
             _ => panic!("Op {:?} has no func name", self),
         }
     }

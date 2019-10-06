@@ -1,9 +1,11 @@
 use crate::data_float;
 use crate::data_int;
+use crate::data_list;
+use crate::data_map;
 use crate::data_string;
 use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
-use crate::util::*;
+use crate::std_util_basic;
 use crate::value::Callable;
 use crate::value::Value;
 use crate::value::ValueCore;
@@ -276,21 +278,20 @@ impl Interpreter {
         }
     }
 
-    fn call_show(&self, arg: Value) -> String {
-        let string_ty = self.program.string_concrete_type();
-        let class_id = self
+    pub fn call_show(arg: Value) -> String {
+        INTERPRETER_CONTEXT.with(|i|{ let b = i.borrow();
+        let i = b.as_ref().expect(".");
+        let string_ty = i.program.string_concrete_type();
+        let class_id = i
             .program
             .class_names
             .get("Show")
             .expect("Show not found");
-        let class = self.program.classes.get(class_id);
+        let class = i.program.classes.get(class_id);
         let class_member_id = class.members.get("show").expect("show not found");
-        let v = self.call_class_member(class_member_id, vec![arg], None, string_ty);
-        if let ValueCore::String(s) = v.core {
-            return s;
-        } else {
-            unreachable!();
-        }
+        let v = i.call_class_member(class_member_id, vec![arg], None, string_ty);
+        v.core.as_string()}
+        )
     }
 
     pub fn call_op_eq(&self, arg1: Value, arg2: Value) -> Value {
@@ -507,8 +508,8 @@ impl Interpreter {
                 let mut result = String::new();
                 for (index, sub) in subs.iter().enumerate() {
                     result += sub;
-                    if values.len() > index {
-                        let value_as_string = self.call_show(values[index].clone());
+                    if values.len() > index { 
+                        let value_as_string = Interpreter::call_show(values[index].clone());
                         result += &value_as_string;
                     }
                 }
@@ -605,16 +606,6 @@ impl Interpreter {
                 }
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
-            ("Std.Util.Basic", "print") => {
-                let v = environment.get_arg_by_index(0).core.as_string();
-                print!("{}", v);
-                return Value::new(ValueCore::Tuple(vec![]), ty);
-            }
-            ("Std.Util.Basic", "println") => {
-                let v = environment.get_arg_by_index(0).core.as_string();
-                println!("{}", v);
-                return Value::new(ValueCore::Tuple(vec![]), ty);
-            }
             ("Std.Ops", "opAnd") => {
                 let l = environment.get_arg_by_index(0).core.as_bool();
                 let r = environment.get_arg_by_index(1).core.as_bool();
@@ -628,63 +619,6 @@ impl Interpreter {
                     let r = environment.get_arg_by_index(1).core.as_bool();
                     return Value::new(ValueCore::Bool(r), ty);
                 }
-            }
-            ("Data.List", "show") => {
-                let list = environment.get_arg_by_index(0);
-                if let ValueCore::List(items) = list.core {
-                    let mut subs = Vec::new();
-                    for item in items {
-                        let s = self.call_show(item);
-                        subs.push(s);
-                    }
-                    return Value::new(ValueCore::String(format!("({})", subs.join(", "))), ty);
-                } else {
-                    unreachable!()
-                }
-            }
-            ("Data.Map", "empty") => {
-                return Value::new(ValueCore::Map(BTreeMap::new()), ty);
-            }
-            ("Data.Map", "insert") => {
-                let mut first_arg = environment.get_arg_by_index(0);
-                let mut map_type_args = first_arg.ty.get_type_args();
-                let mut map = first_arg.core.as_map();
-                let key = environment.get_arg_by_index(1);
-                let value = environment.get_arg_by_index(2);
-                let res = map.insert(key, value);
-                let v = match res {
-                    Some(v) => create_some(v),
-                    None => create_none(map_type_args.remove(1)),
-                };
-                first_arg.core = ValueCore::Map(map);
-                let tuple = Value::new(ValueCore::Tuple(vec![first_arg, v]), ty);
-                return tuple;
-            }
-            ("Data.Map", "remove") => {
-                let mut first_arg = environment.get_arg_by_index(0);
-                let mut map_type_args = first_arg.ty.get_type_args();
-                let mut map = first_arg.core.as_map();
-                let key = environment.get_arg_by_index(1);
-                let res = map.remove(&key);
-                let v = match res {
-                    Some(v) => create_some(v),
-                    None => create_none(map_type_args.remove(1)),
-                };
-                first_arg.core = ValueCore::Map(map);
-                let tuple = Value::new(ValueCore::Tuple(vec![first_arg, v]), ty);
-                return tuple;
-            }
-            ("Data.Map", "get") => {
-                let first_arg = environment.get_arg_by_index(0);
-                let mut map_type_args = first_arg.ty.get_type_args();
-                let map = first_arg.core.as_map();
-                let key = environment.get_arg_by_index(1);
-                let res = map.get(&key);
-                let v = match res {
-                    Some(v) => create_some(v.clone()),
-                    None => create_none(map_type_args.remove(1)),
-                };
-                return v;
             }
             _ => {
                 panic!("Unimplemented extern function {}/{}", module, name);
@@ -805,6 +739,9 @@ impl Interpreter {
         data_int::register_extern_functions(&mut interpreter);
         data_float::register_extern_functions(&mut interpreter);
         data_string::register_extern_functions(&mut interpreter);
+        std_util_basic::register_extern_functions(&mut interpreter);
+        data_map::register_extern_functions(&mut interpreter);
+        data_list::register_extern_functions(&mut interpreter);
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();

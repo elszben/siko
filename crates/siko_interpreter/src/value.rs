@@ -143,6 +143,13 @@ impl ValueCore {
             _ => unreachable!(),
         }
     }
+
+    pub fn as_list(&self) -> Vec<Value> {
+        match self {
+            ValueCore::List(l) => l.clone(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl fmt::Display for ValueCore {

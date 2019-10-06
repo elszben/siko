@@ -1,0 +1,11 @@
+module Main where
+
+import Std.Util
+
+p a = "{}" % a
+
+f = show . (p)
+g x = show x |> p
+
+main = do 
+    assert(f 5 == g 5)

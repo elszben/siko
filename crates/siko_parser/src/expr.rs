@@ -423,6 +423,7 @@ fn parse_primary(parser: &mut Parser) -> Result<ExprId, ParseError> {
             | TokenKind::LParen
             | TokenKind::KeywordIf
             | TokenKind::KeywordDo
+            | TokenKind::LBracket
             | TokenKind::Lambda => {}
             _ => break,
         }
