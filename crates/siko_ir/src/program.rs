@@ -158,7 +158,7 @@ impl Program {
     pub fn string_concrete_type(&self) -> ConcreteType {
         ConcreteType::Named(
             STRING_NAME.to_string(),
-            self.get_named_type(PRELUDE_NAME, STRING_NAME),
+            self.get_named_type("Data.String", STRING_NAME),
             vec![],
         )
     }
@@ -166,7 +166,7 @@ impl Program {
     pub fn bool_concrete_type(&self) -> ConcreteType {
         ConcreteType::Named(
             BOOL_NAME.to_string(),
-            self.get_named_type(PRELUDE_NAME, BOOL_NAME),
+            self.get_named_type("Data.Bool", BOOL_NAME),
             vec![],
         )
     }
@@ -174,7 +174,7 @@ impl Program {
     pub fn option_concrete_type(&self, inner: ConcreteType) -> ConcreteType {
         ConcreteType::Named(
             OPTION_NAME.to_string(),
-            self.get_named_type(PRELUDE_NAME, OPTION_NAME),
+            self.get_named_type("Data.Option", OPTION_NAME),
             vec![inner],
         )
     }
@@ -182,7 +182,7 @@ impl Program {
     pub fn ordering_concrete_type(&self) -> ConcreteType {
         ConcreteType::Named(
             ORDERING_NAME.to_string(),
-            self.get_named_type(PRELUDE_NAME, ORDERING_NAME),
+            self.get_named_type("Data.Ordering", ORDERING_NAME),
             vec![],
         )
     }

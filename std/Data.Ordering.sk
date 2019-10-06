@@ -1,0 +1,10 @@
+module Data.Ordering where
+
+data Ordering = Less | Equal | Greater
+
+instance PartialEq Ordering where
+    opEq a b = case (a, b) of
+                (Less, Less) -> True
+                (Equal, Equal) -> True
+                (Greater, Greater) -> True
+                _ -> False

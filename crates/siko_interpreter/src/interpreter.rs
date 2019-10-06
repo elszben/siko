@@ -603,25 +603,6 @@ impl Interpreter {
         }
 
         match (module, name) {
-            (PRELUDE_NAME, "opEq") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "OrderingEq" => {
-                        let l = environment
-                            .get_arg_by_index(0)
-                            .core
-                            .as_simple_enum_variant();
-                        let r = environment
-                            .get_arg_by_index(1)
-                            .core
-                            .as_simple_enum_variant();
-                        return Value::new(ValueCore::Bool(l == r), ty);
-                    }
-                    _ => {
-                        panic!("Unimplemented eq function {}/{}", module, instance_name);
-                    }
-                }
-            }
             ("Std.Util", "assert") => {
                 let v = environment.get_arg_by_index(0).core.as_bool();
                 if !v {
@@ -785,8 +766,8 @@ impl Interpreter {
     }
 
     fn build_typedefid_cache(&mut self) {
-        let option = self.program.get_adt_by_name(PRELUDE_NAME, OPTION_NAME);
-        let ordering = self.program.get_adt_by_name(PRELUDE_NAME, ORDERING_NAME);
+        let option = self.program.get_adt_by_name("Data.Option", OPTION_NAME);
+        let ordering = self.program.get_adt_by_name("Data.Ordering", ORDERING_NAME);
         let cache = TypeDefIdCache {
             option_id: option.id,
             ordering_id: ordering.id,

@@ -1130,6 +1130,9 @@ impl<'a> Parser<'a> {
             "Data.String",
             "Std.Ops",
             "Data.Bool",
+            "Data.Ordering",
+            "Data.Option",
+            "Data.Result",
         ];
         for implicit_module in implicit_modules {
             let mut modules_without_implicit_module = Vec::new();

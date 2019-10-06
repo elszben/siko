@@ -1,0 +1,3 @@
+module Data.Result where
+
+data Result a b = Ok a | Err b
