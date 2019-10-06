@@ -103,7 +103,7 @@ impl ValueCore {
 
     pub fn as_simple_enum_variant(&self) -> (TypeDefId, usize) {
         match self {
-            ValueCore::Variant(id, index, _) => (id.clone(), index.clone()),
+            ValueCore::Variant(id, index, _) => (*id, *index),
             _ => unreachable!(),
         }
     }

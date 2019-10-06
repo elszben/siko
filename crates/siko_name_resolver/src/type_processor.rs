@@ -14,7 +14,7 @@ use siko_syntax::types::TypeSignatureId;
 use std::collections::BTreeMap;
 
 fn process_named_type(
-    name: &String,
+    name: &str,
     named_args: &Vec<TypeSignatureId>,
     location_id: LocationId,
     program: &Program,
@@ -26,7 +26,7 @@ fn process_named_type(
     let ir_type_signature = match module.imported_items.get(name) {
         Some(items) => {
             if items.len() > 1 {
-                let error = ResolverError::AmbiguousName(name.clone(), location_id);
+                let error = ResolverError::AmbiguousName(name.to_string(), location_id);
                 errors.push(error);
                 return None;
             }
@@ -54,7 +54,7 @@ fn process_named_type(
                     let ir_adt = ir_program.typedefs.get(&ir_typedef_id).get_adt();
                     if ir_adt.type_args.len() != named_arg_ids.len() {
                         let err = ResolverError::IncorrectTypeArgumentCount(
-                            name.clone(),
+                            name.to_string(),
                             ir_adt.type_args.len(),
                             named_arg_ids.len(),
                             location_id,
@@ -69,7 +69,7 @@ fn process_named_type(
 
                     if ir_record.type_args.len() != named_arg_ids.len() {
                         let err = ResolverError::IncorrectTypeArgumentCount(
-                            name.clone(),
+                            name.to_string(),
                             ir_record.type_args.len(),
                             named_arg_ids.len(),
                             location_id,
@@ -83,14 +83,14 @@ fn process_named_type(
                 | Item::Variant(..)
                 | Item::ClassMember(..)
                 | Item::Class(..) => {
-                    let err = ResolverError::NameNotType(name.clone(), location_id);
+                    let err = ResolverError::NameNotType(name.to_string(), location_id);
                     errors.push(err);
                     return None;
                 }
             }
         }
         None => {
-            let error = ResolverError::UnknownTypeName(name.clone(), location_id);
+            let error = ResolverError::UnknownTypeName(name.to_string(), location_id);
             errors.push(error);
             return None;
         }

@@ -109,12 +109,12 @@ impl Interpreter {
         func_arg_types: &[TypeId],
         args: &[Value],
         return_type: &ConcreteType,
-        func_return_type: &TypeId,
+        func_return_type: TypeId,
     ) -> SubstitutionContext {
         let mut sub_context = SubstitutionContext::new();
         for (arg_type, func_arg_type) in args.iter().zip(func_arg_types.iter()) {
             self.program
-                .match_generic_types(&arg_type.ty, func_arg_type, &mut sub_context);
+                .match_generic_types(&arg_type.ty, *func_arg_type, &mut sub_context);
         }
         self.program
             .match_generic_types(&return_type, func_return_type, &mut sub_context);
@@ -386,7 +386,7 @@ impl Interpreter {
             &func_arg_types[..],
             &arg_values[..],
             &expr_ty,
-            &return_type,
+            return_type,
         );
         let instance_selector_ty = self
             .program
@@ -445,8 +445,8 @@ impl Interpreter {
         match expr {
             Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty),
             Expr::StringLiteral(v) => Value::new(ValueCore::String(v.clone()), expr_ty),
-            Expr::FloatLiteral(v) => Value::new(ValueCore::Float(v.clone()), expr_ty),
-            Expr::BoolLiteral(v) => Value::new(ValueCore::Bool(v.clone()), expr_ty),
+            Expr::FloatLiteral(v) => Value::new(ValueCore::Float(*v), expr_ty),
+            Expr::BoolLiteral(v) => Value::new(ValueCore::Bool(*v), expr_ty),
             Expr::ArgRef(arg_ref) => {
                 return environment.get_arg(arg_ref);
             }
@@ -465,7 +465,7 @@ impl Interpreter {
                     &func_arg_types[..],
                     &arg_values[..],
                     &expr_ty,
-                    &return_type,
+                    return_type,
                 );
                 let concrete_function_type =
                     self.program.to_concrete_type(func_ty, &callee_sub_context);

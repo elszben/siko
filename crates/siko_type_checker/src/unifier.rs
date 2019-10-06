@@ -101,11 +101,11 @@ impl<'a, 'b> Unifier<'a, 'b> {
         self.expr_processor.type_store.get_resolved_type_string(var)
     }
 
-    fn get_record_type_info(&mut self, record_id: &TypeDefId) -> RecordTypeInfo {
+    fn get_record_type_info(&mut self, record_id: TypeDefId) -> RecordTypeInfo {
         let mut record_type_info = self
             .expr_processor
             .record_type_info_map
-            .get(record_id)
+            .get(&record_id)
             .expect("record tyoe info not found")
             .clone();
         let mut clone_context = self.expr_processor.type_store.create_clone_context();
@@ -393,8 +393,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 let location = self.expr_processor.program.exprs.get(&expr_id).location_id;
                 let mut matches: Vec<(RecordTypeInfo, FieldAccessInfo)> = Vec::new();
                 for info in infos {
-                    let test_record_type_info = self.get_record_type_info(&info.record_id);
-                    let record_type_info = self.get_record_type_info(&info.record_id);
+                    let test_record_type_info = self.get_record_type_info(info.record_id);
+                    let record_type_info = self.get_record_type_info(info.record_id);
                     let record = self
                         .expr_processor
                         .program
@@ -443,7 +443,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 }
             }
             Expr::RecordInitialization(type_id, items) => {
-                let record_type_info = self.get_record_type_info(type_id);
+                let record_type_info = self.get_record_type_info(*type_id);
                 self.match_expr_with(&expr_id, &record_type_info.record_type);
                 for (index, item) in items.iter().enumerate() {
                     let field_type_var = record_type_info.field_types[index];
@@ -477,7 +477,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 }
                 match matching_update {
                     Some(update) => {
-                        let record_type_info = self.get_record_type_info(&update.record_id);
+                        let record_type_info = self.get_record_type_info(update.record_id);
                         self.match_expr_with(record_expr_id, &record_type_info.record_type);
                         for field_update in &update.items {
                             let field_var = record_type_info.field_types[field_update.index];
@@ -514,7 +514,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 self.match_pattern_with(&pattern_id, &tuple_var);
             }
             Pattern::Record(typedef_id, items) => {
-                let record_type_info = self.get_record_type_info(typedef_id);
+                let record_type_info = self.get_record_type_info(*typedef_id);
                 self.match_pattern_with(&pattern_id, &record_type_info.record_type);
                 if record_type_info.field_types.len() != items.len() {
                     let location = self

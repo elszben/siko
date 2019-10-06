@@ -127,27 +127,27 @@ impl Program {
     pub fn match_generic_types(
         &self,
         concrete_type: &ConcreteType,
-        generic_type_id: &TypeId,
+        generic_type_id: TypeId,
         sub_context: &mut SubstitutionContext,
     ) {
-        let generic_type = self.types.get(generic_type_id).expect("Type not found");
+        let generic_type = self.types.get(&generic_type_id).expect("Type not found");
         //println!("Matching {} and {}", concrete_type, self.to_debug_string(generic_type_id));
         match (concrete_type, generic_type) {
             (_, Type::TypeArgument(index, _)) => {
                 sub_context.add_generic(*index, concrete_type.clone());
             }
             (ConcreteType::Function(from, to), Type::Function(f2)) => {
-                self.match_generic_types(from, &f2.from, sub_context);
-                self.match_generic_types(to, &f2.to, sub_context);
+                self.match_generic_types(from, f2.from, sub_context);
+                self.match_generic_types(to, f2.to, sub_context);
             }
             (ConcreteType::Named(_, _, sub_types1), Type::Named(_, _, sub_types2)) => {
                 for (sub_ty1, sub_ty2) in sub_types1.iter().zip(sub_types2.iter()) {
-                    self.match_generic_types(sub_ty1, sub_ty2, sub_context);
+                    self.match_generic_types(sub_ty1, *sub_ty2, sub_context);
                 }
             }
             (ConcreteType::Tuple(sub_types1), Type::Tuple(sub_types2)) => {
                 for (sub_ty1, sub_ty2) in sub_types1.iter().zip(sub_types2.iter()) {
-                    self.match_generic_types(sub_ty1, sub_ty2, sub_context);
+                    self.match_generic_types(sub_ty1, *sub_ty2, sub_context);
                 }
             }
             _ => panic!("{}, {:?}", concrete_type, generic_type),
