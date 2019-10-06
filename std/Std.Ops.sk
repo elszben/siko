@@ -53,6 +53,9 @@ class (PartialOrd a, Eq a) => Ord a where
     min a :: a -> a -> a
     min a b = if a <= b then a else b
 
+class Show a where
+    show a :: a -> String
+
 opAnd :: Bool -> Bool -> Bool
 opAnd a b = extern
 

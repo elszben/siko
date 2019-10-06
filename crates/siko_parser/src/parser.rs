@@ -1124,7 +1124,6 @@ impl<'a> Parser<'a> {
         }
 
         let implicit_modules = vec![
-            "Prelude",
             "Data.Int",
             "Data.Float",
             "Data.String",
@@ -1133,6 +1132,8 @@ impl<'a> Parser<'a> {
             "Data.Ordering",
             "Data.Option",
             "Data.Result",
+            "Data.List",
+            "Std.Util.Basic",
         ];
         for implicit_module in implicit_modules {
             let mut modules_without_implicit_module = Vec::new();

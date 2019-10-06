@@ -7,7 +7,6 @@ use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
 use crate::type_processor::process_type_signature;
 use siko_constants::BuiltinOperator;
-use siko_constants::PRELUDE_NAME;
 use siko_ir::class::ClassMemberId as IrClassMemberId;
 use siko_ir::expr::Case as IrCase;
 use siko_ir::expr::Expr as IrExpr;
@@ -587,11 +586,7 @@ pub fn process_expr(
                                 let ir_expr = IrExpr::StaticFunctionCall(n, ir_args);
                                 return add_expr(ir_expr, id, ir_program, program);
                             }
-                            _ => panic!(
-                                "Couldn't handle builtin function {}, missing {}?",
-                                path.clone(),
-                                PRELUDE_NAME
-                            ),
+                            _ => panic!("Couldn't handle builtin function {}", path.clone(),),
                         }
                     }
                 } else {

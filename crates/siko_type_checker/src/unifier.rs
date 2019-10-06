@@ -10,7 +10,6 @@ use siko_constants::BOOL_NAME;
 use siko_constants::FLOAT_NAME;
 use siko_constants::INT_NAME;
 use siko_constants::LIST_NAME;
-use siko_constants::PRELUDE_NAME;
 use siko_constants::STRING_NAME;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
@@ -209,7 +208,7 @@ impl<'a, 'b> Unifier<'a, 'b> {
 
     fn get_list_type(&mut self, type_var: TypeVariable) -> TypeVariable {
         self.get_builtin_type(
-            self.get_program().get_named_type(PRELUDE_NAME, LIST_NAME),
+            self.get_program().get_named_type("Data.List", LIST_NAME),
             vec![type_var],
         )
     }

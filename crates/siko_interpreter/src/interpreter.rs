@@ -11,7 +11,6 @@ use siko_constants::MAIN_FUNCTION;
 use siko_constants::MAIN_MODULE;
 use siko_constants::OPTION_NAME;
 use siko_constants::ORDERING_NAME;
-use siko_constants::PRELUDE_NAME;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -587,14 +586,6 @@ impl Interpreter {
         kind: &NamedFunctionKind,
         ty: ConcreteType,
     ) -> Value {
-        fn get_instance_name_from_kind(kind: &NamedFunctionKind) -> &str {
-            if let NamedFunctionKind::InstanceMember(Some(s)) = kind {
-                s.as_ref()
-            } else {
-                unreachable!()
-            }
-        }
-
         if let Some(f) = self
             .extern_functions
             .get(&(module.to_string(), name.to_string()))
@@ -614,12 +605,12 @@ impl Interpreter {
                 }
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
-            (PRELUDE_NAME, "print") => {
+            ("Std.Util.Basic", "print") => {
                 let v = environment.get_arg_by_index(0).core.as_string();
                 print!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
             }
-            (PRELUDE_NAME, "println") => {
+            ("Std.Util.Basic", "println") => {
                 let v = environment.get_arg_by_index(0).core.as_string();
                 println!("{}", v);
                 return Value::new(ValueCore::Tuple(vec![]), ty);
@@ -638,28 +629,17 @@ impl Interpreter {
                     return Value::new(ValueCore::Bool(r), ty);
                 }
             }
-            (PRELUDE_NAME, "show") => {
-                let instance_name = get_instance_name_from_kind(kind);
-                match instance_name {
-                    "ListShow" => {
-                        let list = environment.get_arg_by_index(0);
-                        if let ValueCore::List(items) = list.core {
-                            let mut subs = Vec::new();
-                            for item in items {
-                                let s = self.call_show(item);
-                                subs.push(s);
-                            }
-                            return Value::new(
-                                ValueCore::String(format!("({})", subs.join(", "))),
-                                ty,
-                            );
-                        } else {
-                            unreachable!()
-                        }
+            ("Data.List", "show") => {
+                let list = environment.get_arg_by_index(0);
+                if let ValueCore::List(items) = list.core {
+                    let mut subs = Vec::new();
+                    for item in items {
+                        let s = self.call_show(item);
+                        subs.push(s);
                     }
-                    _ => {
-                        panic!("Unimplemented show function {}/{}", module, instance_name);
-                    }
+                    return Value::new(ValueCore::String(format!("({})", subs.join(", "))), ty);
+                } else {
+                    unreachable!()
                 }
             }
             ("Data.Map", "empty") => {

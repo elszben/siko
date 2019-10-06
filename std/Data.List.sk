@@ -1,0 +1,6 @@
+module Data.List where
+
+data List a = extern
+
+instance (Show a) => Show List a where
+    show a = extern

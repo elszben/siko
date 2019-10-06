@@ -23,7 +23,6 @@ use crate::types::TypeSignatureId;
 use siko_constants::BOOL_NAME;
 use siko_constants::OPTION_NAME;
 use siko_constants::ORDERING_NAME;
-use siko_constants::PRELUDE_NAME;
 use siko_constants::STRING_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
