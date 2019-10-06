@@ -5,6 +5,8 @@ use crate::data_map;
 use crate::data_string;
 use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
+use crate::std_ops;
+use crate::std_util;
 use crate::std_util_basic;
 use crate::value::Callable;
 use crate::value::Value;
@@ -279,19 +281,27 @@ impl Interpreter {
     }
 
     pub fn call_show(arg: Value) -> String {
-        INTERPRETER_CONTEXT.with(|i|{ let b = i.borrow();
-        let i = b.as_ref().expect(".");
-        let string_ty = i.program.string_concrete_type();
-        let class_id = i
-            .program
-            .class_names
-            .get("Show")
-            .expect("Show not found");
-        let class = i.program.classes.get(class_id);
-        let class_member_id = class.members.get("show").expect("show not found");
-        let v = i.call_class_member(class_member_id, vec![arg], None, string_ty);
-        v.core.as_string()}
-        )
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect(".");
+            let string_ty = i.program.string_concrete_type();
+            let class_id = i.program.class_names.get("Show").expect("Show not found");
+            let class = i.program.classes.get(class_id);
+            let class_member_id = class.members.get("show").expect("show not found");
+            let v = i.call_class_member(class_member_id, vec![arg], None, string_ty);
+            v.core.as_string()
+        })
+    }
+
+    pub fn call_abort(current_expr: ExprId) {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect(".");
+            let location_id = i.program.exprs.get(&current_expr).location_id;
+            i.error_context
+                .report_error(format!("Assertion failed"), location_id);
+            panic!("Abort not implemented");
+        })
     }
 
     pub fn call_op_eq(&self, arg1: Value, arg2: Value) -> Value {
@@ -508,7 +518,7 @@ impl Interpreter {
                 let mut result = String::new();
                 for (index, sub) in subs.iter().enumerate() {
                     result += sub;
-                    if values.len() > index { 
+                    if values.len() > index {
                         let value_as_string = Interpreter::call_show(values[index].clone());
                         result += &value_as_string;
                     }
@@ -592,37 +602,8 @@ impl Interpreter {
             .get(&(module.to_string(), name.to_string()))
         {
             return f.call(environment, current_expr, kind, ty);
-        }
-
-        match (module, name) {
-            ("Std.Util", "assert") => {
-                let v = environment.get_arg_by_index(0).core.as_bool();
-                if !v {
-                    let current_expr = current_expr.expect("No current expr");
-                    let location_id = self.program.exprs.get(&current_expr).location_id;
-                    self.error_context
-                        .report_error(format!("Assertion failed"), location_id);
-                    panic!("Abort not implemented");
-                }
-                return Value::new(ValueCore::Tuple(vec![]), ty);
-            }
-            ("Std.Ops", "opAnd") => {
-                let l = environment.get_arg_by_index(0).core.as_bool();
-                let r = environment.get_arg_by_index(1).core.as_bool();
-                return Value::new(ValueCore::Bool(l && r), ty);
-            }
-            ("Std.Ops", "opOr") => {
-                let l = environment.get_arg_by_index(0).core.as_bool();
-                if l {
-                    return Value::new(ValueCore::Bool(l), ty);
-                } else {
-                    let r = environment.get_arg_by_index(1).core.as_bool();
-                    return Value::new(ValueCore::Bool(r), ty);
-                }
-            }
-            _ => {
-                panic!("Unimplemented extern function {}/{}", module, name);
-            }
+        } else {
+            panic!("Unimplemented extern function {} {}", module, name);
         }
     }
 
@@ -739,9 +720,11 @@ impl Interpreter {
         data_int::register_extern_functions(&mut interpreter);
         data_float::register_extern_functions(&mut interpreter);
         data_string::register_extern_functions(&mut interpreter);
-        std_util_basic::register_extern_functions(&mut interpreter);
         data_map::register_extern_functions(&mut interpreter);
         data_list::register_extern_functions(&mut interpreter);
+        std_util_basic::register_extern_functions(&mut interpreter);
+        std_util::register_extern_functions(&mut interpreter);
+        std_ops::register_extern_functions(&mut interpreter);
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();
