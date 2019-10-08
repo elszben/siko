@@ -11,6 +11,7 @@ use siko_parser::lexer::Lexer;
 use siko_parser::parser::Parser;
 use siko_syntax::program::Program;
 use siko_type_checker::typechecker::Typechecker;
+use siko_util::ElapsedTimeMeasure;
 
 pub enum CompilerInput {
     File {
@@ -25,7 +26,6 @@ pub enum CompilerInput {
 
 fn parse(
     content: &str,
-    config: &Config,
     file_path: FilePath,
     program: &mut Program,
     location_info: &mut LocationInfo,
@@ -46,18 +46,8 @@ fn parse(
             return Err(Error::LexerError(errors));
         }
     };
-    let token_kinds: Vec<_> = tokens
-        .iter()
-        .map(|t| format!("{:?}", t.token.kind()))
-        .collect();
-    if config.verbose {
-        println!("Tokens [{}]", token_kinds.join(", "));
-    }
     let mut parser = Parser::new(file_path, &tokens[..], program, location_info);
     parser.parse()?;
-    if config.verbose {
-        println!("program {:?}", program);
-    }
     Ok(())
 }
 
@@ -79,40 +69,46 @@ impl Compiler {
     pub fn compile(&mut self, inputs: Vec<CompilerInput>) -> Result<(), Error> {
         let mut program = Program::new();
 
-        for input in inputs.iter() {
-            match input {
-                CompilerInput::File { name } => {
-                    self.file_manager.read(FilePath::new(name.to_string()))?;
-                }
-                CompilerInput::Memory { name, content } => {
-                    self.file_manager
-                        .add_from_memory(FilePath::new(name.to_string()), content.clone());
+        {
+            let _m = ElapsedTimeMeasure::new("FileReader");
+            for input in inputs.iter() {
+                match input {
+                    CompilerInput::File { name } => {
+                        self.file_manager.read(FilePath::new(name.to_string()))?;
+                    }
+                    CompilerInput::Memory { name, content } => {
+                        self.file_manager
+                            .add_from_memory(FilePath::new(name.to_string()), content.clone());
+                    }
                 }
             }
         }
 
-        for (file_path, content) in self.file_manager.files.iter() {
-            parse(
-                content,
-                &self.config,
-                file_path.clone(),
-                &mut program,
-                &mut self.location_info,
-            )?;
+        {
+            let _m = ElapsedTimeMeasure::new("Parser");
+            for (file_path, content) in self.file_manager.files.iter() {
+                parse(
+                    content,
+                    file_path.clone(),
+                    &mut program,
+                    &mut self.location_info,
+                )?;
+            }
         }
 
-        let mut resolver = Resolver::new();
+        let mut ir_program = {
+            let _m = ElapsedTimeMeasure::new("NameResolver");
+            let mut resolver = Resolver::new();
 
-        let mut ir_program = resolver.resolve(&program)?;
+            resolver.resolve(&program)?
+        };
 
-        if self.config.verbose {
-            println!("program {:#?}", ir_program);
+        {
+            let _m = ElapsedTimeMeasure::new("Typechecker");
+            let typechecker = Typechecker::new();
+
+            typechecker.check(&mut ir_program)?;
         }
-
-        let typechecker = Typechecker::new();
-
-        typechecker.check(&mut ir_program)?;
-
         if self.config.visualize {
             for (id, _) in &ir_program.functions.items {
                 ExprVisualizer::generate(&id, &ir_program);

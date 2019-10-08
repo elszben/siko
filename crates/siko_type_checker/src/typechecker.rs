@@ -10,7 +10,7 @@ use crate::type_store::TypeStore;
 use siko_constants::LIST_NAME;
 use siko_ir::function::FunctionInfo;
 use siko_ir::program::Program;
-use siko_ir::types::TypeDef;
+use siko_util::ElapsedTimeMeasure;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -53,25 +53,30 @@ impl Typechecker {
             check_context.clone(),
         );
 
-        let class_processor = ClassProcessor::new(type_store, check_context.clone());
+        let (type_store, class_member_type_info_map) = {
+            let _m = ElapsedTimeMeasure::new("ClassProcessor");
+            let class_processor = ClassProcessor::new(type_store, check_context.clone());
 
-        let (type_store, class_member_type_info_map) =
-            class_processor.process_classes(program, &mut errors);
+            class_processor.process_classes(program, &mut errors)
+        };
 
-        let function_processor = FunctionProcessor::new(type_store);
+        let (mut type_store, function_type_info_map, record_type_info_map, variant_type_info_map) = {
+            let _m = ElapsedTimeMeasure::new("FunctionProcessor");
+            let function_processor = FunctionProcessor::new(type_store);
 
-        let (mut type_store, function_type_info_map, record_type_info_map, variant_type_info_map) =
-            function_processor.process_functions(program, &mut errors, &class_member_type_info_map);
-
+            function_processor.process_functions(program, &mut errors, &class_member_type_info_map)
+        };
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
 
-        let function_dep_processor =
-            FunctionDependencyProcessor::new(program, &function_type_info_map);
+        let ordered_dep_groups = {
+            let _m = ElapsedTimeMeasure::new("FunctionDepProcessor");
+            let function_dep_processor =
+                FunctionDependencyProcessor::new(program, &function_type_info_map);
 
-        let ordered_dep_groups = function_dep_processor.process_functions();
-
+            function_dep_processor.process_functions()
+        };
         self.check_main(program, &mut errors);
 
         if !errors.is_empty() {
@@ -81,18 +86,22 @@ impl Typechecker {
         let mut processor = TypedefDependencyProcessor::new(program, &mut type_store);
         processor.process_functions();
 
-        let mut expr_processor = ExprProcessor::new(
-            type_store,
-            function_type_info_map,
-            record_type_info_map,
-            variant_type_info_map,
-            class_member_type_info_map,
-            program,
-        );
+        let mut expr_processor = {
+            let _m = ElapsedTimeMeasure::new("ExprProcessor");
+            let mut expr_processor = ExprProcessor::new(
+                type_store,
+                function_type_info_map,
+                record_type_info_map,
+                variant_type_info_map,
+                class_member_type_info_map,
+                program,
+            );
 
-        for group in &ordered_dep_groups {
-            expr_processor.process_dep_group(group, &mut errors);
-        }
+            for group in &ordered_dep_groups {
+                expr_processor.process_dep_group(group, &mut errors);
+            }
+            expr_processor
+        };
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
@@ -108,10 +117,12 @@ impl Typechecker {
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
-
-        expr_processor.export_expr_types();
-        expr_processor.export_func_types();
-        expr_processor.export_class_member_types();
+        {
+            let _m = ElapsedTimeMeasure::new("Export");
+            expr_processor.export_expr_types();
+            expr_processor.export_func_types();
+            expr_processor.export_class_member_types();
+        }
 
         Ok(())
     }

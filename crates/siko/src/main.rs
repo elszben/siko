@@ -43,8 +43,8 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     let mut std_path = format!("std");
     for (index, arg) in args.iter().enumerate() {
         match arg.as_ref() {
-            "-v" => {
-                config.verbose = true;
+            "-m" => {
+                config.measure_durations = true;
             }
             "-i" => {
                 config.visualize = true;

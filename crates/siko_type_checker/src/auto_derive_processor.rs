@@ -106,12 +106,12 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             variants.push(variant_string);
                         }
                     }
-                    println!(
+                    /*println!(
                         "ADT {} {} depends on {}",
                         adt.module,
                         adt.name,
                         variants[..].join(", ")
-                    );
+                    );*/
                 }
                 TypeDef::Record(record) => {
                     let mut arg_map = BTreeMap::new();
@@ -128,12 +128,12 @@ impl<'a> TypedefDependencyProcessor<'a> {
                         let field_string = self.type_store.get_resolved_type_string(&var);
                         fields.push(field_string);
                     }
-                    println!(
+                    /*println!(
                         "Record {} {} depends on {}",
                         record.module,
                         record.name,
                         fields[..].join(", ")
-                    );
+                    );*/
                 }
             }
         }

@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::rc::Rc;
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct RcCounter {
@@ -89,5 +90,27 @@ impl<Key: Ord, Item: Ord> Collector<Key, Item> {
     pub fn add(&mut self, key: Key, item: Item) {
         let entry = self.items.entry(key).or_insert_with(|| BTreeSet::new());
         entry.insert(item);
+    }
+}
+
+pub struct ElapsedTimeMeasure {
+    name: String,
+    start: Instant,
+}
+
+impl ElapsedTimeMeasure {
+    pub fn new(name: &str) -> ElapsedTimeMeasure {
+        ElapsedTimeMeasure {
+            name: name.to_string(),
+            start: Instant::now(),
+        }
+    }
+}
+
+impl Drop for ElapsedTimeMeasure {
+    fn drop(&mut self) {
+        let end = Instant::now();
+        let d = end - self.start;
+        println!("{}: {}.{}", self.name, d.as_secs(), d.subsec_millis());
     }
 }
