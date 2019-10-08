@@ -581,7 +581,8 @@ impl Interpreter {
             Expr::RecordInitialization(type_id, items) => {
                 let mut values: Vec<_> = Vec::with_capacity(items.len());
                 for _ in 0..items.len() {
-                    values.push(Value::new(ValueCore::Bool(false), expr_ty.clone())); // dummy value
+                    values.push(Value::new(ValueCore::Bool(false), expr_ty.clone()));
+                    // dummy value
                 }
                 for item in items {
                     let value = self.eval_expr(item.expr_id, environment, sub_context);

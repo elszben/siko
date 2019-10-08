@@ -12,6 +12,7 @@ use siko_parser::parser::Parser;
 use siko_syntax::program::Program;
 use siko_type_checker::typechecker::Typechecker;
 use siko_util::ElapsedTimeMeasure;
+use siko_util::ElapsedTimeMeasureCollector;
 
 pub enum CompilerInput {
     File {
@@ -114,6 +115,8 @@ impl Compiler {
                 ExprVisualizer::generate(&id, &ir_program);
             }
         }
+
+        ElapsedTimeMeasureCollector::print_instance_resolver_time();
 
         Interpreter::run(ir_program, self.context());
 

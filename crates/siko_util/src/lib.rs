@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::rc::Rc;
+use std::thread_local;
+use std::time::Duration;
 use std::time::Instant;
 
 #[derive(Debug, Clone)]
@@ -113,4 +115,39 @@ impl Drop for ElapsedTimeMeasure {
         let d = end - self.start;
         println!("{}: {}.{}", self.name, d.as_secs(), d.subsec_millis());
     }
+}
+
+pub struct ElapsedTimeMeasureCollector {
+    instance_resolver_time: Duration,
+}
+
+impl ElapsedTimeMeasureCollector {
+    pub fn new() -> ElapsedTimeMeasureCollector {
+        ElapsedTimeMeasureCollector {
+            instance_resolver_time: Duration::new(0, 0),
+        }
+    }
+
+    pub fn add_instance_resolver_time(duration: Duration) {
+        MEASUREMENT_COLLECTOR.with(|m| {
+            let mut m = m.borrow_mut();
+            m.instance_resolver_time += duration;
+        });
+    }
+
+    pub fn print_instance_resolver_time() {
+        MEASUREMENT_COLLECTOR.with(|m| {
+            let m = m.borrow();
+            println!(
+                "InstanceResolver: {}.{}",
+                m.instance_resolver_time.as_secs(),
+                m.instance_resolver_time.subsec_millis()
+            );
+        });
+    }
+}
+
+thread_local! {
+    static MEASUREMENT_COLLECTOR: RefCell<ElapsedTimeMeasureCollector> =
+                                  RefCell::new(ElapsedTimeMeasureCollector::new());
 }

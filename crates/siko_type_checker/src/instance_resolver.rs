@@ -4,9 +4,11 @@ use crate::type_variable::TypeVariable;
 use siko_ir::class::ClassId;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::TypeInstanceResolver;
+use siko_util::ElapsedTimeMeasureCollector;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct InstanceResolver {
@@ -22,7 +24,7 @@ impl InstanceResolver {
         }
     }
 
-    pub fn has_class_instance(
+    fn has_class_instance_inner(
         &self,
         var: &TypeVariable,
         class_id: &ClassId,
@@ -52,5 +54,26 @@ impl InstanceResolver {
         } else {
             false
         }
+    }
+
+    pub fn has_class_instance(
+        &self,
+        var: &TypeVariable,
+        class_id: &ClassId,
+        type_store: &mut TypeStore,
+        type_instance_resolver: Rc<RefCell<TypeInstanceResolver>>,
+        concrete_type: Option<ConcreteType>,
+    ) -> bool {
+        let start = Instant::now();
+        let r = self.has_class_instance_inner(
+            var,
+            class_id,
+            type_store,
+            type_instance_resolver,
+            concrete_type,
+        );
+        let end = Instant::now();
+        ElapsedTimeMeasureCollector::add_instance_resolver_time(end - start);
+        r
     }
 }
