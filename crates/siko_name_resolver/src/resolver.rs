@@ -559,7 +559,8 @@ impl Resolver {
             }
 
             let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
-            ir_adt.type_args = type_arg_resolver.collect_args();
+            let arg_names: Vec<_> = adt.type_args.iter().map(|(k, v)| k.as_ref()).collect();
+            ir_adt.type_args = type_arg_resolver.collect_args(arg_names);
             ir_adt.variants = ir_variants;
             ir_adt.auto_derive_mode =
                 self.process_auto_derive_mode(&adt.auto_derive_method, module, errors);
@@ -623,7 +624,8 @@ impl Resolver {
             }
 
             let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
-            ir_record.type_args = type_arg_resolver.collect_args();
+            let arg_names: Vec<_> = record.type_args.iter().map(|(k, v)| k.as_ref()).collect();
+            ir_record.type_args = type_arg_resolver.collect_args(arg_names);
             ir_record.fields = ir_fields;
             ir_record.auto_derive_mode =
                 self.process_auto_derive_mode(&record.auto_derive_method, module, errors);

@@ -335,6 +335,15 @@ impl TypeStore {
     }
 
     pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
+        let mut type_args = BTreeMap::new();
+        self.get_resolved_type_string_with_context(var, &mut type_args)
+    }
+
+    pub fn get_resolved_type_string_with_context(
+        &self,
+        var: &TypeVariable,
+        type_args: &mut BTreeMap<usize, String>,
+    ) -> String {
         if self.is_recursive(*var) {
             return format!("<recursive type>");
         }
@@ -343,7 +352,6 @@ impl TypeStore {
         let mut args = BTreeSet::new();
         let mut constraints = Collector::new();
         ty.collect(&mut vars, &mut args, &mut constraints, self);
-        let mut type_args = BTreeMap::new();
         let mut next_char = 'a' as u32;
         for arg in args {
             let c = std::char::from_u32(next_char).expect("Invalid char");

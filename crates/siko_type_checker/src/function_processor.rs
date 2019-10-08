@@ -254,7 +254,6 @@ impl FunctionProcessor {
                         &mut args,
                         &mut self.type_store,
                     );
-
                     let mut arg_map = BTreeMap::new();
                     for (index, item) in variant.items.iter().enumerate() {
                         let arg_var = process_type_signature(
@@ -298,7 +297,6 @@ impl FunctionProcessor {
                     let adt_type_info = AdtTypeInfo {
                         adt_type: result_type_var,
                     };
-
                     self.adt_type_info_map.insert(i.type_id, adt_type_info);
 
                     self.variant_type_info_map
