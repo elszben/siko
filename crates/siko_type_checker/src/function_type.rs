@@ -1,8 +1,7 @@
+use crate::type_store::ResolverContext;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
-use siko_ir::types::TypeDefId;
-use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -35,19 +34,13 @@ impl FunctionType {
         }
     }
 
-    pub fn as_string(
-        &self,
-        type_store: &TypeStore,
-        type_args: &BTreeMap<usize, String>,
-        list_type_id: TypeDefId,
-    ) -> String {
-        let from =
-            type_store
-                .get_type(&self.from)
-                .as_string(type_store, true, type_args, list_type_id);
+    pub fn as_string(&self, type_store: &TypeStore, resolver_context: &ResolverContext) -> String {
+        let from = type_store
+            .get_type(&self.from)
+            .as_string(type_store, true, resolver_context);
         let to = type_store
             .get_type(&self.to)
-            .as_string(type_store, true, type_args, list_type_id);
+            .as_string(type_store, true, resolver_context);
         format!("{} -> {}", from, to)
     }
 }

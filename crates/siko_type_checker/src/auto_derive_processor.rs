@@ -2,6 +2,7 @@ use crate::common::AdtTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::type_processor::process_type_signature;
+use crate::type_store::ResolverContext;
 use crate::type_store::TypeStore;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -100,7 +101,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                         AutoDeriveMode::Implicit => {
                             // derive specific set of classes,
                             // NYI
-                            let mut context = BTreeMap::new();
+                            let mut context = ResolverContext::new();
                             let mut variants = Vec::new();
                             for index in 0..adt.variants.len() {
                                 let key = (adt.id, index);

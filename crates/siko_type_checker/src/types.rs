@@ -1,12 +1,12 @@
 use super::function_type::FunctionType;
 use super::type_variable::TypeVariable;
 use crate::type_store::CloneContext;
+use crate::type_store::ResolverContext;
 use crate::type_store::TypeStore;
 use siko_ir::class::ClassId;
 use siko_ir::types::ConcreteType;
 use siko_ir::types::TypeDefId;
 use siko_util::Collector;
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 
@@ -146,8 +146,7 @@ impl Type {
         &self,
         type_store: &TypeStore,
         need_parens: bool,
-        type_args: &BTreeMap<usize, String>,
-        list_type_id: TypeDefId,
+        resolver_context: &ResolverContext,
     ) -> String {
         match self {
             Type::Tuple(type_vars) => {
@@ -155,37 +154,31 @@ impl Type {
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store, false, type_args, list_type_id)
+                        ty.as_string(type_store, false, resolver_context)
                     })
                     .collect();
                 format!("({})", ss.join(", "))
             }
             Type::Function(func_type) => {
-                let func_type_str = func_type.as_string(type_store, type_args, list_type_id);
+                let func_type_str = func_type.as_string(type_store, resolver_context);
                 if need_parens {
                     format!("({})", func_type_str)
                 } else {
                     func_type_str
                 }
             }
-            Type::TypeArgument(index, _) => format!(
-                "{}",
-                type_args.get(index).expect("readable type arg not found")
-            ),
+            Type::TypeArgument(index, _) => resolver_context.get_type_arg_name(*index),
             //Type::FixedTypeArgument(index, name, _) => format!("{}", name),
-            Type::FixedTypeArgument(index, _, _) => format!(
-                "{}",
-                type_args.get(index).expect("readable type arg not found")
-            ),
+            Type::FixedTypeArgument(index, _, _) => resolver_context.get_type_arg_name(*index),
             Type::Named(name, id, type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store, false, type_args, list_type_id)
+                        ty.as_string(type_store, false, resolver_context)
                     })
                     .collect();
-                if *id == list_type_id {
+                if *id == resolver_context.get_list_type_id() {
                     assert_eq!(ss.len(), 1);
                     format!("[{}]", ss[0])
                 } else {

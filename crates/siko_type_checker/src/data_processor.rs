@@ -53,7 +53,6 @@ impl<'a> DataProcessor<'a> {
                         adt_type: adt_type_var,
                     };
                     self.adt_type_info_map.insert(*id, adt_type_info);
-
                     for (variant_index, variant) in adt.variants.iter().enumerate() {
                         let mut item_types = Vec::new();
                         for item in &variant.items {

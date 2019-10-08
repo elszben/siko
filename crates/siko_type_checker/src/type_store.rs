@@ -12,6 +12,42 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
+pub struct ResolverContext {
+    type_args: BTreeMap<usize, String>,
+    next_char: u32,
+    list_type_id: Option<TypeDefId>,
+}
+
+impl ResolverContext {
+    pub fn new() -> ResolverContext {
+        ResolverContext {
+            type_args: BTreeMap::new(),
+            next_char: 'a' as u32,
+            list_type_id: None,
+        }
+    }
+
+    pub fn add_type_arg(&mut self, arg: usize) {
+        if !self.type_args.contains_key(&arg) {
+            let c = std::char::from_u32(self.next_char).expect("Invalid char");
+            self.next_char += 1;
+            let name = format!("{}", c);
+            self.type_args.insert(arg, name);
+        }
+    }
+
+    pub fn get_type_arg_name(&self, arg: usize) -> String {
+        self.type_args
+            .get(&arg)
+            .expect("type arg name not found")
+            .clone()
+    }
+
+    pub fn get_list_type_id(&self) -> TypeDefId {
+        self.list_type_id.expect("list type id is not set")
+    }
+}
+
 pub struct CloneContext<'a> {
     vars: BTreeMap<TypeVariable, TypeVariable>,
     args: BTreeMap<usize, usize>,
@@ -335,28 +371,26 @@ impl TypeStore {
     }
 
     pub fn get_resolved_type_string(&self, var: &TypeVariable) -> String {
-        let mut type_args = BTreeMap::new();
-        self.get_resolved_type_string_with_context(var, &mut type_args)
+        let mut resolver_context = ResolverContext::new();
+        self.get_resolved_type_string_with_context(var, &mut resolver_context)
     }
 
     pub fn get_resolved_type_string_with_context(
         &self,
         var: &TypeVariable,
-        type_args: &mut BTreeMap<usize, String>,
+        resolver_context: &mut ResolverContext,
     ) -> String {
         if self.is_recursive(*var) {
             return format!("<recursive type>");
         }
+        resolver_context.list_type_id = Some(self.list_type_id);
         let ty = self.get_type(var);
         let mut vars = BTreeSet::new();
         let mut args = BTreeSet::new();
         let mut constraints = Collector::new();
         ty.collect(&mut vars, &mut args, &mut constraints, self);
-        let mut next_char = 'a' as u32;
         for arg in args {
-            let c = std::char::from_u32(next_char).expect("Invalid char");
-            type_args.insert(arg, format!("{}", c));
-            next_char += 1;
+            resolver_context.add_type_arg(arg);
         }
         let mut constraint_strings = Vec::new();
         for (c, classes) in constraints.items {
@@ -366,11 +400,7 @@ impl TypeStore {
                     .class_names
                     .get(&class_id)
                     .expect("Class name not found");
-                let c_str = format!(
-                    "{} {}",
-                    class_name,
-                    type_args.get(&c).expect("Type arg not found")
-                );
+                let c_str = format!("{} {}", class_name, resolver_context.get_type_arg_name(c));
                 constraint_strings.push(c_str);
             }
         }
@@ -380,7 +410,7 @@ impl TypeStore {
         } else {
             format!("({}) => ", format_list(&constraint_strings[..]))
         };
-        let type_str = ty.as_string(self, false, &type_args, self.list_type_id);
+        let type_str = ty.as_string(self, false, resolver_context);
         format!("{}{}", prefix, type_str)
     }
 
