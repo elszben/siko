@@ -74,15 +74,6 @@ impl TypeArgResolver {
             .collect()
     }
 
-    pub fn collect_args(&self, arg_names: Vec<&str>) -> Vec<usize> {
-        let mut result = Vec::new();
-        for arg in arg_names {
-            let info = self.args.get(arg).expect("arg not found");
-            result.push(info.index);
-        }
-        result
-    }
-
     pub fn reset_unused_flag(&mut self) {
         for (_, info) in &mut self.args {
             info.used = false;

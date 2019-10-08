@@ -172,7 +172,11 @@ impl Type {
                 "{}",
                 type_args.get(index).expect("readable type arg not found")
             ),
-            Type::FixedTypeArgument(_, name, _) => format!("{}", name),
+            //Type::FixedTypeArgument(index, name, _) => format!("{}", name),
+            Type::FixedTypeArgument(index, _, _) => format!(
+                "{}",
+                type_args.get(index).expect("readable type arg not found")
+            ),
             Type::Named(name, id, type_vars) => {
                 let ss: Vec<_> = type_vars
                     .iter()

@@ -482,9 +482,13 @@ impl Resolver {
         }
 
         let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
-
-        for (type_arg, location_id) in adt.type_args.iter() {
-            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
+        {
+            let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
+            for (type_arg, location_id) in adt.type_args.iter() {
+                let index =
+                    type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
+                ir_adt.type_args.push(index);
+            }
         }
 
         let result: Vec<_> = type_signature_ids
@@ -559,8 +563,6 @@ impl Resolver {
             }
 
             let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
-            let arg_names: Vec<_> = adt.type_args.iter().map(|(k, v)| k.as_ref()).collect();
-            ir_adt.type_args = type_arg_resolver.collect_args(arg_names);
             ir_adt.variants = ir_variants;
             ir_adt.auto_derive_mode =
                 self.process_auto_derive_mode(&adt.auto_derive_method, module, errors);
@@ -584,9 +586,13 @@ impl Resolver {
         }
 
         let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
-
-        for (type_arg, location_id) in record.type_args.iter() {
-            type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
+        {
+            let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
+            for (type_arg, location_id) in record.type_args.iter() {
+                let index =
+                    type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
+                ir_record.type_args.push(index);
+            }
         }
 
         let result: Vec<_> = type_signature_ids
@@ -624,8 +630,6 @@ impl Resolver {
             }
 
             let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
-            let arg_names: Vec<_> = record.type_args.iter().map(|(k, v)| k.as_ref()).collect();
-            ir_record.type_args = type_arg_resolver.collect_args(arg_names);
             ir_record.fields = ir_fields;
             ir_record.auto_derive_mode =
                 self.process_auto_derive_mode(&record.auto_derive_method, module, errors);

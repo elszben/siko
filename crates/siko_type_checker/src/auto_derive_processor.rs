@@ -100,6 +100,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                         AutoDeriveMode::Implicit => {
                             // derive specific set of classes,
                             // NYI
+                            let mut context = BTreeMap::new();
                             let mut variants = Vec::new();
                             for index in 0..adt.variants.len() {
                                 let key = (adt.id, index);
@@ -109,7 +110,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                     .expect("Variant type info not found");
                                 for item_type in &variant_type_info.item_types {
                                     let variant_string =
-                                        self.type_store.get_resolved_type_string(&item_type);
+                                        self.type_store.get_resolved_type_string_with_context(
+                                            &item_type,
+                                            &mut context,
+                                        );
                                     variants.push(variant_string);
                                 }
                             }
@@ -117,9 +121,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 .adt_type_info_map
                                 .get(&adt.id)
                                 .expect("Adt type info not found");
-                            let adt_type = self
-                                .type_store
-                                .get_resolved_type_string(&adt_type_info.adt_type);
+                            let adt_type = self.type_store.get_resolved_type_string_with_context(
+                                &adt_type_info.adt_type,
+                                &mut context,
+                            );
                             println!(
                                 "IMPLICIT ADT {} {} TYPE:[{}] depends on {}",
                                 adt.module,
