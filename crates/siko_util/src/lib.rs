@@ -113,7 +113,7 @@ impl Drop for ElapsedTimeMeasure {
     fn drop(&mut self) {
         let end = Instant::now();
         let d = end - self.start;
-        println!("{}: {}.{}", self.name, d.as_secs(), d.subsec_millis());
+        //println!("{}: {}.{}", self.name, d.as_secs(), d.subsec_millis());
     }
 }
 
@@ -138,11 +138,13 @@ impl ElapsedTimeMeasureCollector {
     pub fn print_instance_resolver_time() {
         MEASUREMENT_COLLECTOR.with(|m| {
             let m = m.borrow();
+            /*
             println!(
                 "InstanceResolver: {}.{}",
                 m.instance_resolver_time.as_secs(),
                 m.instance_resolver_time.subsec_millis()
             );
+            */
         });
     }
 }

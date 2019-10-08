@@ -1,4 +1,5 @@
 use crate::common::create_general_function_type;
+use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
@@ -23,6 +24,7 @@ pub struct FunctionProcessor {
     type_store: TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
     record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
+    adt_type_info_map: BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
 }
 
@@ -32,6 +34,7 @@ impl FunctionProcessor {
             type_store: type_store,
             function_type_info_map: BTreeMap::new(),
             record_type_info_map: BTreeMap::new(),
+            adt_type_info_map: BTreeMap::new(),
             variant_type_info_map: BTreeMap::new(),
         }
     }
@@ -177,6 +180,7 @@ impl FunctionProcessor {
         TypeStore,
         BTreeMap<FunctionId, FunctionTypeInfo>,
         BTreeMap<TypeDefId, RecordTypeInfo>,
+        BTreeMap<TypeDefId, AdtTypeInfo>,
         BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     ) {
         for (id, function) in &program.functions.items {
@@ -291,6 +295,12 @@ impl FunctionProcessor {
                         item_types: args,
                     };
 
+                    let adt_type_info = AdtTypeInfo {
+                        adt_type: result_type_var,
+                    };
+
+                    self.adt_type_info_map.insert(i.type_id, adt_type_info);
+
                     self.variant_type_info_map
                         .insert((i.type_id, i.index), variant_type_info);
 
@@ -347,6 +357,7 @@ impl FunctionProcessor {
             self.type_store,
             self.function_type_info_map,
             self.record_type_info_map,
+            self.adt_type_info_map,
             self.variant_type_info_map,
         )
     }

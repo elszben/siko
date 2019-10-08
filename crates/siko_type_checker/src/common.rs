@@ -57,6 +57,11 @@ pub struct RecordTypeInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct AdtTypeInfo {
+    pub adt_type: TypeVariable,
+}
+
+#[derive(Debug, Clone)]
 pub struct VariantTypeInfo {
     pub variant_type: TypeVariable,
     pub item_types: Vec<TypeVariable>,

@@ -60,7 +60,13 @@ impl Typechecker {
             class_processor.process_classes(program, &mut errors)
         };
 
-        let (mut type_store, function_type_info_map, record_type_info_map, variant_type_info_map) = {
+        let (
+            mut type_store,
+            function_type_info_map,
+            record_type_info_map,
+            adt_type_info_map,
+            variant_type_info_map,
+        ) = {
             let _m = ElapsedTimeMeasure::new("FunctionProcessor");
             let function_processor = FunctionProcessor::new(type_store);
 
@@ -83,7 +89,13 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        let mut processor = TypedefDependencyProcessor::new(program, &mut type_store);
+        let mut processor = TypedefDependencyProcessor::new(
+            program,
+            &mut type_store,
+            &adt_type_info_map,
+            &record_type_info_map,
+            &variant_type_info_map,
+        );
         processor.process_functions();
 
         let mut expr_processor = {
