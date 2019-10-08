@@ -65,6 +65,7 @@ pub struct AdtTypeInfo {
 pub struct VariantTypeInfo {
     pub variant_type: TypeVariable,
     pub item_types: Vec<TypeVariable>,
+    pub location_id: LocationId,
 }
 
 #[derive(Clone)]

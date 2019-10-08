@@ -1,5 +1,4 @@
 use crate::common::create_general_function_type;
-use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
@@ -20,22 +19,24 @@ use siko_ir::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 
-pub struct FunctionProcessor {
-    type_store: TypeStore,
+pub struct FunctionProcessor<'a> {
+    type_store: &'a mut TypeStore,
     function_type_info_map: BTreeMap<FunctionId, FunctionTypeInfo>,
-    record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
-    adt_type_info_map: BTreeMap<TypeDefId, AdtTypeInfo>,
-    variant_type_info_map: BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
+    record_type_info_map: &'a BTreeMap<TypeDefId, RecordTypeInfo>,
+    variant_type_info_map: &'a BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
 }
 
-impl FunctionProcessor {
-    pub fn new(type_store: TypeStore) -> FunctionProcessor {
+impl<'a> FunctionProcessor<'a> {
+    pub fn new(
+        type_store: &'a mut TypeStore,
+        record_type_info_map: &'a BTreeMap<TypeDefId, RecordTypeInfo>,
+        variant_type_info_map: &'a BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
+    ) -> FunctionProcessor<'a> {
         FunctionProcessor {
             type_store: type_store,
             function_type_info_map: BTreeMap::new(),
-            record_type_info_map: BTreeMap::new(),
-            adt_type_info_map: BTreeMap::new(),
-            variant_type_info_map: BTreeMap::new(),
+            record_type_info_map: record_type_info_map,
+            variant_type_info_map: variant_type_info_map,
         }
     }
 
@@ -176,13 +177,7 @@ impl FunctionProcessor {
         program: &Program,
         errors: &mut Vec<TypecheckError>,
         class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-    ) -> (
-        TypeStore,
-        BTreeMap<FunctionId, FunctionTypeInfo>,
-        BTreeMap<TypeDefId, RecordTypeInfo>,
-        BTreeMap<TypeDefId, AdtTypeInfo>,
-        BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
-    ) {
+    ) -> BTreeMap<FunctionId, FunctionTypeInfo> {
         for (id, function) in &program.functions.items {
             let displayed_name = format!("{}", function.info);
             match &function.info {
@@ -197,110 +192,63 @@ impl FunctionProcessor {
                         &mut self.type_store,
                     );
 
-                    let mut arg_map = BTreeMap::new();
-                    for (index, field) in record.fields.iter().enumerate() {
-                        let arg_var = process_type_signature(
-                            &mut self.type_store,
-                            &field.type_signature_id,
-                            program,
-                            &mut arg_map,
-                            &mut None,
-                        );
-                        let r = self.type_store.unify(&arg_var, &args[index]);
+                    let record_type_info = self
+                        .record_type_info_map
+                        .get(&i.type_id)
+                        .expect("record type info not found");
+
+                    for (index, field_var) in record_type_info.field_types.iter().enumerate() {
+                        let r = self.type_store.unify(&field_var, &args[index]);
                         assert!(r);
                     }
-                    let mut type_args: Vec<_> = Vec::new();
-                    for arg in &record.type_args {
-                        let var = match arg_map.get(arg) {
-                            Some(v) => *v,
-                            None => self.type_store.get_new_type_var(),
-                        };
-                        type_args.push(var);
-                    }
-                    let result_type = Type::Named(record.name.clone(), i.type_id, type_args);
-                    let result_type_var = self.type_store.add_type(result_type);
-                    let r = self.type_store.unify(&result, &result_type_var);
+                    let r = self
+                        .type_store
+                        .unify(&result, &record_type_info.record_type);
                     assert!(r);
                     let type_info = FunctionTypeInfo::new(
                         format!("{}_ctor", record.name),
                         args.clone(),
                         true,
-                        result_type_var,
+                        record_type_info.record_type,
                         func_type_var,
                         None,
                         record.location_id,
                         BTreeMap::new(),
                     );
-                    let record_type_info = RecordTypeInfo {
-                        record_type: result_type_var,
-                        field_types: args,
-                    };
-                    self.record_type_info_map
-                        .insert(record.id, record_type_info);
                     self.function_type_info_map.insert(*id, type_info);
                 }
                 FunctionInfo::VariantConstructor(i) => {
+                    let key = (i.type_id, i.index);
                     let adt = program.typedefs.get(&i.type_id).get_adt();
-                    let variant = &adt.variants[i.index];
-                    let location_id = program
-                        .type_signatures
-                        .get(&variant.type_signature_id)
-                        .location_id;
-
+                    let variant_type_info = self
+                        .variant_type_info_map
+                        .get(&key)
+                        .expect("variant type info not found");
                     let mut args = Vec::new();
 
                     let (func_type_var, result) = create_general_function_type(
-                        variant.items.len(),
+                        variant_type_info.item_types.len(),
                         &mut args,
                         &mut self.type_store,
                     );
-                    let mut arg_map = BTreeMap::new();
-                    for (index, item) in variant.items.iter().enumerate() {
-                        let arg_var = process_type_signature(
-                            &mut self.type_store,
-                            &item.type_signature_id,
-                            program,
-                            &mut arg_map,
-                            &mut None,
-                        );
-                        let r = self.type_store.unify(&arg_var, &args[index]);
+                    for (index, item_type) in variant_type_info.item_types.iter().enumerate() {
+                        let r = self.type_store.unify(&item_type, &args[index]);
                         assert!(r);
                     }
-                    let mut type_args: Vec<_> = Vec::new();
-                    for arg in &adt.type_args {
-                        let var = match arg_map.get(arg) {
-                            Some(v) => *v,
-                            None => self.type_store.get_new_type_var(),
-                        };
-                        type_args.push(var);
-                    }
-                    let result_type = Type::Named(adt.name.clone(), i.type_id, type_args);
-                    let result_type_var = self.type_store.add_type(result_type);
-                    let r = self.type_store.unify(&result, &result_type_var);
+                    let r = self
+                        .type_store
+                        .unify(&result, &variant_type_info.variant_type);
                     assert!(r);
                     let type_info = FunctionTypeInfo::new(
-                        format!("{}/{}_ctor", adt.name, variant.name),
+                        format!("{}/{}_ctor", adt.name, adt.variants[i.index].name),
                         args.clone(),
                         true,
-                        result_type_var,
+                        variant_type_info.variant_type,
                         func_type_var,
                         None,
-                        location_id,
+                        variant_type_info.location_id,
                         BTreeMap::new(),
                     );
-
-                    let variant_type_info = VariantTypeInfo {
-                        variant_type: result_type_var,
-                        item_types: args,
-                    };
-
-                    let adt_type_info = AdtTypeInfo {
-                        adt_type: result_type_var,
-                    };
-                    self.adt_type_info_map.insert(i.type_id, adt_type_info);
-
-                    self.variant_type_info_map
-                        .insert((i.type_id, i.index), variant_type_info);
 
                     self.function_type_info_map.insert(*id, type_info);
                 }
@@ -351,12 +299,6 @@ impl FunctionProcessor {
             }
         }
 
-        (
-            self.type_store,
-            self.function_type_info_map,
-            self.record_type_info_map,
-            self.adt_type_info_map,
-            self.variant_type_info_map,
-        )
+        self.function_type_info_map
     }
 }

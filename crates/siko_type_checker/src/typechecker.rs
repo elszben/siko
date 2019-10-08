@@ -1,6 +1,7 @@
 use crate::auto_derive_processor::TypedefDependencyProcessor;
 use crate::check_context::CheckContext;
 use crate::class_processor::ClassProcessor;
+use crate::data_processor::DataProcessor;
 use crate::error::Error;
 use crate::error::TypecheckError;
 use crate::expr_processor::ExprProcessor;
@@ -53,22 +54,26 @@ impl Typechecker {
             check_context.clone(),
         );
 
-        let (type_store, class_member_type_info_map) = {
+        let (mut type_store, class_member_type_info_map) = {
             let _m = ElapsedTimeMeasure::new("ClassProcessor");
             let class_processor = ClassProcessor::new(type_store, check_context.clone());
 
             class_processor.process_classes(program, &mut errors)
         };
 
-        let (
-            mut type_store,
-            function_type_info_map,
-            record_type_info_map,
-            adt_type_info_map,
-            variant_type_info_map,
-        ) = {
+        let (record_type_info_map, adt_type_info_map, variant_type_info_map) = {
+            let _m = ElapsedTimeMeasure::new("DataProcessor");
+            let data_processor = DataProcessor::new(program, &mut type_store);
+            data_processor.process_data_typedefs()
+        };
+
+        let function_type_info_map = {
             let _m = ElapsedTimeMeasure::new("FunctionProcessor");
-            let function_processor = FunctionProcessor::new(type_store);
+            let function_processor = FunctionProcessor::new(
+                &mut type_store,
+                &record_type_info_map,
+                &variant_type_info_map,
+            );
 
             function_processor.process_functions(program, &mut errors, &class_member_type_info_map)
         };
