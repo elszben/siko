@@ -2,7 +2,9 @@ module Main where
 
 import Std.Util
 
-data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Option Int) deriving Eq
+data Optional a = Some a | None
+
+data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Optional Int) deriving Show
 
 data Simple = { alma :: String }
 data Simple2 a = { alma :: Option a } deriving Eq
@@ -12,5 +14,8 @@ instance PartialEq FooBar where
     opEq a b = False
 
 instance Eq FooBar
+
+instance Show FooBar where
+    show a = "FooBar"
 
 main = assert True

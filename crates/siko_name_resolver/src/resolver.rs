@@ -190,7 +190,7 @@ impl Resolver {
                     name: record.name.clone(),
                     module: ast_module.name.clone(),
                     id: ir_typedef_id,
-                    type_args: Vec::new(),
+                    type_args: (0..record.type_args.len()).collect(),
                     fields: Vec::new(),
                     constructor: ir_ctor_id,
                     location_id: record.location_id,
@@ -220,7 +220,7 @@ impl Resolver {
                     name: adt.name.clone(),
                     module: ast_module.name.clone(),
                     id: ir_typedef_id,
-                    type_args: Vec::new(),
+                    type_args: (0..adt.type_args.len()).collect(),
                     variants: Vec::new(),
                     auto_derive_mode: IrAutoDeriveMode::Implicit,
                 };
@@ -484,6 +484,7 @@ impl Resolver {
         let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
         {
             let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
+            ir_adt.type_args.clear();
             for (type_arg, location_id) in adt.type_args.iter() {
                 let index =
                     type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
@@ -588,6 +589,7 @@ impl Resolver {
         let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
         {
             let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
+            ir_record.type_args.clear();
             for (type_arg, location_id) in record.type_args.iter() {
                 let index =
                     type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
