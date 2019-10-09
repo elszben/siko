@@ -1,4 +1,5 @@
 use crate::check_context::CheckContext;
+use crate::instance_resolver::ResolutionResult;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::class::ClassId;
@@ -222,7 +223,11 @@ impl TypeStore {
         }
     }
 
-    pub fn has_class_instance(&mut self, var: &TypeVariable, class_id: &ClassId) -> bool {
+    pub fn has_class_instance(
+        &mut self,
+        var: &TypeVariable,
+        class_id: &ClassId,
+    ) -> ResolutionResult {
         let concrete_type = self.to_concrete_type(var);
         let context = self.check_context.clone();
         let context = context.borrow();
@@ -294,7 +299,7 @@ impl TypeStore {
             }
             (Type::TypeArgument(_, constraints), _) => {
                 for c in constraints {
-                    if !self.has_class_instance(secondary, c) {
+                    if self.has_class_instance(secondary, c) == ResolutionResult::No {
                         return false;
                     }
                 }
@@ -302,7 +307,7 @@ impl TypeStore {
             }
             (_, Type::TypeArgument(_, constraints)) => {
                 for c in constraints {
-                    if !self.has_class_instance(primary, c) {
+                    if self.has_class_instance(primary, c) == ResolutionResult::No {
                         return false;
                     }
                 }

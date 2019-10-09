@@ -647,6 +647,23 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::AutoDeriveConflict(
+                            type_name,
+                            derive_location,
+                            instance_location,
+                            class_name,
+                        ) => {
+                            eprintln!(
+                                "{} for type {} instance conflicts with explicit derive of class {}",
+                                error.red(),
+                                type_name.yellow(),
+                                class_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(derive_location);
+                            print_location_set(file_manager, location_set);
+                            let location_set = location_info.get_item_location(instance_location);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

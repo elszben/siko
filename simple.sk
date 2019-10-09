@@ -2,10 +2,15 @@ module Main where
 
 import Std.Util
 
-data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Option Int)
+data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Option Int) deriving Eq
 
 data Simple = { alma :: String }
 data Simple2 a = { alma :: Option a } deriving Eq
 data Simple3 a = extern 
+
+instance PartialEq FooBar where
+    opEq a b = False
+
+instance Eq FooBar
 
 main = assert True

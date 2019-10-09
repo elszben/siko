@@ -101,7 +101,7 @@ impl Typechecker {
             &record_type_info_map,
             &variant_type_info_map,
         );
-        processor.process_functions();
+        processor.process_functions(&mut errors);
 
         let mut expr_processor = {
             let _m = ElapsedTimeMeasure::new("ExprProcessor");

@@ -14,6 +14,7 @@ pub enum TypecheckError {
     InvalidRecordPattern(LocationId, String, usize, usize),
     ConflictingInstances(LocationId, LocationId),
     TypeAnnotationNeeded(LocationId),
+    AutoDeriveConflict(String, LocationId, LocationId, String),
 }
 
 #[derive(Debug)]

@@ -1,6 +1,8 @@
 use crate::common::AdtTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
+use crate::error::TypecheckError;
+use crate::instance_resolver::ResolutionResult;
 use crate::type_processor::process_type_signature;
 use crate::type_store::ResolverContext;
 use crate::type_store::TypeStore;
@@ -85,7 +87,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
         }
     }
 
-    pub fn process_functions(&mut self) -> Vec<DependencyGroup<TypeDefId>> {
+    pub fn process_functions(
+        &mut self,
+        errors: &mut Vec<TypecheckError>,
+    ) -> Vec<DependencyGroup<TypeDefId>> {
         let mut typedefs = Vec::new();
         for (id, typedef) in &self.program.typedefs.items {
             if let TypeDef::Record(record) = typedef {
@@ -101,63 +106,62 @@ impl<'a> TypedefDependencyProcessor<'a> {
                         AutoDeriveMode::Implicit => {
                             // derive specific set of classes,
                             // NYI
-                            let mut context = ResolverContext::new();
-                            let mut variants = Vec::new();
-                            for index in 0..adt.variants.len() {
-                                let key = (adt.id, index);
-                                let variant_type_info = self
-                                    .variant_type_info_map
-                                    .get(&key)
-                                    .expect("Variant type info not found");
-                                for item_type in &variant_type_info.item_types {
-                                    let variant_string =
-                                        self.type_store.get_resolved_type_string_with_context(
-                                            &item_type,
-                                            &mut context,
-                                        );
-                                    variants.push(variant_string);
-                                }
-                            }
-                            let adt_type_info = self
-                                .adt_type_info_map
-                                .get(&adt.id)
-                                .expect("Adt type info not found");
-                            let adt_type = self.type_store.get_resolved_type_string_with_context(
-                                &adt_type_info.adt_type,
-                                &mut context,
-                            );
-                            println!(
-                                "IMPLICIT ADT {} {} TYPE:[{}] depends on {}",
-                                adt.module,
-                                adt.name,
-                                adt_type,
-                                variants[..].join(", ")
-                            );
                         }
                         AutoDeriveMode::Explicit(derived_classes) => {
-                            let mut arg_map = BTreeMap::new();
-                            let mut variants = Vec::new();
-                            for variant in &adt.variants {
-                                for item in &variant.items {
-                                    let mut handler = None;
-                                    let var = process_type_signature(
-                                        &mut self.type_store,
-                                        &item.type_signature_id,
-                                        self.program,
-                                        &mut arg_map,
-                                        &mut handler,
-                                    );
-                                    let variant_string =
-                                        self.type_store.get_resolved_type_string(&var);
-                                    variants.push(variant_string);
+                            for derived_class in derived_classes {
+                                let mut context = ResolverContext::new();
+                                let mut variants = Vec::new();
+                                for index in 0..adt.variants.len() {
+                                    let key = (adt.id, index);
+                                    let variant_type_info = self
+                                        .variant_type_info_map
+                                        .get(&key)
+                                        .expect("Variant type info not found");
+                                    for item_type in &variant_type_info.item_types {
+                                        let variant_string =
+                                            self.type_store.get_resolved_type_string_with_context(
+                                                &item_type,
+                                                &mut context,
+                                            );
+                                        variants.push(variant_string);
+                                    }
                                 }
+                                let adt_type_info = self
+                                    .adt_type_info_map
+                                    .get(&adt.id)
+                                    .expect("Adt type info not found");
+                                let adt_type =
+                                    self.type_store.get_resolved_type_string_with_context(
+                                        &adt_type_info.adt_type,
+                                        &mut context,
+                                    );
+                                let resolution_result = self.type_store.has_class_instance(
+                                    &adt_type_info.adt_type,
+                                    &derived_class.class_id,
+                                );
+                                match resolution_result {
+                                    ResolutionResult::Definite(instance_id) => {
+                                        let instance = self.program.instances.get(&instance_id);
+                                        let class = self.program.classes.get(&instance.class_id);
+                                        let err = TypecheckError::AutoDeriveConflict(
+                                            adt.name.clone(),
+                                            derived_class.location_id,
+                                            instance.location_id,
+                                            class.name.clone(),
+                                        );
+                                        errors.push(err);
+                                    }
+                                    ResolutionResult::Inconclusive => unreachable!(),
+                                    ResolutionResult::No => {}
+                                }
+                                println!(
+                                    "IMPLICIT ADT {} {} TYPE:[{}] depends on {}, has_class_instance {:?}",
+                                    adt.module,
+                                    adt.name,
+                                    adt_type,
+                                    variants[..].join(", "), resolution_result 
+                                );
                             }
-                            println!(
-                                "ADT {} {} depends on {}",
-                                adt.module,
-                                adt.name,
-                                variants[..].join(", ")
-                            );
                         }
                     }
                 }
