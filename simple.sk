@@ -28,4 +28,8 @@ instance (Boo a) => Boo Optional a
 instance Boo FooTar a
 instance Boo FooTar2 a
 
-main = assert True
+data Cyclic1 = Bee Cyclic2 deriving Boo
+data Cyclic2 = Bee2 Cyclic1 Cyclic3 deriving Boo
+data Cyclic3 = Bee3 (Option Int) Cyclic1 deriving Boo
+
+main = assert True 

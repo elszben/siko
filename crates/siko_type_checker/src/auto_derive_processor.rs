@@ -7,30 +7,24 @@ use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::class::ClassId;
-use siko_ir::expr::Expr;
-use siko_ir::expr::ExprId;
-use siko_ir::function::FunctionId;
-use siko_ir::pattern::Pattern;
-use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::Adt;
 use siko_ir::types::AutoDeriveMode;
 use siko_ir::types::Record;
 use siko_ir::types::TypeDef;
 use siko_ir::types::TypeDefId;
-use siko_ir::walker::Visitor;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use crate::dependency_processor::DependencyCollector;
-use crate::dependency_processor::DependencyGroup;
 use crate::dependency_processor::DependencyProcessor;
 
 #[derive(Debug)]
 pub enum AutoDeriveState {
     No,
-    Yes(Vec<Vec<ClassId>>),
+    Definite,
+    Possible(Vec<Vec<ClassId>>),
 }
 
 pub struct Item {
@@ -39,36 +33,23 @@ pub struct Item {
     dependencies: Vec<TypeDefId>,
 }
 
-struct FunctionDependencyCollector<'a> {
-    program: &'a Program,
-    used_functions: BTreeSet<FunctionId>,
-}
-
-impl<'a> FunctionDependencyCollector<'a> {
-    fn new(program: &'a Program) -> FunctionDependencyCollector<'a> {
-        FunctionDependencyCollector {
-            program: program,
-            used_functions: BTreeSet::new(),
+impl Item {
+    pub fn dump(&self, program: &Program, class_id: ClassId) {
+        let class = program.classes.get(&class_id);
+        let (module, name) = program.get_module_and_name(self.typedef_id);
+        let mut dependencies = Vec::new();
+        for dep in &self.dependencies {
+            let (module, name) = program.get_module_and_name(*dep);
+            dependencies.push(format!("{}/{}", module, name));
         }
-    }
-}
-
-impl<'a> Visitor for FunctionDependencyCollector<'a> {
-    fn get_program(&self) -> &Program {
-        &self.program
-    }
-
-    fn visit_expr(&mut self, _: ExprId, expr: &Expr) {
-        match expr {
-            Expr::StaticFunctionCall(id, _) => {
-                self.used_functions.insert(*id);
-            }
-            _ => {}
-        }
-    }
-
-    fn visit_pattern(&mut self, _: PatternId, _: &Pattern) {
-        // do nothing
+        println!(
+            "class {}, type {}/{}, dependencies ({}) state {:?}",
+            class.name,
+            module,
+            name,
+            dependencies.join(", "),
+            self.state
+        );
     }
 }
 
@@ -114,7 +95,7 @@ fn check_data_type(
     program: &Program,
     accept_instance_only: bool,
 ) -> Item {
-    let mut dependencies = Vec::new();
+    let mut dependencies = BTreeSet::new();
     let resolution_result = type_store.has_class_instance(&data_type_var, &derived_class);
     let state = {
         match resolution_result {
@@ -130,7 +111,7 @@ fn check_data_type(
                     );
                     errors.push(err);
                 }
-                AutoDeriveState::Yes(Vec::new())
+                AutoDeriveState::Definite
             }
             ResolutionResult::Inconclusive => unreachable!(),
             ResolutionResult::No => {
@@ -164,7 +145,7 @@ fn check_data_type(
                                     }
                                 }
                             }
-                            dependencies.push(dep_id);
+                            dependencies.insert(dep_id);
                         }
                         _ => {
                             panic!("type as member is not yet implemented {:?}", ty);
@@ -186,7 +167,7 @@ fn check_data_type(
                             }
                         }
                     }
-                    AutoDeriveState::Yes(constraints)
+                    AutoDeriveState::Possible(constraints)
                 }
             }
         }
@@ -194,7 +175,7 @@ fn check_data_type(
     Item {
         typedef_id: *typedef_id,
         state: state,
-        dependencies: dependencies,
+        dependencies: dependencies.into_iter().collect(),
     }
 }
 
@@ -291,7 +272,7 @@ pub struct TypedefDependencyProcessor<'a> {
     adt_type_info_map: &'a BTreeMap<TypeDefId, AdtTypeInfo>,
     record_type_info_map: &'a BTreeMap<TypeDefId, RecordTypeInfo>,
     variant_type_info_map: &'a BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
-    class_items_map: BTreeMap<ClassId, Vec<Item>>,
+    class_items_map: BTreeMap<ClassId, BTreeMap<TypeDefId, Item>>,
 }
 
 impl<'a> TypedefDependencyProcessor<'a> {
@@ -316,14 +297,12 @@ impl<'a> TypedefDependencyProcessor<'a> {
         let items = self
             .class_items_map
             .entry(class_id)
-            .or_insert_with(|| Vec::new());
-        items.push(item)
+            .or_insert_with(|| BTreeMap::new());
+        let id = item.typedef_id;
+        items.insert(id, item);
     }
 
-    pub fn process_functions(
-        &mut self,
-        errors: &mut Vec<TypecheckError>,
-    ) -> Vec<DependencyGroup<TypeDefId>> {
+    pub fn process(&mut self, errors: &mut Vec<TypecheckError>) {
         //let implicit_derived_classes = [ClassId { id: 0 }];
         let implicit_derived_classes = [];
         for (id, typedef) in &self.program.typedefs.items {
@@ -407,10 +386,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
         for (class_id, items) in &mut self.class_items_map {
             let mut current_processed_typedefs = BTreeSet::new();
             let mut unprocesed_typedefs = BTreeSet::new();
-            for item in items.iter() {
+            for (_, item) in items.iter() {
                 current_processed_typedefs.insert(item.typedef_id);
             }
-            for item in items.iter() {
+            for (_, item) in items.iter() {
                 for dep in &item.dependencies {
                     if !current_processed_typedefs.contains(dep) {
                         unprocesed_typedefs.insert(*dep);
@@ -432,7 +411,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             self.program,
                             true,
                         );
-                        items.push(item);
+                        items.insert(typedef_id, item);
                     }
                     TypeDef::Record(record) => {
                         let item = check_record(
@@ -445,41 +424,36 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             self.program,
                             true,
                         );
-                        items.push(item);
+                        items.insert(typedef_id, item);
                     }
                 }
             }
         }
 
         for (class_id, items) in &self.class_items_map {
-            for item in items {
-                let class = self.program.classes.get(&class_id);
-                let (module, name) = self.program.get_module_and_name(item.typedef_id);
-                let mut dependencies = Vec::new();
-                for dep in &item.dependencies {
-                    let (module, name) = self.program.get_module_and_name(*dep);
-                    dependencies.push(format!("{}/{}", module, name));
-                }
-                println!(
-                    "class {}, type {}/{}, dependencies ({}) state {:?}",
-                    class.name,
-                    module,
-                    name,
-                    dependencies.join(", "),
-                    item.state
-                );
-            }
-            let typedef_ids: Vec<_> = items.iter().map(|item| item.typedef_id).collect();
+            let typedef_ids: Vec<_> = items.iter().map(|(_, item)| item.typedef_id).collect();
             let dep_processor = DependencyProcessor::new(typedef_ids);
-            let ordered_function_groups = dep_processor.process_items(self);
+            let collector = TypedefDependencyCollector { items: items };
+            let ordered_function_groups = dep_processor.process_items(&collector);
+            println!("{} groups found ", ordered_function_groups.len());
+            for (index, group) in ordered_function_groups.iter().enumerate() {
+                println!("{}. group", index);
+                for id in &group.items {
+                    let item = items.get(&id).expect("Item not found");
+                    item.dump(self.program, *class_id);
+                }
+            }
         }
-        Vec::new()
     }
 }
 
-impl<'a> DependencyCollector<TypeDefId> for TypedefDependencyProcessor<'a> {
+struct TypedefDependencyCollector<'a> {
+    items: &'a BTreeMap<TypeDefId, Item>,
+}
+
+impl<'a> DependencyCollector<TypeDefId> for TypedefDependencyCollector<'a> {
     fn collect(&self, typedef_id: TypeDefId) -> Vec<TypeDefId> {
-        let mut deps = BTreeSet::new();
-        deps.into_iter().collect()
+        let item = self.items.get(&typedef_id).expect("Item not found");
+        item.dependencies.clone()
     }
 }
