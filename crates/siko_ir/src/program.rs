@@ -208,4 +208,13 @@ impl Program {
             .expect("Typedef not found")
             .clone()
     }
+
+    pub fn get_module_and_name(&self, typedef_id: TypeDefId) -> (String, String) {
+        let typedef = self.typedefs.get(&typedef_id);
+        let (module, name) = match typedef {
+            TypeDef::Adt(adt) => (adt.module.clone(), adt.name.clone()),
+            TypeDef::Record(record) => (record.module.clone(), record.name.clone()),
+        };
+        (module, name)
+    }
 }

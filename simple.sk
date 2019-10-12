@@ -7,13 +7,15 @@ class Boo a
 instance Boo Int
 instance Boo Float
 
+data Empty = {}
+
 data FooTar a = Ba a
 data FooTar2 a = Ba2 a
 
 data Optional a = Some a | None
 
 data FooBar a = Alma (FooTar a) (FooTar2 a) (FooBar a) |
-              Korte Float (Float, Float) (Optional a) deriving Boo
+              Korte Float (Optional a) deriving Boo
 
 data Simple = { alma :: String }
 data Simple2 a = { alma :: Option a } deriving Boo
@@ -21,7 +23,7 @@ data Simple3 a = extern
 
 instance (Boo a) => Boo Optional a
 
-instance Boo FooTar Int
+instance Boo FooTar a
 instance Boo FooTar2 a
 
 main = assert True
