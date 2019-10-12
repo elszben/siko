@@ -27,6 +27,7 @@ use crate::dependency_processor::DependencyCollector;
 use crate::dependency_processor::DependencyGroup;
 use crate::dependency_processor::DependencyProcessor;
 
+#[derive(Debug)]
 pub enum AutoDeriveState {
     No,
     Yes(Vec<Vec<ClassId>>),
@@ -111,6 +112,7 @@ fn check_data_type(
     derive_location: Option<LocationId>,
     type_store: &mut TypeStore,
     program: &Program,
+    accept_instance_only: bool,
 ) -> Item {
     let mut dependencies = Vec::new();
     let resolution_result = type_store.has_class_instance(&data_type_var, &derived_class);
@@ -169,7 +171,7 @@ fn check_data_type(
                         }
                     }
                 }
-                if member_failed {
+                if member_failed || accept_instance_only {
                     AutoDeriveState::No
                 } else {
                     let mut constraints = Vec::new();
@@ -205,6 +207,7 @@ fn check_adt(
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
+    accept_instance_only: bool,
 ) -> Item {
     let adt_type_info = adt_type_info_map
         .get(&adt.id)
@@ -238,6 +241,7 @@ fn check_adt(
         derive_location,
         type_store,
         program,
+        accept_instance_only,
     )
 }
 
@@ -249,6 +253,7 @@ fn check_record(
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
+    accept_instance_only: bool,
 ) -> Item {
     let record_type_info = record_type_info_map
         .get(&record.id)
@@ -276,6 +281,7 @@ fn check_record(
         derive_location,
         type_store,
         program,
+        accept_instance_only,
     )
 }
 
@@ -341,6 +347,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 self.variant_type_info_map,
                                 self.type_store,
                                 self.program,
+                                false,
                             );
                             self.add_item(*derived_class, item);
                         }
@@ -356,6 +363,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 self.variant_type_info_map,
                                 self.type_store,
                                 self.program,
+                                false,
                             );
                             self.add_item(derived_class.class_id, item);
                         }
@@ -372,6 +380,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 self.record_type_info_map,
                                 self.type_store,
                                 self.program,
+                                false,
                             );
                             self.add_item(*derived_class, item);
                         }
@@ -386,6 +395,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 self.record_type_info_map,
                                 self.type_store,
                                 self.program,
+                                false,
                             );
                             self.add_item(derived_class.class_id, item);
                         }
@@ -420,6 +430,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             self.variant_type_info_map,
                             self.type_store,
                             self.program,
+                            true,
                         );
                         items.push(item);
                     }
@@ -432,6 +443,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             self.record_type_info_map,
                             self.type_store,
                             self.program,
+                            true,
                         );
                         items.push(item);
                     }
@@ -449,11 +461,12 @@ impl<'a> TypedefDependencyProcessor<'a> {
                     dependencies.push(format!("{}/{}", module, name));
                 }
                 println!(
-                    "class {}, type {}/{}, dependencies ({})",
+                    "class {}, type {}/{}, dependencies ({}) state {:?}",
                     class.name,
                     module,
                     name,
-                    dependencies.join(", ")
+                    dependencies.join(", "),
+                    item.state
                 );
             }
             let typedef_ids: Vec<_> = items.iter().map(|item| item.typedef_id).collect();

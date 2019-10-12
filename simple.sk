@@ -15,7 +15,9 @@ data FooTar2 a = Ba2 a
 data Optional a = Some a | None
 
 data FooBar a = Alma (FooTar a) (FooTar2 a) (FooBar a) |
-              Korte Float (Optional a) deriving Boo
+              Korte Float deriving Boo
+
+data BooBar a = AA (Optional a) deriving Boo
 
 data Simple = { alma :: String }
 data Simple2 a = { alma :: Option a } deriving Boo
