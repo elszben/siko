@@ -197,7 +197,6 @@ impl<'a> TypedefDependencyProcessor<'a> {
         errors: &mut Vec<TypecheckError>,
         derive_location: Option<LocationId>,
     ) {
-        println!("derived class {}", derived_class.id);
         let adt_type_info = self
             .adt_type_info_map
             .get(&adt.id)
@@ -240,7 +239,6 @@ impl<'a> TypedefDependencyProcessor<'a> {
         errors: &mut Vec<TypecheckError>,
         derive_location: Option<LocationId>,
     ) {
-        println!("derived class {}", derived_class.id);
         let record_type_info = self
             .record_type_info_map
             .get(&record.id)
@@ -285,46 +283,40 @@ impl<'a> TypedefDependencyProcessor<'a> {
             }
             let typedef = self.program.typedefs.get(id);
             match typedef {
-                TypeDef::Adt(adt) => {
-                    match &adt.auto_derive_mode {
-                        AutoDeriveMode::Implicit => {
-                            // derive specific set of classes,
-                            for derived_class in &implicit_derived_classes {
-                                self.check_adt(adt, *derived_class, errors, None);
-                            }
-                        }
-                        AutoDeriveMode::Explicit(derived_classes) => {
-                            for derived_class in derived_classes {
-                                self.check_adt(
-                                    adt,
-                                    derived_class.class_id,
-                                    errors,
-                                    Some(derived_class.location_id),
-                                );
-                            }
+                TypeDef::Adt(adt) => match &adt.auto_derive_mode {
+                    AutoDeriveMode::Implicit => {
+                        for derived_class in &implicit_derived_classes {
+                            self.check_adt(adt, *derived_class, errors, None);
                         }
                     }
-                }
-                TypeDef::Record(record) => {
-                    match &record.auto_derive_mode {
-                        AutoDeriveMode::Implicit => {
-                            // derive specific set of classes,
-                            for derived_class in &implicit_derived_classes {
-                                self.check_record(record, *derived_class, errors, None);
-                            }
-                        }
-                        AutoDeriveMode::Explicit(derived_classes) => {
-                            for derived_class in derived_classes {
-                                self.check_record(
-                                    record,
-                                    derived_class.class_id,
-                                    errors,
-                                    Some(derived_class.location_id),
-                                );
-                            }
+                    AutoDeriveMode::Explicit(derived_classes) => {
+                        for derived_class in derived_classes {
+                            self.check_adt(
+                                adt,
+                                derived_class.class_id,
+                                errors,
+                                Some(derived_class.location_id),
+                            );
                         }
                     }
-                }
+                },
+                TypeDef::Record(record) => match &record.auto_derive_mode {
+                    AutoDeriveMode::Implicit => {
+                        for derived_class in &implicit_derived_classes {
+                            self.check_record(record, *derived_class, errors, None);
+                        }
+                    }
+                    AutoDeriveMode::Explicit(derived_classes) => {
+                        for derived_class in derived_classes {
+                            self.check_record(
+                                record,
+                                derived_class.class_id,
+                                errors,
+                                Some(derived_class.location_id),
+                            );
+                        }
+                    }
+                },
             }
         }
 

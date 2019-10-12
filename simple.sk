@@ -8,7 +8,6 @@ instance Boo Int
 instance Boo Float
 
 data FooTar a = Ba a
-/*
 data FooTar2 a = Ba2 a
 
 data Optional a = Some a | None
@@ -22,7 +21,7 @@ data Simple3 a = extern
 
 instance (Boo a) => Boo Optional a
 
-instance Boo FooTar a
+instance Boo FooTar Int
 instance Boo FooTar2 a
-*/
+
 main = assert True
