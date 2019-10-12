@@ -110,8 +110,8 @@ impl<'a, 'b> Unifier<'a, 'b> {
             .clone();
         let mut clone_context = self.expr_processor.type_store.create_clone_context();
         record_type_info.record_type = clone_context.clone_var(record_type_info.record_type);
-        for field_type_var in &mut record_type_info.field_types {
-            *field_type_var = clone_context.clone_var(*field_type_var);
+        for field_type in &mut record_type_info.field_types {
+            field_type.0 = clone_context.clone_var(field_type.0);
         }
         record_type_info
     }
@@ -424,9 +424,9 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     }
                     1 => {
                         let (record_type_info, field_info) = &matches[0];
-                        let field_type_var = record_type_info.field_types[field_info.index];
+                        let field_type = record_type_info.field_types[field_info.index];
                         self.match_expr_with(record_expr, &record_type_info.record_type);
-                        self.match_expr_with(&expr_id, &field_type_var);
+                        self.match_expr_with(&expr_id, &field_type.0);
                     }
                     _ => {
                         let err = TypecheckError::AmbiguousFieldAccess(location, possible_records);
@@ -446,8 +446,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 let record_type_info = self.get_record_type_info(*type_id);
                 self.match_expr_with(&expr_id, &record_type_info.record_type);
                 for (index, item) in items.iter().enumerate() {
-                    let field_type_var = record_type_info.field_types[index];
-                    self.match_expr_with(&item.expr_id, &field_type_var);
+                    let field_type = record_type_info.field_types[index];
+                    self.match_expr_with(&item.expr_id, &field_type.0);
                 }
             }
             Expr::RecordUpdate(record_expr_id, record_updates) => {
@@ -480,8 +480,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                         let record_type_info = self.get_record_type_info(update.record_id);
                         self.match_expr_with(record_expr_id, &record_type_info.record_type);
                         for field_update in &update.items {
-                            let field_var = record_type_info.field_types[field_update.index];
-                            self.match_expr_with(&field_update.expr_id, &field_var);
+                            let field = record_type_info.field_types[field_update.index];
+                            self.match_expr_with(&field_update.expr_id, &field.0);
                         }
                         self.match_expr_with(&expr_id, &record_type_info.record_type);
                     }
@@ -538,8 +538,8 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     self.errors.push(err);
                 } else {
                     for (index, item) in items.iter().enumerate() {
-                        let field_var = record_type_info.field_types[index];
-                        self.match_pattern_with(item, &field_var);
+                        let field = record_type_info.field_types[index];
+                        self.match_pattern_with(item, &field.0);
                     }
                 }
             }
@@ -554,7 +554,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 let item_vars: Vec<_> = variant_type_info
                     .item_types
                     .iter()
-                    .map(|v| clone_context.clone_var(*v))
+                    .map(|v| clone_context.clone_var(v.0))
                     .collect();
                 self.match_pattern_with(&pattern_id, &variant_var);
                 let location = self

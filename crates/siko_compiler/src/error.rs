@@ -664,6 +664,20 @@ impl Error {
                             let location_set = location_info.get_item_location(instance_location);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::AutoDeriveMemberInstanceNotGeneric(
+                            type_name,
+                            id,
+                            class_name,
+                        ) => {
+                            eprintln!(
+                                "{} for type {} auto derived instance for class {} is not possible due to non generic instance of member",
+                                error.red(),
+                                type_name.yellow(),
+                                class_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

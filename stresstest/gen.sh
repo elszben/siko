@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for index in $(seq 1 360); do
+for index in $(seq 1 500); do
 
 cat > Module${index}.sk << EOL
 module Module${index} where

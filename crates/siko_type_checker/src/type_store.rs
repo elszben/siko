@@ -91,18 +91,13 @@ impl<'a> CloneContext<'a> {
                     Some(i) => *i,
                     None => {
                         let new_index = self.index(index);
-                        let ty = self
-                            .type_store
-                            .indices
-                            .get(&index)
-                            .expect("type not found")
-                            .clone();
+                        let ty = self.type_store.indices[index.id].clone().unwrap();
                         let new_ty = ty.clone_type(self);
-                        self.type_store.indices.insert(new_index, new_ty);
+                        self.type_store.indices[new_index.id] = Some(new_ty);
                         new_index
                     }
                 };
-                self.type_store.variables.insert(new_var, index);
+                self.type_store.variables[new_var.id] = Some(index);
                 new_var
             }
         }
@@ -152,10 +147,8 @@ impl TypeIndex {
 }
 
 pub struct TypeStore {
-    variables: BTreeMap<TypeVariable, TypeIndex>,
-    indices: BTreeMap<TypeIndex, Type>,
-    var_counter: Counter,
-    index_counter: Counter,
+    variables: Vec<Option<TypeIndex>>,
+    indices: Vec<Option<Type>>,
     arg_counter: Counter,
     check_context: Rc<RefCell<CheckContext>>,
     list_type_id: TypeDefId,
@@ -164,10 +157,8 @@ pub struct TypeStore {
 impl TypeStore {
     pub fn new(list_type_id: TypeDefId, check_context: Rc<RefCell<CheckContext>>) -> TypeStore {
         TypeStore {
-            variables: BTreeMap::new(),
-            indices: BTreeMap::new(),
-            var_counter: Counter::new(),
-            index_counter: Counter::new(),
+            variables: Vec::new(),
+            indices: Vec::new(),
             arg_counter: Counter::new(),
             check_context: check_context,
             list_type_id: list_type_id,
@@ -184,41 +175,44 @@ impl TypeStore {
     }
 
     fn allocate_var(&mut self) -> TypeVariable {
-        let type_var = TypeVariable::new(self.var_counter.next());
+        let var = self.variables.len();
+        self.variables.push(None);
+        let type_var = TypeVariable::new(var);
         type_var
     }
 
     fn allocate_index(&mut self) -> TypeIndex {
-        let index = TypeIndex::new(self.index_counter.next());
+        let index = self.indices.len();
+        self.indices.push(None);
+        let index = TypeIndex::new(index);
         index
     }
 
     pub fn add_type(&mut self, ty: Type) -> TypeVariable {
         let type_var = self.allocate_var();
         let index = self.allocate_index();
-        self.indices.insert(index, ty);
-        self.variables.insert(type_var, index);
+        self.indices[index.id] = Some(ty);
+        self.variables[type_var.id] = Some(index);
         type_var
     }
 
     pub fn add_var_and_type(&mut self, type_var: TypeVariable, ty: Type, index: TypeIndex) {
-        self.indices.insert(index, ty);
-        self.variables.insert(type_var, index);
+        self.indices[index.id] = Some(ty);
+        self.variables[type_var.id] = Some(index);
     }
 
     pub fn get_index(&self, var: &TypeVariable) -> TypeIndex {
-        self.variables
-            .get(var)
-            .expect("invalid type variable")
-            .clone()
+        self.variables[var.id].clone().unwrap()
     }
 
     pub fn merge(&mut self, from: &TypeVariable, to: &TypeVariable) {
         let from_index = self.get_index(from);
         let to_index = self.get_index(to);
-        for (_, value) in self.variables.iter_mut() {
-            if *value == to_index {
-                *value = from_index;
+        for value in self.variables.iter_mut() {
+            if let Some(value) = value {
+                if *value == to_index {
+                    *value = from_index;
+                }
             }
         }
     }
@@ -355,10 +349,7 @@ impl TypeStore {
 
     pub fn get_type(&self, var: &TypeVariable) -> Type {
         let index = self.get_index(var);
-        self.indices
-            .get(&index)
-            .expect("invalid type index")
-            .clone()
+        self.indices[index.id].clone().unwrap()
     }
 
     pub fn to_concrete_type(&self, var: &TypeVariable) -> Option<ConcreteType> {
@@ -440,14 +431,6 @@ impl TypeStore {
         let ty = self.get_type(&var);
         let vars = vec![var];
         ty.check_recursion(&vars, self)
-    }
-
-    #[allow(unused)]
-    pub fn dump(&self) {
-        for (var, idx) in &self.variables {
-            let ty = self.indices.get(idx).unwrap();
-            println!("{} {} {}", var, idx.id, ty);
-        }
     }
 
     #[allow(unused)]

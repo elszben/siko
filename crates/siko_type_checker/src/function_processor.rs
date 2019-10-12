@@ -197,8 +197,8 @@ impl<'a> FunctionProcessor<'a> {
                         .get(&i.type_id)
                         .expect("record type info not found");
 
-                    for (index, field_var) in record_type_info.field_types.iter().enumerate() {
-                        let r = self.type_store.unify(&field_var, &args[index]);
+                    for (index, field) in record_type_info.field_types.iter().enumerate() {
+                        let r = self.type_store.unify(&field.0, &args[index]);
                         assert!(r);
                     }
                     let r = self
@@ -232,7 +232,7 @@ impl<'a> FunctionProcessor<'a> {
                         &mut self.type_store,
                     );
                     for (index, item_type) in variant_type_info.item_types.iter().enumerate() {
-                        let r = self.type_store.unify(&item_type, &args[index]);
+                        let r = self.type_store.unify(&item_type.0, &args[index]);
                         assert!(r);
                     }
                     let r = self

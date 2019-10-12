@@ -15,6 +15,7 @@ pub enum TypecheckError {
     ConflictingInstances(LocationId, LocationId),
     TypeAnnotationNeeded(LocationId),
     AutoDeriveConflict(String, LocationId, LocationId, String),
+    AutoDeriveMemberInstanceNotGeneric(String, LocationId, String),
 }
 
 #[derive(Debug)]

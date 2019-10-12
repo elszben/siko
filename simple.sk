@@ -2,20 +2,27 @@ module Main where
 
 import Std.Util
 
+class Boo a
+
+instance Boo Int
+instance Boo Float
+
+data FooTar a = Ba a
+/*
+data FooTar2 a = Ba2 a
+
 data Optional a = Some a | None
 
-data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Optional Int) deriving Show
+data FooBar a = Alma (FooTar a) (FooTar2 a) (FooBar a) |
+              Korte Float (Float, Float) (Optional a) deriving Boo
 
 data Simple = { alma :: String }
-data Simple2 a = { alma :: Option a } deriving Eq
+data Simple2 a = { alma :: Option a } deriving Boo
 data Simple3 a = extern 
 
-instance PartialEq FooBar where
-    opEq a b = False
+instance (Boo a) => Boo Optional a
 
-instance Eq FooBar
-
-instance Show FooBar where
-    show a = "FooBar"
-
+instance Boo FooTar a
+instance Boo FooTar2 a
+*/
 main = assert True

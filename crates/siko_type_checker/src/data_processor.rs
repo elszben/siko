@@ -46,11 +46,14 @@ impl<'a> DataProcessor<'a> {
                         type_args.push(var);
                     }
 
+                    let type_arg_vars: Vec<_> = arg_map.iter().map(|(_, var)| *var).collect();
+
                     let adt_type = Type::Named(adt.name.clone(), *id, type_args.clone());
                     let adt_type_var = self.type_store.add_type(adt_type);
 
                     let adt_type_info = AdtTypeInfo {
                         adt_type: adt_type_var,
+                        type_arg_vars: type_arg_vars,
                     };
                     self.adt_type_info_map.insert(*id, adt_type_info);
                     for (variant_index, variant) in adt.variants.iter().enumerate() {
@@ -63,7 +66,12 @@ impl<'a> DataProcessor<'a> {
                                 &mut arg_map,
                                 &mut None,
                             );
-                            item_types.push(item_var);
+                            let location_id = self
+                                .program
+                                .type_signatures
+                                .get(&item.type_signature_id)
+                                .location_id;
+                            item_types.push((item_var, location_id));
                         }
                         let adt_type = Type::Named(adt.name.clone(), *id, type_args.clone());
                         let adt_type_var = self.type_store.add_type(adt_type);
@@ -86,6 +94,15 @@ impl<'a> DataProcessor<'a> {
                 }
                 TypeDef::Record(record) => {
                     let mut arg_map = BTreeMap::new();
+                    let mut type_args: Vec<_> = Vec::new();
+                    for arg in &record.type_args {
+                        let var = self.type_store.get_new_type_var();
+                        arg_map.insert(*arg, var);
+                        type_args.push(var);
+                    }
+
+                    let type_arg_vars: Vec<_> = arg_map.iter().map(|(_, var)| *var).collect();
+
                     let mut field_types = Vec::new();
                     for field in &record.fields {
                         let field_var = process_type_signature(
@@ -95,21 +112,19 @@ impl<'a> DataProcessor<'a> {
                             &mut arg_map,
                             &mut None,
                         );
-                        field_types.push(field_var);
-                    }
-                    let mut type_args: Vec<_> = Vec::new();
-                    for arg in &record.type_args {
-                        let var = match arg_map.get(arg) {
-                            Some(v) => *v,
-                            None => self.type_store.get_new_type_var(),
-                        };
-                        type_args.push(var);
+                        let location_id = self
+                            .program
+                            .type_signatures
+                            .get(&field.type_signature_id)
+                            .location_id;
+                        field_types.push((field_var, location_id));
                     }
                     let record_type = Type::Named(record.name.clone(), *id, type_args);
                     let record_type_var = self.type_store.add_type(record_type);
                     let record_type_info = RecordTypeInfo {
                         record_type: record_type_var,
                         field_types: field_types,
+                        type_arg_vars: type_arg_vars,
                     };
                     self.record_type_info_map
                         .insert(record.id, record_type_info);

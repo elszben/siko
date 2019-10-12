@@ -53,18 +53,20 @@ pub struct ClassMemberTypeInfo {
 #[derive(Debug, Clone)]
 pub struct RecordTypeInfo {
     pub record_type: TypeVariable,
-    pub field_types: Vec<TypeVariable>,
+    pub field_types: Vec<(TypeVariable, LocationId)>,
+    pub type_arg_vars: Vec<TypeVariable>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AdtTypeInfo {
     pub adt_type: TypeVariable,
+    pub type_arg_vars: Vec<TypeVariable>,
 }
 
 #[derive(Debug, Clone)]
 pub struct VariantTypeInfo {
     pub variant_type: TypeVariable,
-    pub item_types: Vec<TypeVariable>,
+    pub item_types: Vec<(TypeVariable, LocationId)>,
     pub location_id: LocationId,
 }
 
