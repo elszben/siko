@@ -20,7 +20,7 @@ use std::collections::BTreeSet;
 use crate::dependency_processor::DependencyCollector;
 use crate::dependency_processor::DependencyProcessor;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum AutoDeriveState {
     No,
     Definite,
@@ -430,7 +430,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
             }
         }
 
-        for (class_id, items) in &self.class_items_map {
+        for (class_id, items) in &mut self.class_items_map {
             let typedef_ids: Vec<_> = items.iter().map(|(_, item)| item.typedef_id).collect();
             let dep_processor = DependencyProcessor::new(typedef_ids);
             let collector = TypedefDependencyCollector { items: items };
@@ -438,6 +438,36 @@ impl<'a> TypedefDependencyProcessor<'a> {
             println!("{} groups found ", ordered_function_groups.len());
             for (index, group) in ordered_function_groups.iter().enumerate() {
                 println!("{}. group", index);
+                for id in &group.items {
+                    let item = items.get(&id).expect("Item not found");
+                    //item.dump(self.program, *class_id);
+                    let mut dep_failed = false;
+                    for dep_id in &item.dependencies {
+                        let dep_item = items.get(&dep_id).expect("Item not found");
+                        if dep_item.state == AutoDeriveState::No {
+                            dep_failed = true;
+                            break;
+                        }
+                    }
+                    if dep_failed {
+                        let item = items.get_mut(&id).expect("Item not found");
+                        item.state = AutoDeriveState::No;
+                    }
+                }
+                let mut group_failed = false;
+                for id in &group.items {
+                    let item = items.get(&id).expect("Item not found");
+                    if item.state == AutoDeriveState::No {
+                        group_failed = true;
+                        break;
+                    }
+                }
+                if group_failed {
+                    for id in &group.items {
+                        let item = items.get_mut(&id).expect("Item not found");
+                        item.state = AutoDeriveState::No;
+                    }
+                }
                 for id in &group.items {
                     let item = items.get(&id).expect("Item not found");
                     item.dump(self.program, *class_id);
