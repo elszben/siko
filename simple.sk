@@ -6,9 +6,9 @@ class Boo a where
 instance Boo Int where
     boo a = a
 
-data C a = C1 a
+data C a b = C1 a b
 
-data A a b = A1 (B a) b (C b) deriving Boo
+data A a b = A1 (B a) b (C b Int) deriving Boo
 data B a = B1 (A a Int) deriving Boo
 
 /*
@@ -20,7 +20,7 @@ instance (Boo a) => Boo B a where
                 B1 (A1 b q c) -> boo c
 */
 
-instance (Boo a, Eq a) => Boo C a where
+instance (Boo a, Eq a) => Boo C a b where
     boo a = boo a
 
 main = 0

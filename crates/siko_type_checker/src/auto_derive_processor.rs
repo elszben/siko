@@ -51,7 +51,7 @@ pub enum AutoDeriveState {
 pub struct Item {
     typedef_id: TypeDefId,
     state: AutoDeriveState,
-    dependencies: Vec<TypeDefId>,
+    dependencies: Vec<(TypeDefId, LocationId)>,
 }
 
 impl Item {
@@ -60,7 +60,7 @@ impl Item {
         let (module, name) = program.get_module_and_name(self.typedef_id);
         let mut dependencies = Vec::new();
         for dep in &self.dependencies {
-            let (module, name) = program.get_module_and_name(*dep);
+            let (module, name) = program.get_module_and_name(dep.0);
             dependencies.push(format!("{}/{}", module, name));
         }
         println!(
@@ -109,7 +109,7 @@ fn get_type_arg_constraints(
 enum CheckMode {
     ExplicitDerive(LocationId),
     ImplicitDerive,
-    InstanceOnly,
+    InstanceOnly(LocationId),
 }
 
 fn check_data_type(
@@ -124,7 +124,7 @@ fn check_data_type(
     program: &Program,
     check_mode: CheckMode,
 ) -> Item {
-    let mut dependencies = BTreeSet::new();
+    let mut dependencies = BTreeMap::new();
     let resolution_result = type_store.has_class_instance(&data_type_var, &derived_class);
     let state = {
         match resolution_result {
@@ -139,14 +139,28 @@ fn check_data_type(
                         class.name.clone(),
                     );
                     errors.push(err);
-                }
-                AutoDeriveState::Possible(Vec::new())
-            }
-            ResolutionResult::Inconclusive => unreachable!(),
-            ResolutionResult::No => {
-                if check_mode == CheckMode::InstanceOnly {
                     AutoDeriveState::No
                 } else {
+                    if let CheckMode::InstanceOnly(location_id) = check_mode {
+                        let constraints = get_type_arg_constraints(
+                            derived_class,
+                            &name,
+                            location_id,
+                            &type_arg_vars,
+                            type_store,
+                            errors,
+                            program,
+                        );
+                        AutoDeriveState::Possible(constraints)
+                    } else {
+                        AutoDeriveState::Possible(Vec::new())
+                    }
+                }
+            }
+            ResolutionResult::Inconclusive => unreachable!(),
+            ResolutionResult::No => match check_mode {
+                CheckMode::InstanceOnly(_) => AutoDeriveState::No,
+                _ => {
                     for member in &members {
                         let ty = type_store.get_type(&member.0);
                         match ty {
@@ -156,7 +170,8 @@ fn check_data_type(
                                 if dep_id == *typedef_id {
                                     continue;
                                 }
-                                dependencies.insert(dep_id);
+                                // will overwrite previous ones
+                                dependencies.insert(dep_id, member.1);
                             }
                             _ => {
                                 panic!("type as member is not yet implemented {:?}", ty);
@@ -165,7 +180,7 @@ fn check_data_type(
                     }
                     AutoDeriveState::Possible(Vec::new())
                 }
-            }
+            },
         }
     };
     Item {
@@ -379,13 +394,13 @@ impl<'a> TypedefDependencyProcessor<'a> {
             }
             for (_, item) in items.iter() {
                 for dep in &item.dependencies {
-                    if !current_processed_typedefs.contains(dep) {
+                    if !current_processed_typedefs.contains(&dep.0) {
                         unprocesed_typedefs.insert(*dep);
                     }
                 }
             }
-            for typedef_id in unprocesed_typedefs {
-                let typedef = self.program.typedefs.get(&typedef_id);
+            for typedef_info in unprocesed_typedefs {
+                let typedef = self.program.typedefs.get(&typedef_info.0);
                 match typedef {
                     TypeDef::Adt(adt) => {
                         let item = check_adt(
@@ -396,9 +411,9 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             self.variant_type_info_map,
                             self.type_store,
                             self.program,
-                            CheckMode::InstanceOnly,
+                            CheckMode::InstanceOnly(typedef_info.1),
                         );
-                        items.insert(typedef_id, item);
+                        items.insert(typedef_info.0, item);
                     }
                     TypeDef::Record(record) => {
                         let item = check_record(
@@ -408,9 +423,9 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             self.record_type_info_map,
                             self.type_store,
                             self.program,
-                            CheckMode::InstanceOnly,
+                            CheckMode::InstanceOnly(typedef_info.1),
                         );
-                        items.insert(typedef_id, item);
+                        items.insert(typedef_info.0, item);
                     }
                 }
             }
@@ -428,8 +443,8 @@ impl<'a> TypedefDependencyProcessor<'a> {
                     let item = items.get(&id).expect("Item not found");
                     //item.dump(self.program, *class_id);
                     let mut dep_failed = false;
-                    for dep_id in &item.dependencies {
-                        let dep_item = items.get(&dep_id).expect("Item not found");
+                    for dep in &item.dependencies {
+                        let dep_item = items.get(&dep.0).expect("Item not found");
                         if dep_item.state == AutoDeriveState::No {
                             dep_failed = true;
                             break;
@@ -470,6 +485,6 @@ struct TypedefDependencyCollector<'a> {
 impl<'a> DependencyCollector<TypeDefId> for TypedefDependencyCollector<'a> {
     fn collect(&self, typedef_id: TypeDefId) -> Vec<TypeDefId> {
         let item = self.items.get(&typedef_id).expect("Item not found");
-        item.dependencies.clone()
+        item.dependencies.iter().map(|(id, _)| *id).collect()
     }
 }
