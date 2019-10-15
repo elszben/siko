@@ -20,10 +20,31 @@ use std::collections::BTreeSet;
 use crate::dependency_processor::DependencyCollector;
 use crate::dependency_processor::DependencyProcessor;
 
+/*
+ * Auto derive rules:
+ *
+ * - Explicit auto derive conflicts with manual instance
+ * - Auto derived instance must be generic
+ * - Types including closures cannot derive instances (there will be exceptions*)
+ *
+ * Auto derive strategy:
+ *
+ * - A type will be able to use the auto derive mechanism for a given class iff
+ *   - the given class has no instance for the given type
+ *      if there is a given class, the auto derive mechanism fails:
+ *      - in case of explicit auto derive -> compilation error
+ *      - in case of implicit auto derive -> auto derive skipped, instance already exists
+ *   - all members have an instance for the given class
+ *
+ *  - A type's members can include the type itself or other types whose members include the first type, thus
+ *    creating cyclic dependencies. To solve this, the checker must create groups and resolve the auto derive
+ *    state in the groups.
+ *
+ */
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum AutoDeriveState {
     No,
-    Definite,
     Possible(Vec<Vec<ClassId>>),
 }
 
@@ -53,20 +74,22 @@ impl Item {
     }
 }
 
-fn check_type_arg_vars(
+fn get_type_arg_constraints(
     derived_class: ClassId,
     name: &str,
     location_id: LocationId,
     type_arg_vars: &Vec<TypeVariable>,
+    type_store: &TypeStore,
     errors: &mut Vec<TypecheckError>,
-    type_store: &mut TypeStore,
     program: &Program,
-) -> bool {
+) -> Vec<Vec<ClassId>> {
+    let mut constraints = Vec::new();
     for type_arg_var in type_arg_vars {
-        let ty = type_store.get_type(type_arg_var);
+        let ty = type_store.get_type(&type_arg_var);
         match ty {
-            Type::TypeArgument(_, _) => {}
-            Type::FixedTypeArgument(_, _, _) => {}
+            Type::TypeArgument(_, arg_constraints) => {
+                constraints.push(arg_constraints.clone());
+            }
             _ => {
                 let class = program.classes.get(&derived_class);
                 let err = TypecheckError::AutoDeriveMemberInstanceNotGeneric(
@@ -75,11 +98,18 @@ fn check_type_arg_vars(
                     class.name.clone(),
                 );
                 errors.push(err);
-                return false;
+                return Vec::new();
             }
         }
     }
-    return true;
+    constraints
+}
+
+#[derive(Eq, PartialEq)]
+enum CheckMode {
+    ExplicitDerive(LocationId),
+    ImplicitDerive,
+    InstanceOnly,
 }
 
 fn check_data_type(
@@ -90,17 +120,16 @@ fn check_data_type(
     derived_class: ClassId,
     members: Vec<(TypeVariable, LocationId)>,
     errors: &mut Vec<TypecheckError>,
-    derive_location: Option<LocationId>,
     type_store: &mut TypeStore,
     program: &Program,
-    accept_instance_only: bool,
+    check_mode: CheckMode,
 ) -> Item {
     let mut dependencies = BTreeSet::new();
     let resolution_result = type_store.has_class_instance(&data_type_var, &derived_class);
     let state = {
         match resolution_result {
             ResolutionResult::Definite(instance_id) => {
-                if let Some(derive_location) = derive_location {
+                if let CheckMode::ExplicitDerive(derive_location) = check_mode {
                     let instance = program.instances.get(&instance_id);
                     let class = program.classes.get(&instance.class_id);
                     let err = TypecheckError::AutoDeriveConflict(
@@ -111,63 +140,30 @@ fn check_data_type(
                     );
                     errors.push(err);
                 }
-                AutoDeriveState::Definite
+                AutoDeriveState::Possible(Vec::new())
             }
             ResolutionResult::Inconclusive => unreachable!(),
             ResolutionResult::No => {
-                let mut first_non_generic_instance = true;
-                let mut member_failed = false;
-                for member in &members {
-                    let ty = type_store.get_type(&member.0);
-                    match ty {
-                        Type::TypeArgument(_, _) => {}
-                        Type::FixedTypeArgument(_, _, _) => {}
-                        Type::Named(_, dep_id, _) => {
-                            if dep_id == *typedef_id {
-                                continue;
-                            }
-                            let resolution_result =
-                                type_store.has_class_instance(&member.0, &derived_class);
-                            if let ResolutionResult::Definite(_) = resolution_result {
-                                //println!("{:?}", resolution_result);
-                                if first_non_generic_instance {
-                                    if !check_type_arg_vars(
-                                        derived_class,
-                                        &name,
-                                        member.1,
-                                        &type_arg_vars,
-                                        errors,
-                                        type_store,
-                                        program,
-                                    ) {
-                                        member_failed = true;
-                                        first_non_generic_instance = false;
-                                    }
-                                }
-                            }
-                            dependencies.insert(dep_id);
-                        }
-                        _ => {
-                            panic!("type as member is not yet implemented {:?}", ty);
-                        }
-                    }
-                }
-                if member_failed || accept_instance_only {
+                if check_mode == CheckMode::InstanceOnly {
                     AutoDeriveState::No
                 } else {
-                    let mut constraints = Vec::new();
-                    for type_arg_var in type_arg_vars {
-                        let ty = type_store.get_type(&type_arg_var);
+                    for member in &members {
+                        let ty = type_store.get_type(&member.0);
                         match ty {
-                            Type::TypeArgument(_, arg_constraints) => {
-                                constraints.push(arg_constraints.clone());
+                            Type::TypeArgument(_, _) => {}
+                            Type::FixedTypeArgument(_, _, _) => {}
+                            Type::Named(_, dep_id, _) => {
+                                if dep_id == *typedef_id {
+                                    continue;
+                                }
+                                dependencies.insert(dep_id);
                             }
                             _ => {
-                                panic!("Type arg var is not a type argument but member_failed is not set for it");
+                                panic!("type as member is not yet implemented {:?}", ty);
                             }
                         }
                     }
-                    AutoDeriveState::Possible(constraints)
+                    AutoDeriveState::Possible(Vec::new())
                 }
             }
         }
@@ -183,12 +179,11 @@ fn check_adt(
     adt: &Adt,
     derived_class: ClassId,
     errors: &mut Vec<TypecheckError>,
-    derive_location: Option<LocationId>,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
-    accept_instance_only: bool,
+    check_mode: CheckMode,
 ) -> Item {
     let adt_type_info = adt_type_info_map
         .get(&adt.id)
@@ -219,10 +214,9 @@ fn check_adt(
         derived_class,
         members,
         errors,
-        derive_location,
         type_store,
         program,
-        accept_instance_only,
+        check_mode,
     )
 }
 
@@ -230,11 +224,10 @@ fn check_record(
     record: &Record,
     derived_class: ClassId,
     errors: &mut Vec<TypecheckError>,
-    derive_location: Option<LocationId>,
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
-    accept_instance_only: bool,
+    check_mode: CheckMode,
 ) -> Item {
     let record_type_info = record_type_info_map
         .get(&record.id)
@@ -259,10 +252,9 @@ fn check_record(
         derived_class,
         members,
         errors,
-        derive_location,
         type_store,
         program,
-        accept_instance_only,
+        check_mode,
     )
 }
 
@@ -321,12 +313,11 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 adt,
                                 *derived_class,
                                 errors,
-                                None,
                                 self.adt_type_info_map,
                                 self.variant_type_info_map,
                                 self.type_store,
                                 self.program,
-                                false,
+                                CheckMode::ImplicitDerive,
                             );
                             self.add_item(*derived_class, item);
                         }
@@ -337,12 +328,11 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 adt,
                                 derived_class.class_id,
                                 errors,
-                                Some(derived_class.location_id),
                                 self.adt_type_info_map,
                                 self.variant_type_info_map,
                                 self.type_store,
                                 self.program,
-                                false,
+                                CheckMode::ExplicitDerive(derived_class.location_id),
                             );
                             self.add_item(derived_class.class_id, item);
                         }
@@ -355,11 +345,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 record,
                                 *derived_class,
                                 errors,
-                                None,
                                 self.record_type_info_map,
                                 self.type_store,
                                 self.program,
-                                false,
+                                CheckMode::ImplicitDerive,
                             );
                             self.add_item(*derived_class, item);
                         }
@@ -370,11 +359,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
                                 record,
                                 derived_class.class_id,
                                 errors,
-                                Some(derived_class.location_id),
                                 self.record_type_info_map,
                                 self.type_store,
                                 self.program,
-                                false,
+                                CheckMode::ExplicitDerive(derived_class.location_id),
                             );
                             self.add_item(derived_class.class_id, item);
                         }
@@ -404,12 +392,11 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             &adt,
                             *class_id,
                             errors,
-                            None,
                             self.adt_type_info_map,
                             self.variant_type_info_map,
                             self.type_store,
                             self.program,
-                            true,
+                            CheckMode::InstanceOnly,
                         );
                         items.insert(typedef_id, item);
                     }
@@ -418,11 +405,10 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             &record,
                             *class_id,
                             errors,
-                            None,
                             self.record_type_info_map,
                             self.type_store,
                             self.program,
-                            true,
+                            CheckMode::InstanceOnly,
                         );
                         items.insert(typedef_id, item);
                     }

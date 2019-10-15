@@ -103,6 +103,10 @@ impl Typechecker {
         );
         processor.process(&mut errors);
 
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
         let mut expr_processor = {
             let _m = ElapsedTimeMeasure::new("ExprProcessor");
             let mut expr_processor = ExprProcessor::new(

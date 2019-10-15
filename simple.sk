@@ -1,35 +1,26 @@
 module Main where
 
-import Std.Util
+class Boo a where
+    boo a :: a -> Int
 
-class Boo a
+instance Boo Int where
+    boo a = a
 
-instance Boo Int
-instance Boo Float
+data C a = C1 a
 
-data Empty = {}
+data A a b = A1 (B a) b (C b) deriving Boo
+data B a = B1 (A a Int) deriving Boo
 
-data FooTar a = Ba a
-data FooTar2 a = Ba2 a
+/*
+instance (Boo a, Boo b, Eq b) => Boo A a b where
+    boo a = case a of
+            A1 (b1) b c -> boo b1 + boo b + boo c
+instance (Boo a) => Boo B a where
+    boo a =  case a of
+                B1 (A1 b q c) -> boo c
+*/
 
-data Optional a = Some a | None
+instance (Boo a, Eq a) => Boo C a where
+    boo a = boo a
 
-data FooBar a = Alma (FooTar a) (FooTar2 a) (FooBar a) |
-              Korte Float deriving Boo
-
-data BooBar a = AA (Optional a) deriving Boo
-
-data Simple = { alma :: String }
-data Simple2 a = { alma :: Option a } deriving Boo
-data Simple3 a = extern 
-
-instance (Boo a) => Boo Optional a
-
-instance Boo FooTar a
-instance Boo FooTar2 a
-
-data Cyclic1 = Bee Cyclic2 deriving Boo
-data Cyclic2 = Bee2 Cyclic1 Cyclic3 deriving Boo
-data Cyclic3 = Bee3 (Option Int) Cyclic1 deriving Boo
-
-main = assert True 
+main = 0
