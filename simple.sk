@@ -7,10 +7,12 @@ instance Boo Int where
     boo a = a
 
 data C a b = C1 a b
+data D a b = D1 a b
 
-data A a b = A1 (B a) b (C b Int) deriving Boo
-data B a = B1 (A a Int) deriving Boo
+data A a b = A1 (B a) b (C (D b a) b) deriving Boo
+data B a = B1 (A ((E a, E a)) Int) deriving Boo
 
+data E a = E1 (D a Int) deriving Boo
 /*
 instance (Boo a, Boo b, Eq b) => Boo A a b where
     boo a = case a of
@@ -23,4 +25,7 @@ instance (Boo a) => Boo B a where
 instance (Boo a, Eq a) => Boo C a b where
     boo a = boo a
 
+instance (Boo a, Show a) => Boo D a b where
+        boo a = boo a
+    
 main = 0

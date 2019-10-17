@@ -175,19 +175,27 @@ impl Type {
                     .iter()
                     .map(|var| {
                         let ty = type_store.get_type(var);
-                        ty.as_string(type_store, false, resolver_context)
+                        ty.as_string(type_store, true, resolver_context)
                     })
                     .collect();
                 if *id == resolver_context.get_list_type_id() {
                     assert_eq!(ss.len(), 1);
                     format!("[{}]", ss[0])
                 } else {
-                    let args = if ss.is_empty() {
-                        format!("")
+                    let (args, simple) = if ss.is_empty() {
+                        (format!(""), true)
                     } else {
-                        format!(" {}", ss.join(" "))
+                        (format!(" {}", ss.join(" ")), false)
                     };
-                    format!("{}{}", name, args)
+                    if simple {
+                        format!("{}{}", name, args)
+                    } else {
+                        if need_parens {
+                            format!("({}{})", name, args)
+                        } else {
+                            format!("{}{}", name, args)
+                        }
+                    }
                 }
             }
         }
