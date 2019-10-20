@@ -1,0 +1,51 @@
+module Main where
+
+class Boo a where
+    boo a :: a -> Int
+
+instance Boo Int where
+    boo a = a
+
+data C a b = C1 a b
+data D a b = D1 a b
+
+data A a b = A1 (B a) b (C (D b a) b) deriving Boo
+data B a = B1 (A ((E a, E a)) Int) deriving Boo
+
+data E a = E1 (D a Int) deriving Boo
+
+instance (Boo a, Eq a) => Boo C a b where
+    boo a = boo a
+
+instance (Boo a, Show a) => Boo D a b where
+        boo a = boo a
+
+C impls Boo <=  a impls Boo
+                    <- (Boo a)
+                b impls Boo
+                    <- (Boo b)
+D impls Boo <=  a impls Boo
+                    <- (Boo a)
+                b impls Boo
+                    <- (Boo b)
+A impls Boo <=  (B a) impls Boo
+                    <- B impls Boo
+                    <- a ~ B.0
+                b impls Boo
+                    <- (Boo a)
+                C (D b a) b impls Boo
+                    <- C impls Boo
+                        <- D b a ~ C.0
+                            <- D b a impls Boo
+                            <- D b a impls Eq
+                                <- D impls Boo
+                                <- b ~ D.0
+                                    <- b impls Boo
+                                    <- b impls Show
+                                <- a ~ D.1
+                        <- b ~ C.1
+B impls Boo <= A ((E a, E a)) Int impls Boo
+
+E impls Boo <= D a Int impls Boo
+
+main = 0
