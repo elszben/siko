@@ -1,4 +1,5 @@
 use crate::environment::Environment;
+use crate::environment::NamedRef;
 use crate::error::ResolverError;
 use crate::item::DataMember;
 use crate::item::Item;
@@ -18,6 +19,7 @@ use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::LambdaInfo;
+use siko_ir::pattern::BindGroup;
 use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::program::Program as IrProgram;
@@ -853,11 +855,19 @@ pub fn process_expr(
                                     binding.1.clone(),
                                 );
                                 errors.push(err);
+                            } else {
+                                let binding_data = all_bindings
+                                    .entry(binding.0.clone())
+                                    .or_insert_with(|| Vec::new());
+                                let binding_ref = case_environment
+                                    .get_ref(&binding.0)
+                                    .expect("Binding not found in env");
+                                if let NamedRef::ExprValue(_, pattern_id) = binding_ref.0 {
+                                    binding_data.push((binding.1[0], pattern_id));
+                                } else {
+                                    panic!("Pattern binding does not refer to a pattern")
+                                }
                             }
-                            let locations = all_bindings
-                                .entry(binding.0.clone())
-                                .or_insert_with(|| Vec::new());
-                            locations.extend(binding.1);
                         }
                         let ir_case_body_id = process_expr(
                             case.body,
@@ -880,9 +890,14 @@ pub fn process_expr(
                             if binding.1.len() != sub_patterns.len() {
                                 let err = ResolverError::PatternBindNotPresent(
                                     binding.0.clone(),
-                                    binding.1[0].clone(),
+                                    binding.1[0].0.clone(),
                                 );
                                 errors.push(err);
+                            } else {
+                                let bind_group = BindGroup {
+                                    patterns: binding.1.iter().map(|(_, id)| *id).collect(),
+                                };
+                                ir_program.bind_groups.push(bind_group);
                             }
                         }
                     }

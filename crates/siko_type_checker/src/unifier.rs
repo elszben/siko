@@ -117,15 +117,8 @@ impl<'a, 'b> Unifier<'a, 'b> {
     }
 
     fn match_patterns(&mut self, first: &PatternId, second: &PatternId) {
-        let first_pattern_var = self.expr_processor.lookup_type_var_for_pattern(first);
-        let second_pattern_var = self.expr_processor.lookup_type_var_for_pattern(second);
-        let location = self.expr_processor.program.patterns.get(first).location_id;
-        self.expr_processor.unify_variables(
-            &first_pattern_var,
-            &second_pattern_var,
-            location,
-            self.errors,
-        );
+        self.expr_processor
+            .match_patterns(first, second, self.errors);
     }
 
     fn match_pattern_with(&mut self, pattern: &PatternId, var: &TypeVariable) {

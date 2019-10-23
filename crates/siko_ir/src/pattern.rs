@@ -41,3 +41,8 @@ pub struct PatternInfo {
     pub pattern: Pattern,
     pub location_id: LocationId,
 }
+
+#[derive(Debug, Clone)]
+pub struct BindGroup {
+    pub patterns: Vec<PatternId>,
+}
