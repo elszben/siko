@@ -14,36 +14,40 @@ data B a = B1 (A ((E a, E a)) Int) deriving Boo
 
 data E a = E1 (D a Int) deriving Boo
 
+instance [a][b] => Boo A a b
+
 instance (Boo a, Eq a) => Boo C a b where
     boo a = boo a
 
 instance (Boo a, Show a) => Boo D a b where
         boo a = boo a
 
-C impls Boo <=  a impls Boo
-                    <- (Boo a)
-                b impls Boo
-                    <- (Boo b)
-D impls Boo <=  a impls Boo
-                    <- (Boo a)
-                b impls Boo
-                    <- (Boo b)
-A impls Boo <=  (B a) impls Boo
+instance Eq D a b
+
+C impls Boo <=  C.a impls Boo
+                    <- C.a <| Boo a
+                C.b impls Boo
+                    <- C.b <| Boo a
+D impls Boo <=  D.a impls Boo
+                    <- D.a <| Boo a
+                D.b impls Boo
+                    <- D.b <| Boo a
+A impls Boo <=  (B A.a) impls Boo
                     <- B impls Boo
-                    <- a <| B.a
-                b impls Boo
-                    <- (Boo a)
-                C (D b a) b impls Boo
+                    <- A.a <| B.a
+                A.b impls Boo
+                    <- A.b <| Boo a
+                C (D A.b A.a) A.b impls Boo
                     <- C impls Boo
-                        <- D b a <| C.a
-                            <- D b a impls Boo
-                            <- D b a impls Eq
-                                <- D impls Boo
-                                <- b <| D.a
-                                    <- b impls Boo
-                                    <- b impls Show
-                                <- a <| D.b
-                        <- b ~ C.1
+                        <- D A.b A.a <| C.a
+                            <- D A.b A.a impls Boo
+                                <- D A.b A.a <| Boo a
+                                    <- A.b impls Boo
+                                        <- A.b <| Boo a
+                                    <- A.a impls Show
+                                        <- A.a <| Show a
+                            <- D A.b A.a impls Eq
+                        <- A.b <| C.b
 B impls Boo <=  A ((E a, E a)) Int impls Boo
                     <- A impls Boo
                         <- ((E a, E a)) <| A.a
