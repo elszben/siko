@@ -1,0 +1,10 @@
+module Main where
+
+import Std.Util
+
+data Color = Red | Blue | Green
+
+main = do
+    case Blue of
+        Red | Green  -> assert False
+        _ -> assert True

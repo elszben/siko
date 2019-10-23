@@ -225,6 +225,27 @@ fn process_pattern(
             environment.add_expr_value(name.clone(), case_expr_id, ir_pattern_id);
             IrPattern::Binding(name.clone())
         }
+        Pattern::Or(patterns) => {
+            let ids: Vec<_> = patterns
+                .iter()
+                .map(|id| {
+                    process_pattern(
+                        case_expr_id,
+                        *id,
+                        program,
+                        ir_program,
+                        module,
+                        environment,
+                        bindings,
+                        errors,
+                        lambda_helper.clone(),
+                        irrefutable,
+                        type_arg_resolver,
+                    )
+                })
+                .collect();
+            IrPattern::Or(ids)
+        }
         Pattern::Tuple(patterns) => {
             let ids: Vec<_> = patterns
                 .iter()

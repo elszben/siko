@@ -127,6 +127,11 @@ fn walk_pattern(pattern_id: &PatternId, visitor: &mut dyn Visitor) {
         Pattern::Typed(id, _) => {
             walk_pattern(id, visitor);
         }
+        Pattern::Or(items) => {
+            for item in items {
+                walk_pattern(item, visitor);
+            }
+        }
     }
     visitor.visit_pattern(*pattern_id, pattern);
 }

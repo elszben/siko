@@ -269,6 +269,14 @@ impl Interpreter {
                 };
                 return r;
             }
+            Pattern::Or(patterns) => {
+                for pattern in patterns {
+                    if self.match_pattern(pattern, value, environment, sub_context) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         }
     }
 

@@ -40,4 +40,5 @@ pub enum Pattern {
     BoolLiteral(bool),
     Typed(PatternId, TypeSignatureId),
     Record(String, Vec<RecordFieldPattern>),
+    Or(Vec<PatternId>),
 }

@@ -619,6 +619,15 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                 );
                 self.match_pattern_with(inner, &pattern_signature_type_var);
             }
+            Pattern::Or(patterns) => {
+                let first = patterns[0];
+                for (index, id) in patterns.iter().enumerate() {
+                    if index == 0 {
+                        continue;
+                    }
+                    self.match_patterns(&first, &id);
+                }
+            }
         }
     }
 }

@@ -250,7 +250,22 @@ fn parse_case(parser: &mut Parser) -> Result<ExprId, ParseError> {
     let mut cases = Vec::new();
     loop {
         let start_index = parser.get_index();
-        let mut pattern_id = parse_pattern(parser)?;
+        let mut sub_patterns = Vec::new();
+        loop {
+            let pattern_id = parse_pattern(parser)?;
+            sub_patterns.push(pattern_id);
+            if parser.current(TokenKind::Pipe) {
+                parser.expect(TokenKind::Pipe)?;
+            } else {
+                break;
+            }
+        }
+        let mut pattern_id = if sub_patterns.len() == 1 {
+            sub_patterns[0]
+        } else {
+            let pattern = Pattern::Or(sub_patterns);
+            parser.add_pattern(pattern, start_index)
+        };
         if parser.current(TokenKind::KeywordIf) {
             parser.expect(TokenKind::KeywordIf)?;
             let guard_expr = parser.parse_expr()?;
