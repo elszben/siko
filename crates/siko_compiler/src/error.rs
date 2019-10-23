@@ -521,6 +521,21 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        ResolverError::PatternBindConflict(name, ids) => {
+                            eprintln!("Multiple variable named {} found", name.yellow(),);
+                            for id in ids {
+                                let location_set = location_info.get_item_location(id);
+                                print_location_set(file_manager, location_set);
+                            }
+                        }
+                        ResolverError::PatternBindNotPresent(name, id) => {
+                            eprintln!(
+                                "Variable {} not present in all patterns in or pattern",
+                                name.yellow(),
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

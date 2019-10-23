@@ -45,6 +45,8 @@ pub enum ResolverError {
     InvalidClassArgument(LocationId),
     InvalidTypeArgInInstanceConstraint(String, LocationId),
     NamedInstancedNotUnique(String, String, LocationId),
+    PatternBindConflict(String, Vec<LocationId>),
+    PatternBindNotPresent(String, LocationId),
 }
 
 #[derive(Debug)]

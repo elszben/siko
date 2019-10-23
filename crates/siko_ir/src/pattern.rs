@@ -34,7 +34,6 @@ pub enum Pattern {
     StringLiteral(String),
     BoolLiteral(bool),
     Typed(PatternId, TypeSignatureId),
-    Or(Vec<PatternId>),
 }
 
 #[derive(Debug, Clone)]

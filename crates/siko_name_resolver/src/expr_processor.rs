@@ -225,27 +225,7 @@ fn process_pattern(
             environment.add_expr_value(name.clone(), case_expr_id, ir_pattern_id);
             IrPattern::Binding(name.clone())
         }
-        Pattern::Or(patterns) => {
-            let ids: Vec<_> = patterns
-                .iter()
-                .map(|id| {
-                    process_pattern(
-                        case_expr_id,
-                        *id,
-                        program,
-                        ir_program,
-                        module,
-                        environment,
-                        bindings,
-                        errors,
-                        lambda_helper.clone(),
-                        irrefutable,
-                        type_arg_resolver,
-                    )
-                })
-                .collect();
-            IrPattern::Or(ids)
-        }
+        Pattern::Or(_) => unreachable!(),
         Pattern::Tuple(patterns) => {
             let ids: Vec<_> = patterns
                 .iter()
@@ -848,36 +828,105 @@ pub fn process_expr(
             );
             let mut ir_cases = Vec::new();
             for case in cases {
-                let mut case_environment = Environment::child(environment);
-                let mut bindings = BTreeMap::new();
-                let pattern_id = process_pattern(
-                    ir_body_id,
-                    case.pattern_id,
-                    program,
-                    ir_program,
-                    module,
-                    &mut case_environment,
-                    &mut bindings,
-                    errors,
-                    lambda_helper.clone(),
-                    false,
-                    type_arg_resolver,
-                );
-                let ir_case_body_id = process_expr(
-                    case.body,
-                    program,
-                    module,
-                    &mut case_environment,
-                    ir_program,
-                    errors,
-                    lambda_helper.clone(),
-                    type_arg_resolver,
-                );
-                let ir_case = IrCase {
-                    pattern_id: pattern_id,
-                    body: ir_case_body_id,
-                };
-                ir_cases.push(ir_case);
+                if let Pattern::Or(sub_patterns) = &program.patterns.get(&case.pattern_id).item {
+                    let mut all_bindings = BTreeMap::new();
+                    for sub_pattern in sub_patterns {
+                        let mut case_environment = Environment::child(environment);
+                        let mut bindings = BTreeMap::new();
+                        let pattern_id = process_pattern(
+                            ir_body_id,
+                            *sub_pattern,
+                            program,
+                            ir_program,
+                            module,
+                            &mut case_environment,
+                            &mut bindings,
+                            errors,
+                            lambda_helper.clone(),
+                            false,
+                            type_arg_resolver,
+                        );
+                        for binding in bindings {
+                            if binding.1.len() > 1 {
+                                let err = ResolverError::PatternBindConflict(
+                                    binding.0.clone(),
+                                    binding.1.clone(),
+                                );
+                                errors.push(err);
+                            }
+                            let locations = all_bindings
+                                .entry(binding.0.clone())
+                                .or_insert_with(|| Vec::new());
+                            locations.extend(binding.1);
+                        }
+                        let ir_case_body_id = process_expr(
+                            case.body,
+                            program,
+                            module,
+                            &mut case_environment,
+                            ir_program,
+                            errors,
+                            lambda_helper.clone(),
+                            type_arg_resolver,
+                        );
+                        let ir_case = IrCase {
+                            pattern_id: pattern_id,
+                            body: ir_case_body_id,
+                        };
+                        ir_cases.push(ir_case);
+                    }
+                    if errors.is_empty() {
+                        for binding in all_bindings {
+                            if binding.1.len() != sub_patterns.len() {
+                                let err = ResolverError::PatternBindNotPresent(
+                                    binding.0.clone(),
+                                    binding.1[0].clone(),
+                                );
+                                errors.push(err);
+                            }
+                        }
+                    }
+                } else {
+                    let mut case_environment = Environment::child(environment);
+                    let mut bindings = BTreeMap::new();
+                    let pattern_id = process_pattern(
+                        ir_body_id,
+                        case.pattern_id,
+                        program,
+                        ir_program,
+                        module,
+                        &mut case_environment,
+                        &mut bindings,
+                        errors,
+                        lambda_helper.clone(),
+                        false,
+                        type_arg_resolver,
+                    );
+                    for binding in bindings {
+                        if binding.1.len() > 1 {
+                            let err = ResolverError::PatternBindConflict(
+                                binding.0.clone(),
+                                binding.1.clone(),
+                            );
+                            errors.push(err);
+                        }
+                    }
+                    let ir_case_body_id = process_expr(
+                        case.body,
+                        program,
+                        module,
+                        &mut case_environment,
+                        ir_program,
+                        errors,
+                        lambda_helper.clone(),
+                        type_arg_resolver,
+                    );
+                    let ir_case = IrCase {
+                        pattern_id: pattern_id,
+                        body: ir_case_body_id,
+                    };
+                    ir_cases.push(ir_case);
+                }
             }
             let ir_expr = IrExpr::CaseOf(ir_body_id, ir_cases);
             return add_expr(ir_expr, id, ir_program, program);
