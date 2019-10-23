@@ -13,6 +13,6 @@ impl TypeVariable {
 
 impl fmt::Display for TypeVariable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Tv{}", self.id)
+        write!(f, "${}", self.id)
     }
 }
