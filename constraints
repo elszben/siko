@@ -30,21 +30,25 @@ D impls Boo <=  a impls Boo
                     <- (Boo b)
 A impls Boo <=  (B a) impls Boo
                     <- B impls Boo
-                    <- a ~ B.0
+                    <- a <| B.a
                 b impls Boo
                     <- (Boo a)
                 C (D b a) b impls Boo
                     <- C impls Boo
-                        <- D b a ~ C.0
+                        <- D b a <| C.a
                             <- D b a impls Boo
                             <- D b a impls Eq
                                 <- D impls Boo
-                                <- b ~ D.0
+                                <- b <| D.a
                                     <- b impls Boo
                                     <- b impls Show
-                                <- a ~ D.1
+                                <- a <| D.b
                         <- b ~ C.1
-B impls Boo <= A ((E a, E a)) Int impls Boo
+B impls Boo <=  A ((E a, E a)) Int impls Boo
+                    <- A impls Boo
+                        <- ((E a, E a)) <| A.a
+                            <- E a <| A.a
+                        <- Int <| A.b
 
 E impls Boo <= D a Int impls Boo
 
