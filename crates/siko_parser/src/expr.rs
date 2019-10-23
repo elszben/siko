@@ -578,14 +578,10 @@ fn parse_composition(parser: &mut Parser) -> Result<ExprId, ParseError> {
                             continue;
                         }
                         _ => {
-                            let function_id_expr = Expr::Builtin(BuiltinOperator::Composition);
-                            let function_id_expr_id =
-                                parser.add_expr(function_id_expr, start_index);
-                            let right = parse_primary(parser)?;
-                            let expr = Expr::FunctionCall(function_id_expr_id, vec![left, right]);
-                            let id = parser.add_expr(expr, start_index);
-                            left = id;
-                            continue;
+                            return report_unexpected_token(
+                                parser,
+                                format!("field name or tuple member"),
+                            );
                         }
                     }
                 } else {

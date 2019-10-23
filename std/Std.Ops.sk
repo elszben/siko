@@ -64,6 +64,3 @@ opOr a b = extern
 
 opNot :: Bool -> Bool
 opNot a  = not a
-
-opComposition a b c :: (a -> b) -> (b -> c) -> a -> c
-opComposition f g x = g (f x)

@@ -393,17 +393,24 @@ impl Lexer {
         while index < result.len() {
             if let Token::IntegerLiteral(v1) = result[index].token {
                 if index + 2 < result.len() {
+                    let prev_dot = if index > 0 {
+                        result[index - 1].token.kind() == TokenKind::Dot
+                    } else {
+                        false
+                    };
                     if let Token::Dot = result[index + 1].token {
-                        let t2 = &result[index + 2];
-                        if let Token::IntegerLiteral(v2) = t2.token {
-                            let v = format!("{}.{}", v1, v2);
-                            let v: f64 = v.parse().expect("Float parse error");
-                            let mut new_token = result[index].clone();
-                            new_token.token = Token::FloatLiteral(v);
-                            new_token.location.span.end = t2.location.span.end;
-                            new_result.push(new_token);
-                            index += 3;
-                            continue;
+                        if !prev_dot {
+                            let t2 = &result[index + 2];
+                            if let Token::IntegerLiteral(v2) = t2.token {
+                                let v = format!("{}.{}", v1, v2);
+                                let v: f64 = v.parse().expect("Float parse error");
+                                let mut new_token = result[index].clone();
+                                new_token.token = Token::FloatLiteral(v);
+                                new_token.location.span.end = t2.location.span.end;
+                                new_result.push(new_token);
+                                index += 3;
+                                continue;
+                            }
                         }
                     }
                 }
