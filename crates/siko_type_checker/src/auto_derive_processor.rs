@@ -14,8 +14,10 @@ use siko_ir::types::Record;
 use siko_ir::types::TypeDef;
 use siko_ir::types::TypeDefId;
 use siko_location_info::item::LocationId;
+use siko_util::Counter;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::fmt;
 
 /*
  * Auto derive rules:
@@ -39,39 +41,24 @@ use std::collections::BTreeSet;
  *
  */
 
-fn check_type_variable(
-    var: TypeVariable,
-    data_type_var: TypeVariable,
-    typedef_id: &TypeDefId,
-    derived_class: ClassId,
-    members: Vec<(TypeVariable, LocationId)>,
-    adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
-    variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
-    record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
-    type_store: &mut TypeStore,
-    program: &Program,
-    all_types: &mut BTreeMap<TypeDefId, BTreeSet<ClassId>>,
-    level: usize,
-) {
-    let ty = type_store.get_type(&var);
-    match ty {
-        Type::TypeArgument(_, _) => {}
-        Type::FixedTypeArgument(_, _, _) => {}
-        Type::Named(_, dep_id, args) => {
-            check_typedef(
-                dep_id,
-                derived_class,
-                adt_type_info_map,
-                variant_type_info_map,
-                record_type_info_map,
-                type_store,
-                program,
-                all_types,
-                level,
-            );
-        }
-        _ => {
-            panic!("type as member is not yet implemented {:?}", ty);
+enum Constraint {
+    TypeClassConstraint(TypeVariable, TypeDefId, ClassId, usize),
+}
+
+pub struct InstanceInfo {
+    auto_derived: bool,
+    typedef_id: TypeDefId,
+    class_id: ClassId,
+    constraints: Vec<Vec<ClassId>>,
+}
+
+impl InstanceInfo {
+    pub fn new(typedef_id: TypeDefId, class_id: ClassId, type_arg_count: usize) -> InstanceInfo {
+        InstanceInfo {
+            auto_derived: false,
+            typedef_id: typedef_id,
+            class_id: class_id,
+            constraints: std::iter::repeat(Vec::new()).take(type_arg_count).collect(),
         }
     }
 }
@@ -85,56 +72,64 @@ fn indent(level: usize) -> String {
 
 fn process_type_var(
     var: TypeVariable,
-    derived_class: ClassId,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
-    all_types: &mut BTreeMap<TypeDefId, BTreeSet<ClassId>>,
-    level: usize,
+    class: ClassId,
+    type_arg_vars: &Vec<TypeVariable>,
+    is_member: bool,
+    constraints: &mut Vec<Constraint>,
 ) {
     let ty = type_store.get_type(&var);
     match ty {
         Type::TypeArgument(_, _) => {
-            println!(
-                "{} - {} {}",
-                indent(level),
-                var,
-                type_store.get_resolved_type_string(&var)
-            );
+            for (index, arg) in type_arg_vars.iter().enumerate() {
+                if *arg == var && is_member {
+                    println!("{}. type arg must have instance for {}", index, class);
+                }
+            }
         }
         Type::FixedTypeArgument(_, _, _) => {}
         Type::Named(_, dep_id, args) => {
-            let (module, name) = program.get_module_and_name(dep_id);
-            println!("{} - {} {}/{} ", indent(level), var, module, name);
-            for arg in args {
+            //let (module, name) = program.get_module_and_name(dep_id);
+            //println!("{} {}/{} ", var, module, name);
+            for (index, arg) in args.iter().enumerate() {
+                /*println!(
+                    "{}. type arg {} must match the constraints of {}. type arg of {}/{}",
+                    index, arg, index, module, name
+                );*/
+                let constraint = Constraint::TypeClassConstraint(*arg, dep_id, class, index);
+                constraints.push(constraint);
                 process_type_var(
-                    arg,
-                    derived_class,
+                    *arg,
                     adt_type_info_map,
                     variant_type_info_map,
                     record_type_info_map,
                     type_store,
                     program,
-                    all_types,
-                    level + 3,
+                    class,
+                    type_arg_vars,
+                    false,
+                    constraints,
                 );
             }
         }
         Type::Tuple(items) => {
-            println!("{} - TUPLE", indent(level));
+            //println!("{} - TUPLE", indent(level));
             for item in items {
                 process_type_var(
                     item,
-                    derived_class,
                     adt_type_info_map,
                     variant_type_info_map,
                     record_type_info_map,
                     type_store,
                     program,
-                    all_types,
-                    level + 3,
+                    class,
+                    type_arg_vars,
+                    false,
+                    constraints,
                 );
             }
         }
@@ -146,17 +141,15 @@ fn process_type_var(
 
 fn check_adt(
     adt: &Adt,
-    derived_class: ClassId,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
-    all_types: &mut BTreeMap<TypeDefId, BTreeSet<ClassId>>,
-    level: usize,
+    instances: &mut BTreeMap<(TypeDefId, ClassId), InstanceInfo>,
+    constraints: &mut Vec<Constraint>,
 ) {
     let (module, name) = program.get_module_and_name(adt.id);
-    let class = program.classes.get(&derived_class);
     let adt_type_info = adt_type_info_map
         .get(&adt.id)
         .expect("Adt type info not found");
@@ -178,42 +171,53 @@ fn check_adt(
             members.push((item_var, item_type.1));
         }
     }
-    let type_arg_vars_str: Vec<_> = type_arg_vars.iter().map(|t| format!("{}", t)).collect();
+    let mut classes = Vec::new();
+    match &adt.auto_derive_mode {
+        AutoDeriveMode::Implicit => {}
+        AutoDeriveMode::Explicit(derived_classes) => {
+            for derived_class in derived_classes {
+                classes.push(derived_class.class_id);
+            }
+        }
+    }
+    for class in &classes {
+        let instance_info = InstanceInfo::new(adt.id, *class, adt.type_args.len());
+        instances.insert((adt.id, *class), instance_info);
+    }
     println!(
-        "{} - ADT {}/{} -> {} type: {}, type_args ({}) {}",
-        indent(level),
+        "ADT {}/{} type: {}, {}",
         module,
         name,
-        class.name,
         adt_type_var,
-        type_arg_vars_str.join(", "),
         type_store.get_resolved_type_string(&adt_type_var)
     );
-    for member in &members {
-        process_type_var(
-            member.0,
-            derived_class,
-            adt_type_info_map,
-            variant_type_info_map,
-            record_type_info_map,
-            type_store,
-            program,
-            all_types,
-            level + 3,
-        );
+    for class in &classes {
+        for member in &members {
+            process_type_var(
+                member.0,
+                adt_type_info_map,
+                variant_type_info_map,
+                record_type_info_map,
+                type_store,
+                program,
+                *class,
+                &type_arg_vars,
+                true,
+                constraints,
+            );
+        }
     }
 }
 
 fn check_record(
     record: &Record,
-    derived_class: ClassId,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
-    all_types: &mut BTreeMap<TypeDefId, BTreeSet<ClassId>>,
-    level: usize,
+    instances: &mut BTreeMap<(TypeDefId, ClassId), InstanceInfo>,
+    constraints: &mut Vec<Constraint>,
 ) {
     let record_type_info = record_type_info_map
         .get(&record.id)
@@ -234,41 +238,38 @@ fn check_record(
 
 fn check_typedef(
     typedef_id: TypeDefId,
-    derived_class: ClassId,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
     type_store: &mut TypeStore,
     program: &Program,
-    all_types: &mut BTreeMap<TypeDefId, BTreeSet<ClassId>>,
-    level: usize,
+    instances: &mut BTreeMap<(TypeDefId, ClassId), InstanceInfo>,
+    constraints: &mut Vec<Constraint>,
 ) {
     let typedef = program.typedefs.get(&typedef_id);
     match typedef {
         TypeDef::Adt(adt) => {
             check_adt(
                 adt,
-                derived_class,
                 adt_type_info_map,
                 variant_type_info_map,
                 record_type_info_map,
                 type_store,
                 program,
-                all_types,
-                level,
+                instances,
+                constraints,
             );
         }
         TypeDef::Record(record) => {
             check_record(
                 record,
-                derived_class,
                 adt_type_info_map,
                 variant_type_info_map,
                 record_type_info_map,
                 type_store,
                 program,
-                all_types,
-                level,
+                instances,
+                constraints,
             );
         }
     }
@@ -300,9 +301,8 @@ impl<'a> TypedefDependencyProcessor<'a> {
     }
 
     pub fn process(&mut self, errors: &mut Vec<TypecheckError>) {
-        //let implicit_derived_classes = [ClassId { id: 0 }];
-        let implicit_derived_classes = [];
-        let mut all_types = BTreeMap::new();
+        let mut instances = BTreeMap::new();
+        let mut constraints = Vec::new();
         for (id, typedef) in &self.program.typedefs.items {
             if let TypeDef::Record(record) = typedef {
                 if record.fields.is_empty() {
@@ -310,72 +310,39 @@ impl<'a> TypedefDependencyProcessor<'a> {
                     continue;
                 }
             }
-            let typedef = self.program.typedefs.get(id);
-            match typedef {
-                TypeDef::Adt(adt) => match &adt.auto_derive_mode {
-                    AutoDeriveMode::Implicit => {
-                        for derived_class in &implicit_derived_classes {
-                            check_adt(
-                                adt,
-                                *derived_class,
-                                self.adt_type_info_map,
-                                self.variant_type_info_map,
-                                self.record_type_info_map,
-                                self.type_store,
-                                self.program,
-                                &mut all_types,
-                                0,
-                            );
-                        }
-                    }
-                    AutoDeriveMode::Explicit(derived_classes) => {
-                        for derived_class in derived_classes {
-                            check_adt(
-                                adt,
-                                derived_class.class_id,
-                                self.adt_type_info_map,
-                                self.variant_type_info_map,
-                                self.record_type_info_map,
-                                self.type_store,
-                                self.program,
-                                &mut all_types,
-                                0,
-                            );
-                        }
-                    }
-                },
-                TypeDef::Record(record) => match &record.auto_derive_mode {
-                    AutoDeriveMode::Implicit => {
-                        for derived_class in &implicit_derived_classes {
-                            check_record(
-                                record,
-                                *derived_class,
-                                self.adt_type_info_map,
-                                self.variant_type_info_map,
-                                self.record_type_info_map,
-                                self.type_store,
-                                self.program,
-                                &mut all_types,
-                                0,
-                            );
-                        }
-                    }
-                    AutoDeriveMode::Explicit(derived_classes) => {
-                        for derived_class in derived_classes {
-                            check_record(
-                                record,
-                                derived_class.class_id,
-                                self.adt_type_info_map,
-                                self.variant_type_info_map,
-                                self.record_type_info_map,
-                                self.type_store,
-                                self.program,
-                                &mut all_types,
-                                0,
-                            );
-                        }
-                    }
-                },
+            check_typedef(
+                *id,
+                self.adt_type_info_map,
+                self.variant_type_info_map,
+                self.record_type_info_map,
+                self.type_store,
+                self.program,
+                &mut instances,
+                &mut constraints,
+            );
+        }
+        for ((id, class_id), instance_info) in &instances {
+            let (module, name) = self.program.get_module_and_name(*id);
+            let class = self.program.classes.get(class_id);
+            println!(
+                "{}/{} ({}) {} {}, {}",
+                module,
+                name,
+                id,
+                class_id,
+                class.name,
+                instance_info.constraints.len()
+            );
+        }
+        for constraint in constraints {
+            match constraint {
+                Constraint::TypeClassConstraint(var, typedef_id, class, arg_index) => {
+                    let (module, name) = self.program.get_module_and_name(typedef_id);
+                    println!(
+                        "{}/{} ({}) {} {} {}. arg",
+                        module, name, typedef_id, var, class, arg_index
+                    );
+                }
             }
         }
     }
