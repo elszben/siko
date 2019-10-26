@@ -141,17 +141,14 @@ impl Lexer {
             "actor" => Token::KeywordActor,
             "deriving" => Token::KeywordDeriving,
             "_" => Token::Wildcard,
-            _ => match identifier.parse::<i64>() {
-                Ok(v) => Token::IntegerLiteral(v),
-                Err(_) => {
-                    let first = identifier.chars().next().expect("empty identifer");
-                    if first.is_uppercase() {
-                        Token::TypeIdentifier(identifier)
-                    } else {
-                        Token::VarIdentifier(identifier)
-                    }
+            _ => {
+                let first = identifier.chars().next().expect("empty identifer");
+                if first.is_uppercase() {
+                    Token::TypeIdentifier(identifier)
+                } else {
+                    Token::VarIdentifier(identifier)
                 }
-            },
+            }
         };
         self.add_token(t, span);
         Ok(())
@@ -391,7 +388,7 @@ impl Lexer {
         let mut new_result = Vec::new();
 
         while index < result.len() {
-            if let Token::IntegerLiteral(v1) = result[index].token {
+            if let Token::VarIdentifier(v1) = &result[index].token {
                 if index + 2 < result.len() {
                     let prev_dot = if index > 0 {
                         result[index - 1].token.kind() == TokenKind::Dot
@@ -401,15 +398,19 @@ impl Lexer {
                     if let Token::Dot = result[index + 1].token {
                         if !prev_dot {
                             let t2 = &result[index + 2];
-                            if let Token::IntegerLiteral(v2) = t2.token {
+                            if let Token::VarIdentifier(v2) = &t2.token {
                                 let v = format!("{}.{}", v1, v2);
-                                let v: f64 = v.parse().expect("Float parse error");
-                                let mut new_token = result[index].clone();
-                                new_token.token = Token::FloatLiteral(v);
-                                new_token.location.span.end = t2.location.span.end;
-                                new_result.push(new_token);
-                                index += 3;
-                                continue;
+                                match v.parse::<f64>() {
+                                    Ok(v) => {
+                                        let mut new_token = result[index].clone();
+                                        new_token.token = Token::FloatLiteral(v);
+                                        new_token.location.span.end = t2.location.span.end;
+                                        new_result.push(new_token);
+                                        index += 3;
+                                        continue;
+                                    }
+                                    _ => {}
+                                }
                             }
                         }
                     }
@@ -419,6 +420,23 @@ impl Lexer {
             index += 1;
             continue;
         }
+
+        let new_result = new_result
+            .into_iter()
+            .map(|token| {
+                if let Token::VarIdentifier(v) = &token.token {
+                    match v.parse() {
+                        Ok(v) => {
+                            let mut new_token = token.clone();
+                            new_token.token = Token::IntegerLiteral(v);
+                            return new_token;
+                        }
+                        _ => {}
+                    }
+                }
+                return token;
+            })
+            .collect();
 
         Ok(new_result)
     }
