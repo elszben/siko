@@ -15,8 +15,10 @@ use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
 use siko_location_info::item::ItemInfo;
 use siko_location_info::item::LocationId;
+use siko_location_info::location::Location;
 use siko_location_info::location_info::LocationInfo;
 use siko_location_info::location_set::LocationSet;
+use siko_location_info::span::Span;
 use siko_syntax::actor::Actor;
 use siko_syntax::actor::Protocol;
 use siko_syntax::actor::ProtocolHandler;
@@ -242,22 +244,41 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parse_pattern_args(&mut self) -> Result<Vec<PatternId>, ParseError> {
+        let mut args = Vec::new();
+        loop {
+            match self.current_kind() {
+                TokenKind::LParen
+                | TokenKind::IntegerLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::StringLiteral
+                | TokenKind::BoolLiteral
+                | TokenKind::VarIdentifier
+                | TokenKind::TypeIdentifier
+                | TokenKind::Wildcard => {
+                    let arg = parse_pattern(self)?;
+                    args.push(arg);
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+        Ok(args)
+    }
+
     pub fn parse_lambda_args(&mut self) -> Result<Vec<PatternId>, ParseError> {
         let mut args = Vec::new();
         loop {
-            if let Some(item) = self.peek() {
-                let arg = parse_pattern(self)?;
-                args.push(arg);
-                if !self.current(TokenKind::Comma) {
-                    break;
-                } else {
-                    self.expect(TokenKind::Comma)?;
-                    continue;
-                }
+            let arg = parse_pattern(self)?;
+            args.push(arg);
+            if !self.current(TokenKind::Comma) {
+                break;
+            } else {
+                self.expect(TokenKind::Comma)?;
+                continue;
             }
-            return report_unexpected_token(self, format!("lambda arg"));
         }
-        assert!(!args.is_empty());
         Ok(args)
     }
 
@@ -531,7 +552,7 @@ impl<'a> Parser<'a> {
         let start_index = self.get_index();
         let name = self.var_identifier("function name")?;
         let name = name;
-        let args = self.parse_args()?;
+        let args = self.parse_pattern_args()?;
         if self.current(TokenKind::KeywordDoubleColon) {
             self.advance()?;
             let constraints = if self.constraint_follows() {
@@ -546,10 +567,35 @@ impl<'a> Parser<'a> {
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
             let id = self.program.function_types.get_id();
+            let mut simple_args = Vec::new();
+            for arg in args {
+                let item_info = &self.program.patterns.get(&arg);
+                let pattern = &item_info.item;
+                let location_id = item_info.location_id;
+                if let Pattern::Binding(n) = pattern {
+                    simple_args.push((n.clone(), location_id))
+                } else {
+                    let location_set = self.location_info.get_item_location(&location_id);
+                    let (line, ranges) = location_set.lines.iter().next().unwrap();
+                    let location = Location {
+                        line: *line,
+                        span: Span {
+                            start: ranges[0].start,
+                            end: ranges[0].end,
+                        },
+                    };
+                    let err = ParseError::new(
+                        "Invalid type argument".to_string(),
+                        self.file_path.clone(),
+                        location,
+                    );
+                    return Err(err);
+                }
+            }
             let function_type = FunctionType {
                 id: id,
                 name: name.clone(),
-                type_args: args,
+                type_args: simple_args,
                 constraints: constraints,
                 full_type_signature_id: full_type_signature_id,
                 type_signature_id: type_signature_id,
@@ -562,13 +608,57 @@ impl<'a> Parser<'a> {
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
             self.expect(TokenKind::Equal)?;
+            let mut temp_args = Vec::new();
             let body = if let Some(token) = self.peek() {
                 if token.token.kind() == TokenKind::KeywordExtern {
                     self.expect(TokenKind::KeywordExtern)?;
+                    let mut temp_args = Vec::new();
+                    for arg in args {
+                        let item_info = &self.program.patterns.get(&arg);
+                        let pattern = &item_info.item;
+                        let location_id = item_info.location_id;
+                        if let Pattern::Binding(n) = pattern {
+                            temp_args.push((n.clone(), location_id))
+                        } else {
+                            let location_set = self.location_info.get_item_location(&location_id);
+                            let (line, ranges) = location_set.lines.iter().next().unwrap();
+                            let location = Location {
+                                line: *line,
+                                span: Span {
+                                    start: ranges[0].start,
+                                    end: ranges[0].end,
+                                },
+                            };
+                            let err = ParseError::new(
+                                "Cannot use patterns in extern function arguments".to_string(),
+                                self.file_path.clone(),
+                                location,
+                            );
+                            return Err(err);
+                        }
+                    }
+
                     FunctionBody::Extern
                 } else {
-                    let body = self.parse_expr()?;
-                    FunctionBody::Expr(body)
+                    let body_expr_id = self.parse_expr()?;
+                    let mut temp_arg_exprs = Vec::new();
+                    for arg in args.iter() {
+                        let location = self.get_program().patterns.get(arg).location_id;
+                        let temp_arg_name = self.get_temp_var_name();
+                        temp_args.push((temp_arg_name.clone(), location));
+                        let path_expr = Expr::Path(temp_arg_name);
+                        let path_expr_id = self.add_expr(path_expr, start_index);
+                        temp_arg_exprs.push(path_expr_id);
+                    }
+                    let tuple_expr = Expr::Tuple(temp_arg_exprs);
+                    let tuple_expr_id = self.add_expr(tuple_expr, start_index);
+                    let tuple_pattern = Pattern::Tuple(args.clone());
+                    let tuple_pattern_id = self.add_pattern(tuple_pattern, start_index);
+                    let bind_expr = Expr::Bind(tuple_pattern_id, tuple_expr_id);
+                    let bind_expr_id = self.add_expr(bind_expr, start_index);
+                    let do_expr = Expr::Do(vec![bind_expr_id, body_expr_id]);
+                    let do_expr_id = self.add_expr(do_expr, start_index);
+                    FunctionBody::Expr(do_expr_id)
                 }
             } else {
                 unreachable!()
@@ -578,7 +668,7 @@ impl<'a> Parser<'a> {
             let function = Function {
                 id: id,
                 name: name.clone(),
-                args: args,
+                args: temp_args,
                 body: body,
                 location_id: location_id,
             };
