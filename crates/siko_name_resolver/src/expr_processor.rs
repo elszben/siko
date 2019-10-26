@@ -766,6 +766,13 @@ pub fn process_expr(
                 true,
                 type_arg_resolver,
             );
+            for binding in bindings {
+                if binding.1.len() > 1 {
+                    let err =
+                        ResolverError::PatternBindConflict(binding.0.clone(), binding.1.clone());
+                    errors.push(err);
+                }
+            }
             let ir_expr = IrExpr::Bind(ir_pattern_id, ir_expr_id);
             return add_expr(ir_expr, id, ir_program, program);
         }

@@ -55,10 +55,28 @@ fn parse_lambda(parser: &mut Parser) -> Result<ExprId, ParseError> {
     parser.expect(TokenKind::Lambda)?;
     let args = parser.parse_lambda_args()?;
     parser.expect(TokenKind::Op(BuiltinOperator::Arrow))?;
-    let expr_id = parser.parse_expr()?;
-    let lambda_expr = Expr::Lambda(args, expr_id);
-    let id = parser.add_expr(lambda_expr, start_index);
-    Ok(id)
+    let body_expr_id = parser.parse_expr()?;
+    let mut temp_arg_exprs = Vec::new();
+    let mut temp_args = Vec::new();
+    for arg in args.iter() {
+        let location = parser.get_program().patterns.get(arg).location_id;
+        let temp_arg_name = parser.get_temp_var_name();
+        temp_args.push((temp_arg_name.clone(), location));
+        let path_expr = Expr::Path(temp_arg_name);
+        let path_expr_id = parser.add_expr(path_expr, start_index);
+        temp_arg_exprs.push(path_expr_id);
+    }
+    let tuple_expr = Expr::Tuple(temp_arg_exprs);
+    let tuple_expr_id = parser.add_expr(tuple_expr, start_index);
+    let tuple_pattern = Pattern::Tuple(args.clone());
+    let tuple_pattern_id = parser.add_pattern(tuple_pattern, start_index);
+    let bind_expr = Expr::Bind(tuple_pattern_id, tuple_expr_id);
+    let bind_expr_id = parser.add_expr(bind_expr, start_index);
+    let do_expr = Expr::Do(vec![bind_expr_id, body_expr_id]);
+    let do_expr_id = parser.add_expr(do_expr, start_index);
+    let lambda_expr = Expr::Lambda(temp_args, do_expr_id);
+    let lambda_expr_id = parser.add_expr(lambda_expr, start_index);
+    Ok(lambda_expr_id)
 }
 
 fn parse_do(parser: &mut Parser) -> Result<ExprId, ParseError> {
@@ -234,7 +252,7 @@ fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternI
     Ok(Some(id))
 }
 
-fn parse_pattern(parser: &mut Parser) -> Result<PatternId, ParseError> {
+pub fn parse_pattern(parser: &mut Parser) -> Result<PatternId, ParseError> {
     let id = parse_sub_pattern(parser, false)?;
     match id {
         Some(id) => Ok(id),

@@ -1,4 +1,5 @@
 use super::expr::parse_ops;
+use super::expr::parse_pattern;
 use super::util::parse_parens;
 use super::util::report_parser_error;
 use super::util::report_unexpected_token;
@@ -54,6 +55,7 @@ use siko_syntax::pattern::PatternId;
 use siko_syntax::program::Program;
 use siko_syntax::types::TypeSignature;
 use siko_syntax::types::TypeSignatureId;
+use siko_util::Counter;
 use std::collections::BTreeMap;
 
 enum FunctionOrFunctionType {
@@ -81,6 +83,7 @@ pub struct Parser<'a> {
     index: usize,
     program: &'a mut Program,
     location_info: &'a mut LocationInfo,
+    temp_var_counter: Counter,
 }
 
 impl<'a> Parser<'a> {
@@ -96,6 +99,7 @@ impl<'a> Parser<'a> {
             index: 0,
             program: program,
             location_info: location_info,
+            temp_var_counter: Counter::new(),
         }
     }
 
@@ -154,6 +158,10 @@ impl<'a> Parser<'a> {
             let r = self.tokens[self.index].clone();
             Some(r)
         }
+    }
+
+    pub fn get_temp_var_name(&mut self) -> String {
+        format!("${}", self.temp_var_counter.next())
     }
 
     pub fn irrefutable_pattern_follows(&self) -> bool {
@@ -234,22 +242,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_lambda_args(&mut self) -> Result<Vec<(String, LocationId)>, ParseError> {
+    pub fn parse_lambda_args(&mut self) -> Result<Vec<PatternId>, ParseError> {
         let mut args = Vec::new();
         loop {
             if let Some(item) = self.peek() {
-                if item.token.kind() == TokenKind::VarIdentifier {
-                    let start_index = self.get_index();
-                    let arg = self.var_identifier("lambda arg")?;
-                    let end_index = self.get_index();
-                    let location_id = self.get_location_id(start_index, end_index);
-                    args.push((arg, location_id));
-                    if !self.current(TokenKind::Comma) {
-                        break;
-                    } else {
-                        self.expect(TokenKind::Comma)?;
-                        continue;
-                    }
+                let arg = parse_pattern(self)?;
+                args.push(arg);
+                if !self.current(TokenKind::Comma) {
+                    break;
+                } else {
+                    self.expect(TokenKind::Comma)?;
+                    continue;
                 }
             }
             return report_unexpected_token(self, format!("lambda arg"));
