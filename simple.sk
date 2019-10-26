@@ -28,16 +28,22 @@ instance (Boo a, Show a) => Boo D a b where
         boo a = boo a
 */
 
-data A a = A1 Int a (B a) (C a) deriving Boo
-data B a = B1 a
+data A a = A1 Int a (B a (A a)) (C (D a) ) deriving Boo, PartialEq
+data B a b = B1 a b
 
-instance (Show a) => Boo B a where
+instance (Show a, PartialEq b) => Boo B a  b where
     boo a = 0
 
 data C a = C1 a
 
 instance (Eq a) => Boo C a where
     boo a = 0
-    
+
+data D a = D1 a
+
+instance Eq D a
+
+instance (Eq a) => Boo D a where
+    boo a = 0
 
 main = ()

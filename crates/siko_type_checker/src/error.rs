@@ -16,6 +16,8 @@ pub enum TypecheckError {
     TypeAnnotationNeeded(LocationId),
     AutoDeriveConflict(String, LocationId, LocationId, String),
     AutoDeriveMemberInstanceNotGeneric(String, LocationId, String),
+    NoInstanceFoundDuringAutoDerive(String, String, LocationId),
+    ConstraintFailureDuringAutoDerive(String, String, String, LocationId),
 }
 
 #[derive(Debug)]

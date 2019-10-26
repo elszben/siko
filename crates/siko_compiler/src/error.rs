@@ -693,6 +693,36 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::NoInstanceFoundDuringAutoDerive(
+                            type_name,
+                            class_name,
+                            id,
+                        ) => {
+                            eprintln!(
+                                "{} type {} has no instance for class {}, auto derive failed",
+                                error.red(),
+                                type_name.yellow(),
+                                class_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::ConstraintFailureDuringAutoDerive(
+                            expected,
+                            found,
+                            class_name,
+                            id,
+                        ) => {
+                            eprintln!(
+                                "{} constraint failure during auto derive for class {}",
+                                error.red(),
+                                class_name.yellow()
+                            );
+                            eprintln!("Expected:      {}", format!("{}", expected).yellow());
+                            eprintln!("Found:         {}", format!("{}", found).yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

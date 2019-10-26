@@ -3,6 +3,7 @@ use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::error::TypecheckError;
 use crate::instance_resolver::ResolutionResult;
+use crate::type_store::ResolverContext;
 use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
@@ -42,7 +43,7 @@ use std::fmt;
  */
 
 enum Constraint {
-    TypeClassConstraint(TypeVariable, TypeDefId, ClassId, usize),
+    TypeClassConstraint(TypeVariable, TypeDefId, ClassId, usize, LocationId),
 }
 
 pub struct InstanceInfo {
@@ -74,6 +75,7 @@ fn indent(level: usize) -> String {
 
 fn process_type_var(
     var: TypeVariable,
+    location_id: LocationId,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
     variant_type_info_map: &BTreeMap<(TypeDefId, usize), VariantTypeInfo>,
     record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
@@ -102,10 +104,12 @@ fn process_type_var(
                     "{}. type arg {} must match the constraints of {}. type arg of {}/{}",
                     index, arg, index, module, name
                 );*/
-                let constraint = Constraint::TypeClassConstraint(*arg, dep_id, class, index);
+                let constraint =
+                    Constraint::TypeClassConstraint(*arg, dep_id, class, index, location_id);
                 constraints.push(constraint);
                 process_type_var(
                     *arg,
+                    location_id,
                     adt_type_info_map,
                     variant_type_info_map,
                     record_type_info_map,
@@ -123,6 +127,7 @@ fn process_type_var(
             for item in items {
                 process_type_var(
                     item,
+                    location_id,
                     adt_type_info_map,
                     variant_type_info_map,
                     record_type_info_map,
@@ -207,6 +212,7 @@ fn check_adt(
         for member in &members {
             process_type_var(
                 member.0,
+                member.1,
                 adt_type_info_map,
                 variant_type_info_map,
                 record_type_info_map,
@@ -346,43 +352,89 @@ impl<'a> TypedefDependencyProcessor<'a> {
                 instance_info.type_args.len()
             );*/
         }
-        for constraint in constraints {
-            match constraint {
-                Constraint::TypeClassConstraint(var, typedef_id, class, arg_index) => {
-                    let (module, name) = self.program.get_module_and_name(typedef_id);
-                    /*println!(
-                        "{}/{} ({}) {} {} {}. arg",
-                        module, name, typedef_id, var, class, arg_index
-                    );*/
-                    let mut err = false;
-                    let instance_info = instances.entry((typedef_id, class)).or_insert_with(|| {
-                        let (adt_type_var, type_arg_vars) =
-                            get_adt_type_vars(typedef_id, self.adt_type_info_map, self.type_store);
-                        match self.type_store.has_class_instance(&adt_type_var, &class) {
-                            ResolutionResult::Definite(_) => {
-                                InstanceInfo::new(typedef_id, class, type_arg_vars)
-                            }
-                            _ => {
-                                println!(
-                                    "{}/{} does not have instance for {}",
-                                    module, name, class
+        loop {
+            let mut modified = false;
+            for constraint in &constraints {
+                match constraint {
+                    Constraint::TypeClassConstraint(
+                        var,
+                        typedef_id,
+                        class,
+                        arg_index,
+                        location_id,
+                    ) => {
+                        let (module, name) = self.program.get_module_and_name(*typedef_id);
+                        let ir_class = self.program.classes.get(&class);
+                        /*println!(
+                            "{}/{} ({}) {} {} {}. arg",
+                            module, name, typedef_id, var, class, arg_index
+                        );*/
+                        let instance_info =
+                            instances.entry((*typedef_id, *class)).or_insert_with(|| {
+                                let (adt_type_var, type_arg_vars) = get_adt_type_vars(
+                                    *typedef_id,
+                                    self.adt_type_info_map,
+                                    self.type_store,
                                 );
-                                err = true;
-                                InstanceInfo::new(typedef_id, class, Vec::new())
+                                match self.type_store.has_class_instance(&adt_type_var, &class) {
+                                    ResolutionResult::Definite(_) => {
+                                        InstanceInfo::new(*typedef_id, *class, type_arg_vars)
+                                    }
+                                    _ => {
+                                        let err = TypecheckError::NoInstanceFoundDuringAutoDerive(
+                                            name.clone(),
+                                            ir_class.name.clone(),
+                                            *location_id,
+                                        );
+                                        errors.push(err);
+                                        InstanceInfo::new(*typedef_id, *class, Vec::new())
+                                    }
+                                }
+                            });
+                        if !errors.is_empty() {
+                            break;
+                        }
+                        let instance_arg_var = instance_info.type_args[*arg_index];
+                        let prev_index = self.type_store.get_index(&var);
+                        if !self.type_store.constrain_type(&var, &instance_arg_var) {
+                            let found_type = self.type_store.get_resolved_type_string(&var);
+                            let expected_type =
+                                self.type_store.get_resolved_type_string(&instance_arg_var);
+                            let err = TypecheckError::ConstraintFailureDuringAutoDerive(
+                                expected_type,
+                                found_type,
+                                ir_class.name.clone(),
+                                *location_id,
+                            );
+                            errors.push(err);
+                            break;
+                        } else {
+                            let index = self.type_store.get_index(&var);
+                            if prev_index != index {
+                                modified = true;
                             }
                         }
-                    });
-                    if err {
-                        break;
-                    }
-                    let instance_arg_var = instance_info.type_args[arg_index];
-                    if !self.type_store.constrain_type(&var, &instance_arg_var) {
-                        let s1 = self.type_store.get_resolved_type_string(&var);
-                        let s2 = self.type_store.get_resolved_type_string(&instance_arg_var);
-                        println!("constrain_type failed {} <- {}", s1, s2);
-                        break;
                     }
                 }
+            }
+            if !modified {
+                break;
+            }
+        }
+
+        for ((id, class_id), instance_info) in &instances {
+            let (module, name) = self.program.get_module_and_name(*id);
+            let class = self.program.classes.get(class_id);
+            println!(
+                "I-> {}/{} ({}) {} {}",
+                module, name, id, class_id, class.name,
+            );
+            let mut context = ResolverContext::new();
+            for (index, ty_arg) in instance_info.type_args.iter().enumerate() {
+                let ty = self
+                    .type_store
+                    .get_resolved_type_string_with_context(ty_arg, &mut context);
+                println!("  {}. {}", index, ty);
             }
         }
     }
