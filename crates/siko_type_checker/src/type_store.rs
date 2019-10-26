@@ -347,6 +347,98 @@ impl TypeStore {
         return true;
     }
 
+    pub fn constrain_type(
+        &mut self,
+        target: &TypeVariable,
+        constrained_type: &TypeVariable,
+    ) -> bool {
+        let primary_type = self.get_type(target);
+        let secondary_type = self.get_type(constrained_type);
+
+        let index1 = self.get_index(target);
+        let index2 = self.get_index(constrained_type);
+        /*
+        println!(
+            "Unify vars t1:({}),{:?},{} t2:({}),{:?},{}",
+            primary, primary_type, index1.id, secondary, secondary_type, index2.id,
+        );
+        */
+        if index1 == index2 {
+            return true;
+        }
+        match (&primary_type, &secondary_type) {
+            (
+                Type::TypeArgument(_, primary_constraints),
+                Type::TypeArgument(_, secondary_constraints),
+            ) => {
+                let mut merged_constraints = primary_constraints.clone();
+                merged_constraints.extend(secondary_constraints);
+                merged_constraints.sort();
+                merged_constraints.dedup();
+                if *primary_constraints == merged_constraints {
+                    return true; // no op
+                }
+                let merged_type =
+                    Type::TypeArgument(self.get_unique_type_arg(), merged_constraints);
+                let merged_type_var = self.add_type(merged_type);
+                self.merge(&merged_type_var, target);
+            }
+            (Type::TypeArgument(_, constraints), _) => {
+                for c in constraints {
+                    if self.has_class_instance(constrained_type, c) == ResolutionResult::No {
+                        return false;
+                    }
+                }
+                self.merge(constrained_type, target);
+            }
+            (_, Type::TypeArgument(_, constraints)) => {
+                for c in constraints {
+                    if self.has_class_instance(target, c) == ResolutionResult::No {
+                        return false;
+                    }
+                }
+                self.merge(target, constrained_type);
+            }
+            (Type::Tuple(type_vars1), Type::Tuple(type_vars2)) => {
+                if type_vars1.len() != type_vars2.len() {
+                    return false;
+                } else {
+                    for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
+                        if !self.constrain_type(v1, v2) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            (Type::Function(f1), Type::Function(f2)) => {
+                if !self.constrain_type(&f1.from, &f2.from) {
+                    return false;
+                }
+                if !self.constrain_type(&f1.to, &f2.to) {
+                    return false;
+                }
+            }
+            (Type::Named(_, id1, type_vars1), Type::Named(_, id2, type_vars2)) => {
+                if id1 != id2 {
+                    return false;
+                }
+                if type_vars1.len() != type_vars2.len() {
+                    return false;
+                } else {
+                    for (v1, v2) in type_vars1.iter().zip(type_vars2.iter()) {
+                        if !self.constrain_type(v1, v2) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            _ => {
+                return false;
+            }
+        }
+        return true;
+    }
+
     pub fn get_type(&self, var: &TypeVariable) -> Type {
         let index = self.get_index(var);
         self.indices[index.id].clone().unwrap()

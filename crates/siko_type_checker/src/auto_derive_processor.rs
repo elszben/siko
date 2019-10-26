@@ -46,19 +46,21 @@ enum Constraint {
 }
 
 pub struct InstanceInfo {
-    auto_derived: bool,
     typedef_id: TypeDefId,
     class_id: ClassId,
-    constraints: Vec<Vec<ClassId>>,
+    type_args: Vec<TypeVariable>,
 }
 
 impl InstanceInfo {
-    pub fn new(typedef_id: TypeDefId, class_id: ClassId, type_arg_count: usize) -> InstanceInfo {
+    pub fn new(
+        typedef_id: TypeDefId,
+        class_id: ClassId,
+        type_args: Vec<TypeVariable>,
+    ) -> InstanceInfo {
         InstanceInfo {
-            auto_derived: false,
             typedef_id: typedef_id,
             class_id: class_id,
-            constraints: std::iter::repeat(Vec::new()).take(type_arg_count).collect(),
+            type_args: type_args,
         }
     }
 }
@@ -139,6 +141,24 @@ fn process_type_var(
     }
 }
 
+fn get_adt_type_vars(
+    adt_id: TypeDefId,
+    adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
+    type_store: &mut TypeStore,
+) -> (TypeVariable, Vec<TypeVariable>) {
+    let adt_type_info = adt_type_info_map
+        .get(&adt_id)
+        .expect("Adt type info not found");
+    let mut clone_context = type_store.create_clone_context();
+    let mut type_arg_vars = Vec::new();
+    for type_arg_var in &adt_type_info.type_arg_vars {
+        let var = clone_context.clone_var(*type_arg_var);
+        type_arg_vars.push(var);
+    }
+    let adt_type_var = clone_context.clone_var(adt_type_info.adt_type);
+    (adt_type_var, type_arg_vars)
+}
+
 fn check_adt(
     adt: &Adt,
     adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
@@ -149,28 +169,6 @@ fn check_adt(
     instances: &mut BTreeMap<(TypeDefId, ClassId), InstanceInfo>,
     constraints: &mut Vec<Constraint>,
 ) {
-    let (module, name) = program.get_module_and_name(adt.id);
-    let adt_type_info = adt_type_info_map
-        .get(&adt.id)
-        .expect("Adt type info not found");
-    let mut clone_context = type_store.create_clone_context();
-    let mut type_arg_vars = Vec::new();
-    for type_arg_var in &adt_type_info.type_arg_vars {
-        let var = clone_context.clone_var(*type_arg_var);
-        type_arg_vars.push(var);
-    }
-    let adt_type_var = clone_context.clone_var(adt_type_info.adt_type);
-    let mut members = Vec::new();
-    for index in 0..adt.variants.len() {
-        let key = (adt.id, index);
-        let variant_type_info = variant_type_info_map
-            .get(&key)
-            .expect("Variant type info not found");
-        for item_type in &variant_type_info.item_types {
-            let item_var = clone_context.clone_var(item_type.0);
-            members.push((item_var, item_type.1));
-        }
-    }
     let mut classes = Vec::new();
     match &adt.auto_derive_mode {
         AutoDeriveMode::Implicit => {}
@@ -180,18 +178,32 @@ fn check_adt(
             }
         }
     }
+
+    let (module, name) = program.get_module_and_name(adt.id);
+
     for class in &classes {
-        let instance_info = InstanceInfo::new(adt.id, *class, adt.type_args.len());
+        let adt_type_info = adt_type_info_map
+            .get(&adt.id)
+            .expect("Adt type info not found");
+        let mut clone_context = type_store.create_clone_context();
+        let mut type_arg_vars = Vec::new();
+        for type_arg_var in &adt_type_info.type_arg_vars {
+            let var = clone_context.clone_var(*type_arg_var);
+            type_arg_vars.push(var);
+        }
+        let mut members = Vec::new();
+        for index in 0..adt.variants.len() {
+            let key = (adt.id, index);
+            let variant_type_info = variant_type_info_map
+                .get(&key)
+                .expect("Variant type info not found");
+            for item_type in &variant_type_info.item_types {
+                let item_var = clone_context.clone_var(item_type.0);
+                members.push((item_var, item_type.1));
+            }
+        }
+        let instance_info = InstanceInfo::new(adt.id, *class, type_arg_vars.clone());
         instances.insert((adt.id, *class), instance_info);
-    }
-    println!(
-        "ADT {}/{} type: {}, {}",
-        module,
-        name,
-        adt_type_var,
-        type_store.get_resolved_type_string(&adt_type_var)
-    );
-    for class in &classes {
         for member in &members {
             process_type_var(
                 member.0,
@@ -324,24 +336,52 @@ impl<'a> TypedefDependencyProcessor<'a> {
         for ((id, class_id), instance_info) in &instances {
             let (module, name) = self.program.get_module_and_name(*id);
             let class = self.program.classes.get(class_id);
-            println!(
-                "{}/{} ({}) {} {}, {}",
+            /*println!(
+                "I-> {}/{} ({}) {} {}, {}",
                 module,
                 name,
                 id,
                 class_id,
                 class.name,
-                instance_info.constraints.len()
-            );
+                instance_info.type_args.len()
+            );*/
         }
         for constraint in constraints {
             match constraint {
                 Constraint::TypeClassConstraint(var, typedef_id, class, arg_index) => {
                     let (module, name) = self.program.get_module_and_name(typedef_id);
-                    println!(
+                    /*println!(
                         "{}/{} ({}) {} {} {}. arg",
                         module, name, typedef_id, var, class, arg_index
-                    );
+                    );*/
+                    let mut err = false;
+                    let instance_info = instances.entry((typedef_id, class)).or_insert_with(|| {
+                        let (adt_type_var, type_arg_vars) =
+                            get_adt_type_vars(typedef_id, self.adt_type_info_map, self.type_store);
+                        match self.type_store.has_class_instance(&adt_type_var, &class) {
+                            ResolutionResult::Definite(_) => {
+                                InstanceInfo::new(typedef_id, class, type_arg_vars)
+                            }
+                            _ => {
+                                println!(
+                                    "{}/{} does not have instance for {}",
+                                    module, name, class
+                                );
+                                err = true;
+                                InstanceInfo::new(typedef_id, class, Vec::new())
+                            }
+                        }
+                    });
+                    if err {
+                        break;
+                    }
+                    let instance_arg_var = instance_info.type_args[arg_index];
+                    if !self.type_store.constrain_type(&var, &instance_arg_var) {
+                        let s1 = self.type_store.get_resolved_type_string(&var);
+                        let s2 = self.type_store.get_resolved_type_string(&instance_arg_var);
+                        println!("constrain_type failed {} <- {}", s1, s2);
+                        break;
+                    }
                 }
             }
         }

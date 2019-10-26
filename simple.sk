@@ -5,7 +5,7 @@ class Boo a where
 
 instance Boo Int where
     boo a = a
-
+/*
 data C a b = C1 a b
 data D a b = D1 a b
 
@@ -24,8 +24,20 @@ instance (Boo a) => Boo B a where
 
 instance (Boo a, Eq a) => Boo C a b where
     boo a = boo a
-
 instance (Boo a, Show a) => Boo D a b where
         boo a = boo a
+*/
+
+data A a = A1 Int a (B a) (C a) deriving Boo
+data B a = B1 a
+
+instance (Show a) => Boo B a where
+    boo a = 0
+
+data C a = C1 a
+
+instance (Eq a) => Boo C a where
+    boo a = 0
     
-main = 0
+
+main = ()
