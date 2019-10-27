@@ -612,7 +612,6 @@ impl<'a> Parser<'a> {
             let body = if let Some(token) = self.peek() {
                 if token.token.kind() == TokenKind::KeywordExtern {
                     self.expect(TokenKind::KeywordExtern)?;
-                    let mut temp_args = Vec::new();
                     for arg in args {
                         let item_info = &self.program.patterns.get(&arg);
                         let pattern = &item_info.item;
