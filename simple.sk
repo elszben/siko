@@ -27,11 +27,11 @@ instance (Boo a, Eq a) => Boo C a b where
 instance (Boo a, Show a) => Boo D a b where
         boo a = boo a
 */
-/*
+
 data A a = A1 Int a (B a (A a)) (C (D a) ) deriving Boo, PartialEq
 data B a b = B1 a b
 
-instance (Show a, PartialEq b) => Boo B a  b where
+instance (Show a, PartialEq b) => Boo B a b where
     boo a = 0
 
 data C a = C1 a
@@ -45,8 +45,5 @@ instance Eq D a
 
 instance (Eq a) => Boo D a where
     boo a = 0
-*/
 
-no_arg_lambda = \x -> 5
-
-main = print "{}" % (no_arg_lambda 4)
+main = ()

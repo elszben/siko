@@ -44,6 +44,7 @@ use std::fmt;
 
 enum Constraint {
     TypeClassConstraint(TypeVariable, TypeDefId, ClassId, usize, LocationId),
+    TypeClassInstanceNeed(TypeVariable, ClassId, LocationId),
 }
 
 pub struct InstanceInfo {
@@ -89,16 +90,19 @@ fn process_type_var(
     let ty = type_store.get_type(&var);
     match ty {
         Type::TypeArgument(_, _) => {
-            for (index, arg) in type_arg_vars.iter().enumerate() {
-                if *arg == var && is_member {
-                    println!("{}. type arg must have instance for {}", index, class);
-                }
+            if is_member {
+                let constraint = Constraint::TypeClassInstanceNeed(var, class, location_id);
+                constraints.push(constraint);
             }
         }
         Type::FixedTypeArgument(_, _, _) => {}
         Type::Named(_, dep_id, args) => {
-            //let (module, name) = program.get_module_and_name(dep_id);
+            let (module, name) = program.get_module_and_name(dep_id);
             //println!("{} {}/{} ", var, module, name);
+            if is_member {
+                let constraint = Constraint::TypeClassInstanceNeed(var, class, location_id);
+                constraints.push(constraint);
+            }
             for (index, arg) in args.iter().enumerate() {
                 /*println!(
                     "{}. type arg {} must match the constraints of {}. type arg of {}/{}",
@@ -356,6 +360,11 @@ impl<'a> TypedefDependencyProcessor<'a> {
             let mut modified = false;
             for constraint in &constraints {
                 match constraint {
+                    Constraint::TypeClassInstanceNeed(var, class, location_id) => {
+                        let ir_class = self.program.classes.get(&class);
+                        let var_s = self.type_store.get_resolved_type_string(var);
+                        println!("N: {}/{} has to implement {}", var, var_s, ir_class.name);
+                    }
                     Constraint::TypeClassConstraint(
                         var,
                         typedef_id,
@@ -365,11 +374,12 @@ impl<'a> TypedefDependencyProcessor<'a> {
                     ) => {
                         let (module, name) = self.program.get_module_and_name(*typedef_id);
                         let ir_class = self.program.classes.get(&class);
-                        /*println!(
-                            "{}/{} ({}) {} {} {}. arg",
-                            module, name, typedef_id, var, class, arg_index
-                        );*/
-                        let instance_info =
+                        let var_s = self.type_store.get_resolved_type_string(var);
+                        println!(
+                            "{}/{} matches {} instance of {}/{} ({}) {} {} ",
+                            var, var_s, ir_class.name, module, name, typedef_id, class, arg_index
+                        );
+                        /*let instance_info =
                             instances.entry((*typedef_id, *class)).or_insert_with(|| {
                                 let (adt_type_var, type_arg_vars) = get_adt_type_vars(
                                     *typedef_id,
@@ -413,7 +423,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
                             if prev_index != index {
                                 modified = true;
                             }
-                        }
+                        }*/
                     }
                 }
             }
