@@ -9,3 +9,10 @@ print msg = extern
 
 println :: String -> ()
 println msg = extern
+
+loop a :: a -> (a -> (a, Bool)) -> a
+loop s f = do
+    (s, continue) <- f s
+    if continue then 
+        loop s f
+        else s
