@@ -43,8 +43,15 @@ use std::fmt;
  */
 
 enum Constraint {
-    TypeClassConstraint(TypeVariable, TypeDefId, ClassId, usize, LocationId),
-    TypeClassInstanceNeed(TypeVariable, ClassId, LocationId),
+    TypeClassConstraint(
+        TypeVariable,
+        TypeDefId,
+        ClassId,
+        usize,
+        LocationId,
+        Vec<usize>,
+    ),
+    TypeClassInstanceNeed(TypeVariable, ClassId, LocationId, Vec<usize>),
 }
 
 pub struct InstanceInfo {
@@ -86,12 +93,15 @@ fn process_type_var(
     type_arg_vars: &Vec<TypeVariable>,
     is_member: bool,
     constraints: &mut Vec<Constraint>,
-) {
+) -> Vec<usize> {
+    let mut indices = Vec::new();
     let ty = type_store.get_type(&var);
     match ty {
         Type::TypeArgument(_, _) => {
             if is_member {
-                let constraint = Constraint::TypeClassInstanceNeed(var, class, location_id);
+                let constraint =
+                    Constraint::TypeClassInstanceNeed(var, class, location_id, Vec::new());
+                indices.push(constraints.len());
                 constraints.push(constraint);
             }
         }
@@ -99,19 +109,13 @@ fn process_type_var(
         Type::Named(_, dep_id, args) => {
             let (module, name) = program.get_module_and_name(dep_id);
             //println!("{} {}/{} ", var, module, name);
-            if is_member {
-                let constraint = Constraint::TypeClassInstanceNeed(var, class, location_id);
-                constraints.push(constraint);
-            }
+            let mut sum_deps = Vec::new();
             for (index, arg) in args.iter().enumerate() {
                 /*println!(
                     "{}. type arg {} must match the constraints of {}. type arg of {}/{}",
                     index, arg, index, module, name
                 );*/
-                let constraint =
-                    Constraint::TypeClassConstraint(*arg, dep_id, class, index, location_id);
-                constraints.push(constraint);
-                process_type_var(
+                let deps = process_type_var(
                     *arg,
                     location_id,
                     adt_type_info_map,
@@ -124,10 +128,21 @@ fn process_type_var(
                     false,
                     constraints,
                 );
+                sum_deps.extend(deps.clone());
+                let constraint =
+                    Constraint::TypeClassConstraint(*arg, dep_id, class, index, location_id, deps);
+                sum_deps.push(constraints.len());
+                indices.push(constraints.len());
+                constraints.push(constraint);
+            }
+            if is_member {
+                let constraint =
+                    Constraint::TypeClassInstanceNeed(var, class, location_id, sum_deps);
+                indices.push(constraints.len());
+                constraints.push(constraint);
             }
         }
         Type::Tuple(items) => {
-            //println!("{} - TUPLE", indent(level));
             for item in items {
                 process_type_var(
                     item,
@@ -148,6 +163,7 @@ fn process_type_var(
             panic!("type as member is not yet implemented {:?}", ty);
         }
     }
+    indices
 }
 
 fn get_adt_type_vars(
@@ -358,12 +374,23 @@ impl<'a> TypedefDependencyProcessor<'a> {
         }
         loop {
             let mut modified = false;
-            for constraint in &constraints {
+            for (index, constraint) in constraints.iter().enumerate() {
                 match constraint {
-                    Constraint::TypeClassInstanceNeed(var, class, location_id) => {
+                    Constraint::TypeClassInstanceNeed(var, class, location_id, deps) => {
                         let ir_class = self.program.classes.get(&class);
                         let var_s = self.type_store.get_resolved_type_string(var);
-                        println!("N: {}/{} has to implement {}", var, var_s, ir_class.name);
+                        println!(
+                            "{}: {}/{} has to implement {}, deps: ({})",
+                            index,
+                            var,
+                            var_s,
+                            ir_class.name,
+                            deps.iter()
+                                .map(|i| format!("{}", i))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                        //println!("{}: impl({}, {})", index, var, class);
                     }
                     Constraint::TypeClassConstraint(
                         var,
@@ -371,13 +398,26 @@ impl<'a> TypedefDependencyProcessor<'a> {
                         class,
                         arg_index,
                         location_id,
+                        deps,
                     ) => {
                         let (module, name) = self.program.get_module_and_name(*typedef_id);
                         let ir_class = self.program.classes.get(&class);
                         let var_s = self.type_store.get_resolved_type_string(var);
                         println!(
-                            "{}/{} matches {} instance of {}/{} ({}) {} {} ",
-                            var, var_s, ir_class.name, module, name, typedef_id, class, arg_index
+                            "{}: {}/{} matches {} instance of {}/{} ({}) {} {} deps: ({})",
+                            index,
+                            var,
+                            var_s,
+                            ir_class.name,
+                            module,
+                            name,
+                            typedef_id,
+                            class,
+                            arg_index,
+                            deps.iter()
+                                .map(|i| format!("{}", i))
+                                .collect::<Vec<_>>()
+                                .join(", ")
                         );
                         /*let instance_info =
                             instances.entry((*typedef_id, *class)).or_insert_with(|| {
