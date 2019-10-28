@@ -23,25 +23,28 @@ pub fn process_exports(
         let (mut item_patterns, mut member_patterns) = process_patterns(&ast_module.export_list);
 
         for (item_name, items) in &module.items {
-            assert_eq!(items.len(), 1);
-            let item = &items[0];
-            check_item(
-                &mut item_patterns,
-                &mut member_patterns,
-                item_name,
-                item,
-                program,
-                &mut exported_items,
-                &mut matched_classes,
-            );
+            for item in items {
+                check_item(
+                    &mut item_patterns,
+                    &mut member_patterns,
+                    item_name,
+                    item,
+                    program,
+                    &mut exported_items,
+                    &mut matched_classes,
+                );
+            }
         }
 
         for (name, items) in &module.items {
-            assert_eq!(items.len(), 1);
-            let item = &items[0];
-            if let Item::ClassMember(class_id, _, _) = item {
-                if matched_classes.contains(class_id) {
-                    exported_items.insert(name.clone(), item.clone());
+            for item in items {
+                if let Item::ClassMember(class_id, _, _) = item {
+                    if matched_classes.contains(class_id) {
+                        let items = exported_items
+                            .entry(name.clone())
+                            .or_insert_with(|| BTreeSet::new());
+                        items.insert(item.clone());
+                    }
                 }
             }
         }
@@ -95,7 +98,6 @@ pub fn process_exports(
 
         module.exported_items = exported_items;
         module.exported_members = exported_members;
-
         /*
         println!("Module {} exports:", module_name);
         println!(

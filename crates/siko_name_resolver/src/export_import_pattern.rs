@@ -177,7 +177,7 @@ pub fn check_item(
     item_name: &str,
     item: &Item,
     program: &Program,
-    matched_items: &mut BTreeMap<String, Item>,
+    matched_items: &mut BTreeMap<String, BTreeSet<Item>>,
     matched_classes: &mut BTreeSet<ClassId>,
 ) {
     let mut matched_item = false;
@@ -222,7 +222,10 @@ pub fn check_item(
         if let Item::Class(id, _) = item {
             matched_classes.insert(*id);
         }
-        matched_items.insert(item_name.to_string(), item.clone());
+        let items = matched_items
+            .entry(item_name.to_string())
+            .or_insert_with(|| BTreeSet::new());
+        items.insert(item.clone());
     }
 }
 

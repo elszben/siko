@@ -281,6 +281,8 @@ impl Resolver {
             for (name, items) in &module.items {
                 if items.len() > 1 {
                     let mut locations = Vec::new();
+                    let mut adt_found = false;
+                    let mut variant_found = false;
                     for item in items {
                         match item {
                             Item::Function(id, _) => {
@@ -294,10 +296,12 @@ impl Resolver {
                             Item::Adt(id, _) => {
                                 let adt = program.adts.get(id);
                                 locations.push(adt.location_id);
+                                adt_found = true;
                             }
                             Item::Variant(_, id, _, _) => {
                                 let variant = program.variants.get(id);
                                 locations.push(variant.location_id);
+                                variant_found = true;
                             }
                             Item::Class(id, _) => {
                                 let class = program.classes.get(id);
@@ -308,6 +312,9 @@ impl Resolver {
                                 locations.push(class_member.location_id);
                             }
                         }
+                    }
+                    if items.len() == 2 && adt_found && variant_found {
+                        continue;
                     }
                     let err = ResolverError::InternalModuleConflicts(
                         module.name.clone(),

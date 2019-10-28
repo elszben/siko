@@ -75,16 +75,16 @@ fn import_local_items_and_members(
     imported_members: &mut BTreeMap<String, Vec<ImportedMemberInfo>>,
 ) {
     for (name, items) in &module.items {
-        assert_eq!(items.len(), 1);
-        let item = &items[0];
-        import_item(
-            name,
-            module_name,
-            module_name,
-            ImportMode::NameAndNamespace,
-            item,
-            imported_items,
-        );
+        for item in items {
+            import_item(
+                name,
+                module_name,
+                module_name,
+                ImportMode::NameAndNamespace,
+                item,
+                imported_items,
+            );
+        }
     }
 
     for (name, members) in &module.members {
@@ -193,38 +193,47 @@ pub fn process_imports(
                     let mut local_imported_items = BTreeMap::new();
                     let mut matched_classes = BTreeSet::new();
 
-                    for (item_name, item) in &source_module.exported_items {
-                        check_item(
-                            &mut item_patterns,
-                            &mut member_patterns,
-                            item_name,
-                            item,
-                            program,
-                            &mut local_imported_items,
-                            &mut matched_classes,
-                        );
+                    for (item_name, items) in &source_module.exported_items {
+                        for item in items {
+                            check_item(
+                                &mut item_patterns,
+                                &mut member_patterns,
+                                item_name,
+                                item,
+                                program,
+                                &mut local_imported_items,
+                                &mut matched_classes,
+                            );
+                        }
                     }
 
-                    for (name, item) in &source_module.exported_items {
-                        if let Item::ClassMember(class_id, _, _) = item {
-                            if matched_classes.contains(&class_id) {
-                                local_imported_items.insert(name.clone(), item.clone());
+                    for (name, items) in &source_module.exported_items {
+                        for item in items {
+                            if let Item::ClassMember(class_id, _, _) = item {
+                                if matched_classes.contains(&class_id) {
+                                    let is = local_imported_items
+                                        .entry(name.clone())
+                                        .or_insert_with(|| BTreeSet::new());
+                                    is.insert(item.clone());
+                                }
                             }
                         }
                     }
 
-                    for (name, item) in local_imported_items {
+                    for (name, items) in local_imported_items {
                         if is_hidden(&name, &source_module.name, &mut all_hidden_items) {
                             continue;
                         }
-                        import_item(
-                            &name,
-                            &source_module.name,
-                            &namespace,
-                            mode,
-                            &item,
-                            &mut imported_items,
-                        );
+                        for item in items {
+                            import_item(
+                                &name,
+                                &source_module.name,
+                                &namespace,
+                                mode,
+                                &item,
+                                &mut imported_items,
+                            );
+                        }
                     }
 
                     for pattern in item_patterns {
@@ -307,18 +316,18 @@ pub fn process_imports(
             }
         }
         /*
-            println!("Module {} imports:", module_name);
-            println!(
-                "{} imported items {} imported members",
-                imported_items.len(),
-                imported_members.len(),
-            );
-            for (name, import) in &imported_items {
-                println!("Item: {} => {:?}", name, import);
-            }
-            for (name, import) in &imported_members {
-                println!("Member: {} => {:?}", name, import);
-            }
+        println!("Module {} imports:", module_name);
+        println!(
+            "{} imported items {} imported members",
+            imported_items.len(),
+            imported_members.len(),
+        );
+        for (name, import) in &imported_items {
+            println!("Item: {} => {:?}", name, import);
+        }
+        for (name, import) in &imported_members {
+            println!("Member: {} => {:?}", name, import);
+        }
         */
         all_imported_items.push((module_name.clone(), imported_items));
         all_imported_members.push((module_name.clone(), imported_members));

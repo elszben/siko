@@ -5,12 +5,13 @@ use crate::item::Item;
 use siko_location_info::item::LocationId;
 use siko_syntax::module::ModuleId;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub struct Module {
     pub id: ModuleId,
     pub name: String,
-    pub exported_items: BTreeMap<String, Item>,
+    pub exported_items: BTreeMap<String, BTreeSet<Item>>,
     pub exported_members: BTreeMap<String, Vec<DataMember>>,
     pub imported_items: BTreeMap<String, Vec<ImportedItemInfo>>,
     pub imported_members: BTreeMap<String, Vec<ImportedMemberInfo>>,

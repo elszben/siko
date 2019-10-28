@@ -10,7 +10,7 @@ use siko_syntax::data::VariantId;
 use siko_syntax::function::FunctionId;
 use siko_syntax::function::FunctionTypeId;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Item {
     Function(FunctionId, IrFunctionId),
     Record(RecordId, TypeDefId),

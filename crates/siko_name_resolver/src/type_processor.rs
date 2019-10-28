@@ -1,4 +1,5 @@
 use crate::error::ResolverError;
+use crate::import::ImportedItemInfo;
 use crate::item::Item;
 use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
@@ -25,7 +26,8 @@ fn process_named_type(
 ) -> Option<IrTypeSignatureId> {
     let ir_type_signature = match module.imported_items.get(name) {
         Some(items) => {
-            if items.len() > 1 {
+            let (index, _, ambiguous) = ImportedItemInfo::check_ambiguity(items);
+            if items.len() > 1 && ambiguous {
                 let error = ResolverError::AmbiguousName(name.to_string(), location_id);
                 errors.push(error);
                 return None;
@@ -48,7 +50,7 @@ fn process_named_type(
                     }
                 }
             }
-            let item = &items[0];
+            let item = &items[index];
             match item.item {
                 Item::Adt(_, ir_typedef_id) => {
                     let ir_adt = ir_program.typedefs.get(&ir_typedef_id).get_adt();
