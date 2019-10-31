@@ -826,7 +826,7 @@ impl<'a> Parser<'a> {
         let variant_start_index = self.get_index();
         let name = self.type_identifier("variant")?;
         self.restore(variant_start_index);
-        let type_signature_id = self.parse_function_type(true, false)?;
+        let type_signature_id = self.parse_type_part(true, false)?;
         let end_index = self.get_index();
         let location_id = self.get_location_id(variant_start_index, end_index);
         let id = self.program.variants.get_id();

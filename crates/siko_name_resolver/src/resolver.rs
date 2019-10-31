@@ -270,6 +270,8 @@ impl Resolver {
                 let ir_class = IrClass {
                     id: ir_class_id,
                     name: class.name.clone(),
+                    type_signature: None,
+                    constraints: Vec::new(),
                     members: members,
                     location_id: class.location_id,
                 };
@@ -524,12 +526,12 @@ impl Resolver {
             let mut ir_variants = Vec::new();
             for (index, _) in adt.variants.iter().enumerate() {
                 let ir_typesignature_id = result[index].expect("type signature missing");
-                if let TypeSignature::Variant(name, items) = ir_program
+                let signature = ir_program
                     .type_signatures
                     .get(&ir_typesignature_id)
                     .item
-                    .clone()
-                {
+                    .clone();
+                if let TypeSignature::Variant(name, items) = signature {
                     let items: Vec<_> = items
                         .iter()
                         .map(|i| VariantItem {
@@ -566,7 +568,7 @@ impl Resolver {
 
                     ir_variants.push(ir_variant);
                 } else {
-                    unreachable!()
+                    panic!("Expected variant, found {:?}", signature);
                 }
             }
 
@@ -733,6 +735,8 @@ impl Resolver {
             return;
         };
 
+        let mut ir_constraints = Vec::new();
+
         for constraint in &class.constraints {
             if let Some(ir_class_id) = self.lookup_class(
                 &constraint.class_name,
@@ -740,6 +744,7 @@ impl Resolver {
                 module,
                 errors,
             ) {
+                ir_constraints.push(ir_class_id);
                 if !type_arg_resolver.add_constraint(&constraint.arg, ir_class_id) {
                     let err = ResolverError::InvalidArgumentInTypeClassConstraint(
                         constraint.arg.clone(),
@@ -749,6 +754,10 @@ impl Resolver {
                 }
             }
         }
+
+        let ir_class = ir_program.classes.get_mut(ir_class_id);
+        ir_class.constraints = ir_constraints;
+        ir_class.type_signature = Some(class_type_signature_id);
 
         let (functions_without_types, _, conflicting_functions, _) =
             check_function_and_function_type_consistency(

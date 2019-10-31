@@ -11,6 +11,7 @@ use siko_parser::lexer::Lexer;
 use siko_parser::parser::Parser;
 use siko_syntax::program::Program;
 use siko_type_checker::typechecker::Typechecker;
+use siko_type_checker2::typechecker::Typechecker as Typechecker2;
 use siko_util::ElapsedTimeMeasure;
 use siko_util::ElapsedTimeMeasureCollector;
 
@@ -106,10 +107,18 @@ impl Compiler {
 
         {
             let _m = ElapsedTimeMeasure::new("Typechecker");
+            let typechecker = Typechecker2::new();
+
+            typechecker.check(&mut ir_program);
+        }
+
+        {
+            let _m = ElapsedTimeMeasure::new("Typechecker");
             let typechecker = Typechecker::new();
 
             typechecker.check(&mut ir_program)?;
         }
+
         if self.config.visualize {
             for (id, _) in &ir_program.functions.items {
                 ExprVisualizer::generate(&id, &ir_program);
