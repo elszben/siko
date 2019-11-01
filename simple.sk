@@ -4,6 +4,6 @@ class Boo a
 
 instance (Show a) => Boo [(a, a)]
 
-data Gyumolcs a b = Alma (Int -> (a, b))
+data Gyumolcs a b = Alma (a, b) | Korte (a, Int) deriving Boo
 
 main = ()

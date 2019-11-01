@@ -339,6 +339,7 @@ impl<'a> TypedefDependencyProcessor<'a> {
     }
 
     pub fn process(&mut self, errors: &mut Vec<TypecheckError>) {
+        return;
         let mut instances = BTreeMap::new();
         let mut constraints = Vec::new();
         for (id, typedef) in &self.program.typedefs.items {
