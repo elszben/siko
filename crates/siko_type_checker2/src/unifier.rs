@@ -2,6 +2,7 @@ use crate::substitution::Constraint;
 use crate::substitution::Error;
 use crate::substitution::Substitution;
 use crate::types::Type;
+use siko_ir::class::ClassId;
 
 pub struct Unifier {
     substitution: Substitution,
@@ -12,6 +13,27 @@ impl Unifier {
         Unifier {
             substitution: Substitution::empty(),
         }
+    }
+
+    fn process_constraints(
+        &mut self,
+        index1: usize,
+        type1: &Type,
+        type2: &Type,
+        constraints1: &Vec<ClassId>,
+        constraints2: &Vec<ClassId>,
+    ) -> Result<(), Error> {
+        for c in constraints1 {
+            if !constraints2.contains(c) {
+                self.substitution.add_constraint(*c, type2.clone());
+            }
+        }
+        for c in constraints2 {
+            if !constraints1.contains(c) {
+                self.substitution.add_constraint(*c, type1.clone());
+            }
+        }
+        return self.substitution.add(index1, &type2);
     }
 
     pub fn unify(&mut self, type1: &Type, type2: &Type) -> Result<(), Error> {
@@ -30,43 +52,43 @@ impl Unifier {
                 }
             }
             (Type::Var(index1, constraints1), Type::Var(_, constraints2)) => {
-                for c in constraints1 {
-                    self.substitution.add_constraint(*c, type2.clone());
-                }
-                for c in constraints2 {
-                    self.substitution.add_constraint(*c, type1.clone());
-                }
-                return self.substitution.add(*index1, &type2);
+                return self.process_constraints(
+                    *index1,
+                    &type1,
+                    &type2,
+                    constraints1,
+                    constraints2,
+                );
             }
             (
                 Type::FixedTypeArg(_, index1, constraints1),
                 Type::FixedTypeArg(_, _, constraints2),
             ) => {
-                for c in constraints1 {
-                    self.substitution.add_constraint(*c, type2.clone());
-                }
-                for c in constraints2 {
-                    self.substitution.add_constraint(*c, type1.clone());
-                }
-                return self.substitution.add(*index1, &type2);
+                return self.process_constraints(
+                    *index1,
+                    &type1,
+                    &type2,
+                    constraints1,
+                    constraints2,
+                );
             }
             (Type::FixedTypeArg(_, index1, constraints1), Type::Var(_, constraints2)) => {
-                for c in constraints1 {
-                    self.substitution.add_constraint(*c, type2.clone());
-                }
-                for c in constraints2 {
-                    self.substitution.add_constraint(*c, type1.clone());
-                }
-                return self.substitution.add(*index1, &type2);
+                return self.process_constraints(
+                    *index1,
+                    &type1,
+                    &type2,
+                    constraints1,
+                    constraints2,
+                );
             }
             (Type::Var(index1, constraints1), Type::FixedTypeArg(_, _, constraints2)) => {
-                for c in constraints1 {
-                    self.substitution.add_constraint(*c, type2.clone());
-                }
-                for c in constraints2 {
-                    self.substitution.add_constraint(*c, type1.clone());
-                }
-                return self.substitution.add(*index1, &type2);
+                return self.process_constraints(
+                    *index1,
+                    &type1,
+                    &type2,
+                    constraints1,
+                    constraints2,
+                );
             }
             (Type::Var(index, constraints), type2) => {
                 for c in constraints {

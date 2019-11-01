@@ -8,6 +8,7 @@ pub struct Constraint {
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub enum Error {
     Fail,
     RecursiveType,
@@ -50,6 +51,10 @@ impl Substitution {
                 Err(Error::Fail)
             }
         }
+    }
+
+    pub fn add_no_check(&mut self, index: usize, ty: Type) {
+        self.var_map.insert(index, ty);
     }
 
     pub fn dump(&self) {
