@@ -34,12 +34,6 @@ pub struct DerivedClass {
 }
 
 #[derive(Debug, Clone)]
-pub enum AutoDeriveMode {
-    Implicit,
-    Explicit(Vec<DerivedClass>),
-}
-
-#[derive(Debug, Clone)]
 pub struct RecordField {
     pub name: String,
     pub type_signature_id: TypeSignatureId,
@@ -54,7 +48,7 @@ pub struct Record {
     pub fields: Vec<RecordField>,
     pub constructor: FunctionId,
     pub location_id: LocationId,
-    pub auto_derive_mode: AutoDeriveMode,
+    pub derived_classes: Vec<DerivedClass>,
 }
 
 #[derive(Debug, Clone)]
@@ -77,7 +71,7 @@ pub struct Adt {
     pub id: TypeDefId,
     pub type_args: Vec<usize>,
     pub variants: Vec<Variant>,
-    pub auto_derive_mode: AutoDeriveMode,
+    pub derived_classes: Vec<DerivedClass>,
 }
 
 #[derive(Debug, Clone)]

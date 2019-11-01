@@ -1,4 +1,3 @@
-use crate::auto_derive_processor::TypedefDependencyProcessor;
 use crate::check_context::CheckContext;
 use crate::class_processor::ClassProcessor;
 use crate::data_processor::DataProcessor;
@@ -93,15 +92,6 @@ impl Typechecker {
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
-
-        let mut processor = TypedefDependencyProcessor::new(
-            program,
-            &mut type_store,
-            &adt_type_info_map,
-            &record_type_info_map,
-            &variant_type_info_map,
-        );
-        processor.process(&mut errors);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));

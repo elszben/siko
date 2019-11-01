@@ -2,8 +2,12 @@ module Main where
 
 class Boo a
 
-instance (Show a) => Boo [(a, a)]
+instance Boo Int
 
-data Gyumolcs a b = Alma (a, b) | Korte (a, Int) deriving Boo
+data A = A Int (B Float) deriving Boo
+
+data B a = B a
+
+instance (Boo a) => Boo B a
 
 main = ()

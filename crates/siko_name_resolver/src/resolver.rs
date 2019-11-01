@@ -29,7 +29,6 @@ use siko_ir::function::RecordConstructorInfo;
 use siko_ir::function::VariantConstructorInfo;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Adt;
-use siko_ir::types::AutoDeriveMode as IrAutoDeriveMode;
 use siko_ir::types::DerivedClass as IrDerivedClass;
 use siko_ir::types::Record;
 use siko_ir::types::RecordField as IrRecordField;
@@ -43,7 +42,7 @@ use siko_location_info::item::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;
-use siko_syntax::data::AutoDeriveMode;
+use siko_syntax::data::DerivedClass as AstDerivedClass;
 use siko_syntax::data::RecordId;
 use siko_syntax::function::Function as AstFunction;
 use siko_syntax::function::FunctionBody as AstFunctionBody;
@@ -194,7 +193,7 @@ impl Resolver {
                     fields: Vec::new(),
                     constructor: ir_ctor_id,
                     location_id: record.location_id,
-                    auto_derive_mode: IrAutoDeriveMode::Implicit,
+                    derived_classes: Vec::new(),
                 };
 
                 let typedef = TypeDef::Record(ir_record);
@@ -222,7 +221,7 @@ impl Resolver {
                     id: ir_typedef_id,
                     type_args: (0..adt.type_args.len()).collect(),
                     variants: Vec::new(),
-                    auto_derive_mode: IrAutoDeriveMode::Implicit,
+                    derived_classes: Vec::new(),
                 };
                 let typedef = TypeDef::Adt(ir_adt);
                 ir_program.typedefs.add_item(ir_typedef_id, typedef);
@@ -574,8 +573,8 @@ impl Resolver {
 
             let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
             ir_adt.variants = ir_variants;
-            ir_adt.auto_derive_mode =
-                self.process_auto_derive_mode(&adt.auto_derive_method, module, errors);
+            ir_adt.derived_classes =
+                self.process_derived_classes(&adt.derived_classes, module, errors);
         }
     }
 
@@ -642,37 +641,32 @@ impl Resolver {
 
             let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
             ir_record.fields = ir_fields;
-            ir_record.auto_derive_mode =
-                self.process_auto_derive_mode(&record.auto_derive_method, module, errors);
+            ir_record.derived_classes =
+                self.process_derived_classes(&record.derived_classes, module, errors);
         }
     }
 
-    fn process_auto_derive_mode(
+    fn process_derived_classes(
         &self,
-        auto_derive_mode: &AutoDeriveMode,
+        derived_classes: &Vec<AstDerivedClass>,
         module: &Module,
         errors: &mut Vec<ResolverError>,
-    ) -> IrAutoDeriveMode {
-        match auto_derive_mode {
-            AutoDeriveMode::Implicit => IrAutoDeriveMode::Implicit,
-            AutoDeriveMode::Explicit(derived_classes) => {
-                let mut ir_derived_classes = Vec::new();
-                for derived_class in derived_classes {
-                    if let Some(ir_class_id) = self.lookup_class(
-                        &derived_class.name,
-                        derived_class.location_id,
-                        module,
-                        errors,
-                    ) {
-                        ir_derived_classes.push(IrDerivedClass {
-                            class_id: ir_class_id,
-                            location_id: derived_class.location_id,
-                        });
-                    }
-                }
-                IrAutoDeriveMode::Explicit(ir_derived_classes)
+    ) -> Vec<IrDerivedClass> {
+        let mut ir_derived_classes = Vec::new();
+        for derived_class in derived_classes {
+            if let Some(ir_class_id) = self.lookup_class(
+                &derived_class.name,
+                derived_class.location_id,
+                module,
+                errors,
+            ) {
+                ir_derived_classes.push(IrDerivedClass {
+                    class_id: ir_class_id,
+                    location_id: derived_class.location_id,
+                });
             }
         }
+        ir_derived_classes
     }
 
     fn lookup_class(

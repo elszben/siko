@@ -1,4 +1,3 @@
-pub mod auto_derive_processor;
 pub mod check_context;
 pub mod class_processor;
 pub mod common;
