@@ -1,4 +1,6 @@
+use crate::error::Error;
 use crate::error::TypecheckError;
+use crate::substitution::Constraint;
 use crate::types::BaseType;
 use crate::types::Type;
 use crate::unifier::Unifier;
@@ -24,8 +26,24 @@ pub struct VariantTypeInfo {
 }
 
 pub enum InstanceInfo {
-    UserDefined(Type, InstanceId),
+    UserDefined(Type, InstanceId, LocationId),
     AutoDerived(Type, LocationId),
+}
+
+impl InstanceInfo {
+    pub fn get_type(&self) -> &Type {
+        match self {
+            InstanceInfo::UserDefined(ty, _, _) => &ty,
+            InstanceInfo::AutoDerived(ty, _) => &ty,
+        }
+    }
+
+    pub fn get_location(&self) -> &LocationId {
+        match self {
+            InstanceInfo::UserDefined(_, _, id) => &id,
+            InstanceInfo::AutoDerived(_, id) => &id,
+        }
+    }
 }
 
 pub struct InstanceResolver {
@@ -44,6 +62,7 @@ impl InstanceResolver {
         class_id: ClassId,
         instance_ty: Type,
         instance_id: InstanceId,
+        location_id: LocationId,
     ) {
         let class_instances = self
             .instance_map
@@ -52,7 +71,11 @@ impl InstanceResolver {
         let instances = class_instances
             .entry(instance_ty.get_base_type())
             .or_insert_with(|| Vec::new());
-        instances.push(InstanceInfo::UserDefined(instance_ty, instance_id));
+        instances.push(InstanceInfo::UserDefined(
+            instance_ty,
+            instance_id,
+            location_id,
+        ));
     }
 
     pub fn add_auto_derived(
@@ -71,7 +94,7 @@ impl InstanceResolver {
         instances.push(InstanceInfo::AutoDerived(instance_ty, location_id));
     }
 
-    pub fn has_instance(&self, ty: &Type, class_id: ClassId) -> bool {
+    pub fn has_instance(&self, ty: &Type, class_id: ClassId) -> Option<Vec<Constraint>> {
         let base_type = ty.get_base_type();
         if let Some(class_instances) = self.instance_map.get(&class_id) {
             if let Some(instances) = class_instances.get(&base_type) {
@@ -80,23 +103,47 @@ impl InstanceResolver {
                     match instance {
                         InstanceInfo::AutoDerived(instance_ty, _) => {
                             if unifier.unify(ty, instance_ty).is_ok() {
-                                return true;
+                                return Some(unifier.get_constraints());
                             }
                         }
-                        InstanceInfo::UserDefined(instance_ty, _) => {
+                        InstanceInfo::UserDefined(instance_ty, _, _) => {
                             if unifier.unify(ty, instance_ty).is_ok() {
-                                unifier.dump();
-                                return true;
+                                return Some(unifier.get_constraints());
                             }
                         }
                     }
                 }
-                false
+                None
             } else {
-                false
+                None
             }
         } else {
-            false
+            None
+        }
+    }
+
+    pub fn check_conflicts(&self, errors: &mut Vec<TypecheckError>, program: &Program) {
+        for (class_id, class_instances) in &self.instance_map {
+            let class = program.classes.get(&class_id);
+            for (base_type, instances) in class_instances {
+                for (first_index, first_instance) in instances.iter().enumerate() {
+                    for (second_index, second_instance) in instances.iter().enumerate() {
+                        if first_index < second_index {
+                            let first = first_instance.get_type();
+                            let second = second_instance.get_type();
+                            let mut unifier = Unifier::new();
+                            if unifier.unify(first, second).is_ok() {
+                                let err = TypecheckError::ConflictingInstances(
+                                    class.name.clone(),
+                                    *first_instance.get_location(),
+                                    *second_instance.get_location(),
+                                );
+                                errors.push(err);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -151,6 +198,42 @@ impl TypeProcessor {
     }
 }
 
+fn check_instance(
+    class_id: ClassId,
+    ty: &Type,
+    instance_resolver: &InstanceResolver,
+    type_arg_constraints: &mut Vec<Constraint>,
+) -> bool {
+    println!("Checking instance {} {}", class_id, ty);
+    if ty.get_base_type() == BaseType::Generic {
+        type_arg_constraints.push(Constraint {
+            class_id: class_id,
+            ty: ty.clone(),
+        });
+        return true;
+    }
+    if let Some(constraints) = instance_resolver.has_instance(&ty, class_id) {
+        for constraint in constraints {
+            if constraint.ty.get_base_type() == BaseType::Generic {
+                type_arg_constraints.push(constraint);
+            } else {
+                println!("Checking {:?}", constraint);
+                if !check_instance(
+                    constraint.class_id,
+                    &constraint.ty,
+                    instance_resolver,
+                    type_arg_constraints,
+                ) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
 pub struct Typechecker {}
 
 impl Typechecker {
@@ -158,7 +241,8 @@ impl Typechecker {
         Typechecker {}
     }
 
-    pub fn check(&self, program: &Program) -> Result<(), TypecheckError> {
+    pub fn check(&self, program: &Program) -> Result<(), Error> {
+        let mut errors = Vec::new();
         let mut type_processor = TypeProcessor::new();
         let mut class_types = BTreeMap::new();
         let mut instance_resolver = InstanceResolver::new();
@@ -174,7 +258,13 @@ impl Typechecker {
         for (instance_id, instance) in program.instances.items.iter() {
             let instance_ty =
                 type_processor.process_type_signature(instance.type_signature, program);
-            instance_resolver.add_user_defined(instance.class_id, instance_ty, *instance_id);
+
+            instance_resolver.add_user_defined(
+                instance.class_id,
+                instance_ty,
+                *instance_id,
+                instance.location_id,
+            );
         }
         for (typedef_id, typedef) in program.typedefs.items.iter() {
             match typedef {
@@ -227,6 +317,12 @@ impl Typechecker {
             }
         }
 
+        instance_resolver.check_conflicts(&mut errors, program);
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
         for (id, adt_type_info) in &adt_type_info_map {
             let adt = program.typedefs.get(id).get_adt();
             for derived_class in &adt_type_info.derived_classes {
@@ -234,13 +330,28 @@ impl Typechecker {
                 println!("Processing derived_class {} for {}", class.name, adt.name);
                 for variant_type in &adt_type_info.variant_types {
                     for item_type in &variant_type.item_types {
-                        if !instance_resolver.has_instance(&item_type.0, derived_class.class_id) {
+                        let mut type_arg_constraints = Vec::new();
+                        if check_instance(
+                            derived_class.class_id,
+                            &item_type.0,
+                            &instance_resolver,
+                            &mut type_arg_constraints,
+                        ) {
+                        } else {
                             println!("{:?} does not implement {}", item_type.1, class.name);
+                        }
+                        for c in type_arg_constraints {
+                            println!("type arg constraint {:?}", c);
                         }
                     }
                 }
             }
         }
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
         Ok(())
     }
 }

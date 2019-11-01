@@ -109,7 +109,7 @@ impl Compiler {
             let _m = ElapsedTimeMeasure::new("Typechecker");
             let typechecker = Typechecker2::new();
 
-            typechecker.check(&mut ir_program);
+            typechecker.check(&mut ir_program)?;
         }
 
         {

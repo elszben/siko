@@ -2,6 +2,12 @@ use crate::types::Type;
 use siko_ir::class::ClassId;
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
+pub struct Constraint {
+    pub class_id: ClassId,
+    pub ty: Type,
+}
+
 pub enum Error {
     Fail,
     RecursiveType,
@@ -78,5 +84,18 @@ impl Substitution {
                 None => ty.clone(),
             },
         }
+    }
+
+    pub fn get_constraints(&self) -> Vec<Constraint> {
+        let mut constraints = Vec::new();
+        for (class_id, types) in &self.constraints {
+            for ty in types {
+                constraints.push(Constraint {
+                    class_id: *class_id,
+                    ty: ty.clone(),
+                });
+            }
+        }
+        constraints
     }
 }

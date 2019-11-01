@@ -11,6 +11,8 @@ use siko_parser::error::LexerError;
 use siko_parser::error::ParseError;
 use siko_type_checker::error::Error as TypecheckErrorContainer;
 use siko_type_checker::error::TypecheckError;
+use siko_type_checker2::error::Error as TypecheckErrorContainer2;
+use siko_type_checker2::error::TypecheckError as TypecheckError2;
 use siko_util::format_list;
 use std::cmp;
 use std::convert::From;
@@ -72,6 +74,7 @@ pub enum Error {
     ParseError(ParseError),
     ResolverError(ResolverErrorContainer),
     TypecheckError(TypecheckErrorContainer),
+    TypecheckError2(TypecheckErrorContainer2),
     RuntimeError(String, LocationId),
 }
 
@@ -726,6 +729,23 @@ impl Error {
                     }
                 }
             }
+            Error::TypecheckError2(errs) => {
+                for err in &errs.errors {
+                    match err {
+                        TypecheckError2::ConflictingInstances(name, id1, id2) => {
+                            eprintln!(
+                                "{} conflicting class instances for class {}",
+                                error.red(),
+                                name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id1);
+                            print_location_set(file_manager, location_set);
+                            let location_set = location_info.get_item_location(id2);
+                            print_location_set(file_manager, location_set);
+                        }
+                    }
+                }
+            }
             _ => unimplemented!(),
         }
     }
@@ -752,5 +772,11 @@ impl From<ResolverErrorContainer> for Error {
 impl From<TypecheckErrorContainer> for Error {
     fn from(e: TypecheckErrorContainer) -> Error {
         Error::TypecheckError(e)
+    }
+}
+
+impl From<TypecheckErrorContainer2> for Error {
+    fn from(e: TypecheckErrorContainer2) -> Error {
+        Error::TypecheckError2(e)
     }
 }

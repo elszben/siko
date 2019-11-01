@@ -3,11 +3,12 @@ module Main where
 class Boo a
 
 instance Boo Int
+instance Boo Float
 
-data A = A Int (B Float) deriving Boo
+data A b = A Int (A b) (B b) deriving Boo
 
-data B a = B a
+data B a = B a (A a) deriving Boo
 
-instance (Boo a) => Boo B a
+//instance (Boo a) => Boo B a
 
 main = ()
