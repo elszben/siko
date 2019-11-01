@@ -743,6 +743,16 @@ impl Error {
                             let location_set = location_info.get_item_location(id2);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError2::DeriveFailure(type_name, class_name, id) => {
+                            eprintln!(
+                                "{} auto derive failure, no instance found for class {} for a member of {}",
+                                error.red(),
+                                class_name.yellow(),
+                                type_name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

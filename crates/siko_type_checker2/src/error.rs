@@ -3,6 +3,7 @@ use siko_location_info::item::LocationId;
 #[derive(Debug)]
 pub enum TypecheckError {
     ConflictingInstances(String, LocationId, LocationId),
+    DeriveFailure(String, String, LocationId),
 }
 
 #[derive(Debug)]

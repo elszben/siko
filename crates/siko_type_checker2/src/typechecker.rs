@@ -346,7 +346,7 @@ impl Typechecker {
             let adt = program.typedefs.get(id).get_adt();
             for derived_class in &adt_type_info.derived_classes {
                 let class = program.classes.get(&derived_class.class_id);
-                println!("Processing derived_class {} for {}", class.name, adt.name);
+                //println!("Processing derived_class {} for {}", class.name, adt.name);
                 for variant_type in &adt_type_info.variant_types {
                     for item_type in &variant_type.item_types {
                         let mut type_arg_constraints = Vec::new();
@@ -357,7 +357,13 @@ impl Typechecker {
                             &mut type_arg_constraints,
                         ) {
                         } else {
-                            println!("{:?} does not implement {}", item_type.1, class.name);
+                            let err = TypecheckError::DeriveFailure(
+                                adt.name.clone(),
+                                class.name.clone(),
+                                item_type.1,
+                            );
+                            errors.push(err);
+                            //println!("{:?} does not implement {}", item_type.1, class.name);
                         }
                         for c in type_arg_constraints {
                             println!("type arg constraint {:?}", c);
