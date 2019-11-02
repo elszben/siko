@@ -4,7 +4,7 @@ class Boo a
 
 instance Boo Int
 
-data A a = A Int (B a) (A Float) deriving Boo
+data A a = A Int (B a) deriving Boo
 
 data B a = B a (A a)
 

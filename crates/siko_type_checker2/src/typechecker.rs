@@ -8,12 +8,11 @@ use crate::unifier::Unifier;
 use siko_ir::class::ClassId;
 use siko_ir::class::InstanceId;
 use siko_ir::program::Program;
-use siko_ir::types::DerivedClass;
 use siko_ir::types::TypeDef;
 use siko_ir::types::TypeSignature;
 use siko_ir::types::TypeSignatureId;
 use siko_location_info::item::LocationId;
-use siko_util::Counter;
+use siko_util::RcCounter;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
@@ -127,12 +126,17 @@ impl InstanceResolver {
         index
     }
 
-    pub fn has_instance(&self, ty: &Type, class_id: ClassId) -> Option<Vec<Constraint>> {
+    pub fn has_instance(
+        &self,
+        ty: &Type,
+        class_id: ClassId,
+        type_var_generator: TypeVarGenerator,
+    ) -> Option<Vec<Constraint>> {
         let base_type = ty.get_base_type();
         if let Some(class_instances) = self.instance_map.get(&class_id) {
             if let Some(instances) = class_instances.get(&base_type) {
                 for instance in instances {
-                    let mut unifier = Unifier::new();
+                    let mut unifier = Unifier::new(type_var_generator.clone());
                     match instance {
                         InstanceInfo::AutoDerived(index) => {
                             let instance = self.get_auto_derived_instance(*index);
@@ -156,7 +160,12 @@ impl InstanceResolver {
         }
     }
 
-    pub fn check_conflicts(&self, errors: &mut Vec<TypecheckError>, program: &Program) {
+    pub fn check_conflicts(
+        &self,
+        errors: &mut Vec<TypecheckError>,
+        program: &Program,
+        type_var_generator: TypeVarGenerator,
+    ) {
         for (class_id, class_instances) in &self.instance_map {
             let class = program.classes.get(&class_id);
             let mut first_generic_instance_location = None;
@@ -183,7 +192,7 @@ impl InstanceResolver {
                             if first_index < second_index {
                                 let first = first_instance.get_type(self);
                                 let second = second_instance.get_type(self);
-                                let mut unifier = Unifier::new();
+                                let mut unifier = Unifier::new(type_var_generator.clone());
                                 if unifier.unify(first, second).is_ok() {
                                     let err = TypecheckError::ConflictingInstances(
                                         class.name.clone(),
@@ -201,53 +210,58 @@ impl InstanceResolver {
     }
 }
 
-pub struct TypeProcessor {
-    counter: Counter,
+#[derive(Clone)]
+pub struct TypeVarGenerator {
+    counter: RcCounter,
 }
 
-impl TypeProcessor {
-    pub fn new() -> TypeProcessor {
-        TypeProcessor {
-            counter: Counter::new(),
+impl TypeVarGenerator {
+    pub fn new() -> TypeVarGenerator {
+        TypeVarGenerator {
+            counter: RcCounter::new(),
         }
+    }
+
+    pub fn get_new_index(&mut self) -> usize {
+        self.counter.next()
     }
 
     pub fn get_new_type_var(&mut self) -> Type {
         Type::Var(self.counter.next(), Vec::new())
     }
+}
 
-    pub fn process_type_signature(
-        &mut self,
-        type_signature_id: TypeSignatureId,
-        program: &Program,
-    ) -> Type {
-        let type_signature = &program.type_signatures.get(&type_signature_id).item;
-        match type_signature {
-            TypeSignature::Function(from, to) => {
-                let from_ty = self.process_type_signature(*from, program);
-                let to_ty = self.process_type_signature(*to, program);
-                Type::Function(Box::new(from_ty), Box::new(to_ty))
-            }
-            TypeSignature::Named(name, id, items) => {
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|item| self.process_type_signature(*item, program))
-                    .collect();
-                Type::Named(name.clone(), *id, items)
-            }
-            TypeSignature::Tuple(items) => {
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|item| self.process_type_signature(*item, program))
-                    .collect();
-                Type::Tuple(items)
-            }
-            TypeSignature::TypeArgument(index, name, constraints) => {
-                Type::FixedTypeArg(name.clone(), *index, constraints.clone())
-            }
-            TypeSignature::Variant(..) => panic!("Variant should not appear here"),
-            TypeSignature::Wildcard => self.get_new_type_var(),
+fn process_type_signature(
+    type_signature_id: TypeSignatureId,
+    program: &Program,
+    type_var_generator: &mut TypeVarGenerator,
+) -> Type {
+    let type_signature = &program.type_signatures.get(&type_signature_id).item;
+    match type_signature {
+        TypeSignature::Function(from, to) => {
+            let from_ty = process_type_signature(*from, program, type_var_generator);
+            let to_ty = process_type_signature(*to, program, type_var_generator);
+            Type::Function(Box::new(from_ty), Box::new(to_ty))
         }
+        TypeSignature::Named(name, id, items) => {
+            let items: Vec<_> = items
+                .iter()
+                .map(|item| process_type_signature(*item, program, type_var_generator))
+                .collect();
+            Type::Named(name.clone(), *id, items)
+        }
+        TypeSignature::Tuple(items) => {
+            let items: Vec<_> = items
+                .iter()
+                .map(|item| process_type_signature(*item, program, type_var_generator))
+                .collect();
+            Type::Tuple(items)
+        }
+        TypeSignature::TypeArgument(index, name, constraints) => {
+            Type::FixedTypeArg(name.clone(), *index, constraints.clone())
+        }
+        TypeSignature::Variant(..) => panic!("Variant should not appear here"),
+        TypeSignature::Wildcard => type_var_generator.get_new_type_var(),
     }
 }
 
@@ -256,6 +270,7 @@ fn check_instance(
     ty: &Type,
     instance_resolver: &InstanceResolver,
     type_arg_constraints: &mut Vec<Constraint>,
+    type_var_generator: TypeVarGenerator,
 ) -> bool {
     println!("Checking instance {} {}", class_id, ty);
     if ty.get_base_type() == BaseType::Generic {
@@ -265,7 +280,9 @@ fn check_instance(
         });
         return true;
     }
-    if let Some(constraints) = instance_resolver.has_instance(&ty, class_id) {
+    if let Some(constraints) =
+        instance_resolver.has_instance(&ty, class_id, type_var_generator.clone())
+    {
         for constraint in constraints {
             if constraint.ty.get_base_type() == BaseType::Generic {
                 type_arg_constraints.push(constraint);
@@ -276,6 +293,7 @@ fn check_instance(
                     &constraint.ty,
                     instance_resolver,
                     type_arg_constraints,
+                    type_var_generator.clone(),
                 ) {
                     return false;
                 }
@@ -296,21 +314,23 @@ impl Typechecker {
 
     pub fn check(&self, program: &Program) -> Result<(), Error> {
         let mut errors = Vec::new();
-        let mut type_processor = TypeProcessor::new();
+        let mut type_var_generator = TypeVarGenerator::new();
         let mut class_types = BTreeMap::new();
         let mut instance_resolver = InstanceResolver::new();
         let mut adt_type_info_map = BTreeMap::new();
         for (class_id, class) in program.classes.items.iter() {
             // println!("Processing type for class {}", class.name);
             let type_signature_id = class.type_signature.expect("Class has no type signature");
-            let ty = type_processor.process_type_signature(type_signature_id, program);
+            let ty = process_type_signature(type_signature_id, program, &mut type_var_generator);
+            let ty = ty.remove_fixed_types();
             let ty = ty.add_constraints(&class.constraints);
             //println!("class type {}", ty);
             class_types.insert(class_id, ty);
         }
         for (instance_id, instance) in program.instances.items.iter() {
             let instance_ty =
-                type_processor.process_type_signature(instance.type_signature, program);
+                process_type_signature(instance.type_signature, program, &mut type_var_generator);
+            let instance_ty = instance_ty.remove_fixed_types();
 
             instance_resolver.add_user_defined(
                 instance.class_id,
@@ -325,15 +345,19 @@ impl Typechecker {
                     let args: Vec<_> = adt
                         .type_args
                         .iter()
-                        .map(|arg| Type::FixedTypeArg("<>".to_string(), *arg, Vec::new()))
+                        .map(|arg| Type::Var(*arg, Vec::new()))
                         .collect();
                     let adt_type = Type::Named(adt.name.clone(), *typedef_id, args);
                     let mut variant_types = Vec::new();
                     for variant in adt.variants.iter() {
                         let mut item_types = Vec::new();
                         for item in variant.items.iter() {
-                            let item_ty = type_processor
-                                .process_type_signature(item.type_signature_id, program);
+                            let item_ty = process_type_signature(
+                                item.type_signature_id,
+                                program,
+                                &mut type_var_generator,
+                            );
+                            let item_ty = item_ty.remove_fixed_types();
                             let location = program
                                 .type_signatures
                                 .get(&item.type_signature_id)
@@ -349,7 +373,7 @@ impl Typechecker {
                         let args: Vec<_> = adt
                             .type_args
                             .iter()
-                            .map(|_| type_processor.get_new_type_var())
+                            .map(|_| type_var_generator.get_new_type_var())
                             .collect();
                         let instance_ty = Type::Named(adt.name.clone(), *typedef_id, args);
                         let instance_index = instance_resolver.add_auto_derived(
@@ -376,7 +400,7 @@ impl Typechecker {
             }
         }
 
-        instance_resolver.check_conflicts(&mut errors, program);
+        instance_resolver.check_conflicts(&mut errors, program, type_var_generator.clone());
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
@@ -397,6 +421,7 @@ impl Typechecker {
                                 &item_type.0,
                                 &instance_resolver,
                                 &mut type_arg_constraints,
+                                type_var_generator.clone(),
                             ) {
                             } else {
                                 let err = TypecheckError::DeriveFailure(
@@ -424,6 +449,7 @@ impl Typechecker {
                                             .get_auto_derived_instance(derive_info.instance_index)
                                             .clone();
                                         instance.ty = substitution.apply(&instance.ty);
+                                        println!("Updated instance ty {}", instance.ty);
                                         instance_resolver.update_auto_derived_instance(
                                             derive_info.instance_index,
                                             instance,

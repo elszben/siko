@@ -1,39 +1,21 @@
 use crate::substitution::Constraint;
 use crate::substitution::Error;
 use crate::substitution::Substitution;
+use crate::typechecker::TypeVarGenerator;
 use crate::types::Type;
 use siko_ir::class::ClassId;
 
 pub struct Unifier {
+    type_var_generator: TypeVarGenerator,
     substitution: Substitution,
 }
 
 impl Unifier {
-    pub fn new() -> Unifier {
+    pub fn new(type_var_generator: TypeVarGenerator) -> Unifier {
         Unifier {
+            type_var_generator: type_var_generator,
             substitution: Substitution::empty(),
         }
-    }
-
-    fn process_constraints(
-        &mut self,
-        index1: usize,
-        type1: &Type,
-        type2: &Type,
-        constraints1: &Vec<ClassId>,
-        constraints2: &Vec<ClassId>,
-    ) -> Result<(), Error> {
-        for c in constraints1 {
-            if !constraints2.contains(c) {
-                self.substitution.add_constraint(*c, type2.clone());
-            }
-        }
-        for c in constraints2 {
-            if !constraints1.contains(c) {
-                self.substitution.add_constraint(*c, type1.clone());
-            }
-        }
-        return self.substitution.add(index1, &type2);
     }
 
     pub fn unify(&mut self, type1: &Type, type2: &Type) -> Result<(), Error> {
@@ -51,44 +33,37 @@ impl Unifier {
                     return Err(Error::Fail);
                 }
             }
-            (Type::Var(index1, constraints1), Type::Var(_, constraints2)) => {
-                return self.process_constraints(
-                    *index1,
-                    &type1,
-                    &type2,
-                    constraints1,
-                    constraints2,
-                );
+            (Type::Var(index1, constraints1), Type::Var(index2, constraints2)) => {
+                let mut merged = constraints1.clone();
+                merged.extend(constraints2);
+                merged.sort();
+                merged.dedup();
+                let merged_type = Type::Var(self.type_var_generator.get_new_index(), merged);
+                self.substitution.add(*index1, &merged_type)?;
+                return self.substitution.add(*index2, &merged_type);
             }
-            (
-                Type::FixedTypeArg(_, index1, constraints1),
-                Type::FixedTypeArg(_, _, constraints2),
-            ) => {
-                return self.process_constraints(
-                    *index1,
-                    &type1,
-                    &type2,
-                    constraints1,
-                    constraints2,
-                );
+            (Type::FixedTypeArg(_, index1, _), Type::FixedTypeArg(_, index2, _)) => {
+                if index1 == index2 {
+                    Ok(())
+                } else {
+                    return Err(Error::Fail);
+                }
             }
-            (Type::FixedTypeArg(_, index1, constraints1), Type::Var(_, constraints2)) => {
-                return self.process_constraints(
-                    *index1,
-                    &type1,
-                    &type2,
-                    constraints1,
-                    constraints2,
-                );
+            (Type::FixedTypeArg(_, _, constraints1), Type::Var(index2, constraints2)) => {
+                for c in constraints2 {
+                    if !constraints1.contains(c) {
+                        return Err(Error::Fail);
+                    }
+                }
+                return self.substitution.add(*index2, &type1);
             }
             (Type::Var(index1, constraints1), Type::FixedTypeArg(_, _, constraints2)) => {
-                return self.process_constraints(
-                    *index1,
-                    &type1,
-                    &type2,
-                    constraints1,
-                    constraints2,
-                );
+                for c in constraints1 {
+                    if !constraints2.contains(c) {
+                        return Err(Error::Fail);
+                    }
+                }
+                return self.substitution.add(*index1, &type2);
             }
             (Type::Var(index, constraints), type2) => {
                 for c in constraints {

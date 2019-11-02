@@ -58,11 +58,6 @@ impl Type {
 
     pub fn add_constraints(&self, constraints: &Vec<ClassId>) -> Type {
         match self {
-            Type::FixedTypeArg(name, index, cs) => {
-                let mut cs = cs.clone();
-                cs.extend(constraints);
-                Type::FixedTypeArg(name.clone(), *index, cs)
-            }
             Type::Var(index, cs) => {
                 let mut cs = cs.clone();
                 cs.extend(constraints);
@@ -79,6 +74,26 @@ impl Type {
             Type::Function(..) => BaseType::Function,
             Type::Var(..) => BaseType::Generic,
             Type::FixedTypeArg(..) => BaseType::Generic,
+        }
+    }
+
+    pub fn remove_fixed_types(&self) -> Type {
+        match self {
+            Type::Tuple(items) => {
+                let new_items: Vec<_> = items.iter().map(|i| i.remove_fixed_types()).collect();
+                Type::Tuple(new_items)
+            }
+            Type::Named(name, id, items) => {
+                let new_items: Vec<_> = items.iter().map(|i| i.remove_fixed_types()).collect();
+                Type::Named(name.clone(), *id, new_items)
+            }
+            Type::Function(from, to) => {
+                let from = from.remove_fixed_types();
+                let to = to.remove_fixed_types();
+                Type::Function(Box::new(from), Box::new(to))
+            }
+            Type::Var(..) => self.clone(),
+            Type::FixedTypeArg(_, index, constraints) => Type::Var(*index, constraints.clone()),
         }
     }
 }
