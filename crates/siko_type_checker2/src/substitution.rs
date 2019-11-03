@@ -14,7 +14,7 @@ pub enum Error {
     RecursiveType,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Substitution {
     var_map: BTreeMap<usize, Type>,
     constraints: BTreeMap<ClassId, Vec<Type>>,
@@ -53,11 +53,8 @@ impl Substitution {
         }
     }
 
-    pub fn add_no_check(&mut self, index: usize, ty: Type) {
-        self.var_map.insert(index, ty);
-    }
-
     pub fn dump(&self) {
+        println!("Sub dump ---->");
         for (index, ty) in &self.var_map {
             println!("{} => {}", index, ty);
         }
@@ -89,6 +86,10 @@ impl Substitution {
                 None => ty.clone(),
             },
         }
+    }
+
+    pub fn get_changes(&self) -> &BTreeMap<usize, Type> {
+        &self.var_map
     }
 
     pub fn get_constraints(&self) -> Vec<Constraint> {

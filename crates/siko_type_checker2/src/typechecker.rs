@@ -1,6 +1,5 @@
 use crate::error::Error;
 use crate::error::TypecheckError;
-use crate::substitution::Constraint;
 use crate::substitution::Substitution;
 use crate::types::BaseType;
 use crate::types::Type;
@@ -131,7 +130,7 @@ impl InstanceResolver {
         ty: &Type,
         class_id: ClassId,
         type_var_generator: TypeVarGenerator,
-    ) -> Option<Vec<Constraint>> {
+    ) -> Option<Substitution> {
         let base_type = ty.get_base_type();
         if let Some(class_instances) = self.instance_map.get(&class_id) {
             if let Some(instances) = class_instances.get(&base_type) {
@@ -141,12 +140,12 @@ impl InstanceResolver {
                         InstanceInfo::AutoDerived(index) => {
                             let instance = self.get_auto_derived_instance(*index);
                             if unifier.unify(ty, &instance.ty).is_ok() {
-                                return Some(unifier.get_constraints());
+                                return Some(unifier.get_substitution());
                             }
                         }
                         InstanceInfo::UserDefined(instance_ty, _, _) => {
                             if unifier.unify(ty, instance_ty).is_ok() {
-                                return Some(unifier.get_constraints());
+                                return Some(unifier.get_substitution());
                             }
                         }
                     }
@@ -216,10 +215,8 @@ pub struct TypeVarGenerator {
 }
 
 impl TypeVarGenerator {
-    pub fn new() -> TypeVarGenerator {
-        TypeVarGenerator {
-            counter: RcCounter::new(),
-        }
+    pub fn new(counter: RcCounter) -> TypeVarGenerator {
+        TypeVarGenerator { counter: counter }
     }
 
     pub fn get_new_index(&mut self) -> usize {
@@ -268,31 +265,38 @@ fn process_type_signature(
 fn check_instance(
     class_id: ClassId,
     ty: &Type,
+    location_id: LocationId,
     instance_resolver: &InstanceResolver,
-    type_arg_constraints: &mut Vec<Constraint>,
-    type_var_generator: TypeVarGenerator,
+    substitutions: &mut Vec<(Substitution, LocationId)>,
+    mut type_var_generator: TypeVarGenerator,
 ) -> bool {
-    println!("Checking instance {} {}", class_id, ty);
-    if ty.get_base_type() == BaseType::Generic {
-        type_arg_constraints.push(Constraint {
-            class_id: class_id,
-            ty: ty.clone(),
-        });
-        return true;
+    //println!("Checking instance {} {}", class_id, ty);
+    if let Type::Var(index, constraints) = ty {
+        if constraints.contains(&class_id) {
+            return true;
+        } else {
+            let mut new_constraints = constraints.clone();
+            new_constraints.push(class_id);
+            let new_type = Type::Var(type_var_generator.get_new_index(), new_constraints);
+            let mut sub = Substitution::empty();
+            sub.add(*index, &new_type).expect("sub add failed");
+            substitutions.push((sub, location_id));
+            return true;
+        }
     }
-    if let Some(constraints) =
-        instance_resolver.has_instance(&ty, class_id, type_var_generator.clone())
-    {
+    if let Some(sub) = instance_resolver.has_instance(&ty, class_id, type_var_generator.clone()) {
+        let constraints = sub.get_constraints();
+        substitutions.push((sub, location_id));
         for constraint in constraints {
             if constraint.ty.get_base_type() == BaseType::Generic {
-                type_arg_constraints.push(constraint);
+                unimplemented!();
             } else {
-                println!("Checking {:?}", constraint);
                 if !check_instance(
                     constraint.class_id,
                     &constraint.ty,
+                    location_id,
                     instance_resolver,
-                    type_arg_constraints,
+                    substitutions,
                     type_var_generator.clone(),
                 ) {
                     return false;
@@ -305,6 +309,63 @@ fn check_instance(
     }
 }
 
+fn process_type_change(
+    target_ty: Type,
+    source_index: usize,
+    instance_resolver: &mut InstanceResolver,
+    instance_index: usize,
+    errors: &mut Vec<TypecheckError>,
+    adt_name: &str,
+    class_name: &str,
+    location_id: LocationId,
+) -> bool {
+    let mut instance_changed = false;
+    match target_ty {
+        Type::Var(_, target_constraints) => {
+            let mut instance = instance_resolver
+                .get_auto_derived_instance(instance_index)
+                .clone();
+            let new_instance_ty = match instance.ty.clone() {
+                Type::Named(name, id, args) => {
+                    let mut new_args = Vec::new();
+                    for arg in args {
+                        match arg {
+                            Type::Var(var_index, mut constraints) => {
+                                if var_index == source_index {
+                                    for t in &target_constraints {
+                                        if constraints.contains(&t) {
+                                            continue;
+                                        } else {
+                                            instance_changed = true;
+                                            constraints.push(*t);
+                                        }
+                                    }
+                                }
+                                let new_type = Type::Var(var_index, constraints);
+                                new_args.push(new_type);
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    Type::Named(name, id, new_args)
+                }
+                _ => unreachable!(),
+            };
+            instance.ty = new_instance_ty;
+            instance_resolver.update_auto_derived_instance(instance_index, instance);
+        }
+        _ => {
+            let err = TypecheckError::DeriveFailureInstanceNotGeneric(
+                adt_name.to_string(),
+                class_name.to_string(),
+                location_id,
+            );
+            errors.push(err);
+        }
+    }
+    instance_changed
+}
+
 pub struct Typechecker {}
 
 impl Typechecker {
@@ -312,9 +373,9 @@ impl Typechecker {
         Typechecker {}
     }
 
-    pub fn check(&self, program: &Program) -> Result<(), Error> {
+    pub fn check(&self, program: &Program, counter: RcCounter) -> Result<(), Error> {
         let mut errors = Vec::new();
-        let mut type_var_generator = TypeVarGenerator::new();
+        let mut type_var_generator = TypeVarGenerator::new(counter);
         let mut class_types = BTreeMap::new();
         let mut instance_resolver = InstanceResolver::new();
         let mut adt_type_info_map = BTreeMap::new();
@@ -347,7 +408,7 @@ impl Typechecker {
                         .iter()
                         .map(|arg| Type::Var(*arg, Vec::new()))
                         .collect();
-                    let adt_type = Type::Named(adt.name.clone(), *typedef_id, args);
+                    let adt_type = Type::Named(adt.name.clone(), *typedef_id, args.clone());
                     let mut variant_types = Vec::new();
                     for variant in adt.variants.iter() {
                         let mut item_types = Vec::new();
@@ -370,12 +431,7 @@ impl Typechecker {
                     }
                     let mut derived_classes = Vec::new();
                     for derived_class in &adt.derived_classes {
-                        let args: Vec<_> = adt
-                            .type_args
-                            .iter()
-                            .map(|_| type_var_generator.get_new_type_var())
-                            .collect();
-                        let instance_ty = Type::Named(adt.name.clone(), *typedef_id, args);
+                        let instance_ty = Type::Named(adt.name.clone(), *typedef_id, args.clone());
                         let instance_index = instance_resolver.add_auto_derived(
                             derived_class.class_id,
                             instance_ty,
@@ -406,25 +462,26 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        for _ in 0..3 {
-            println!("Loop ---------------->");
+        loop {
+            let mut instance_changed = false;
             for (id, adt_type_info) in &adt_type_info_map {
                 let adt = program.typedefs.get(id).get_adt();
                 for derive_info in &adt_type_info.derived_classes {
                     let class = program.classes.get(&derive_info.class_id);
                     //println!("Processing derived_class {} for {}", class.name, adt.name);
+                    let mut substitutions = Vec::new();
                     for variant_type in &adt_type_info.variant_types {
                         for item_type in &variant_type.item_types {
-                            let mut type_arg_constraints = Vec::new();
                             if check_instance(
                                 derive_info.class_id,
                                 &item_type.0,
+                                item_type.1,
                                 &instance_resolver,
-                                &mut type_arg_constraints,
+                                &mut substitutions,
                                 type_var_generator.clone(),
                             ) {
                             } else {
-                                let err = TypecheckError::DeriveFailure(
+                                let err = TypecheckError::DeriveFailureNoInstanceFound(
                                     adt.name.clone(),
                                     class.name.clone(),
                                     item_type.1,
@@ -432,37 +489,31 @@ impl Typechecker {
                                 errors.push(err);
                                 //println!("{:?} does not implement {}", item_type.1, class.name);
                             }
-                            for c in type_arg_constraints {
-                                println!("type arg constraint {:?}", c);
-                                match c.ty {
-                                    Type::FixedTypeArg(name, index, constraints) => {
-                                        let mut new_constraints = constraints.clone();
-                                        new_constraints.push(c.class_id);
-                                        let new_type = Type::FixedTypeArg(
-                                            name.clone(),
-                                            index,
-                                            new_constraints,
-                                        );
-                                        let mut substitution = Substitution::empty();
-                                        substitution.add_no_check(index, new_type);
-                                        let mut instance = instance_resolver
-                                            .get_auto_derived_instance(derive_info.instance_index)
-                                            .clone();
-                                        instance.ty = substitution.apply(&instance.ty);
-                                        println!("Updated instance ty {}", instance.ty);
-                                        instance_resolver.update_auto_derived_instance(
-                                            derive_info.instance_index,
-                                            instance,
-                                        );
-                                    }
-                                    _ => {
-                                        panic!("Unexpected constraint {:?}", c);
-                                    }
-                                }
-                            }
+                        }
+                    }
+                    for (sub, location_id) in substitutions {
+                        for (index, target_ty) in sub.get_changes() {
+                            process_type_change(
+                                target_ty.clone(),
+                                *index,
+                                &mut instance_resolver,
+                                derive_info.instance_index,
+                                &mut errors,
+                                &adt.name,
+                                &class.name,
+                                location_id,
+                            );
                         }
                     }
                 }
+            }
+
+            if !instance_changed {
+                break;
+            }
+
+            if !errors.is_empty() {
+                return Err(Error::typecheck_err(errors));
             }
         }
 

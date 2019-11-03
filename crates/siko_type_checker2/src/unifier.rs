@@ -21,6 +21,7 @@ impl Unifier {
     pub fn unify(&mut self, type1: &Type, type2: &Type) -> Result<(), Error> {
         let type1 = self.apply(type1);
         let type2 = self.apply(type2);
+        //println!("Unify {} <?> {}", type1, type2);
         match (&type1, &type2) {
             (Type::Named(_, id1, items1), Type::Named(_, id2, items2)) => {
                 if id1 == id2 {
@@ -117,5 +118,9 @@ impl Unifier {
 
     pub fn get_constraints(&self) -> Vec<Constraint> {
         self.substitution.get_constraints()
+    }
+
+    pub fn get_substitution(&self) -> Substitution {
+        self.substitution.clone()
     }
 }

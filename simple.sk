@@ -4,10 +4,16 @@ class Boo a
 
 instance Boo Int
 
-data A a = A Int (B a) deriving Boo
+//data A a = A Int a deriving Boo
+data A a = A Int (B a) (C a) a deriving Boo
 
 data B a = B a (A a)
 
+data C a = C a (A a)
+
 instance (Boo a) => Boo B a
+instance (Show a) => Boo C a
+
+//instance Boo B Float
 
 main = ()

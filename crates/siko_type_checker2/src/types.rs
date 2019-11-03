@@ -1,3 +1,4 @@
+use crate::typechecker::TypeVarGenerator;
 use siko_ir::class::ClassId;
 use siko_ir::types::TypeDefId;
 use std::fmt;

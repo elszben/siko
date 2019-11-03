@@ -1061,7 +1061,7 @@ impl Resolver {
         }
     }
 
-    pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
+    pub fn resolve(&mut self, program: &Program) -> Result<(IrProgram, RcCounter), Error> {
         let mut errors = Vec::new();
 
         let mut modules = BTreeMap::new();
@@ -1260,6 +1260,6 @@ impl Resolver {
             ir_program.named_types = named_types;
         }
 
-        Ok(ir_program)
+        Ok((ir_program, self.counter.clone()))
     }
 }
