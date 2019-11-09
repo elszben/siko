@@ -5,6 +5,7 @@ pub enum TypecheckError {
     ConflictingInstances(String, LocationId, LocationId),
     DeriveFailureNoInstanceFound(String, String, LocationId),
     DeriveFailureInstanceNotGeneric(String, String, LocationId),
+    UntypedExternFunction(String, LocationId),
 }
 
 #[derive(Debug)]

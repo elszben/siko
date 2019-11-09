@@ -1,9 +1,8 @@
 use crate::substitution::Constraint;
 use crate::substitution::Error;
 use crate::substitution::Substitution;
-use crate::typechecker::TypeVarGenerator;
+use crate::type_var_generator::TypeVarGenerator;
 use crate::types::Type;
-use siko_ir::class::ClassId;
 
 pub struct Unifier {
     type_var_generator: TypeVarGenerator,

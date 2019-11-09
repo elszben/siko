@@ -771,6 +771,15 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError2::UntypedExternFunction(name, id) => {
+                            eprintln!(
+                                "{} extern function {} does not have a type signature",
+                                error.red(),
+                                name.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
