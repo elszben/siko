@@ -702,21 +702,45 @@ impl Typechecker {
                 }
                 FunctionInfo::NamedFunction(i) => match i.type_signature {
                     Some(type_signature) => {
-                        /*
-                        self.register_typed_function(
-                            displayed_name,
-                            &i.name,
+                        let signature_ty =
+                            process_type_signature(type_signature, program, type_var_generator);
+
+                        let mut func_args = Vec::new();
+
+                        let (func_type, result_type) = create_general_function_type(
+                            &mut func_args,
                             function.arg_locations.len(),
-                            type_signature,
-                            *id,
-                            program,
-                            errors,
-                            i.body,
-                            i.location_id,
-                            &i.kind,
-                            class_member_type_info_map,
+                            type_var_generator,
                         );
-                        */
+
+                        let is_member = i.kind != NamedFunctionKind::Free;
+
+                        let mut func_type_info = FunctionTypeInfo {
+                            displayed_name: i.name.clone(),
+                            args: func_args.clone(),
+                            typed: true,
+                            result: result_type.clone(),
+                            function_type: func_type,
+                            body: None,
+                            location_id: i.location_id,
+                        };
+
+                        let mut unifier = Unifier::new(type_var_generator.clone());
+                        if unifier
+                            .unify(&signature_ty, &func_type_info.function_type)
+                            .is_err()
+                        {
+                            let err = TypecheckError::FunctionArgAndSignatureMismatch(
+                                i.name.clone(),
+                                func_args.len(),
+                                signature_ty.get_arg_count(),
+                                i.location_id,
+                                is_member,
+                            );
+                            errors.push(err);
+                        } else {
+                            func_type_info.apply(&unifier);
+                        }
                     }
                     None => match i.body {
                         Some(body) => {

@@ -780,6 +780,37 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError2::FunctionArgAndSignatureMismatch(
+                            name,
+                            arg_count,
+                            signature_arg_count,
+                            id,
+                            is_member,
+                        ) => {
+                            if *is_member {
+                                eprintln!(
+                                "{} member function type signature of {} does not match its argument count",
+                                error.red(),
+                                name.yellow()
+                            );
+                            } else {
+                                eprintln!(
+                                "{} function type signature of {} does not match its argument count",
+                                error.red(),
+                                name.yellow()
+                            );
+                            }
+                            eprintln!(
+                                "Arguments:                      {}",
+                                format!("{}", arg_count).yellow()
+                            );
+                            eprintln!(
+                                "Arguments in type signature:    {}",
+                                format!("{}", signature_arg_count).yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

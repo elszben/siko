@@ -96,6 +96,16 @@ impl Type {
             Type::FixedTypeArg(_, index, constraints) => Type::Var(*index, constraints.clone()),
         }
     }
+
+    pub fn get_arg_count(&self) -> usize {
+        match self {
+            Type::Tuple(..) => 0,
+            Type::Named(..) => 0,
+            Type::Function(_, to) => 1 + to.get_arg_count(),
+            Type::Var(..) => 0,
+            Type::FixedTypeArg(..) => 0,
+        }
+    }
 }
 
 impl fmt::Display for Type {

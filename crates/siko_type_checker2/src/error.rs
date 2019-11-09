@@ -6,6 +6,7 @@ pub enum TypecheckError {
     DeriveFailureNoInstanceFound(String, String, LocationId),
     DeriveFailureInstanceNotGeneric(String, String, LocationId),
     UntypedExternFunction(String, LocationId),
+    FunctionArgAndSignatureMismatch(String, usize, usize, LocationId, bool),
 }
 
 #[derive(Debug)]
