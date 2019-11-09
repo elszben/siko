@@ -540,6 +540,10 @@ impl Typechecker {
     ) {
         for (id, function) in &program.functions.items {
             let displayed_name = format!("{}", function.info);
+            // hack
+            if displayed_name != "Main/main" {
+                continue;
+            }
             match &function.info {
                 FunctionInfo::RecordConstructor(i) => {
                     let record = program.typedefs.get(&i.type_id).get_record();
@@ -658,8 +662,7 @@ impl Typechecker {
                             typed: true,
                             result: result_type.clone(),
                             function_type: func_type,
-                            // body: i.body,
-                            body: None,
+                            body: i.body,
                             location_id: i.location_id,
                         };
 
