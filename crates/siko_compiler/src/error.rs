@@ -811,6 +811,14 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError2::MainNotFound => {
+                            eprintln!(
+                                "{} {} function in module {} not found",
+                                error.red(),
+                                "main".yellow(),
+                                "Main".yellow()
+                            );
+                        }
                     }
                 }
             }

@@ -639,24 +639,28 @@ impl<'a> Parser<'a> {
                     FunctionBody::Extern
                 } else {
                     let body_expr_id = self.parse_expr()?;
-                    let mut temp_arg_exprs = Vec::new();
-                    for arg in args.iter() {
-                        let location = self.get_program().patterns.get(arg).location_id;
-                        let temp_arg_name = self.get_temp_var_name();
-                        temp_args.push((temp_arg_name.clone(), location));
-                        let path_expr = Expr::Path(temp_arg_name);
-                        let path_expr_id = self.add_expr(path_expr, start_index);
-                        temp_arg_exprs.push(path_expr_id);
+                    if args.is_empty() {
+                        FunctionBody::Expr(body_expr_id)
+                    } else {
+                        let mut temp_arg_exprs = Vec::new();
+                        for arg in args.iter() {
+                            let location = self.get_program().patterns.get(arg).location_id;
+                            let temp_arg_name = self.get_temp_var_name();
+                            temp_args.push((temp_arg_name.clone(), location));
+                            let path_expr = Expr::Path(temp_arg_name);
+                            let path_expr_id = self.add_expr(path_expr, start_index);
+                            temp_arg_exprs.push(path_expr_id);
+                        }
+                        let tuple_expr = Expr::Tuple(temp_arg_exprs);
+                        let tuple_expr_id = self.add_expr(tuple_expr, start_index);
+                        let tuple_pattern = Pattern::Tuple(args.clone());
+                        let tuple_pattern_id = self.add_pattern(tuple_pattern, start_index);
+                        let bind_expr = Expr::Bind(tuple_pattern_id, tuple_expr_id);
+                        let bind_expr_id = self.add_expr(bind_expr, start_index);
+                        let do_expr = Expr::Do(vec![bind_expr_id, body_expr_id]);
+                        let do_expr_id = self.add_expr(do_expr, start_index);
+                        FunctionBody::Expr(do_expr_id)
                     }
-                    let tuple_expr = Expr::Tuple(temp_arg_exprs);
-                    let tuple_expr_id = self.add_expr(tuple_expr, start_index);
-                    let tuple_pattern = Pattern::Tuple(args.clone());
-                    let tuple_pattern_id = self.add_pattern(tuple_pattern, start_index);
-                    let bind_expr = Expr::Bind(tuple_pattern_id, tuple_expr_id);
-                    let bind_expr_id = self.add_expr(bind_expr, start_index);
-                    let do_expr = Expr::Do(vec![bind_expr_id, body_expr_id]);
-                    let do_expr_id = self.add_expr(do_expr, start_index);
-                    FunctionBody::Expr(do_expr_id)
                 }
             } else {
                 unreachable!()

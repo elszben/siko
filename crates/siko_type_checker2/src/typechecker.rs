@@ -1,5 +1,13 @@
+use crate::common::AdtTypeInfo;
+use crate::common::DeriveInfo;
+use crate::common::FunctionTypeInfo;
+use crate::common::FunctionTypeInfoStore;
+use crate::common::RecordTypeInfo;
+use crate::common::VariantTypeInfo;
+use crate::dependency_processor::DependencyGroup;
 use crate::error::Error;
 use crate::error::TypecheckError;
+use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::instance_resolver::InstanceResolver;
 use crate::substitution::Substitution;
 use crate::type_var_generator::TypeVarGenerator;
@@ -8,60 +16,24 @@ use crate::types::Type;
 use crate::unifier::Unifier;
 use crate::util::create_general_function_type;
 use siko_ir::class::ClassId;
-use siko_ir::class::InstanceId;
+use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
+use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionKind;
+use siko_ir::pattern::Pattern;
+use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDef;
 use siko_ir::types::TypeDefId;
 use siko_ir::types::TypeSignature;
 use siko_ir::types::TypeSignatureId;
+use siko_ir::walker::walk_expr;
+use siko_ir::walker::Visitor;
 use siko_location_info::item::LocationId;
 use siko_util::RcCounter;
 use std::collections::BTreeMap;
-
-pub struct DeriveInfo {
-    class_id: ClassId,
-    instance_index: usize,
-}
-
-pub struct AdtTypeInfo {
-    adt_type: Type,
-    variant_types: Vec<VariantTypeInfo>,
-    derived_classes: Vec<DeriveInfo>,
-}
-
-pub struct VariantTypeInfo {
-    item_types: Vec<(Type, LocationId)>,
-}
-
-pub struct RecordTypeInfo {
-    record_type: Type,
-    field_types: Vec<(Type, LocationId)>,
-    derived_classes: Vec<DeriveInfo>,
-}
-
-pub struct FunctionTypeInfo {
-    pub displayed_name: String,
-    pub args: Vec<Type>,
-    pub typed: bool,
-    pub result: Type,
-    pub function_type: Type,
-    pub body: Option<ExprId>,
-    pub location_id: LocationId,
-}
-
-impl FunctionTypeInfo {
-    pub fn apply(&mut self, unifier: &Unifier) {
-        for arg in &mut self.args {
-            *arg = unifier.apply(arg);
-        }
-        self.result = unifier.apply(&self.result);
-        self.function_type = unifier.apply(&self.function_type);
-    }
-}
 
 fn process_type_signature(
     type_signature_id: TypeSignatureId,
@@ -199,6 +171,72 @@ fn process_type_change(
         }
     }
     instance_changed
+}
+
+struct ExpressionChecker<'a> {
+    program: &'a Program,
+    expr_types: BTreeMap<ExprId, Type>,
+    type_var_generator: TypeVarGenerator,
+}
+
+impl<'a> ExpressionChecker<'a> {
+    fn new(program: &'a Program, type_var_generator: TypeVarGenerator) -> ExpressionChecker<'a> {
+        ExpressionChecker {
+            program: program,
+            expr_types: BTreeMap::new(),
+            type_var_generator: type_var_generator,
+        }
+    }
+
+    fn get_expr_type(&mut self, expr_id: ExprId) -> &Type {
+        let mut gen = self.type_var_generator.clone();
+        let ty = self
+            .expr_types
+            .entry(expr_id)
+            .or_insert_with(|| gen.get_new_type_var());
+        ty
+    }
+
+    fn get_expr_type_mut(&mut self, expr_id: ExprId) -> &mut Type {
+        let mut gen = self.type_var_generator.clone();
+        let ty = self
+            .expr_types
+            .entry(expr_id)
+            .or_insert_with(|| gen.get_new_type_var());
+        ty
+    }
+}
+
+impl<'a> Visitor for ExpressionChecker<'a> {
+    fn get_program(&self) -> &Program {
+        &self.program
+    }
+
+    fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
+        //self.expr_processor.create_type_var_for_expr(expr_id);
+        println!("{} {}", expr_id, expr);
+        match expr {
+            Expr::Tuple(items) => {
+                let item_types: Vec<_> = items
+                    .iter()
+                    .map(|item| self.get_expr_type(*item).clone())
+                    .collect();
+                let tuple_ty = Type::Tuple(item_types);
+                let mut unifier = Unifier::new(self.type_var_generator.clone());
+                let expr_ty = self.get_expr_type_mut(expr_id);
+                if unifier.unify(expr_ty, &tuple_ty).is_err() {
+                    println!("Type mismatch");
+                } else {
+                    *expr_ty = unifier.apply(expr_ty);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn visit_pattern(&mut self, pattern_id: PatternId, _: &Pattern) {
+        //self.expr_processor.create_type_var_for_pattern(pattern_id);
+    }
 }
 
 pub struct Typechecker {}
@@ -491,109 +529,6 @@ impl Typechecker {
         function_type_info
     }
 
-    /*
-    fn register_typed_function(
-        &mut self,
-        displayed_name: String,
-        name: &String,
-        arg_count: usize,
-        type_signature_id: TypeSignatureId,
-        program: &Program,
-        errors: &mut Vec<TypecheckError>,
-        body: Option<ExprId>,
-        location_id: LocationId,
-        kind: &NamedFunctionKind,
-        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-    ) {
-        let (arg_map, func_type_var) =
-            if let NamedFunctionKind::DefaultClassMember(class_member_id) = kind {
-                let info = class_member_type_info_map
-                    .get(class_member_id)
-                    .expect("class member type info not found");
-                (info.arg_map.clone(), info.member_type_var)
-            } else {
-                let mut arg_map = BTreeMap::new();
-                let func_type_var = process_type_signature(
-                    &mut self.type_store,
-                    &type_signature_id,
-                    program,
-                    &mut arg_map,
-                    &mut None,
-                );
-                (arg_map, func_type_var)
-            };
-        let is_member = *kind != NamedFunctionKind::Free;
-
-        /*
-        println!(
-            "Registering named function {} {} with type {}",
-            function_id,
-            displayed_name,
-            self.type_store.get_resolved_type_string(&func_type_var, program)
-        );
-        */
-        let ty = self.type_store.get_type(&func_type_var);
-        let function_type_info = match ty {
-            Type::Function(func_type) => {
-                let mut signature_vars = Vec::new();
-                func_type.get_arg_types(&self.type_store, &mut signature_vars);
-                if signature_vars.len() < arg_count {
-                    let location = if is_member {
-                        location_id
-                    } else {
-                        program.type_signatures.get(&type_signature_id).location_id
-                    };
-                    let err = TypecheckError::FunctionArgAndSignatureMismatch(
-                        name.clone(),
-                        arg_count,
-                        signature_vars.len(),
-                        location,
-                        is_member,
-                    );
-                    errors.push(err);
-                    return;
-                }
-                let arg_vars: Vec<_> = signature_vars.iter().take(arg_count).cloned().collect();
-
-                let return_value_var = func_type.get_return_type(&self.type_store, arg_vars.len());
-                FunctionTypeInfo::new(
-                    displayed_name,
-                    arg_vars,
-                    true,
-                    return_value_var,
-                    func_type_var,
-                    body,
-                    location_id,
-                    arg_map,
-                )
-            }
-            _ => {
-                if arg_count > 0 {
-                    let err = TypecheckError::FunctionArgAndSignatureMismatch(
-                        displayed_name,
-                        arg_count,
-                        0,
-                        program.type_signatures.get(&type_signature_id).location_id,
-                        is_member,
-                    );
-                    errors.push(err);
-                    return;
-                }
-                FunctionTypeInfo::new(
-                    name.clone(),
-                    vec![],
-                    true,
-                    func_type_var,
-                    func_type_var,
-                    body,
-                    location_id,
-                    arg_map,
-                )
-            }
-        };
-    }
-    */
-
     fn process_functions(
         &self,
         program: &Program,
@@ -601,6 +536,7 @@ impl Typechecker {
         adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
         record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
         errors: &mut Vec<TypecheckError>,
+        function_type_info_store: &mut FunctionTypeInfoStore,
     ) {
         for (id, function) in &program.functions.items {
             let displayed_name = format!("{}", function.info);
@@ -643,7 +579,7 @@ impl Typechecker {
                         .expect("Unify failed");
 
                     func_type_info.apply(&unifier);
-                    println!("Record Final func_type {}", func_type_info.function_type);
+                    function_type_info_store.add(*id, func_type_info);
                 }
                 FunctionInfo::VariantConstructor(i) => {
                     let adt = program.typedefs.get(&i.type_id).get_adt();
@@ -689,7 +625,7 @@ impl Typechecker {
                         .expect("Unify failed");
 
                     func_type_info.apply(&unifier);
-                    println!("Final func_type {}", func_type_info.function_type);
+                    function_type_info_store.add(*id, func_type_info);
                 }
                 FunctionInfo::Lambda(i) => {
                     let func_type_info = self.register_untyped_function(
@@ -699,6 +635,7 @@ impl Typechecker {
                         i.location_id,
                         type_var_generator,
                     );
+                    function_type_info_store.add(*id, func_type_info);
                 }
                 FunctionInfo::NamedFunction(i) => match i.type_signature {
                     Some(type_signature) => {
@@ -721,6 +658,7 @@ impl Typechecker {
                             typed: true,
                             result: result_type.clone(),
                             function_type: func_type,
+                            // body: i.body,
                             body: None,
                             location_id: i.location_id,
                         };
@@ -741,6 +679,7 @@ impl Typechecker {
                         } else {
                             func_type_info.apply(&unifier);
                         }
+                        function_type_info_store.add(*id, func_type_info);
                     }
                     None => match i.body {
                         Some(body) => {
@@ -751,6 +690,7 @@ impl Typechecker {
                                 i.location_id,
                                 type_var_generator,
                             );
+                            function_type_info_store.add(*id, func_type_info);
                         }
                         None => {
                             let err = TypecheckError::UntypedExternFunction(
@@ -765,6 +705,77 @@ impl Typechecker {
         }
     }
 
+    fn check_main(&self, program: &Program, errors: &mut Vec<TypecheckError>) {
+        let mut main_found = false;
+
+        for (_, function) in &program.functions.items {
+            match &function.info {
+                FunctionInfo::NamedFunction(info) => {
+                    if info.module == siko_constants::MAIN_MODULE
+                        && info.name == siko_constants::MAIN_FUNCTION
+                    {
+                        main_found = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if !main_found {
+            errors.push(TypecheckError::MainNotFound);
+        }
+    }
+
+    fn process_function(
+        &self,
+        function_id: &FunctionId,
+        errors: &mut Vec<TypecheckError>,
+        group: &DependencyGroup<FunctionId>,
+        function_type_info_store: &mut FunctionTypeInfoStore,
+        program: &Program,
+        type_var_generator: TypeVarGenerator,
+    ) {
+        let func = program.functions.get(function_id);
+        println!("Checking {}", func.info);
+        let function_type_info = function_type_info_store.get_mut(function_id);
+        let body = function_type_info.body.expect("body not found");
+        let mut checker = ExpressionChecker::new(program, type_var_generator.clone());
+        walk_expr(&body, &mut checker);
+        let body_ty = checker.get_expr_type_mut(body);
+        let mut unifier = Unifier::new(type_var_generator.clone());
+        if unifier.unify(body_ty, &function_type_info.result).is_err() {
+            println!("Type mismatch");
+        } else {
+            *body_ty = unifier.apply(body_ty);
+            function_type_info.apply(&unifier);
+        }
+        //let mut unifier = Unifier::new(self, errors, group, arg_map);
+        //walk_expr(&body, &mut unifier);
+        //let body_var = self.lookup_type_var_for_expr(&body);
+        //let body_location = self.program.exprs.get(&body).location_id;
+        //self.unify_variables(&result_var, &body_var, body_location, errors);
+    }
+
+    fn process_dep_group(
+        &self,
+        group: &DependencyGroup<FunctionId>,
+        errors: &mut Vec<TypecheckError>,
+        function_type_info_store: &mut FunctionTypeInfoStore,
+        program: &Program,
+        type_var_generator: TypeVarGenerator,
+    ) {
+        for function in &group.items {
+            self.process_function(
+                function,
+                errors,
+                group,
+                function_type_info_store,
+                program,
+                type_var_generator.clone(),
+            );
+        }
+    }
+
     pub fn check(&self, program: &Program, counter: RcCounter) -> Result<(), Error> {
         let mut errors = Vec::new();
         let mut type_var_generator = TypeVarGenerator::new(counter);
@@ -772,6 +783,7 @@ impl Typechecker {
         let mut instance_resolver = InstanceResolver::new();
         let mut adt_type_info_map = BTreeMap::new();
         let mut record_type_info_map = BTreeMap::new();
+        let mut function_type_info_store = FunctionTypeInfoStore::new();
 
         self.process_classes_and_user_defined_instances(
             program,
@@ -813,10 +825,32 @@ impl Typechecker {
             &adt_type_info_map,
             &record_type_info_map,
             &mut errors,
+            &mut function_type_info_store,
         );
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
+        }
+
+        let function_dep_processor =
+            FunctionDependencyProcessor::new(program, &function_type_info_store);
+
+        let ordered_dep_groups = function_dep_processor.process_functions();
+
+        self.check_main(program, &mut errors);
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
+        for group in &ordered_dep_groups {
+            self.process_dep_group(
+                group,
+                &mut errors,
+                &mut function_type_info_store,
+                program,
+                type_var_generator.clone(),
+            );
         }
 
         Ok(())
