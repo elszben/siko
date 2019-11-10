@@ -176,37 +176,95 @@ fn process_type_change(
     instance_changed
 }
 
+pub enum ExpressionTypeState {
+    ExprType(Type),
+}
+
+pub struct TypeStore {
+    expr_types: BTreeMap<ExprId, Type>,
+}
+
+impl TypeStore {
+    pub fn new() -> TypeStore {
+        TypeStore {
+            expr_types: BTreeMap::new(),
+        }
+    }
+
+    pub fn initialize(&mut self, expr_id: ExprId, ty: Type) {
+        self.expr_types.insert(expr_id, ty);
+    }
+
+    pub fn get_expr_type_mut(&mut self, expr_id: &ExprId) -> &mut Type {
+        self.expr_types
+            .get_mut(expr_id)
+            .expect("Expr type not found")
+    }
+}
+
+struct TypeStoreInitializer<'a> {
+    program: &'a Program,
+    type_store: &'a mut TypeStore,
+    type_var_generator: TypeVarGenerator,
+}
+
+impl<'a> TypeStoreInitializer<'a> {
+    fn new(
+        program: &'a Program,
+        type_store: &'a mut TypeStore,
+        type_var_generator: TypeVarGenerator,
+    ) -> TypeStoreInitializer<'a> {
+        TypeStoreInitializer {
+            program: program,
+            type_store: type_store,
+            type_var_generator: type_var_generator,
+        }
+    }
+}
+
+impl<'a> Visitor for TypeStoreInitializer<'a> {
+    fn get_program(&self) -> &Program {
+        &self.program
+    }
+
+    fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
+        //self.expr_processor.create_type_var_for_expr(expr_id);
+        println!("{} {}", expr_id, expr);
+        match expr {
+            Expr::Tuple(items) => {
+                let item_types: Vec<_> = items
+                    .iter()
+                    .map(|_| self.type_var_generator.get_new_type_var())
+                    .collect();
+                let tuple_ty = Type::Tuple(item_types);
+                self.type_store.initialize(expr_id, tuple_ty);
+            }
+            _ => {}
+        }
+    }
+
+    fn visit_pattern(&mut self, pattern_id: PatternId, _: &Pattern) {
+        //self.expr_processor.create_type_var_for_pattern(pattern_id);
+    }
+}
+
 struct ExpressionChecker<'a> {
     program: &'a Program,
-    expr_types: BTreeMap<ExprId, Type>,
+    type_store: &'a mut TypeStore,
     type_var_generator: TypeVarGenerator,
 }
 
 impl<'a> ExpressionChecker<'a> {
-    fn new(program: &'a Program, type_var_generator: TypeVarGenerator) -> ExpressionChecker<'a> {
+    fn new(
+        program: &'a Program,
+        type_store: &'a mut TypeStore,
+        type_var_generator: TypeVarGenerator,
+    ) -> ExpressionChecker<'a> {
         ExpressionChecker {
             program: program,
-            expr_types: BTreeMap::new(),
+            type_store: type_store,
             type_var_generator: type_var_generator,
         }
-    }
-
-    fn get_expr_type(&mut self, expr_id: ExprId) -> &Type {
-        let mut gen = self.type_var_generator.clone();
-        let ty = self
-            .expr_types
-            .entry(expr_id)
-            .or_insert_with(|| gen.get_new_type_var());
-        ty
-    }
-
-    fn get_expr_type_mut(&mut self, expr_id: ExprId) -> &mut Type {
-        let mut gen = self.type_var_generator.clone();
-        let ty = self
-            .expr_types
-            .entry(expr_id)
-            .or_insert_with(|| gen.get_new_type_var());
-        ty
     }
 }
 
@@ -218,6 +276,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
     fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
         //self.expr_processor.create_type_var_for_expr(expr_id);
         println!("{} {}", expr_id, expr);
+        /*
         match expr {
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
@@ -235,6 +294,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             }
             _ => {}
         }
+        */
     }
 
     fn visit_pattern(&mut self, pattern_id: PatternId, _: &Pattern) {
@@ -732,12 +792,29 @@ impl Typechecker {
         }
     }
 
+    fn init_expr_types(
+        &self,
+        function_id: &FunctionId,
+        group: &DependencyGroup<FunctionId>,
+        function_type_info_store: &mut FunctionTypeInfoStore,
+        type_store: &mut TypeStore,
+        program: &Program,
+        type_var_generator: TypeVarGenerator,
+    ) {
+        let function_type_info = function_type_info_store.get_mut(function_id);
+        let body = function_type_info.body.expect("body not found");
+        let mut initializer =
+            TypeStoreInitializer::new(program, type_store, type_var_generator.clone());
+        walk_expr(&body, &mut initializer);
+    }
+
     fn process_function(
         &self,
         function_id: &FunctionId,
         errors: &mut Vec<TypecheckError>,
         group: &DependencyGroup<FunctionId>,
         function_type_info_store: &mut FunctionTypeInfoStore,
+        type_store: &mut TypeStore,
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
@@ -745,9 +822,9 @@ impl Typechecker {
         println!("Checking {}", func.info);
         let function_type_info = function_type_info_store.get_mut(function_id);
         let body = function_type_info.body.expect("body not found");
-        let mut checker = ExpressionChecker::new(program, type_var_generator.clone());
+        let mut checker = ExpressionChecker::new(program, type_store, type_var_generator.clone());
         walk_expr(&body, &mut checker);
-        let body_ty = checker.get_expr_type_mut(body);
+        let body_ty = type_store.get_expr_type_mut(&body);
         let mut unifier = Unifier::new(type_var_generator.clone());
         if unifier.unify(body_ty, &function_type_info.result).is_err() {
             let body_type_str = body_ty.get_resolved_type_string(program);
@@ -772,15 +849,28 @@ impl Typechecker {
         group: &DependencyGroup<FunctionId>,
         errors: &mut Vec<TypecheckError>,
         function_type_info_store: &mut FunctionTypeInfoStore,
+        type_store: &mut TypeStore,
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
+        for function in &group.items {
+            self.init_expr_types(
+                function,
+                group,
+                function_type_info_store,
+                type_store,
+                program,
+                type_var_generator.clone(),
+            );
+        }
+
         for function in &group.items {
             self.process_function(
                 function,
                 errors,
                 group,
                 function_type_info_store,
+                type_store,
                 program,
                 type_var_generator.clone(),
             );
@@ -855,10 +945,12 @@ impl Typechecker {
         }
 
         for group in &ordered_dep_groups {
+            let mut type_store = TypeStore::new();
             self.process_dep_group(
                 group,
                 &mut errors,
                 &mut function_type_info_store,
+                &mut type_store,
                 program,
                 type_var_generator.clone(),
             );
