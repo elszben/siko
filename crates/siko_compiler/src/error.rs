@@ -819,6 +819,13 @@ impl Error {
                                 "Main".yellow()
                             );
                         }
+                        TypecheckError2::TypeMismatch(id, expected, found) => {
+                            eprintln!("{} type mismatch in expression", error.red());
+                            eprintln!("Expected: {}", expected.yellow());
+                            eprintln!("Found:    {}", found.yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

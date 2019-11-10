@@ -8,6 +8,7 @@ pub enum TypecheckError {
     UntypedExternFunction(String, LocationId),
     FunctionArgAndSignatureMismatch(String, usize, usize, LocationId, bool),
     MainNotFound,
+    TypeMismatch(LocationId, String, String),
 }
 
 #[derive(Debug)]

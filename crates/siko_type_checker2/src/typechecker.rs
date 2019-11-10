@@ -62,7 +62,10 @@ fn process_type_signature(
             Type::Tuple(items)
         }
         TypeSignature::TypeArgument(index, name, constraints) => {
-            Type::FixedTypeArg(name.clone(), *index, constraints.clone())
+            let mut constraints = constraints.clone();
+            // unifier assumes that the constraints are sorted!
+            constraints.sort();
+            Type::FixedTypeArg(name.clone(), *index, constraints)
         }
         TypeSignature::Variant(..) => panic!("Variant should not appear here"),
         TypeSignature::Wildcard => type_var_generator.get_new_type_var(),
@@ -750,6 +753,9 @@ impl Typechecker {
             let body_type_str = body_ty.get_resolved_type_string(program);
             let result_type_str = function_type_info.result.get_resolved_type_string(program);
             println!("Type mismatch {} {}", body_type_str, result_type_str);
+            let location = program.exprs.get(&body).location_id;
+            let err = TypecheckError::TypeMismatch(location, body_type_str, result_type_str);
+            errors.push(err);
         } else {
             *body_ty = unifier.apply(body_ty);
             function_type_info.apply(&unifier);

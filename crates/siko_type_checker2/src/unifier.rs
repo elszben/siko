@@ -34,6 +34,9 @@ impl Unifier {
                 }
             }
             (Type::Var(index1, constraints1), Type::Var(index2, constraints2)) => {
+                if constraints1 == constraints2 {
+                    return self.substitution.add(*index1, &type2);
+                }
                 let mut merged = constraints1.clone();
                 merged.extend(constraints2);
                 merged.sort();
