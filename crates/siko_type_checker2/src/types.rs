@@ -1,6 +1,57 @@
 use siko_ir::class::ClassId;
+use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
+use siko_util::format_list;
+use siko_util::Collector;
+use siko_util::Counter;
+use std::collections::BTreeMap;
 use std::fmt;
+
+pub struct ResolverContext {
+    type_args: BTreeMap<usize, usize>,
+    next_index: Counter,
+    list_type_id: TypeDefId,
+    class_names: BTreeMap<ClassId, String>,
+}
+
+impl ResolverContext {
+    pub fn new(program: &Program) -> ResolverContext {
+        let mut class_names = BTreeMap::new();
+        for (name, class) in &program.class_names {
+            class_names.insert(*class, name.clone());
+        }
+        ResolverContext {
+            type_args: BTreeMap::new(),
+            next_index: Counter::new(),
+            list_type_id: program.get_named_type("Data.List", "List"),
+            class_names: class_names,
+        }
+    }
+
+    pub fn add_type_arg(&mut self, arg: usize) {
+        if !self.type_args.contains_key(&arg) {
+            let index = self.next_index.next();
+            self.type_args.insert(arg, index);
+        }
+    }
+
+    pub fn get_type_arg_name(&self, arg: usize) -> String {
+        format!(
+            "t{}",
+            self.type_args.get(&arg).expect("type arg name not found")
+        )
+    }
+
+    pub fn get_list_type_id(&self) -> TypeDefId {
+        self.list_type_id
+    }
+
+    pub fn get_class_name(&self, class_id: &ClassId) -> &String {
+        self.class_names
+            .get(class_id)
+            .expect("Class name not found")
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum BaseType {
@@ -104,6 +155,122 @@ impl Type {
             Type::Function(_, to) => 1 + to.get_arg_count(),
             Type::Var(..) => 0,
             Type::FixedTypeArg(..) => 0,
+        }
+    }
+
+    fn collect(&self, args: &mut Collector<usize, ClassId>) {
+        match self {
+            Type::Tuple(items) => {
+                for item in items {
+                    item.collect(args);
+                }
+            }
+            Type::Named(_, _, items) => {
+                for item in items {
+                    item.collect(args);
+                }
+            }
+            Type::Function(from, to) => {
+                from.collect(args);
+                to.collect(args);
+            }
+            Type::Var(index, constraints) => {
+                args.add_empty(*index);
+                for c in constraints {
+                    args.add(*index, *c);
+                }
+            }
+            Type::FixedTypeArg(_, index, constraints) => {
+                args.add_empty(*index);
+                for c in constraints {
+                    args.add(*index, *c);
+                }
+            }
+        }
+    }
+
+    pub fn get_resolved_type_string(&self, program: &Program) -> String {
+        let mut resolver_context = ResolverContext::new(program);
+        self.get_resolved_type_string_with_context(&mut resolver_context)
+    }
+
+    pub fn get_resolved_type_string_with_context(
+        &self,
+        resolver_context: &mut ResolverContext,
+    ) -> String {
+        let mut args = Collector::new();
+        self.collect(&mut args);
+        for (arg, _) in &args.items {
+            resolver_context.add_type_arg(*arg);
+        }
+        let mut constraint_strings = Vec::new();
+        for (arg, classes) in &args.items {
+            for class_id in classes {
+                let class_name = resolver_context.get_class_name(class_id);
+                let c_str = format!(
+                    "{} {}",
+                    class_name,
+                    resolver_context.get_type_arg_name(*arg)
+                );
+                constraint_strings.push(c_str);
+            }
+        }
+
+        let prefix = if constraint_strings.is_empty() {
+            format!("")
+        } else {
+            format!("({}) => ", format_list(&constraint_strings[..]))
+        };
+        let type_str = self.as_string(false, resolver_context);
+        format!("{}{}", prefix, type_str)
+    }
+
+    fn as_string(&self, need_parens: bool, resolver_context: &ResolverContext) -> String {
+        match self {
+            Type::Tuple(items) => {
+                let ss: Vec<_> = items
+                    .iter()
+                    .map(|item| item.as_string(false, resolver_context))
+                    .collect();
+                format!("({})", ss.join(", "))
+            }
+            Type::Function(from, to) => {
+                let from_str = from.as_string(true, resolver_context);
+                let to_str = to.as_string(true, resolver_context);
+                let func_type_str = format!("{} -> {}", from_str, to_str);
+                if need_parens {
+                    format!("({})", func_type_str)
+                } else {
+                    func_type_str
+                }
+            }
+            Type::Var(index, _) => resolver_context.get_type_arg_name(*index),
+            Type::FixedTypeArg(name, _, _) => format!("{}", name),
+            Type::Named(name, id, items) => {
+                let ss: Vec<_> = items
+                    .iter()
+                    .map(|item| item.as_string(true, resolver_context))
+                    .collect();
+                if *id == resolver_context.get_list_type_id() {
+                    assert_eq!(ss.len(), 1);
+                    format!("[{}]", ss[0])
+                } else {
+                    let (args, simple) = if ss.is_empty() {
+                        (format!(""), true)
+                    } else {
+                        (format!(" {}", ss.join(" ")), false)
+                    };
+                    if simple {
+                        format!("{}{}", name, args)
+                    } else {
+                        if need_parens {
+                            format!("({}{})", name, args)
+                        } else {
+                            format!("{}{}", name, args)
+                        }
+                    }
+                }
+            }
         }
     }
 }

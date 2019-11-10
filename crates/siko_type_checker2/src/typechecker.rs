@@ -747,7 +747,9 @@ impl Typechecker {
         let body_ty = checker.get_expr_type_mut(body);
         let mut unifier = Unifier::new(type_var_generator.clone());
         if unifier.unify(body_ty, &function_type_info.result).is_err() {
-            println!("Type mismatch");
+            let body_type_str = body_ty.get_resolved_type_string(program);
+            let result_type_str = function_type_info.result.get_resolved_type_string(program);
+            println!("Type mismatch {} {}", body_type_str, result_type_str);
         } else {
             *body_ty = unifier.apply(body_ty);
             function_type_info.apply(&unifier);

@@ -89,6 +89,10 @@ impl<Key: Ord, Item: Ord> Collector<Key, Item> {
         }
     }
 
+    pub fn add_empty(&mut self, key: Key) {
+        self.items.entry(key).or_insert_with(|| BTreeSet::new());
+    }
+
     pub fn add(&mut self, key: Key, item: Item) {
         let entry = self.items.entry(key).or_insert_with(|| BTreeSet::new());
         entry.insert(item);
