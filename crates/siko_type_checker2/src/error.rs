@@ -9,6 +9,7 @@ pub enum TypecheckError {
     FunctionArgAndSignatureMismatch(String, usize, usize, LocationId, bool),
     MainNotFound,
     TypeMismatch(LocationId, String, String),
+    FunctionArgumentMismatch(LocationId, String, String),
 }
 
 #[derive(Debug)]

@@ -33,6 +33,7 @@ use siko_ir::types::TypeSignatureId;
 use siko_ir::walker::walk_expr;
 use siko_ir::walker::Visitor;
 use siko_location_info::item::LocationId;
+use siko_util::format_list;
 use siko_util::RcCounter;
 use std::collections::BTreeMap;
 
@@ -179,10 +180,25 @@ fn process_type_change(
 
 pub enum ExpressionTypeState {
     ExprType(Type),
+    FunctionCall(Type, Type),
+}
+
+impl ExpressionTypeState {
+    pub fn apply(&mut self, unifier: &Unifier) {
+        match self {
+            ExpressionTypeState::ExprType(ty) => {
+                *ty = unifier.apply(ty);
+            }
+            ExpressionTypeState::FunctionCall(func_ty, ty) => {
+                *func_ty = unifier.apply(func_ty);
+                *ty = unifier.apply(ty);
+            }
+        }
+    }
 }
 
 pub struct TypeStore {
-    expr_types: BTreeMap<ExprId, Type>,
+    expr_types: BTreeMap<ExprId, ExpressionTypeState>,
     pattern_types: BTreeMap<PatternId, Type>,
 }
 
@@ -195,7 +211,13 @@ impl TypeStore {
     }
 
     pub fn initialize_expr(&mut self, expr_id: ExprId, ty: Type) {
-        self.expr_types.insert(expr_id, ty);
+        self.expr_types
+            .insert(expr_id, ExpressionTypeState::ExprType(ty));
+    }
+
+    pub fn initialize_expr_with_func(&mut self, expr_id: ExprId, ty: Type, func_ty: Type) {
+        self.expr_types
+            .insert(expr_id, ExpressionTypeState::FunctionCall(func_ty, ty));
     }
 
     pub fn initialize_pattern(&mut self, pattern_id: PatternId, ty: Type) {
@@ -203,7 +225,17 @@ impl TypeStore {
     }
 
     pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
-        self.expr_types.get(expr_id).expect("Expr type not found")
+        match self.expr_types.get(expr_id).expect("Expr type not found") {
+            ExpressionTypeState::ExprType(ty) => ty,
+            ExpressionTypeState::FunctionCall(_, ty) => ty,
+        }
+    }
+
+    pub fn get_func_type_for_expr(&self, expr_id: &ExprId) -> &Type {
+        match self.expr_types.get(expr_id).expect("Expr type not found") {
+            ExpressionTypeState::ExprType(_) => unreachable!(),
+            ExpressionTypeState::FunctionCall(func_type, _) => func_type,
+        }
     }
 
     pub fn get_pattern_type(&self, pattern_id: &PatternId) -> &Type {
@@ -214,7 +246,7 @@ impl TypeStore {
 
     pub fn apply(&mut self, unifier: &Unifier) {
         for (_, expr_ty) in &mut self.expr_types {
-            *expr_ty = unifier.apply(expr_ty);
+            expr_ty.apply(unifier);
         }
         for (_, pattern_ty) in &mut self.pattern_types {
             *pattern_ty = unifier.apply(pattern_ty);
@@ -223,22 +255,19 @@ impl TypeStore {
 
     pub fn dump(&self, program: &Program) {
         let mut context = ResolverContext::new(program);
-        for (id, expr_ty) in &self.expr_types {
-            let expr = program.exprs.get(id);
+        for (id, _) in &self.expr_types {
+            let expr_ty = self.get_expr_type(id);
             println!(
-                "E: {}: {} {}",
+                "E: {}: {}",
                 id,
-                //expr_ty.get_resolved_type_string_with_context(&mut context)
-                expr_ty,
-                expr.item
+                expr_ty.get_resolved_type_string_with_context(&mut context)
             );
         }
         for (id, pattern_ty) in &self.pattern_types {
             println!(
                 "P: {}: {}",
                 id,
-                //pattern_ty.get_resolved_type_string_with_context(&mut context)
-                pattern_ty
+                pattern_ty.get_resolved_type_string_with_context(&mut context)
             );
         }
     }
@@ -246,19 +275,25 @@ impl TypeStore {
 
 struct TypeStoreInitializer<'a> {
     program: &'a Program,
+    group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
+    function_type_info_store: &'a mut FunctionTypeInfoStore,
     type_var_generator: TypeVarGenerator,
 }
 
 impl<'a> TypeStoreInitializer<'a> {
     fn new(
         program: &'a Program,
+        group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
+        function_type_info_store: &'a mut FunctionTypeInfoStore,
         type_var_generator: TypeVarGenerator,
     ) -> TypeStoreInitializer<'a> {
         TypeStoreInitializer {
             program: program,
+            group: group,
             type_store: type_store,
+            function_type_info_store: function_type_info_store,
             type_var_generator: type_var_generator,
         }
     }
@@ -288,6 +323,11 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
+            Expr::FloatLiteral(_) => {
+                let id = self.program.get_named_type("Data.Float", "Float");
+                self.type_store
+                    .initialize_expr(expr_id, Type::Named("Float".to_string(), id, Vec::new()));
+            }
             Expr::IntegerLiteral(_) => {
                 let id = self.program.get_named_type("Data.Int", "Int");
                 self.type_store
@@ -300,6 +340,23 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .collect();
                 let tuple_ty = Type::Tuple(item_types);
                 self.type_store.initialize_expr(expr_id, tuple_ty);
+            }
+            Expr::StaticFunctionCall(function_id, args) => {
+                let function_type = if self.group.items.contains(function_id) {
+                    self.function_type_info_store
+                        .get(function_id)
+                        .function_type
+                        .clone()
+                } else {
+                    let mut arg_map = BTreeMap::new();
+                    self.function_type_info_store
+                        .get(function_id)
+                        .function_type
+                        .duplicate(&mut arg_map, &mut self.type_var_generator)
+                };
+                let result_ty = function_type.get_result_type(args.len());
+                self.type_store
+                    .initialize_expr_with_func(expr_id, result_ty, function_type);
             }
             _ => unimplemented!(),
         }
@@ -353,75 +410,46 @@ impl<'a> ExpressionChecker<'a> {
         }
     }
 
-    fn apply_substitution(&mut self, unifier: &Unifier) {
-        self.type_store.apply(&unifier);
-        for id in &self.group.items {
-            let info = self.function_type_info_store.get_mut(id);
-            info.apply(unifier);
+    fn unify(&mut self, ty1: &Type, ty2: &Type, location: LocationId) {
+        let mut unifier = Unifier::new(self.type_var_generator.clone());
+        if unifier.unify(ty1, ty2).is_err() {
+            let ty_str1 = ty1.get_resolved_type_string(self.program);
+            let ty_str2 = ty2.get_resolved_type_string(self.program);
+            let err = TypecheckError::TypeMismatch(location, ty_str1, ty_str2);
+            self.errors.push(err);
+        } else {
+            self.type_store.apply(&unifier);
+            for id in &self.group.items {
+                let info = self.function_type_info_store.get_mut(id);
+                info.apply(&unifier);
+            }
         }
     }
 
     fn match_expr_with(&mut self, expr_id: ExprId, ty: &Type) {
-        let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let expr_ty = self.type_store.get_expr_type(&expr_id);
-        if unifier.unify(expr_ty, ty).is_err() {
-            println!("Type mismatch");
-        } else {
-            self.apply_substitution(&unifier);
-        }
-    }
-
-    fn match_expr_with_function_type_info(
-        &mut self,
-        expr_id: ExprId,
-        ty: &Type,
-        function_id: &FunctionId,
-    ) {
-        let expr_ty = self.type_store.get_expr_type(&expr_id);
-        let mut unifier = Unifier::new(self.type_var_generator.clone());
-        if unifier.unify(&expr_ty, ty).is_err() {
-            let func_type_info = self.function_type_info_store.get(function_id);
-            let expr_type_str = expr_ty.get_resolved_type_string(self.program);
-            let result_type_str = func_type_info.result.get_resolved_type_string(self.program);
-            println!("Type mismatch {} {}", expr_type_str, result_type_str);
-            let location = self.program.exprs.get(&expr_id).location_id;
-            let err = TypecheckError::TypeMismatch(location, expr_type_str, result_type_str);
-            self.errors.push(err);
-        } else {
-            self.apply_substitution(&unifier);
-        }
+        let expr_ty = self.type_store.get_expr_type(&expr_id).clone();
+        let location = self.program.exprs.get(&expr_id).location_id;
+        self.unify(ty, &expr_ty, location);
     }
 
     fn match_pattern_with(&mut self, pattern_id: PatternId, ty: &Type) {
-        let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let pattern_ty = self.type_store.get_pattern_type(&pattern_id);
-        if unifier.unify(pattern_ty, ty).is_err() {
-            println!("Type mismatch");
-        } else {
-            self.apply_substitution(&unifier);
-        }
+        let pattern_ty = self.type_store.get_pattern_type(&pattern_id).clone();
+        let location = self.program.patterns.get(&pattern_id).location_id;
+        self.unify(ty, &pattern_ty, location);
     }
 
     fn match_expr_with_pattern(&mut self, expr_id: ExprId, pattern_id: PatternId) {
-        let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let expr_ty = self.type_store.get_expr_type(&expr_id);
-        let pattern_ty = self.type_store.get_pattern_type(&pattern_id);
-        if unifier.unify(&expr_ty, &pattern_ty).is_err() {
-            println!("Type mismatch");
-        } else {
-            self.apply_substitution(&unifier);
-        }
+        let expr_ty = self.type_store.get_expr_type(&expr_id).clone();
+        let pattern_ty = self.type_store.get_pattern_type(&pattern_id).clone();
+        let location = self.program.patterns.get(&pattern_id).location_id;
+        self.unify(&expr_ty, &pattern_ty, location);
     }
 
     fn match_exprs(&mut self, expr_id1: ExprId, expr_id2: ExprId) {
-        let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let expr_ty1 = self.type_store.get_expr_type(&expr_id1);
-        let expr_ty2 = self.type_store.get_expr_type(&expr_id2);
-        if unifier.unify(&expr_ty1, &expr_ty2).is_err() {
-            println!("Type mismatch");
-        } else {
-            self.apply_substitution(&unifier);
-        }
+        let expr_ty1 = self.type_store.get_expr_type(&expr_id1).clone();
+        let expr_ty2 = self.type_store.get_expr_type(&expr_id2).clone();
+        let location = self.program.exprs.get(&expr_id1).location_id;
+        self.unify(&expr_ty1, &expr_ty2, location);
     }
 }
 
@@ -443,7 +471,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 };
                 let func_type_info = self.function_type_info_store.get(&arg_ref.id);
                 let arg_ty = func_type_info.args[index].clone();
-                self.match_expr_with_function_type_info(expr_id, &arg_ty, &arg_ref.id);
+                self.match_expr_with(expr_id, &arg_ty);
             }
             Expr::Bind(pattern_id, rhs) => {
                 self.match_expr_with_pattern(*rhs, *pattern_id);
@@ -457,6 +485,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Expr::ExprValue(_, pattern_id) => {
                 self.match_expr_with_pattern(expr_id, *pattern_id);
             }
+            Expr::FloatLiteral(_) => {}
             Expr::IntegerLiteral(_) => {}
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
@@ -465,6 +494,36 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     .collect();
                 let tuple_ty = Type::Tuple(item_types);
                 self.match_expr_with(expr_id, &tuple_ty);
+            }
+            Expr::StaticFunctionCall(_, args) => {
+                let func_type = self.type_store.get_func_type_for_expr(&expr_id);
+                let arg_count = func_type.get_arg_count();
+                if arg_count >= args.len() {
+                    let mut arg_types = Vec::new();
+                    func_type.get_args(&mut arg_types);
+                    for (arg, arg_type) in args.iter().zip(arg_types.iter()) {
+                        self.match_expr_with(*arg, arg_type);
+                    }
+                } else {
+                    let mut context = ResolverContext::new(self.program);
+                    let function_type_string =
+                        func_type.get_resolved_type_string_with_context(&mut context);
+                    let arg_type_strings: Vec<_> = args
+                        .iter()
+                        .map(|arg| {
+                            let ty = self.type_store.get_expr_type(arg);
+                            ty.get_resolved_type_string_with_context(&mut context)
+                        })
+                        .collect();
+                    let location = self.program.exprs.get(&expr_id).location_id;
+                    let arguments = format_list(&arg_type_strings[..]);
+                    let err = TypecheckError::FunctionArgumentMismatch(
+                        location,
+                        arguments,
+                        function_type_string,
+                    );
+                    self.errors.push(err);
+                }
             }
             _ => unimplemented!(),
         }
@@ -988,8 +1047,13 @@ impl Typechecker {
     ) {
         let function_type_info = function_type_info_store.get_mut(function_id);
         let body = function_type_info.body.expect("body not found");
-        let mut initializer =
-            TypeStoreInitializer::new(program, type_store, type_var_generator.clone());
+        let mut initializer = TypeStoreInitializer::new(
+            program,
+            group,
+            type_store,
+            function_type_info_store,
+            type_var_generator.clone(),
+        );
         walk_expr(&body, &mut initializer);
     }
 
@@ -1003,8 +1067,8 @@ impl Typechecker {
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
-        let func = program.functions.get(function_id);
-        println!("Checking {}", func.info);
+        //let func = program.functions.get(function_id);
+        //println!("Checking {}", func.info);
         let function_type_info = function_type_info_store.get(function_id);
         let result_ty = function_type_info.result.clone();
         let body = function_type_info.body.expect("body not found");
@@ -1017,7 +1081,7 @@ impl Typechecker {
             errors,
         );
         walk_expr(&body, &mut checker);
-        checker.match_expr_with_function_type_info(body, &result_ty, function_id);
+        checker.match_expr_with(body, &result_ty);
     }
 
     fn process_dep_group(
@@ -1135,7 +1199,7 @@ impl Typechecker {
                 program,
                 type_var_generator.clone(),
             );
-            type_store.dump(program);
+            //type_store.dump(program);
         }
 
         if !errors.is_empty() {

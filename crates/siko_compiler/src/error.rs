@@ -820,11 +820,18 @@ impl Error {
                             );
                         }
                         TypecheckError2::TypeMismatch(id, expected, found) => {
-                            eprintln!("{} type mismatch in expression", error.red());
+                            eprintln!("{} type mismatch in expression", error.green());
                             eprintln!("Expected: {}", expected.yellow());
                             eprintln!("Found:    {}", found.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError2::FunctionArgumentMismatch(id, args, func) => {
+                            eprintln!("{} invalid argument(s)", error.red());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                            eprintln!("Argument(s):      {}", args.yellow());
+                            eprintln!("Function type:    {}", func.yellow());
                         }
                     }
                 }

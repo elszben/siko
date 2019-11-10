@@ -1,3 +1,4 @@
+use crate::type_var_generator::TypeVarGenerator;
 use siko_ir::class::ClassId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
@@ -148,6 +149,44 @@ impl Type {
         }
     }
 
+    pub fn duplicate(
+        &self,
+        arg_map: &mut BTreeMap<usize, usize>,
+        type_var_generator: &mut TypeVarGenerator,
+    ) -> Type {
+        match self {
+            Type::Tuple(items) => {
+                let new_items: Vec<_> = items
+                    .iter()
+                    .map(|i| i.duplicate(arg_map, type_var_generator))
+                    .collect();
+                Type::Tuple(new_items)
+            }
+            Type::Named(name, id, items) => {
+                let new_items: Vec<_> = items
+                    .iter()
+                    .map(|i| i.duplicate(arg_map, type_var_generator))
+                    .collect();
+                Type::Named(name.clone(), *id, new_items)
+            }
+            Type::Function(from, to) => {
+                let from = from.duplicate(arg_map, type_var_generator);
+                let to = to.duplicate(arg_map, type_var_generator);
+                Type::Function(Box::new(from), Box::new(to))
+            }
+            Type::Var(index, constraints) => {
+                let mut gen = type_var_generator.clone();
+                let new_index = arg_map.entry(*index).or_insert_with(|| gen.get_new_index());
+                Type::Var(*new_index, constraints.clone())
+            }
+            Type::FixedTypeArg(name, index, constraints) => {
+                let mut gen = type_var_generator.clone();
+                let new_index = arg_map.entry(*index).or_insert_with(|| gen.get_new_index());
+                Type::FixedTypeArg(name.clone(), *new_index, constraints.clone())
+            }
+        }
+    }
+
     pub fn get_arg_count(&self) -> usize {
         match self {
             Type::Tuple(..) => 0,
@@ -155,6 +194,39 @@ impl Type {
             Type::Function(_, to) => 1 + to.get_arg_count(),
             Type::Var(..) => 0,
             Type::FixedTypeArg(..) => 0,
+        }
+    }
+
+    pub fn get_args(&self, args: &mut Vec<Type>) {
+        match self {
+            Type::Tuple(..) => {}
+            Type::Named(..) => {}
+            Type::Function(from, to) => {
+                args.push(*from.clone());
+                to.get_args(args);
+            }
+            Type::Var(..) => {}
+            Type::FixedTypeArg(..) => {}
+        }
+    }
+
+    pub fn get_result_type(&self, arg_count: usize) -> Type {
+        match self {
+            Type::Tuple(..) => self.clone(),
+            Type::Named(..) => self.clone(),
+            Type::Function(_, to) => {
+                if arg_count == 1 {
+                    *to.clone()
+                } else {
+                    if arg_count == 0 {
+                        self.clone()
+                    } else {
+                        to.get_result_type(arg_count - 1)
+                    }
+                }
+            }
+            Type::Var(..) => self.clone(),
+            Type::FixedTypeArg(..) => self.clone(),
         }
     }
 

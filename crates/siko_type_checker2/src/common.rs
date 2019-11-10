@@ -5,7 +5,6 @@ use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
 use siko_ir::program::Program;
 use siko_location_info::item::LocationId;
-
 use std::collections::BTreeMap;
 
 pub struct FunctionTypeInfoStore {

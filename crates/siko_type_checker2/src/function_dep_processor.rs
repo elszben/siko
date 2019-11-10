@@ -1,4 +1,3 @@
-use crate::common::FunctionTypeInfo;
 use crate::common::FunctionTypeInfoStore;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -10,7 +9,6 @@ use siko_ir::walker::walk_expr;
 use siko_ir::walker::Visitor;
 #[allow(unused)]
 use siko_util::format_list;
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use crate::dependency_processor::DependencyCollector;
