@@ -315,6 +315,16 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
+            Expr::DynamicFunctionCall(_, args) => {
+                let mut func_args = Vec::new();
+                let (function_type, result_ty) = create_general_function_type(
+                    &mut func_args,
+                    args.len(),
+                    &mut self.type_var_generator,
+                );
+                self.type_store
+                    .initialize_expr_with_func(expr_id, result_ty, function_type);
+            }
             Expr::Do(_) => {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
@@ -451,6 +461,34 @@ impl<'a> ExpressionChecker<'a> {
         let location = self.program.exprs.get(&expr_id1).location_id;
         self.unify(&expr_ty1, &expr_ty2, location);
     }
+
+    fn check_function_call(&mut self, expr_id: ExprId, args: &Vec<ExprId>) {
+        let func_type = self.type_store.get_func_type_for_expr(&expr_id);
+        let arg_count = func_type.get_arg_count();
+        if arg_count >= args.len() {
+            let mut arg_types = Vec::new();
+            func_type.get_args(&mut arg_types);
+            for (arg, arg_type) in args.iter().zip(arg_types.iter()) {
+                self.match_expr_with(*arg, arg_type);
+            }
+        } else {
+            let mut context = ResolverContext::new(self.program);
+            let function_type_string =
+                func_type.get_resolved_type_string_with_context(&mut context);
+            let arg_type_strings: Vec<_> = args
+                .iter()
+                .map(|arg| {
+                    let ty = self.type_store.get_expr_type(arg);
+                    ty.get_resolved_type_string_with_context(&mut context)
+                })
+                .collect();
+            let location = self.program.exprs.get(&expr_id).location_id;
+            let arguments = format_list(&arg_type_strings[..]);
+            let err =
+                TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
+            self.errors.push(err);
+        }
+    }
 }
 
 impl<'a> Visitor for ExpressionChecker<'a> {
@@ -478,6 +516,11 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 let expr_ty = Type::Tuple(Vec::new());
                 self.match_expr_with(expr_id, &expr_ty);
             }
+            Expr::DynamicFunctionCall(func_expr_id, args) => {
+                let func_type = self.type_store.get_func_type_for_expr(&expr_id).clone();
+                self.match_expr_with(*func_expr_id, &func_type);
+                self.check_function_call(expr_id, args);
+            }
             Expr::Do(items) => {
                 let last_expr_id = items[items.len() - 1];
                 self.match_exprs(expr_id, last_expr_id);
@@ -496,34 +539,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_expr_with(expr_id, &tuple_ty);
             }
             Expr::StaticFunctionCall(_, args) => {
-                let func_type = self.type_store.get_func_type_for_expr(&expr_id);
-                let arg_count = func_type.get_arg_count();
-                if arg_count >= args.len() {
-                    let mut arg_types = Vec::new();
-                    func_type.get_args(&mut arg_types);
-                    for (arg, arg_type) in args.iter().zip(arg_types.iter()) {
-                        self.match_expr_with(*arg, arg_type);
-                    }
-                } else {
-                    let mut context = ResolverContext::new(self.program);
-                    let function_type_string =
-                        func_type.get_resolved_type_string_with_context(&mut context);
-                    let arg_type_strings: Vec<_> = args
-                        .iter()
-                        .map(|arg| {
-                            let ty = self.type_store.get_expr_type(arg);
-                            ty.get_resolved_type_string_with_context(&mut context)
-                        })
-                        .collect();
-                    let location = self.program.exprs.get(&expr_id).location_id;
-                    let arguments = format_list(&arg_type_strings[..]);
-                    let err = TypecheckError::FunctionArgumentMismatch(
-                        location,
-                        arguments,
-                        function_type_string,
-                    );
-                    self.errors.push(err);
-                }
+                self.check_function_call(expr_id, args);
             }
             _ => unimplemented!(),
         }

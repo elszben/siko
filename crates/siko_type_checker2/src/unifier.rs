@@ -84,18 +84,6 @@ impl Unifier {
                 }
                 return self.substitution.add(*index, &type1);
             }
-            (Type::FixedTypeArg(_, index, constraints), type2) => {
-                for c in constraints {
-                    self.substitution.add_constraint(*c, type2.clone());
-                }
-                return self.substitution.add(*index, &type2);
-            }
-            (type1, Type::FixedTypeArg(_, index, constraints)) => {
-                for c in constraints {
-                    self.substitution.add_constraint(*c, type1.clone());
-                }
-                return self.substitution.add(*index, &type1);
-            }
             (Type::Tuple(items1), Type::Tuple(items2)) => {
                 if items1.len() != items2.len() {
                     return Err(Error::Fail);
