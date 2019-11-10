@@ -34,6 +34,10 @@ impl Unifier {
                 }
             }
             (Type::Var(index1, constraints1), Type::Var(index2, constraints2)) => {
+                if index1 == index2 {
+                    assert_eq!(constraints1, constraints2);
+                    return Ok(());
+                }
                 if constraints1 == constraints2 {
                     return self.substitution.add(*index1, &type2);
                 }

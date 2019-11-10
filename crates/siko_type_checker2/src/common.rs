@@ -3,6 +3,7 @@ use crate::unifier::Unifier;
 use siko_ir::class::ClassId;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
+use siko_ir::program::Program;
 use siko_location_info::item::LocationId;
 
 use std::collections::BTreeMap;
@@ -32,6 +33,16 @@ impl FunctionTypeInfoStore {
         self.function_type_info_map
             .get_mut(id)
             .expect("Function type info not found")
+    }
+
+    pub fn dump(&self, program: &Program) {
+        for (_, function) in &self.function_type_info_map {
+            println!(
+                "{} {}",
+                function.displayed_name,
+                function.function_type.get_resolved_type_string(program)
+            );
+        }
     }
 }
 

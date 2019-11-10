@@ -18,5 +18,9 @@ instance (Show a) => Boo C a
 
 data Foo = Foo Int Float (Bool, Bool)
 
-main :: Int
+//foo :: Int -> Int
+//foo a :: a -> a 
+foo a = a
+
+main :: ()
 main = ()

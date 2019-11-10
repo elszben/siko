@@ -71,7 +71,7 @@ impl<'a> FunctionDependencyProcessor<'a> {
         for (id, info) in &self.program.functions.items {
             // hack
             let displayed_name = format!("{}", info.info);
-            if displayed_name != "Main/main" {
+            if displayed_name != "Main/main" && displayed_name != "Main/foo" {
                 continue;
             }
             let type_info = self.function_type_info_store.get(id);
