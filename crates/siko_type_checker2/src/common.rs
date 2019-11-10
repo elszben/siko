@@ -85,3 +85,7 @@ impl FunctionTypeInfo {
         self.function_type = unifier.apply(&self.function_type);
     }
 }
+
+pub struct ClassMemberTypeInfo {
+    pub ty: Type,
+}

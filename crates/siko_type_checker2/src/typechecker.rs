@@ -1,4 +1,5 @@
 use crate::common::AdtTypeInfo;
+use crate::common::ClassMemberTypeInfo;
 use crate::common::DeriveInfo;
 use crate::common::FunctionTypeInfo;
 use crate::common::FunctionTypeInfoStore;
@@ -17,6 +18,7 @@ use crate::types::Type;
 use crate::unifier::Unifier;
 use crate::util::create_general_function_type;
 use siko_ir::class::ClassId;
+use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
@@ -278,6 +280,7 @@ struct TypeStoreInitializer<'a> {
     group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
     function_type_info_store: &'a mut FunctionTypeInfoStore,
+    class_member_type_info_map: &'a BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
     type_var_generator: TypeVarGenerator,
 }
 
@@ -287,6 +290,7 @@ impl<'a> TypeStoreInitializer<'a> {
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         function_type_info_store: &'a mut FunctionTypeInfoStore,
+        class_member_type_info_map: &'a BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
         type_var_generator: TypeVarGenerator,
     ) -> TypeStoreInitializer<'a> {
         TypeStoreInitializer {
@@ -294,6 +298,7 @@ impl<'a> TypeStoreInitializer<'a> {
             group: group,
             type_store: type_store,
             function_type_info_store: function_type_info_store,
+            class_member_type_info_map: class_member_type_info_map,
             type_var_generator: type_var_generator,
         }
     }
@@ -314,6 +319,18 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             Expr::Bind(_, _) => {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
+            }
+            Expr::ClassFunctionCall(class_member_id, args) => {
+                let class_member_type_info = self
+                    .class_member_type_info_map
+                    .get(class_member_id)
+                    .expect("Class member type info not found");
+                let result_ty = class_member_type_info.ty.get_result_type(args.len());
+                self.type_store.initialize_expr_with_func(
+                    expr_id,
+                    result_ty,
+                    class_member_type_info.ty.clone(),
+                );
             }
             Expr::DynamicFunctionCall(_, args) => {
                 let mut func_args = Vec::new();
@@ -515,6 +532,9 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_expr_with_pattern(*rhs, *pattern_id);
                 let expr_ty = Type::Tuple(Vec::new());
                 self.match_expr_with(expr_id, &expr_ty);
+            }
+            Expr::ClassFunctionCall(_, args) => {
+                self.check_function_call(expr_id, args);
             }
             Expr::DynamicFunctionCall(func_expr_id, args) => {
                 let func_type = self.type_store.get_func_type_for_expr(&expr_id).clone();
@@ -1058,6 +1078,7 @@ impl Typechecker {
         group: &DependencyGroup<FunctionId>,
         function_type_info_store: &mut FunctionTypeInfoStore,
         type_store: &mut TypeStore,
+        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
@@ -1068,6 +1089,7 @@ impl Typechecker {
             group,
             type_store,
             function_type_info_store,
+            class_member_type_info_map,
             type_var_generator.clone(),
         );
         walk_expr(&body, &mut initializer);
@@ -1106,6 +1128,7 @@ impl Typechecker {
         errors: &mut Vec<TypecheckError>,
         function_type_info_store: &mut FunctionTypeInfoStore,
         type_store: &mut TypeStore,
+        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
@@ -1115,6 +1138,7 @@ impl Typechecker {
                 group,
                 function_type_info_store,
                 type_store,
+                class_member_type_info_map,
                 program,
                 type_var_generator.clone(),
             );
@@ -1138,6 +1162,20 @@ impl Typechecker {
         }
     }
 
+    fn process_class_members(
+        &self,
+        program: &Program,
+        type_var_generator: &mut TypeVarGenerator,
+        class_member_type_info_map: &mut BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+    ) {
+        for (class_member_id, class_member) in &program.class_members.items {
+            let ty =
+                process_type_signature(class_member.type_signature, program, type_var_generator);
+            let class_member_type_info = ClassMemberTypeInfo { ty: ty };
+            class_member_type_info_map.insert(*class_member_id, class_member_type_info);
+        }
+    }
+
     pub fn check(&self, program: &Program, counter: RcCounter) -> Result<(), Error> {
         let mut errors = Vec::new();
         let mut type_var_generator = TypeVarGenerator::new(counter);
@@ -1146,12 +1184,19 @@ impl Typechecker {
         let mut adt_type_info_map = BTreeMap::new();
         let mut record_type_info_map = BTreeMap::new();
         let mut function_type_info_store = FunctionTypeInfoStore::new();
+        let mut class_member_type_info_map = BTreeMap::new();
 
         self.process_classes_and_user_defined_instances(
             program,
             &mut type_var_generator,
             &mut instance_resolver,
             &mut class_types,
+        );
+
+        self.process_class_members(
+            program,
+            &mut type_var_generator,
+            &mut class_member_type_info_map,
         );
 
         self.process_data_types(
@@ -1212,6 +1257,7 @@ impl Typechecker {
                 &mut errors,
                 &mut function_type_info_store,
                 &mut type_store,
+                &class_member_type_info_map,
                 program,
                 type_var_generator.clone(),
             );
