@@ -12,6 +12,7 @@ use crate::instance_resolver::InstanceResolver;
 use crate::substitution::Substitution;
 use crate::type_var_generator::TypeVarGenerator;
 use crate::types::BaseType;
+use crate::types::ResolverContext;
 use crate::types::Type;
 use crate::unifier::Unifier;
 use crate::util::create_general_function_type;
@@ -201,16 +202,45 @@ impl TypeStore {
         self.pattern_types.insert(pattern_id, ty);
     }
 
-    pub fn get_expr_type_mut(&mut self, expr_id: &ExprId) -> &mut Type {
-        self.expr_types
-            .get_mut(expr_id)
-            .expect("Expr type not found")
+    pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
+        self.expr_types.get(expr_id).expect("Expr type not found")
     }
 
-    pub fn get_pattern_type_mut(&mut self, pattern_id: &PatternId) -> &mut Type {
+    pub fn get_pattern_type(&self, pattern_id: &PatternId) -> &Type {
         self.pattern_types
-            .get_mut(pattern_id)
+            .get(pattern_id)
             .expect("Pattern type not found")
+    }
+
+    pub fn apply(&mut self, unifier: &Unifier) {
+        for (_, expr_ty) in &mut self.expr_types {
+            *expr_ty = unifier.apply(expr_ty);
+        }
+        for (_, pattern_ty) in &mut self.pattern_types {
+            *pattern_ty = unifier.apply(pattern_ty);
+        }
+    }
+
+    pub fn dump(&self, program: &Program) {
+        let mut context = ResolverContext::new(program);
+        for (id, expr_ty) in &self.expr_types {
+            let expr = program.exprs.get(id);
+            println!(
+                "E: {}: {} {}",
+                id,
+                //expr_ty.get_resolved_type_string_with_context(&mut context)
+                expr_ty,
+                expr.item
+            );
+        }
+        for (id, pattern_ty) in &self.pattern_types {
+            println!(
+                "P: {}: {}",
+                id,
+                //pattern_ty.get_resolved_type_string_with_context(&mut context)
+                pattern_ty
+            );
+        }
     }
 }
 
@@ -258,6 +288,11 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
+            Expr::IntegerLiteral(_) => {
+                let id = self.program.get_named_type("Data.Int", "Int");
+                self.type_store
+                    .initialize_expr(expr_id, Type::Named("Int".to_string(), id, Vec::new()));
+            }
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
@@ -292,6 +327,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
 
 struct ExpressionChecker<'a> {
     program: &'a Program,
+    group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
     type_var_generator: TypeVarGenerator,
     function_type_info_store: &'a mut FunctionTypeInfoStore,
@@ -301,6 +337,7 @@ struct ExpressionChecker<'a> {
 impl<'a> ExpressionChecker<'a> {
     fn new(
         program: &'a Program,
+        group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         type_var_generator: TypeVarGenerator,
         function_type_info_store: &'a mut FunctionTypeInfoStore,
@@ -308,6 +345,7 @@ impl<'a> ExpressionChecker<'a> {
     ) -> ExpressionChecker<'a> {
         ExpressionChecker {
             program: program,
+            group: group,
             type_store: type_store,
             type_var_generator: type_var_generator,
             function_type_info_store: function_type_info_store,
@@ -315,15 +353,21 @@ impl<'a> ExpressionChecker<'a> {
         }
     }
 
-    fn match_expr_with(&mut self, expr_id: ExprId, ty: &Type) -> Option<Type> {
+    fn apply_substitution(&mut self, unifier: &Unifier) {
+        self.type_store.apply(&unifier);
+        for id in &self.group.items {
+            let info = self.function_type_info_store.get_mut(id);
+            info.apply(unifier);
+        }
+    }
+
+    fn match_expr_with(&mut self, expr_id: ExprId, ty: &Type) {
         let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let expr_ty = self.type_store.get_expr_type_mut(&expr_id);
+        let expr_ty = self.type_store.get_expr_type(&expr_id);
         if unifier.unify(expr_ty, ty).is_err() {
             println!("Type mismatch");
-            return None;
         } else {
-            *expr_ty = unifier.apply(expr_ty);
-            return Some(unifier.apply(ty));
+            self.apply_substitution(&unifier);
         }
     }
 
@@ -333,11 +377,10 @@ impl<'a> ExpressionChecker<'a> {
         ty: &Type,
         function_id: &FunctionId,
     ) {
-        let expr_ty = self.type_store.get_expr_type_mut(&expr_id);
+        let expr_ty = self.type_store.get_expr_type(&expr_id);
         let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let func_type_info = self.function_type_info_store.get_mut(function_id);
         if unifier.unify(&expr_ty, ty).is_err() {
-            println!("boo {} {}", expr_ty, ty);
+            let func_type_info = self.function_type_info_store.get(function_id);
             let expr_type_str = expr_ty.get_resolved_type_string(self.program);
             let result_type_str = func_type_info.result.get_resolved_type_string(self.program);
             println!("Type mismatch {} {}", expr_type_str, result_type_str);
@@ -345,48 +388,39 @@ impl<'a> ExpressionChecker<'a> {
             let err = TypecheckError::TypeMismatch(location, expr_type_str, result_type_str);
             self.errors.push(err);
         } else {
-            *expr_ty = unifier.apply(expr_ty);
-            func_type_info.apply(&unifier);
+            self.apply_substitution(&unifier);
         }
     }
 
-    fn match_pattern_with(&mut self, pattern_id: PatternId, ty: &Type) -> Option<Type> {
+    fn match_pattern_with(&mut self, pattern_id: PatternId, ty: &Type) {
         let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let pattern_ty = self.type_store.get_pattern_type_mut(&pattern_id);
+        let pattern_ty = self.type_store.get_pattern_type(&pattern_id);
         if unifier.unify(pattern_ty, ty).is_err() {
             println!("Type mismatch");
-            return None;
         } else {
-            *pattern_ty = unifier.apply(pattern_ty);
-            return Some(unifier.apply(ty));
+            self.apply_substitution(&unifier);
         }
     }
 
     fn match_expr_with_pattern(&mut self, expr_id: ExprId, pattern_id: PatternId) {
         let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let expr_ty = self.type_store.get_expr_type_mut(&expr_id).clone();
-        let pattern_ty = self.type_store.get_pattern_type_mut(&pattern_id).clone();
+        let expr_ty = self.type_store.get_expr_type(&expr_id);
+        let pattern_ty = self.type_store.get_pattern_type(&pattern_id);
         if unifier.unify(&expr_ty, &pattern_ty).is_err() {
             println!("Type mismatch");
         } else {
-            let expr_ty = unifier.apply(&expr_ty);
-            let pattern_ty = unifier.apply(&pattern_ty);
-            *self.type_store.get_expr_type_mut(&expr_id) = expr_ty;
-            *self.type_store.get_pattern_type_mut(&pattern_id) = pattern_ty;
+            self.apply_substitution(&unifier);
         }
     }
 
     fn match_exprs(&mut self, expr_id1: ExprId, expr_id2: ExprId) {
         let mut unifier = Unifier::new(self.type_var_generator.clone());
-        let expr_ty1 = self.type_store.get_expr_type_mut(&expr_id1).clone();
-        let expr_ty2 = self.type_store.get_expr_type_mut(&expr_id2).clone();
+        let expr_ty1 = self.type_store.get_expr_type(&expr_id1);
+        let expr_ty2 = self.type_store.get_expr_type(&expr_id2);
         if unifier.unify(&expr_ty1, &expr_ty2).is_err() {
             println!("Type mismatch");
         } else {
-            let expr_ty1 = unifier.apply(&expr_ty1);
-            *self.type_store.get_expr_type_mut(&expr_id1) = expr_ty1;
-            let expr_ty2 = unifier.apply(&expr_ty2);
-            *self.type_store.get_expr_type_mut(&expr_id2) = expr_ty2;
+            self.apply_substitution(&unifier);
         }
     }
 }
@@ -423,17 +457,14 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Expr::ExprValue(_, pattern_id) => {
                 self.match_expr_with_pattern(expr_id, *pattern_id);
             }
+            Expr::IntegerLiteral(_) => {}
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
-                    .map(|item| self.type_store.get_expr_type_mut(item).clone())
+                    .map(|item| self.type_store.get_expr_type(item).clone())
                     .collect();
                 let tuple_ty = Type::Tuple(item_types);
-                if let Some(Type::Tuple(result_types)) = self.match_expr_with(expr_id, &tuple_ty) {
-                    for (item, item_type) in items.iter().zip(result_types.into_iter()) {
-                        *self.type_store.get_expr_type_mut(item) = item_type;
-                    }
-                }
+                self.match_expr_with(expr_id, &tuple_ty);
             }
             _ => unimplemented!(),
         }
@@ -446,16 +477,10 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Pattern::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
-                    .map(|item| self.type_store.get_pattern_type_mut(item).clone())
+                    .map(|item| self.type_store.get_pattern_type(item).clone())
                     .collect();
                 let tuple_ty = Type::Tuple(item_types);
-                if let Some(Type::Tuple(result_types)) =
-                    self.match_pattern_with(pattern_id, &tuple_ty)
-                {
-                    for (item, item_type) in items.iter().zip(result_types.into_iter()) {
-                        *self.type_store.get_pattern_type_mut(item) = item_type;
-                    }
-                }
+                self.match_pattern_with(pattern_id, &tuple_ty);
             }
             _ => unimplemented!(),
         }
@@ -985,6 +1010,7 @@ impl Typechecker {
         let body = function_type_info.body.expect("body not found");
         let mut checker = ExpressionChecker::new(
             program,
+            group,
             type_store,
             type_var_generator.clone(),
             function_type_info_store,
@@ -1014,7 +1040,7 @@ impl Typechecker {
             );
         }
 
-        for _ in 0..3 {
+        for _ in 0..2 {
             for function in &group.items {
                 self.process_function(
                     function,
@@ -1109,6 +1135,7 @@ impl Typechecker {
                 program,
                 type_var_generator.clone(),
             );
+            type_store.dump(program);
         }
 
         if !errors.is_empty() {

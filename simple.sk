@@ -20,7 +20,8 @@ data Foo = Foo Int Float (Bool, Bool)
 
 //foo :: Int -> Int
 //foo a :: a -> a 
-foo a = a
+//foo a = a
 
-main :: ()
-main = ()
+//main :: ()
+//main = ()
+main a = a
