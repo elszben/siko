@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 pub struct ResolverContext {
-    type_args: BTreeMap<usize, usize>,
+    type_args: BTreeMap<usize, String>,
     next_index: Counter,
     list_type_id: TypeDefId,
     class_names: BTreeMap<ClassId, String>,
@@ -32,15 +32,21 @@ impl ResolverContext {
     pub fn add_type_arg(&mut self, arg: usize) {
         if !self.type_args.contains_key(&arg) {
             let index = self.next_index.next();
-            self.type_args.insert(arg, index);
+            self.type_args.insert(arg, format!("t{}", index));
+        }
+    }
+
+    pub fn add_named_type_arg(&mut self, arg: usize, name: String) {
+        if !self.type_args.contains_key(&arg) {
+            self.type_args.insert(arg, name);
         }
     }
 
     pub fn get_type_arg_name(&self, arg: usize) -> String {
-        format!(
-            "t{}",
-            self.type_args.get(&arg).expect("type arg name not found")
-        )
+        self.type_args
+            .get(&arg)
+            .expect("type arg name not found")
+            .clone()
     }
 
     pub fn get_list_type_id(&self) -> TypeDefId {
@@ -230,21 +236,21 @@ impl Type {
         }
     }
 
-    fn collect(&self, args: &mut Collector<usize, ClassId>) {
+    fn collect(&self, args: &mut Collector<usize, ClassId>, context: &mut ResolverContext) {
         match self {
             Type::Tuple(items) => {
                 for item in items {
-                    item.collect(args);
+                    item.collect(args, context);
                 }
             }
             Type::Named(_, _, items) => {
                 for item in items {
-                    item.collect(args);
+                    item.collect(args, context);
                 }
             }
             Type::Function(from, to) => {
-                from.collect(args);
-                to.collect(args);
+                from.collect(args, context);
+                to.collect(args, context);
             }
             Type::Var(index, constraints) => {
                 args.add_empty(*index);
@@ -252,8 +258,9 @@ impl Type {
                     args.add(*index, *c);
                 }
             }
-            Type::FixedTypeArg(_, index, constraints) => {
+            Type::FixedTypeArg(name, index, constraints) => {
                 args.add_empty(*index);
+                context.add_named_type_arg(*index, name.clone());
                 for c in constraints {
                     args.add(*index, *c);
                 }
@@ -271,7 +278,7 @@ impl Type {
         resolver_context: &mut ResolverContext,
     ) -> String {
         let mut args = Collector::new();
-        self.collect(&mut args);
+        self.collect(&mut args, resolver_context);
         for (arg, _) in &args.items {
             resolver_context.add_type_arg(*arg);
         }

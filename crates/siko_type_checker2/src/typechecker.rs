@@ -325,12 +325,14 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .class_member_type_info_map
                     .get(class_member_id)
                     .expect("Class member type info not found");
-                let result_ty = class_member_type_info.ty.get_result_type(args.len());
-                self.type_store.initialize_expr_with_func(
-                    expr_id,
-                    result_ty,
-                    class_member_type_info.ty.clone(),
-                );
+                let mut arg_map = BTreeMap::new();
+                let function_type = class_member_type_info
+                    .ty
+                    .duplicate(&mut arg_map, &mut self.type_var_generator)
+                    .remove_fixed_types();
+                let result_ty = function_type.get_result_type(args.len());
+                self.type_store
+                    .initialize_expr_with_func(expr_id, result_ty, function_type);
             }
             Expr::DynamicFunctionCall(_, args) => {
                 let mut func_args = Vec::new();
@@ -380,6 +382,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                         .get(function_id)
                         .function_type
                         .duplicate(&mut arg_map, &mut self.type_var_generator)
+                        .remove_fixed_types()
                 };
                 let result_ty = function_type.get_result_type(args.len());
                 self.type_store
@@ -445,6 +448,8 @@ impl<'a> ExpressionChecker<'a> {
             let err = TypecheckError::TypeMismatch(location, ty_str1, ty_str2);
             self.errors.push(err);
         } else {
+            let cs = unifier.get_constraints();
+            println!("cs{:?}", cs);
             self.type_store.apply(&unifier);
             for id in &self.group.items {
                 let info = self.function_type_info_store.get_mut(id);
