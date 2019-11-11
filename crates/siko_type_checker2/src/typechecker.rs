@@ -180,6 +180,7 @@ fn process_type_change(
     instance_changed
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum ExpressionTypeState {
     ExprType(Type),
     FunctionCall(Type, Type),
@@ -213,13 +214,17 @@ impl TypeStore {
     }
 
     pub fn initialize_expr(&mut self, expr_id: ExprId, ty: Type) {
-        self.expr_types
+        let r = self
+            .expr_types
             .insert(expr_id, ExpressionTypeState::ExprType(ty));
+        assert_eq!(r, None);
     }
 
     pub fn initialize_expr_with_func(&mut self, expr_id: ExprId, ty: Type, func_ty: Type) {
-        self.expr_types
+        let r = self
+            .expr_types
             .insert(expr_id, ExpressionTypeState::FunctionCall(func_ty, ty));
+        assert_eq!(r, None);
     }
 
     pub fn initialize_pattern(&mut self, pattern_id: PatternId, ty: Type) {
@@ -281,6 +286,7 @@ struct TypeStoreInitializer<'a> {
     type_store: &'a mut TypeStore,
     function_type_info_store: &'a mut FunctionTypeInfoStore,
     class_member_type_info_map: &'a BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+    adt_type_info_map: &'a BTreeMap<TypeDefId, AdtTypeInfo>,
     type_var_generator: TypeVarGenerator,
 }
 
@@ -291,6 +297,7 @@ impl<'a> TypeStoreInitializer<'a> {
         type_store: &'a mut TypeStore,
         function_type_info_store: &'a mut FunctionTypeInfoStore,
         class_member_type_info_map: &'a BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+        adt_type_info_map: &'a BTreeMap<TypeDefId, AdtTypeInfo>,
         type_var_generator: TypeVarGenerator,
     ) -> TypeStoreInitializer<'a> {
         TypeStoreInitializer {
@@ -300,7 +307,13 @@ impl<'a> TypeStoreInitializer<'a> {
             function_type_info_store: function_type_info_store,
             class_member_type_info_map: class_member_type_info_map,
             type_var_generator: type_var_generator,
+            adt_type_info_map: adt_type_info_map,
         }
+    }
+
+    fn get_bool_type(&self) -> Type {
+        let id = self.program.get_named_type("Data.Bool", "Bool");
+        Type::Named("Bool".to_string(), id, Vec::new())
     }
 }
 
@@ -319,6 +332,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             Expr::Bind(_, _) => {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
+            }
+            Expr::BoolLiteral(_) => {
+                self.type_store
+                    .initialize_expr(expr_id, self.get_bool_type());
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let class_member_type_info = self
@@ -357,6 +374,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store
                     .initialize_expr(expr_id, Type::Named("Float".to_string(), id, Vec::new()));
             }
+            Expr::If(..) => {
+                let ty = self.type_var_generator.get_new_type_var();
+                self.type_store.initialize_expr(expr_id, ty);
+            }
             Expr::IntegerLiteral(_) => {
                 let id = self.program.get_named_type("Data.Int", "Int");
                 self.type_store
@@ -388,7 +409,12 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store
                     .initialize_expr_with_func(expr_id, result_ty, function_type);
             }
-            _ => unimplemented!(),
+            Expr::StringLiteral(_) => {
+                let id = self.program.get_named_type("Data.String", "String");
+                self.type_store
+                    .initialize_expr(expr_id, Type::Named("String".to_string(), id, Vec::new()));
+            }
+            _ => panic!("init of {} not yet implemented", expr),
         }
     }
 
@@ -407,7 +433,11 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let tuple_ty = Type::Tuple(item_types);
                 self.type_store.initialize_pattern(pattern_id, tuple_ty);
             }
-            _ => unimplemented!(),
+            Pattern::Variant(typedef_id, index, args) => {
+                let ty = self.type_var_generator.get_new_type_var();
+                self.type_store.initialize_pattern(pattern_id, ty);
+            }
+            _ => panic!("{:?} NYI", pattern),
         }
     }
 }
@@ -511,6 +541,11 @@ impl<'a> ExpressionChecker<'a> {
             self.errors.push(err);
         }
     }
+
+    fn get_bool_type(&self) -> Type {
+        let id = self.program.get_named_type("Data.Bool", "Bool");
+        Type::Named("Bool".to_string(), id, Vec::new())
+    }
 }
 
 impl<'a> Visitor for ExpressionChecker<'a> {
@@ -538,6 +573,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 let expr_ty = Type::Tuple(Vec::new());
                 self.match_expr_with(expr_id, &expr_ty);
             }
+            Expr::BoolLiteral(_) => {}
             Expr::ClassFunctionCall(_, args) => {
                 self.check_function_call(expr_id, args);
             }
@@ -554,6 +590,12 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_expr_with_pattern(expr_id, *pattern_id);
             }
             Expr::FloatLiteral(_) => {}
+            Expr::If(cond, true_branch, false_branch) => {
+                let bool_ty = self.get_bool_type();
+                self.match_expr_with(*cond, &bool_ty);
+                self.match_exprs(*true_branch, *false_branch);
+                self.match_exprs(expr_id, *true_branch);
+            }
             Expr::IntegerLiteral(_) => {}
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
@@ -566,6 +608,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Expr::StaticFunctionCall(_, args) => {
                 self.check_function_call(expr_id, args);
             }
+            Expr::StringLiteral(_) => {}
             _ => unimplemented!(),
         }
     }
@@ -887,11 +930,6 @@ impl Typechecker {
         function_type_info_store: &mut FunctionTypeInfoStore,
     ) {
         for (id, function) in &program.functions.items {
-            let displayed_name = format!("{}", function.info);
-            // hack
-            if displayed_name != "Main/main" && displayed_name != "Main/foo" {
-                continue;
-            }
             match &function.info {
                 FunctionInfo::RecordConstructor(i) => {
                     let record = program.typedefs.get(&i.type_id).get_record();
@@ -980,6 +1018,7 @@ impl Typechecker {
                     function_type_info_store.add(*id, func_type_info);
                 }
                 FunctionInfo::Lambda(i) => {
+                    let displayed_name = format!("{}", function.info);
                     let func_type_info = self.register_untyped_function(
                         displayed_name,
                         function,
@@ -1034,6 +1073,7 @@ impl Typechecker {
                     }
                     None => match i.body {
                         Some(body) => {
+                            let displayed_name = format!("{}", function.info);
                             let func_type_info = self.register_untyped_function(
                                 displayed_name,
                                 function,
@@ -1084,6 +1124,7 @@ impl Typechecker {
         function_type_info_store: &mut FunctionTypeInfoStore,
         type_store: &mut TypeStore,
         class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+        adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
@@ -1095,6 +1136,7 @@ impl Typechecker {
             type_store,
             function_type_info_store,
             class_member_type_info_map,
+            adt_type_info_map,
             type_var_generator.clone(),
         );
         walk_expr(&body, &mut initializer);
@@ -1134,6 +1176,7 @@ impl Typechecker {
         function_type_info_store: &mut FunctionTypeInfoStore,
         type_store: &mut TypeStore,
         class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
+        adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
         program: &Program,
         type_var_generator: TypeVarGenerator,
     ) {
@@ -1144,6 +1187,7 @@ impl Typechecker {
                 function_type_info_store,
                 type_store,
                 class_member_type_info_map,
+                adt_type_info_map,
                 program,
                 type_var_generator.clone(),
             );
@@ -1263,6 +1307,7 @@ impl Typechecker {
                 &mut function_type_info_store,
                 &mut type_store,
                 &class_member_type_info_map,
+                &adt_type_info_map,
                 program,
                 type_var_generator.clone(),
             );

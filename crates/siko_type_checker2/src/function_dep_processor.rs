@@ -66,12 +66,7 @@ impl<'a> FunctionDependencyProcessor<'a> {
 
     pub fn process_functions(&self) -> Vec<DependencyGroup<FunctionId>> {
         let mut functions = Vec::new();
-        for (id, info) in &self.program.functions.items {
-            // hack
-            let displayed_name = format!("{}", info.info);
-            if displayed_name != "Main/main" && displayed_name != "Main/foo" {
-                continue;
-            }
+        for (id, _) in &self.program.functions.items {
             let type_info = self.function_type_info_store.get(id);
             if let Some(_) = type_info.body {
                 functions.push(*id);

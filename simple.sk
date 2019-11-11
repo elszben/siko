@@ -22,4 +22,6 @@ data Foo = Foo Int Float (Bool, Bool)
 //foo a :: a -> Int
 //foo a = 1
 
-main = show 1
+data Color = Red | Blue
+
+main = show Red
