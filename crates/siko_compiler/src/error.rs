@@ -833,6 +833,28 @@ impl Error {
                             eprintln!("Argument(s):      {}", args.yellow());
                             eprintln!("Function type:    {}", func.yellow());
                         }
+                        TypecheckError2::InvalidVariantPattern(id, name, expected, found) => {
+                            eprintln!(
+                                "{} invalid {} variant pattern, argument count mismatch",
+                                error.red(),
+                                name.yellow()
+                            );
+                            eprintln!("Expected:      {}", format!("{}", expected).yellow());
+                            eprintln!("Found:         {}", format!("{}", found).yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError2::InvalidRecordPattern(id, name, expected, found) => {
+                            eprintln!(
+                                "{} invalid {} record pattern, argument count mismatch",
+                                error.red(),
+                                name.yellow()
+                            );
+                            eprintln!("Expected:      {}", format!("{}", expected).yellow());
+                            eprintln!("Found:         {}", format!("{}", found).yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

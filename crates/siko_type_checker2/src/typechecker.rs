@@ -288,6 +288,7 @@ struct TypeStoreInitializer<'a> {
     class_member_type_info_map: &'a BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
     adt_type_info_map: &'a BTreeMap<TypeDefId, AdtTypeInfo>,
     type_var_generator: TypeVarGenerator,
+    errors: &'a mut Vec<TypecheckError>,
 }
 
 impl<'a> TypeStoreInitializer<'a> {
@@ -299,6 +300,7 @@ impl<'a> TypeStoreInitializer<'a> {
         class_member_type_info_map: &'a BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
         adt_type_info_map: &'a BTreeMap<TypeDefId, AdtTypeInfo>,
         type_var_generator: TypeVarGenerator,
+        errors: &'a mut Vec<TypecheckError>,
     ) -> TypeStoreInitializer<'a> {
         TypeStoreInitializer {
             program: program,
@@ -308,6 +310,7 @@ impl<'a> TypeStoreInitializer<'a> {
             class_member_type_info_map: class_member_type_info_map,
             type_var_generator: type_var_generator,
             adt_type_info_map: adt_type_info_map,
+            errors: errors,
         }
     }
 
@@ -336,6 +339,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             Expr::BoolLiteral(_) => {
                 self.type_store
                     .initialize_expr(expr_id, self.get_bool_type());
+            }
+            Expr::CaseOf(..) => {
+                let ty = self.type_var_generator.get_new_type_var();
+                self.type_store.initialize_expr(expr_id, ty);
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let class_member_type_info = self
@@ -425,6 +432,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_pattern(pattern_id, ty);
             }
+            Pattern::BoolLiteral(_) => {
+                self.type_store
+                    .initialize_pattern(pattern_id, self.get_bool_type());
+            }
             Pattern::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
@@ -434,6 +445,33 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store.initialize_pattern(pattern_id, tuple_ty);
             }
             Pattern::Variant(typedef_id, index, args) => {
+                let adt = self.program.typedefs.get(typedef_id).get_adt();
+                let variant = &adt.variants[*index];
+                if variant.items.len() != args.len() {
+                    let location = self.program.patterns.get(&pattern_id).location_id;
+                    let err = TypecheckError::InvalidVariantPattern(
+                        location,
+                        variant.name.clone(),
+                        args.len(),
+                        variant.items.len(),
+                    );
+                    self.errors.push(err);
+                } else {
+                    let mut arg_map = BTreeMap::new();
+                    let adt_type_info = self
+                        .adt_type_info_map
+                        .get(typedef_id)
+                        .expect("Adt type info not found");
+                    self.type_store.initialize_pattern(
+                        pattern_id,
+                        adt_type_info
+                            .adt_type
+                            .duplicate(&mut arg_map, &mut self.type_var_generator)
+                            .remove_fixed_types(),
+                    );
+                }
+            }
+            Pattern::Wildcard => {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_pattern(pattern_id, ty);
             }
@@ -574,6 +612,12 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_expr_with(expr_id, &expr_ty);
             }
             Expr::BoolLiteral(_) => {}
+            Expr::CaseOf(case_expr, cases) => {
+                for case in cases {
+                    self.match_expr_with_pattern(*case_expr, case.pattern_id);
+                    self.match_exprs(expr_id, case.body);
+                }
+            }
             Expr::ClassFunctionCall(_, args) => {
                 self.check_function_call(expr_id, args);
             }
@@ -617,14 +661,10 @@ impl<'a> Visitor for ExpressionChecker<'a> {
         //println!("C {} {:?}", pattern_id, pattern);
         match pattern {
             Pattern::Binding(_) => {}
-            Pattern::Tuple(items) => {
-                let item_types: Vec<_> = items
-                    .iter()
-                    .map(|item| self.type_store.get_pattern_type(item).clone())
-                    .collect();
-                let tuple_ty = Type::Tuple(item_types);
-                self.match_pattern_with(pattern_id, &tuple_ty);
-            }
+            Pattern::BoolLiteral(_) => {}
+            Pattern::Tuple(_) => {}
+            Pattern::Variant(..) => {}
+            Pattern::Wildcard => {}
             _ => unimplemented!(),
         }
     }
@@ -1127,6 +1167,7 @@ impl Typechecker {
         adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
         program: &Program,
         type_var_generator: TypeVarGenerator,
+        errors: &mut Vec<TypecheckError>,
     ) {
         let function_type_info = function_type_info_store.get_mut(function_id);
         let body = function_type_info.body.expect("body not found");
@@ -1138,6 +1179,7 @@ impl Typechecker {
             class_member_type_info_map,
             adt_type_info_map,
             type_var_generator.clone(),
+            errors,
         );
         walk_expr(&body, &mut initializer);
     }
@@ -1190,6 +1232,7 @@ impl Typechecker {
                 adt_type_info_map,
                 program,
                 type_var_generator.clone(),
+                errors,
             );
         }
 

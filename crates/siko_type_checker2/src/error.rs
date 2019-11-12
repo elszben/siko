@@ -10,6 +10,8 @@ pub enum TypecheckError {
     MainNotFound,
     TypeMismatch(LocationId, String, String),
     FunctionArgumentMismatch(LocationId, String, String),
+    InvalidVariantPattern(LocationId, String, usize, usize),
+    InvalidRecordPattern(LocationId, String, usize, usize),
 }
 
 #[derive(Debug)]
