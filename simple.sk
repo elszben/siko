@@ -24,4 +24,5 @@ data Foo = Foo Int Float (Bool, Bool)
 
 data Color = Red | Blue
 
-main = show Red
+main = case Red of
+        Red True -> ()

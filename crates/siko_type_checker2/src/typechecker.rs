@@ -452,24 +452,23 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     let err = TypecheckError::InvalidVariantPattern(
                         location,
                         variant.name.clone(),
-                        args.len(),
                         variant.items.len(),
+                        args.len(),
                     );
                     self.errors.push(err);
-                } else {
-                    let mut arg_map = BTreeMap::new();
-                    let adt_type_info = self
-                        .adt_type_info_map
-                        .get(typedef_id)
-                        .expect("Adt type info not found");
-                    self.type_store.initialize_pattern(
-                        pattern_id,
-                        adt_type_info
-                            .adt_type
-                            .duplicate(&mut arg_map, &mut self.type_var_generator)
-                            .remove_fixed_types(),
-                    );
                 }
+                let mut arg_map = BTreeMap::new();
+                let adt_type_info = self
+                    .adt_type_info_map
+                    .get(typedef_id)
+                    .expect("Adt type info not found");
+                self.type_store.initialize_pattern(
+                    pattern_id,
+                    adt_type_info
+                        .adt_type
+                        .duplicate(&mut arg_map, &mut self.type_var_generator)
+                        .remove_fixed_types(),
+                );
             }
             Pattern::Wildcard => {
                 let ty = self.type_var_generator.get_new_type_var();
