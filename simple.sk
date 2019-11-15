@@ -24,8 +24,8 @@ data Foo = Foo Int Float (Bool, Bool)
 
 data Color = Red | Blue
 
+data TestRecord a = { a :: a }
+
 main = do
-        case Red of
-                Red -> 1
-                Blue -> 2
-        ()
+        a <- TestRecord { a = "a" }
+        a

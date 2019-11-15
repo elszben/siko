@@ -1,3 +1,4 @@
+use crate::type_var_generator::TypeVarGenerator;
 use crate::types::Type;
 use crate::unifier::Unifier;
 use siko_ir::class::ClassId;
@@ -45,6 +46,7 @@ impl FunctionTypeInfoStore {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct DeriveInfo {
     pub class_id: ClassId,
     pub instance_index: usize,
@@ -60,10 +62,33 @@ pub struct VariantTypeInfo {
     pub item_types: Vec<(Type, LocationId)>,
 }
 
+#[derive(Debug, Clone)]
 pub struct RecordTypeInfo {
     pub record_type: Type,
     pub field_types: Vec<(Type, LocationId)>,
     pub derived_classes: Vec<DeriveInfo>,
+}
+
+impl RecordTypeInfo {
+    pub fn apply(&mut self, unifier: &Unifier) {
+        for field_type in &mut self.field_types {
+            field_type.0 = unifier.apply(&field_type.0);
+        }
+        self.record_type = unifier.apply(&self.record_type);
+    }
+
+    pub fn duplicate(&self, type_var_generator: &mut TypeVarGenerator) -> RecordTypeInfo {
+        let mut arg_map = BTreeMap::new();
+        RecordTypeInfo {
+            record_type: self.record_type.duplicate(&mut arg_map, type_var_generator),
+            field_types: self
+                .field_types
+                .iter()
+                .map(|(ty, location)| (ty.duplicate(&mut arg_map, type_var_generator), *location))
+                .collect(),
+            derived_classes: self.derived_classes.clone(),
+        }
+    }
 }
 
 pub struct FunctionTypeInfo {
