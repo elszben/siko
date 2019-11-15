@@ -280,6 +280,11 @@ impl TypeStore {
     }
 }
 
+fn get_list_type(program: &Program, ty: Type) -> Type {
+    let id = program.get_named_type("Data.List", "List");
+    Type::Named("List".to_string(), id, vec![ty])
+}
+
 struct TypeStoreInitializer<'a> {
     program: &'a Program,
     group: &'a DependencyGroup<FunctionId>,
@@ -389,6 +394,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let id = self.program.get_named_type("Data.Int", "Int");
                 self.type_store
                     .initialize_expr(expr_id, Type::Named("Int".to_string(), id, Vec::new()));
+            }
+            Expr::List(_) => {
+                let ty = get_list_type(self.program, self.type_var_generator.get_new_type_var());
+                self.type_store.initialize_expr(expr_id, ty);
             }
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
@@ -516,7 +525,7 @@ impl<'a> ExpressionChecker<'a> {
             self.errors.push(err);
         } else {
             let cs = unifier.get_constraints();
-            println!("cs{:?}", cs);
+            //dbg!(cs);
             self.type_store.apply(&unifier);
             for id in &self.group.items {
                 let info = self.function_type_info_store.get_mut(id);
@@ -547,7 +556,7 @@ impl<'a> ExpressionChecker<'a> {
     fn match_exprs(&mut self, expr_id1: ExprId, expr_id2: ExprId) {
         let expr_ty1 = self.type_store.get_expr_type(&expr_id1).clone();
         let expr_ty2 = self.type_store.get_expr_type(&expr_id2).clone();
-        let location = self.program.exprs.get(&expr_id1).location_id;
+        let location = self.program.exprs.get(&expr_id2).location_id;
         self.unify(&expr_ty1, &expr_ty2, location);
     }
 
@@ -612,9 +621,12 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             }
             Expr::BoolLiteral(_) => {}
             Expr::CaseOf(case_expr, cases) => {
-                for case in cases {
-                    self.match_expr_with_pattern(*case_expr, case.pattern_id);
-                    self.match_exprs(expr_id, case.body);
+                if let Some(first) = cases.first() {
+                    self.match_exprs(expr_id, first.body);
+                    for case in cases {
+                        self.match_expr_with_pattern(*case_expr, case.pattern_id);
+                        self.match_exprs(expr_id, case.body);
+                    }
                 }
             }
             Expr::ClassFunctionCall(_, args) => {
@@ -640,6 +652,16 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_exprs(expr_id, *true_branch);
             }
             Expr::IntegerLiteral(_) => {}
+            Expr::List(items) => {
+                if let Some(first) = items.first() {
+                    let ty = self.type_store.get_expr_type(first).clone();
+                    let ty = get_list_type(self.program, ty);
+                    self.match_expr_with(expr_id, &ty);
+                    for item in items {
+                        self.match_exprs(*first, *item);
+                    }
+                }
+            }
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
@@ -656,7 +678,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
         }
     }
 
-    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {
+    fn visit_pattern(&mut self, _: PatternId, pattern: &Pattern) {
         //println!("C {} {:?}", pattern_id, pattern);
         match pattern {
             Pattern::Binding(_) => {}
