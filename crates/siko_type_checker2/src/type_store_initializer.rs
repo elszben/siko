@@ -13,6 +13,7 @@ use crate::util::get_float_type;
 use crate::util::get_int_type;
 use crate::util::get_list_type;
 use crate::util::get_string_type;
+use crate::util::process_type_signature;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -209,6 +210,27 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             Pattern::BoolLiteral(_) => {
                 self.type_store
                     .initialize_pattern(pattern_id, get_bool_type(self.program));
+            }
+            Pattern::FloatLiteral(_) => {
+                self.type_store
+                    .initialize_pattern(pattern_id, get_float_type(self.program));
+            }
+            Pattern::Guarded(_, _) => {}
+            Pattern::IntegerLiteral(_) => {
+                self.type_store
+                    .initialize_pattern(pattern_id, get_int_type(self.program));
+            }
+            Pattern::StringLiteral(_) => {
+                self.type_store
+                    .initialize_pattern(pattern_id, get_string_type(self.program));
+            }
+            Pattern::Typed(_, type_signature) => {
+                let ty = process_type_signature(
+                    *type_signature,
+                    self.program,
+                    &mut self.type_var_generator,
+                );
+                self.type_store.initialize_pattern(pattern_id, ty);
             }
             Pattern::Tuple(items) => {
                 let item_types: Vec<_> = items

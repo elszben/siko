@@ -19,6 +19,7 @@ use crate::types::BaseType;
 use crate::types::Type;
 use crate::unifier::Unifier;
 use crate::util::create_general_function_type;
+use crate::util::process_type_signature;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::ExprId;
@@ -29,49 +30,10 @@ use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDef;
 use siko_ir::types::TypeDefId;
-use siko_ir::types::TypeSignature;
-use siko_ir::types::TypeSignatureId;
 use siko_ir::walker::walk_expr;
 use siko_location_info::item::LocationId;
 use siko_util::RcCounter;
 use std::collections::BTreeMap;
-
-fn process_type_signature(
-    type_signature_id: TypeSignatureId,
-    program: &Program,
-    type_var_generator: &mut TypeVarGenerator,
-) -> Type {
-    let type_signature = &program.type_signatures.get(&type_signature_id).item;
-    match type_signature {
-        TypeSignature::Function(from, to) => {
-            let from_ty = process_type_signature(*from, program, type_var_generator);
-            let to_ty = process_type_signature(*to, program, type_var_generator);
-            Type::Function(Box::new(from_ty), Box::new(to_ty))
-        }
-        TypeSignature::Named(name, id, items) => {
-            let items: Vec<_> = items
-                .iter()
-                .map(|item| process_type_signature(*item, program, type_var_generator))
-                .collect();
-            Type::Named(name.clone(), *id, items)
-        }
-        TypeSignature::Tuple(items) => {
-            let items: Vec<_> = items
-                .iter()
-                .map(|item| process_type_signature(*item, program, type_var_generator))
-                .collect();
-            Type::Tuple(items)
-        }
-        TypeSignature::TypeArgument(index, name, constraints) => {
-            let mut constraints = constraints.clone();
-            // unifier assumes that the constraints are sorted!
-            constraints.sort();
-            Type::FixedTypeArg(name.clone(), *index, constraints)
-        }
-        TypeSignature::Variant(..) => panic!("Variant should not appear here"),
-        TypeSignature::Wildcard => type_var_generator.get_new_type_var(),
-    }
-}
 
 fn check_instance(
     class_id: ClassId,

@@ -8,6 +8,7 @@ use crate::type_var_generator::TypeVarGenerator;
 use crate::types::ResolverContext;
 use crate::types::Type;
 use crate::unifier::Unifier;
+use crate::util::get_bool_type;
 use crate::util::get_list_type;
 use crate::util::get_show_type;
 use siko_ir::expr::Expr;
@@ -97,6 +98,13 @@ impl<'a> ExpressionChecker<'a> {
         self.unify(&expr_ty1, &expr_ty2, location);
     }
 
+    fn match_patterns(&mut self, pattern_id1: PatternId, pattern_id2: PatternId) {
+        let pattern_ty1 = self.type_store.get_pattern_type(&pattern_id1).clone();
+        let pattern_ty2 = self.type_store.get_pattern_type(&pattern_id2).clone();
+        let location = self.program.patterns.get(&pattern_id2).location_id;
+        self.unify(&pattern_ty1, &pattern_ty2, location);
+    }
+
     fn check_function_call(&mut self, expr_id: ExprId, args: &Vec<ExprId>) {
         let func_type = self.type_store.get_func_type_for_expr(&expr_id);
         let arg_count = func_type.get_arg_count();
@@ -123,11 +131,6 @@ impl<'a> ExpressionChecker<'a> {
                 TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
             self.errors.push(err);
         }
-    }
-
-    fn get_bool_type(&self) -> Type {
-        let id = self.program.get_named_type("Data.Bool", "Bool");
-        Type::Named("Bool".to_string(), id, Vec::new())
     }
 }
 
@@ -240,7 +243,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 }
             }
             Expr::If(cond, true_branch, false_branch) => {
-                let bool_ty = self.get_bool_type();
+                let bool_ty = get_bool_type(self.program);
                 self.match_expr_with(*cond, &bool_ty);
                 self.match_exprs(*true_branch, *false_branch);
                 self.match_exprs(expr_id, *true_branch);
@@ -352,12 +355,23 @@ impl<'a> Visitor for ExpressionChecker<'a> {
         match pattern {
             Pattern::Binding(_) => {}
             Pattern::BoolLiteral(_) => {}
+            Pattern::FloatLiteral(_) => {}
+            Pattern::Guarded(inner, guard_expr_id) => {
+                self.match_patterns(*inner, pattern_id);
+                let bool_ty = get_bool_type(self.program);
+                self.match_expr_with(*guard_expr_id, &bool_ty);
+            }
+            Pattern::IntegerLiteral(_) => {}
+            Pattern::StringLiteral(_) => {}
             Pattern::Tuple(items) => {
                 if let Type::Tuple(item_types) = ty {
                     for (item, item_ty) in items.iter().zip(item_types.iter()) {
                         self.match_pattern_with(*item, item_ty);
                     }
                 }
+            }
+            Pattern::Typed(inner, _) => {
+                self.match_patterns(*inner, pattern_id);
             }
             Pattern::Variant(_, index, items) => {
                 let info: AdtTypeInfo = self

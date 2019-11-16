@@ -28,7 +28,5 @@ data TestRecord a = { a :: a }
 //data TestRecord2 a = { a :: a }
 
 main  = do
-        a <- TestRecord { a = 5 }
-        a <- a { a = 3}
-        a
+    a :: Int <- 5
        
