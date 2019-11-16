@@ -1,4 +1,5 @@
 use crate::type_var_generator::TypeVarGenerator;
+use crate::unifier::Unifier;
 use siko_ir::class::ClassId;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDefId;
@@ -351,6 +352,13 @@ impl Type {
                 }
             }
         }
+    }
+
+    pub fn apply(&mut self, unifier: &Unifier) -> bool {
+        let new = unifier.apply(self);
+        let changed = *self != new;
+        *self = new;
+        changed
     }
 }
 

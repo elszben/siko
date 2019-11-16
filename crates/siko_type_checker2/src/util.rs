@@ -1,5 +1,6 @@
 use crate::type_var_generator::TypeVarGenerator;
 use crate::types::Type;
+use siko_ir::program::Program;
 
 pub fn create_general_function_type(
     func_args: &mut Vec<Type>,
@@ -17,4 +18,9 @@ pub fn create_general_function_type(
         let v = type_var_generator.get_new_type_var();
         (v.clone(), v)
     }
+}
+
+pub fn get_list_type(program: &Program, ty: Type) -> Type {
+    let id = program.get_named_type("Data.List", "List");
+    Type::Named("List".to_string(), id, vec![ty])
 }

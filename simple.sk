@@ -28,4 +28,4 @@ data TestRecord a = { a :: a }
 
 main = do
         a <- TestRecord { a = "a" }
-        a
+        a.a

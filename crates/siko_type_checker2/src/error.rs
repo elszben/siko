@@ -12,6 +12,7 @@ pub enum TypecheckError {
     FunctionArgumentMismatch(LocationId, String, String),
     InvalidVariantPattern(LocationId, String, usize, usize),
     InvalidRecordPattern(LocationId, String, usize, usize),
+    TypeAnnotationNeeded(LocationId),
 }
 
 #[derive(Debug)]

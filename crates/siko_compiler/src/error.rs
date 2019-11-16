@@ -855,6 +855,11 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError2::TypeAnnotationNeeded(id) => {
+                            eprintln!("{} Type annotation needed", error.red());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }
