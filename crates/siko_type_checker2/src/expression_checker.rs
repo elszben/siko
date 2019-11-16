@@ -270,7 +270,52 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     self.match_expr_with(value.expr_id, &field_type.0);
                 }
             }
-            Expr::RecordUpdate(..) => {}
+            Expr::RecordUpdate(receiver_expr_id, record_updates) => {
+                let location_id = self.program.exprs.get(&expr_id).location_id;
+                let receiver_ty = self.type_store.get_expr_type(receiver_expr_id);
+                let real_record_type = if let Type::Named(_, id, _) = receiver_ty {
+                    Some(id)
+                } else {
+                    None
+                };
+                let mut expected_records = Vec::new();
+                let mut matching_update = None;
+                for record_update in record_updates {
+                    let record = self
+                        .program
+                        .typedefs
+                        .get(&record_update.record_id)
+                        .get_record();
+                    expected_records.push(record.name.clone());
+                    if let Some(id) = real_record_type {
+                        if record_update.record_id == *id {
+                            matching_update = Some(record_update);
+                        }
+                    }
+                }
+                match matching_update {
+                    Some(update) => {
+                        let record_type_info = self
+                            .record_type_info_map
+                            .get(&update.record_id)
+                            .expect("Record type info not found")
+                            .duplicate(&mut self.type_var_generator);
+                        self.match_expr_with(*receiver_expr_id, &record_type_info.record_type);
+                        for field_update in &update.items {
+                            let field = &record_type_info.field_types[field_update.index];
+                            self.match_expr_with(field_update.expr_id, &field.0);
+                        }
+                        self.match_expr_with(expr_id, &record_type_info.record_type);
+                    }
+                    None => {
+                        let expected_type = format!("{}", expected_records.join(" or "));
+                        let found_type = receiver_ty.get_resolved_type_string(self.program);
+                        let err =
+                            TypecheckError::TypeMismatch(location_id, expected_type, found_type);
+                        self.errors.push(err);
+                    }
+                }
+            }
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()

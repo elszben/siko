@@ -27,5 +27,8 @@ data Color = Red | Blue
 data TestRecord a = { a :: a }
 //data TestRecord2 a = { a :: a }
 
-main  = print "{}" % 5
+main  = do
+        a <- TestRecord { a = 5 }
+        a <- a { a = 3}
+        a
        

@@ -180,6 +180,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store
                     .initialize_expr_with_record_type(expr_id, ty, record_type_info);
             }
+            Expr::RecordUpdate(..) => {
+                let ty = self.type_var_generator.get_new_type_var();
+                self.type_store.initialize_expr(expr_id, ty);
+            }
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
@@ -192,7 +196,6 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
-            _ => panic!("init of {} not yet implemented", expr),
         }
     }
 

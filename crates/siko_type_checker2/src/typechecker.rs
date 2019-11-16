@@ -749,22 +749,17 @@ impl Typechecker {
             );
         }
 
-        for _ in 0..2 {
-            for function in &group.items {
-                self.process_function(
-                    function,
-                    errors,
-                    group,
-                    function_type_info_store,
-                    record_type_info_map,
-                    type_store,
-                    program,
-                    type_var_generator.clone(),
-                );
-            }
-            if !errors.is_empty() {
-                break;
-            }
+        for function in &group.items {
+            self.process_function(
+                function,
+                errors,
+                group,
+                function_type_info_store,
+                record_type_info_map,
+                type_store,
+                program,
+                type_var_generator.clone(),
+            );
         }
     }
 
