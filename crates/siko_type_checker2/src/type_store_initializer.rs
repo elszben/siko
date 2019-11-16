@@ -220,6 +220,30 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store
                     .initialize_pattern(pattern_id, get_int_type(self.program));
             }
+            Pattern::Record(typedef_id, fields) => {
+                let record_type_info = self
+                    .record_type_info_map
+                    .get(typedef_id)
+                    .expect("Record type info not found");
+                let record_type_info = record_type_info.duplicate(&mut self.type_var_generator);
+                if record_type_info.field_types.len() != fields.len() {
+                    let location = self.program.patterns.get(&pattern_id).location_id;
+                    let record = self.program.typedefs.get(typedef_id).get_record();
+                    let err = TypecheckError::InvalidRecordPattern(
+                        location,
+                        record.name.clone(),
+                        record_type_info.field_types.len(),
+                        fields.len(),
+                    );
+                    self.errors.push(err);
+                }
+                let ty = record_type_info.record_type.clone();
+                self.type_store.initialize_pattern_with_record_type(
+                    pattern_id,
+                    ty,
+                    record_type_info,
+                );
+            }
             Pattern::StringLiteral(_) => {
                 self.type_store
                     .initialize_pattern(pattern_id, get_string_type(self.program));
@@ -241,23 +265,24 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store.initialize_pattern(pattern_id, tuple_ty);
             }
             Pattern::Variant(typedef_id, index, args) => {
-                let adt = self.program.typedefs.get(typedef_id).get_adt();
-                let variant = &adt.variants[*index];
-                if variant.items.len() != args.len() {
-                    let location = self.program.patterns.get(&pattern_id).location_id;
-                    let err = TypecheckError::InvalidVariantPattern(
-                        location,
-                        variant.name.clone(),
-                        variant.items.len(),
-                        args.len(),
-                    );
-                    self.errors.push(err);
-                }
                 let adt_type_info = self
                     .adt_type_info_map
                     .get(typedef_id)
                     .expect("Adt type info not found");
                 let adt_type_info = adt_type_info.duplicate(&mut self.type_var_generator);
+                let variant = &adt_type_info.variant_types[*index];
+                if variant.item_types.len() != args.len() {
+                    let location = self.program.patterns.get(&pattern_id).location_id;
+                    let adt = self.program.typedefs.get(typedef_id).get_adt();
+                    let variant_name = adt.variants[*index].name.clone();
+                    let err = TypecheckError::InvalidVariantPattern(
+                        location,
+                        variant_name,
+                        variant.item_types.len(),
+                        args.len(),
+                    );
+                    self.errors.push(err);
+                }
                 let ty = adt_type_info.adt_type.clone();
                 self.type_store
                     .initialize_pattern_with_adt_type(pattern_id, ty, adt_type_info);
@@ -266,7 +291,6 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_pattern(pattern_id, ty);
             }
-            _ => panic!("{:?} NYI", pattern),
         }
     }
 }

@@ -351,7 +351,6 @@ impl<'a> Visitor for ExpressionChecker<'a> {
 
     fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {
         //println!("C {} {:?}", pattern_id, pattern);
-        let ty = self.type_store.get_pattern_type(&pattern_id).clone();
         match pattern {
             Pattern::Binding(_) => {}
             Pattern::BoolLiteral(_) => {}
@@ -362,8 +361,18 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_expr_with(*guard_expr_id, &bool_ty);
             }
             Pattern::IntegerLiteral(_) => {}
+            Pattern::Record(_, fields) => {
+                let record_type_info = self
+                    .type_store
+                    .get_record_type_info_for_pattern(&pattern_id)
+                    .clone();
+                for (field, field_type) in fields.iter().zip(record_type_info.field_types.iter()) {
+                    self.match_pattern_with(*field, &field_type.0);
+                }
+            }
             Pattern::StringLiteral(_) => {}
             Pattern::Tuple(items) => {
+                let ty = self.type_store.get_pattern_type(&pattern_id).clone();
                 if let Type::Tuple(item_types) = ty {
                     for (item, item_ty) in items.iter().zip(item_types.iter()) {
                         self.match_pattern_with(*item, item_ty);
@@ -384,7 +393,6 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 }
             }
             Pattern::Wildcard => {}
-            _ => unimplemented!(),
         }
     }
 }

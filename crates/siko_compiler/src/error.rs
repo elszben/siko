@@ -820,7 +820,7 @@ impl Error {
                             );
                         }
                         TypecheckError2::TypeMismatch(id, expected, found) => {
-                            eprintln!("{} type mismatch in expression", error.green());
+                            eprintln!("{} type mismatch in expression", error.red());
                             eprintln!("Expected: {}", expected.yellow());
                             eprintln!("Found:    {}", found.yellow());
                             let location_set = location_info.get_item_location(id);

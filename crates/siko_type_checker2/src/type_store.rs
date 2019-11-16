@@ -48,6 +48,7 @@ impl fmt::Display for ExpressionTypeState {
 pub enum PatternTypeState {
     PatternType(Type),
     VariantType(AdtTypeInfo, Type),
+    RecordType(RecordTypeInfo, Type),
 }
 
 impl PatternTypeState {
@@ -56,6 +57,11 @@ impl PatternTypeState {
             PatternTypeState::PatternType(ty) => ty.apply(unifier),
             PatternTypeState::VariantType(adt_ty, ty) => {
                 let changed = adt_ty.apply(unifier);
+                let changed = ty.apply(unifier) || changed;
+                changed
+            }
+            PatternTypeState::RecordType(record_ty, ty) => {
+                let changed = record_ty.apply(unifier);
                 let changed = ty.apply(unifier) || changed;
                 changed
             }
@@ -68,6 +74,7 @@ impl fmt::Display for PatternTypeState {
         match self {
             PatternTypeState::PatternType(ty) => write!(f, "{}", ty),
             PatternTypeState::VariantType(i, ty) => write!(f, "AI {}, {}", i.adt_type, ty),
+            PatternTypeState::RecordType(i, ty) => write!(f, "RI {}, {}", i.record_type, ty),
         }
     }
 }
@@ -127,6 +134,18 @@ impl TypeStore {
             .insert(pattern_id, PatternTypeState::VariantType(adt_type_info, ty));
     }
 
+    pub fn initialize_pattern_with_record_type(
+        &mut self,
+        pattern_id: PatternId,
+        ty: Type,
+        record_type_info: RecordTypeInfo,
+    ) {
+        self.pattern_types.insert(
+            pattern_id,
+            PatternTypeState::RecordType(record_type_info, ty),
+        );
+    }
+
     pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
         match self.expr_types.get(expr_id).expect("Expr type not found") {
             ExpressionTypeState::ExprType(ty) => ty,
@@ -159,6 +178,7 @@ impl TypeStore {
         {
             PatternTypeState::PatternType(ty) => ty,
             PatternTypeState::VariantType(_, ty) => ty,
+            PatternTypeState::RecordType(_, ty) => ty,
         }
     }
 
@@ -170,6 +190,19 @@ impl TypeStore {
         {
             PatternTypeState::PatternType(_) => unreachable!(),
             PatternTypeState::VariantType(info, _) => info,
+            PatternTypeState::RecordType(..) => unreachable!(),
+        }
+    }
+
+    pub fn get_record_type_info_for_pattern(&self, pattern_id: &PatternId) -> &RecordTypeInfo {
+        match self
+            .pattern_types
+            .get(pattern_id)
+            .expect("Pattern type not found")
+        {
+            PatternTypeState::PatternType(_) => unreachable!(),
+            PatternTypeState::VariantType(..) => unreachable!(),
+            PatternTypeState::RecordType(info, _) => info,
         }
     }
 
