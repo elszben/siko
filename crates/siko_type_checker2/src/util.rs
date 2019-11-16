@@ -24,3 +24,33 @@ pub fn get_list_type(program: &Program, ty: Type) -> Type {
     let id = program.get_named_type("Data.List", "List");
     Type::Named("List".to_string(), id, vec![ty])
 }
+
+pub fn get_string_type(program: &Program) -> Type {
+    let id = program.get_named_type("Data.String", "String");
+    Type::Named("String".to_string(), id, Vec::new())
+}
+
+pub fn get_bool_type(program: &Program) -> Type {
+    let id = program.get_named_type("Data.Bool", "Bool");
+    Type::Named("Bool".to_string(), id, Vec::new())
+}
+
+pub fn get_float_type(program: &Program) -> Type {
+    let id = program.get_named_type("Data.Float", "Float");
+    Type::Named("Float".to_string(), id, Vec::new())
+}
+
+pub fn get_int_type(program: &Program) -> Type {
+    let id = program.get_named_type("Data.Int", "Int");
+    Type::Named("Int".to_string(), id, Vec::new())
+}
+
+pub fn get_show_type(program: &Program, type_var_generator: &mut TypeVarGenerator) -> Type {
+    let class_id = program
+        .class_names
+        .get("Show")
+        .expect("Show not found")
+        .clone();
+    let index = type_var_generator.get_new_index();
+    Type::Var(index, vec![class_id])
+}

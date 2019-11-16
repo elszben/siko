@@ -52,6 +52,7 @@ pub struct DeriveInfo {
     pub instance_index: usize,
 }
 
+#[derive(Clone)]
 pub struct AdtTypeInfo {
     pub adt_type: Type,
     pub variant_types: Vec<VariantTypeInfo>,
@@ -82,6 +83,7 @@ impl AdtTypeInfo {
     }
 }
 
+#[derive(Clone)]
 pub struct VariantTypeInfo {
     pub item_types: Vec<(Type, LocationId)>,
 }

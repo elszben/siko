@@ -117,6 +117,16 @@ impl TypeStore {
             .insert(pattern_id, PatternTypeState::PatternType(ty));
     }
 
+    pub fn initialize_pattern_with_adt_type(
+        &mut self,
+        pattern_id: PatternId,
+        ty: Type,
+        adt_type_info: AdtTypeInfo,
+    ) {
+        self.pattern_types
+            .insert(pattern_id, PatternTypeState::VariantType(adt_type_info, ty));
+    }
+
     pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
         match self.expr_types.get(expr_id).expect("Expr type not found") {
             ExpressionTypeState::ExprType(ty) => ty,
@@ -152,17 +162,28 @@ impl TypeStore {
         }
     }
 
+    pub fn get_adt_type_info_for_pattern(&self, pattern_id: &PatternId) -> &AdtTypeInfo {
+        match self
+            .pattern_types
+            .get(pattern_id)
+            .expect("Pattern type not found")
+        {
+            PatternTypeState::PatternType(_) => unreachable!(),
+            PatternTypeState::VariantType(info, _) => info,
+        }
+    }
+
     pub fn apply(&mut self, unifier: &Unifier) {
         for (_, expr_ty) in &mut self.expr_types {
-            let old = format!("{}", expr_ty);
+            //let old = format!("{}", expr_ty);
             if expr_ty.apply(unifier) {
-                println!("E {} -> {}", old, expr_ty);
+                //println!("E {} -> {}", old, expr_ty);
             }
         }
         for (_, pattern_ty) in &mut self.pattern_types {
-            let old = format!("{}", pattern_ty);
+            //let old = format!("{}", pattern_ty);
             if pattern_ty.apply(unifier) {
-                println!("P {} -> {}", old, pattern_ty);
+                //println!("P {} -> {}", old, pattern_ty);
             }
         }
     }

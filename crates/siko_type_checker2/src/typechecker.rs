@@ -876,7 +876,7 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        function_type_info_store.dump(program);
+        // function_type_info_store.dump(program);
 
         Ok(())
     }

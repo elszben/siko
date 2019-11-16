@@ -8,7 +8,11 @@ use crate::type_store::TypeStore;
 use crate::type_var_generator::TypeVarGenerator;
 use crate::types::Type;
 use crate::util::create_general_function_type;
+use crate::util::get_bool_type;
+use crate::util::get_float_type;
+use crate::util::get_int_type;
 use crate::util::get_list_type;
+use crate::util::get_string_type;
 use siko_ir::class::ClassMemberId;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -57,11 +61,6 @@ impl<'a> TypeStoreInitializer<'a> {
         }
     }
 
-    fn get_bool_type(&self) -> Type {
-        let id = self.program.get_named_type("Data.Bool", "Bool");
-        Type::Named("Bool".to_string(), id, Vec::new())
-    }
-
     fn clone_type(&mut self, ty: &Type) -> Type {
         let mut arg_map = BTreeMap::new();
         ty.duplicate(&mut arg_map, &mut self.type_var_generator)
@@ -87,7 +86,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Expr::BoolLiteral(_) => {
                 self.type_store
-                    .initialize_expr(expr_id, self.get_bool_type());
+                    .initialize_expr(expr_id, get_bool_type(self.program));
             }
             Expr::CaseOf(..) => {
                 let ty = self.type_var_generator.get_new_type_var();
@@ -130,18 +129,20 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store.initialize_expr(expr_id, ty);
             }
             Expr::FloatLiteral(_) => {
-                let id = self.program.get_named_type("Data.Float", "Float");
                 self.type_store
-                    .initialize_expr(expr_id, Type::Named("Float".to_string(), id, Vec::new()));
+                    .initialize_expr(expr_id, get_float_type(self.program));
+            }
+            Expr::Formatter(..) => {
+                self.type_store
+                    .initialize_expr(expr_id, get_string_type(self.program));
             }
             Expr::If(..) => {
                 let ty = self.type_var_generator.get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
             Expr::IntegerLiteral(_) => {
-                let id = self.program.get_named_type("Data.Int", "Int");
                 self.type_store
-                    .initialize_expr(expr_id, Type::Named("Int".to_string(), id, Vec::new()));
+                    .initialize_expr(expr_id, get_int_type(self.program));
             }
             Expr::List(_) => {
                 let ty = get_list_type(self.program, self.type_var_generator.get_new_type_var());
@@ -166,9 +167,8 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .initialize_expr_with_func(expr_id, result_ty, function_type);
             }
             Expr::StringLiteral(_) => {
-                let id = self.program.get_named_type("Data.String", "String");
                 self.type_store
-                    .initialize_expr(expr_id, Type::Named("String".to_string(), id, Vec::new()));
+                    .initialize_expr(expr_id, get_string_type(self.program));
             }
             Expr::RecordInitialization(id, _) => {
                 let record_type_info = self
@@ -188,6 +188,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 let tuple_ty = Type::Tuple(item_types);
                 self.type_store.initialize_expr(expr_id, tuple_ty);
             }
+            Expr::TupleFieldAccess(_, _) => {
+                let ty = self.type_var_generator.get_new_type_var();
+                self.type_store.initialize_expr(expr_id, ty);
+            }
             _ => panic!("init of {} not yet implemented", expr),
         }
     }
@@ -201,7 +205,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Pattern::BoolLiteral(_) => {
                 self.type_store
-                    .initialize_pattern(pattern_id, self.get_bool_type());
+                    .initialize_pattern(pattern_id, get_bool_type(self.program));
             }
             Pattern::Tuple(items) => {
                 let item_types: Vec<_> = items
@@ -224,14 +228,14 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     );
                     self.errors.push(err);
                 }
-                let ty = self
+                let adt_type_info = self
                     .adt_type_info_map
                     .get(typedef_id)
-                    .expect("Adt type info not found")
-                    .adt_type
-                    .clone();
-                let ty = self.clone_type(&ty);
-                self.type_store.initialize_pattern(pattern_id, ty);
+                    .expect("Adt type info not found");
+                let adt_type_info = adt_type_info.duplicate(&mut self.type_var_generator);
+                let ty = adt_type_info.adt_type.clone();
+                self.type_store
+                    .initialize_pattern_with_adt_type(pattern_id, ty, adt_type_info);
             }
             Pattern::Wildcard => {
                 let ty = self.type_var_generator.get_new_type_var();

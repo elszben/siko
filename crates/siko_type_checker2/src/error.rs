@@ -13,6 +13,7 @@ pub enum TypecheckError {
     InvalidVariantPattern(LocationId, String, usize, usize),
     InvalidRecordPattern(LocationId, String, usize, usize),
     TypeAnnotationNeeded(LocationId),
+    InvalidFormatString(LocationId),
 }
 
 #[derive(Debug)]

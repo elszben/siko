@@ -1,3 +1,4 @@
+use crate::common::AdtTypeInfo;
 use crate::common::FunctionTypeInfoStore;
 use crate::common::RecordTypeInfo;
 use crate::dependency_processor::DependencyGroup;
@@ -8,6 +9,7 @@ use crate::types::ResolverContext;
 use crate::types::Type;
 use crate::unifier::Unifier;
 use crate::util::get_list_type;
+use crate::util::get_show_type;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
@@ -178,30 +180,44 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             }
             Expr::ExprValue(_, pattern_id) => {
                 self.match_expr_with_pattern(expr_id, *pattern_id);
-                let ty = self.type_store.get_expr_type(&expr_id).clone();
-                //println!("expr value {} {}", ty, expr_id);
             }
             Expr::FieldAccess(infos, receiver_expr_id) => {
                 let mut failed = true;
                 let receiver_ty = self.type_store.get_expr_type(receiver_expr_id).clone();
                 if let Type::Named(_, id, _) = receiver_ty {
-                    if let Some(record_type_info) = self.record_type_info_map.get(&id) {
-                        for info in infos {
-                            if info.record_id == id {
-                                let mut record_type_info =
-                                    record_type_info.duplicate(&mut self.type_var_generator);
-                                let mut unifier = Unifier::new(self.type_var_generator.clone());
-                                if unifier
-                                    .unify(&record_type_info.record_type, &receiver_ty)
-                                    .is_ok()
-                                {
-                                    record_type_info.apply(&unifier);
-                                    let field_ty = &record_type_info.field_types[info.index].0;
-                                    self.match_expr_with(expr_id, field_ty);
-                                    failed = false;
-                                }
+                    let record_type_info = self
+                        .record_type_info_map
+                        .get(&id)
+                        .expect("Record type info not found");
+                    for info in infos {
+                        if info.record_id == id {
+                            let mut record_type_info =
+                                record_type_info.duplicate(&mut self.type_var_generator);
+                            let mut unifier = Unifier::new(self.type_var_generator.clone());
+                            if unifier
+                                .unify(&record_type_info.record_type, &receiver_ty)
+                                .is_ok()
+                            {
+                                record_type_info.apply(&unifier);
+                                let field_ty = &record_type_info.field_types[info.index].0;
+                                self.match_expr_with(expr_id, field_ty);
+                                failed = false;
+                                break;
                             }
                         }
+                    }
+                    if failed {
+                        let mut all_records = Vec::new();
+                        for info in infos {
+                            let record = self.program.typedefs.get(&info.record_id).get_record();
+                            all_records.push(record.name.clone());
+                        }
+                        let expected_type = format!("{}", all_records.join(" or "));
+                        let found_type = receiver_ty.get_resolved_type_string(self.program);
+                        let location = self.program.exprs.get(&receiver_expr_id).location_id;
+                        let err = TypecheckError::TypeMismatch(location, expected_type, found_type);
+                        self.errors.push(err);
+                        return;
                     }
                 }
                 if failed {
@@ -211,6 +227,18 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 }
             }
             Expr::FloatLiteral(_) => {}
+            Expr::Formatter(fmt, args) => {
+                let subs: Vec<_> = fmt.split("{}").collect();
+                if subs.len() != args.len() + 1 {
+                    let location = self.program.exprs.get(&expr_id).location_id;
+                    let err = TypecheckError::InvalidFormatString(location);
+                    self.errors.push(err);
+                }
+                for arg in args {
+                    let show_type = get_show_type(self.program, &mut self.type_var_generator);
+                    self.match_expr_with(*arg, &show_type);
+                }
+            }
             Expr::If(cond, true_branch, false_branch) => {
                 let bool_ty = self.get_bool_type();
                 self.match_expr_with(*cond, &bool_ty);
@@ -242,6 +270,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     self.match_expr_with(value.expr_id, &field_type.0);
                 }
             }
+            Expr::RecordUpdate(..) => {}
             Expr::Tuple(items) => {
                 let item_types: Vec<_> = items
                     .iter()
@@ -250,7 +279,25 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 let tuple_ty = Type::Tuple(item_types);
                 self.match_expr_with(expr_id, &tuple_ty);
             }
-            _ => unimplemented!(),
+            Expr::TupleFieldAccess(index, receiver_expr_id) => {
+                let receiver_ty = self.type_store.get_expr_type(receiver_expr_id).clone();
+                if let Type::Tuple(items) = &receiver_ty {
+                    if items.len() > *index {
+                        self.match_expr_with(expr_id, &items[*index]);
+                        return;
+                    }
+                } else if let Type::Var(..) = &receiver_ty {
+                    let location = self.program.exprs.get(&receiver_expr_id).location_id;
+                    let err = TypecheckError::TypeAnnotationNeeded(location);
+                    self.errors.push(err);
+                    return;
+                }
+                let expected_type = format!("<tuple with at least {} item(s)>", index + 1);
+                let found_type = receiver_ty.get_resolved_type_string(self.program);
+                let location = self.program.exprs.get(&receiver_expr_id).location_id;
+                let err = TypecheckError::TypeMismatch(location, expected_type, found_type);
+                self.errors.push(err);
+            }
         }
     }
 
@@ -267,7 +314,16 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     }
                 }
             }
-            Pattern::Variant(_, _, args) => {}
+            Pattern::Variant(_, index, items) => {
+                let info: AdtTypeInfo = self
+                    .type_store
+                    .get_adt_type_info_for_pattern(&pattern_id)
+                    .clone();
+                let variant_type = &info.variant_types[*index];
+                for (item, variant_item) in items.iter().zip(variant_type.item_types.iter()) {
+                    self.match_pattern_with(*item, &variant_item.0);
+                }
+            }
             Pattern::Wildcard => {}
             _ => unimplemented!(),
         }

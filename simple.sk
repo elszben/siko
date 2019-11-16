@@ -25,7 +25,7 @@ data Foo = Foo Int Float (Bool, Bool)
 data Color = Red | Blue
 
 data TestRecord a = { a :: a }
+//data TestRecord2 a = { a :: a }
 
-main = do
-        a <- TestRecord { a = "a" }
-        a.a
+main  = print "{}" % 5
+       
