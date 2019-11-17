@@ -1,10 +1,8 @@
 use crate::common::AdtTypeInfo;
-use crate::common::FunctionTypeInfoStore;
-use crate::common::RecordTypeInfo;
 use crate::dependency_processor::DependencyGroup;
 use crate::error::TypecheckError;
+use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
-use crate::type_var_generator::TypeVarGenerator;
 use crate::types::ResolverContext;
 use crate::types::Type;
 use crate::unifier::Unifier;
@@ -17,19 +15,15 @@ use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use siko_ir::types::TypeDefId;
 use siko_ir::walker::Visitor;
 use siko_location_info::item::LocationId;
 use siko_util::format_list;
-use std::collections::BTreeMap;
 
 pub struct ExpressionChecker<'a> {
     program: &'a Program,
     group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
-    type_var_generator: TypeVarGenerator,
-    function_type_info_store: &'a mut FunctionTypeInfoStore,
-    record_type_info_map: &'a BTreeMap<TypeDefId, RecordTypeInfo>,
+    type_info_provider: &'a mut TypeInfoProvider,
     errors: &'a mut Vec<TypecheckError>,
 }
 
@@ -38,24 +32,20 @@ impl<'a> ExpressionChecker<'a> {
         program: &'a Program,
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
-        type_var_generator: TypeVarGenerator,
-        function_type_info_store: &'a mut FunctionTypeInfoStore,
-        record_type_info_map: &'a BTreeMap<TypeDefId, RecordTypeInfo>,
+        type_info_provider: &'a mut TypeInfoProvider,
         errors: &'a mut Vec<TypecheckError>,
     ) -> ExpressionChecker<'a> {
         ExpressionChecker {
             program: program,
             group: group,
             type_store: type_store,
-            type_var_generator: type_var_generator,
-            function_type_info_store: function_type_info_store,
-            record_type_info_map: record_type_info_map,
+            type_info_provider: type_info_provider,
             errors: errors,
         }
     }
 
     fn unify(&mut self, ty1: &Type, ty2: &Type, location: LocationId) {
-        let mut unifier = Unifier::new(self.type_var_generator.clone());
+        let mut unifier = Unifier::new(self.type_info_provider.type_var_generator.clone());
         if unifier.unify(ty1, ty2).is_err() {
             let ty_str1 = ty1.get_resolved_type_string(self.program);
             let ty_str2 = ty2.get_resolved_type_string(self.program);
@@ -66,7 +56,7 @@ impl<'a> ExpressionChecker<'a> {
             //dbg!(cs);
             self.type_store.apply(&unifier);
             for id in &self.group.items {
-                let info = self.function_type_info_store.get_mut(id);
+                let info = self.type_info_provider.function_type_info_store.get_mut(id);
                 info.apply(&unifier);
             }
         }
@@ -150,7 +140,10 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 } else {
                     func.implicit_arg_count + arg_ref.index
                 };
-                let func_type_info = self.function_type_info_store.get(&arg_ref.id);
+                let func_type_info = self
+                    .type_info_provider
+                    .function_type_info_store
+                    .get(&arg_ref.id);
                 let arg_ty = func_type_info.args[index].clone();
                 self.match_expr_with(expr_id, &arg_ty);
             }
@@ -188,15 +181,12 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 let mut failed = true;
                 let receiver_ty = self.type_store.get_expr_type(receiver_expr_id).clone();
                 if let Type::Named(_, id, _) = receiver_ty {
-                    let record_type_info = self
-                        .record_type_info_map
-                        .get(&id)
-                        .expect("Record type info not found");
                     for info in infos {
                         if info.record_id == id {
                             let mut record_type_info =
-                                record_type_info.duplicate(&mut self.type_var_generator);
-                            let mut unifier = Unifier::new(self.type_var_generator.clone());
+                                self.type_info_provider.get_record_type_info(&id);
+                            let mut unifier =
+                                Unifier::new(self.type_info_provider.type_var_generator.clone());
                             if unifier
                                 .unify(&record_type_info.record_type, &receiver_ty)
                                 .is_ok()
@@ -238,7 +228,10 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     self.errors.push(err);
                 }
                 for arg in args {
-                    let show_type = get_show_type(self.program, &mut self.type_var_generator);
+                    let show_type = get_show_type(
+                        self.program,
+                        &mut self.type_info_provider.type_var_generator,
+                    );
                     self.match_expr_with(*arg, &show_type);
                 }
             }
@@ -299,10 +292,8 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 match matching_update {
                     Some(update) => {
                         let record_type_info = self
-                            .record_type_info_map
-                            .get(&update.record_id)
-                            .expect("Record type info not found")
-                            .duplicate(&mut self.type_var_generator);
+                            .type_info_provider
+                            .get_record_type_info(&update.record_id);
                         self.match_expr_with(*receiver_expr_id, &record_type_info.record_type);
                         for field_update in &update.items {
                             let field = &record_type_info.field_types[field_update.index];

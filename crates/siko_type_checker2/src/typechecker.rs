@@ -2,7 +2,6 @@ use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::DeriveInfo;
 use crate::common::FunctionTypeInfo;
-use crate::common::FunctionTypeInfoStore;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
 use crate::dependency_processor::DependencyGroup;
@@ -12,6 +11,7 @@ use crate::expression_checker::ExpressionChecker;
 use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::instance_resolver::InstanceResolver;
 use crate::substitution::Substitution;
+use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::type_store_initializer::TypeStoreInitializer;
 use crate::type_var_generator::TypeVarGenerator;
@@ -21,7 +21,6 @@ use crate::unifier::Unifier;
 use crate::util::create_general_function_type;
 use crate::util::process_type_signature;
 use siko_ir::class::ClassId;
-use siko_ir::class::ClassMemberId;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
 use siko_ir::function::FunctionId;
@@ -29,7 +28,6 @@ use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program;
 use siko_ir::types::TypeDef;
-use siko_ir::types::TypeDefId;
 use siko_ir::walker::walk_expr;
 use siko_location_info::item::LocationId;
 use siko_util::RcCounter;
@@ -151,11 +149,13 @@ impl Typechecker {
         instance_resolver: &mut InstanceResolver,
         errors: &mut Vec<TypecheckError>,
         program: &Program,
-        type_var_generator: &mut TypeVarGenerator,
-        adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
-        record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
+        type_info_provider: &mut TypeInfoProvider,
     ) {
-        instance_resolver.check_conflicts(errors, program, type_var_generator.clone());
+        instance_resolver.check_conflicts(
+            errors,
+            program,
+            type_info_provider.type_var_generator.clone(),
+        );
 
         if !errors.is_empty() {
             return;
@@ -163,7 +163,7 @@ impl Typechecker {
 
         loop {
             let mut instance_changed = false;
-            for (id, adt_type_info) in adt_type_info_map {
+            for (id, adt_type_info) in &type_info_provider.adt_type_info_map {
                 let adt = program.typedefs.get(id).get_adt();
                 for derive_info in &adt_type_info.derived_classes {
                     let class = program.classes.get(&derive_info.class_id);
@@ -177,7 +177,7 @@ impl Typechecker {
                                 item_type.1,
                                 &instance_resolver,
                                 &mut substitutions,
-                                type_var_generator.clone(),
+                                type_info_provider.type_var_generator.clone(),
                             ) {
                             } else {
                                 let err = TypecheckError::DeriveFailureNoInstanceFound(
@@ -209,7 +209,7 @@ impl Typechecker {
                 }
             }
 
-            for (id, record_type_info) in record_type_info_map {
+            for (id, record_type_info) in &type_info_provider.record_type_info_map {
                 let record = program.typedefs.get(id).get_record();
                 for derive_info in &record_type_info.derived_classes {
                     let class = program.classes.get(&derive_info.class_id);
@@ -222,7 +222,7 @@ impl Typechecker {
                             field_type.1,
                             &instance_resolver,
                             &mut substitutions,
-                            type_var_generator.clone(),
+                            type_info_provider.type_var_generator.clone(),
                         ) {
                         } else {
                             let err = TypecheckError::DeriveFailureNoInstanceFound(
@@ -267,9 +267,7 @@ impl Typechecker {
         &self,
         instance_resolver: &mut InstanceResolver,
         program: &Program,
-        type_var_generator: &mut TypeVarGenerator,
-        adt_type_info_map: &mut BTreeMap<TypeDefId, AdtTypeInfo>,
-        record_type_info_map: &mut BTreeMap<TypeDefId, RecordTypeInfo>,
+        type_info_provider: &mut TypeInfoProvider,
     ) {
         for (typedef_id, typedef) in program.typedefs.items.iter() {
             match typedef {
@@ -287,7 +285,7 @@ impl Typechecker {
                             let item_ty = process_type_signature(
                                 item.type_signature_id,
                                 program,
-                                type_var_generator,
+                                &mut type_info_provider.type_var_generator,
                             );
                             let item_ty = item_ty.remove_fixed_types();
                             let location = program
@@ -314,7 +312,7 @@ impl Typechecker {
                         };
                         derived_classes.push(derive_info);
                     }
-                    adt_type_info_map.insert(
+                    type_info_provider.adt_type_info_map.insert(
                         adt.id,
                         AdtTypeInfo {
                             adt_type: adt_type,
@@ -335,7 +333,7 @@ impl Typechecker {
                         let field_ty = process_type_signature(
                             field.type_signature_id,
                             program,
-                            type_var_generator,
+                            &mut type_info_provider.type_var_generator,
                         );
                         let item_ty = field_ty.remove_fixed_types();
                         let location = program
@@ -359,7 +357,7 @@ impl Typechecker {
                         };
                         derived_classes.push(derive_info);
                     }
-                    record_type_info_map.insert(
+                    type_info_provider.record_type_info_map.insert(
                         record.id,
                         RecordTypeInfo {
                             record_type: record_type,
@@ -433,16 +431,15 @@ impl Typechecker {
         &self,
         program: &Program,
         type_var_generator: &mut TypeVarGenerator,
-        adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
-        record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
         errors: &mut Vec<TypecheckError>,
-        function_type_info_store: &mut FunctionTypeInfoStore,
+        type_info_provider: &mut TypeInfoProvider,
     ) {
         for (id, function) in &program.functions.items {
             match &function.info {
                 FunctionInfo::RecordConstructor(i) => {
                     let record = program.typedefs.get(&i.type_id).get_record();
-                    let record_type_info = record_type_info_map
+                    let record_type_info = type_info_provider
+                        .record_type_info_map
                         .get(&i.type_id)
                         .expect("record type info not found");
                     let mut func_args = Vec::new();
@@ -478,11 +475,14 @@ impl Typechecker {
                         .expect("Unify failed");
 
                     func_type_info.apply(&unifier);
-                    function_type_info_store.add(*id, func_type_info);
+                    type_info_provider
+                        .function_type_info_store
+                        .add(*id, func_type_info);
                 }
                 FunctionInfo::VariantConstructor(i) => {
                     let adt = program.typedefs.get(&i.type_id).get_adt();
-                    let adt_type_info = adt_type_info_map
+                    let adt_type_info = type_info_provider
+                        .adt_type_info_map
                         .get(&i.type_id)
                         .expect("Adt type info not found");
 
@@ -524,7 +524,9 @@ impl Typechecker {
                         .expect("Unify failed");
 
                     func_type_info.apply(&unifier);
-                    function_type_info_store.add(*id, func_type_info);
+                    type_info_provider
+                        .function_type_info_store
+                        .add(*id, func_type_info);
                 }
                 FunctionInfo::Lambda(i) => {
                     let displayed_name = format!("{}", function.info);
@@ -535,7 +537,9 @@ impl Typechecker {
                         i.location_id,
                         type_var_generator,
                     );
-                    function_type_info_store.add(*id, func_type_info);
+                    type_info_provider
+                        .function_type_info_store
+                        .add(*id, func_type_info);
                 }
                 FunctionInfo::NamedFunction(i) => match i.type_signature {
                     Some(type_signature) => {
@@ -578,7 +582,9 @@ impl Typechecker {
                         } else {
                             func_type_info.apply(&unifier);
                         }
-                        function_type_info_store.add(*id, func_type_info);
+                        type_info_provider
+                            .function_type_info_store
+                            .add(*id, func_type_info);
                     }
                     None => match i.body {
                         Some(body) => {
@@ -590,7 +596,9 @@ impl Typechecker {
                                 i.location_id,
                                 type_var_generator,
                             );
-                            function_type_info_store.add(*id, func_type_info);
+                            type_info_provider
+                                .function_type_info_store
+                                .add(*id, func_type_info);
                         }
                         None => {
                             let err = TypecheckError::UntypedExternFunction(
@@ -626,87 +634,59 @@ impl Typechecker {
         }
     }
 
-    fn init_expr_types(
+    fn init_expr_types<'a>(
         &self,
         function_id: &FunctionId,
-        group: &DependencyGroup<FunctionId>,
-        function_type_info_store: &mut FunctionTypeInfoStore,
-        type_store: &mut TypeStore,
-        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-        adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
-        record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
-        program: &Program,
-        type_var_generator: TypeVarGenerator,
-        errors: &mut Vec<TypecheckError>,
+        group: &'a DependencyGroup<FunctionId>,
+        type_store: &'a mut TypeStore,
+        type_info_provider: &'a mut TypeInfoProvider,
+        program: &'a Program,
+        errors: &'a mut Vec<TypecheckError>,
     ) {
-        let function_type_info = function_type_info_store.get_mut(function_id);
+        let function_type_info = type_info_provider
+            .function_type_info_store
+            .get_mut(function_id);
         let body = function_type_info.body.expect("body not found");
-        let mut initializer = TypeStoreInitializer::new(
-            program,
-            group,
-            type_store,
-            function_type_info_store,
-            class_member_type_info_map,
-            adt_type_info_map,
-            record_type_info_map,
-            type_var_generator.clone(),
-            errors,
-        );
+        let mut initializer =
+            TypeStoreInitializer::new(program, group, type_store, type_info_provider, errors);
         walk_expr(&body, &mut initializer);
     }
 
-    fn process_function(
+    fn process_function<'a>(
         &self,
         function_id: &FunctionId,
-        errors: &mut Vec<TypecheckError>,
-        group: &DependencyGroup<FunctionId>,
-        function_type_info_store: &mut FunctionTypeInfoStore,
-        record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
-        type_store: &mut TypeStore,
-        program: &Program,
-        type_var_generator: TypeVarGenerator,
+        errors: &'a mut Vec<TypecheckError>,
+        group: &'a DependencyGroup<FunctionId>,
+        type_store: &'a mut TypeStore,
+        type_info_provider: &'a mut TypeInfoProvider,
+        program: &'a Program,
     ) {
         //let func = program.functions.get(function_id);
         //println!("Checking {}", func.info);
-        let function_type_info = function_type_info_store.get(function_id);
+        let function_type_info = type_info_provider.function_type_info_store.get(function_id);
         let result_ty = function_type_info.result.clone();
         let body = function_type_info.body.expect("body not found");
-        let mut checker = ExpressionChecker::new(
-            program,
-            group,
-            type_store,
-            type_var_generator.clone(),
-            function_type_info_store,
-            record_type_info_map,
-            errors,
-        );
+        let mut checker =
+            ExpressionChecker::new(program, group, type_store, type_info_provider, errors);
         walk_expr(&body, &mut checker);
         checker.match_expr_with(body, &result_ty);
     }
 
-    fn process_dep_group(
+    fn process_dep_group<'a, 'b>(
         &self,
-        group: &DependencyGroup<FunctionId>,
-        errors: &mut Vec<TypecheckError>,
-        function_type_info_store: &mut FunctionTypeInfoStore,
-        type_store: &mut TypeStore,
-        class_member_type_info_map: &BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-        adt_type_info_map: &BTreeMap<TypeDefId, AdtTypeInfo>,
-        record_type_info_map: &BTreeMap<TypeDefId, RecordTypeInfo>,
-        program: &Program,
-        type_var_generator: TypeVarGenerator,
+        group: &'b DependencyGroup<FunctionId>,
+        errors: &'a mut Vec<TypecheckError>,
+        type_store: &'a mut TypeStore,
+        type_info_provider: &'a mut TypeInfoProvider,
+        program: &'a Program,
     ) {
         for function in &group.items {
             self.init_expr_types(
                 function,
                 group,
-                function_type_info_store,
                 type_store,
-                class_member_type_info_map,
-                adt_type_info_map,
-                record_type_info_map,
+                type_info_provider,
                 program,
-                type_var_generator.clone(),
                 errors,
             );
         }
@@ -716,38 +696,33 @@ impl Typechecker {
                 function,
                 errors,
                 group,
-                function_type_info_store,
-                record_type_info_map,
                 type_store,
+                type_info_provider,
                 program,
-                type_var_generator.clone(),
             );
         }
     }
 
-    fn process_class_members(
-        &self,
-        program: &Program,
-        type_var_generator: &mut TypeVarGenerator,
-        class_member_type_info_map: &mut BTreeMap<ClassMemberId, ClassMemberTypeInfo>,
-    ) {
+    fn process_class_members(&self, program: &Program, type_info_provider: &mut TypeInfoProvider) {
         for (class_member_id, class_member) in &program.class_members.items {
-            let ty =
-                process_type_signature(class_member.type_signature, program, type_var_generator);
+            let ty = process_type_signature(
+                class_member.type_signature,
+                program,
+                &mut type_info_provider.type_var_generator,
+            );
             let class_member_type_info = ClassMemberTypeInfo { ty: ty };
-            class_member_type_info_map.insert(*class_member_id, class_member_type_info);
+            type_info_provider
+                .class_member_type_info_map
+                .insert(*class_member_id, class_member_type_info);
         }
     }
 
     pub fn check(&self, program: &Program, counter: RcCounter) -> Result<(), Error> {
         let mut errors = Vec::new();
         let mut type_var_generator = TypeVarGenerator::new(counter);
+        let mut type_info_provider = TypeInfoProvider::new(type_var_generator.clone());
         let mut class_types = BTreeMap::new();
         let mut instance_resolver = InstanceResolver::new();
-        let mut adt_type_info_map = BTreeMap::new();
-        let mut record_type_info_map = BTreeMap::new();
-        let mut function_type_info_store = FunctionTypeInfoStore::new();
-        let mut class_member_type_info_map = BTreeMap::new();
 
         self.process_classes_and_user_defined_instances(
             program,
@@ -756,19 +731,9 @@ impl Typechecker {
             &mut class_types,
         );
 
-        self.process_class_members(
-            program,
-            &mut type_var_generator,
-            &mut class_member_type_info_map,
-        );
+        self.process_class_members(program, &mut type_info_provider);
 
-        self.process_data_types(
-            &mut instance_resolver,
-            program,
-            &mut type_var_generator,
-            &mut adt_type_info_map,
-            &mut record_type_info_map,
-        );
+        self.process_data_types(&mut instance_resolver, program, &mut type_info_provider);
 
         instance_resolver.check_conflicts(&mut errors, program, type_var_generator.clone());
 
@@ -780,9 +745,7 @@ impl Typechecker {
             &mut instance_resolver,
             &mut errors,
             program,
-            &mut type_var_generator,
-            &adt_type_info_map,
-            &record_type_info_map,
+            &mut type_info_provider,
         );
 
         if !errors.is_empty() {
@@ -792,10 +755,8 @@ impl Typechecker {
         self.process_functions(
             program,
             &mut type_var_generator,
-            &adt_type_info_map,
-            &record_type_info_map,
             &mut errors,
-            &mut function_type_info_store,
+            &mut type_info_provider,
         );
 
         if !errors.is_empty() {
@@ -803,7 +764,7 @@ impl Typechecker {
         }
 
         let function_dep_processor =
-            FunctionDependencyProcessor::new(program, &function_type_info_store);
+            FunctionDependencyProcessor::new(program, &type_info_provider.function_type_info_store);
 
         let ordered_dep_groups = function_dep_processor.process_functions();
 
@@ -818,13 +779,9 @@ impl Typechecker {
             self.process_dep_group(
                 group,
                 &mut errors,
-                &mut function_type_info_store,
                 &mut type_store,
-                &class_member_type_info_map,
-                &adt_type_info_map,
-                &record_type_info_map,
+                &mut type_info_provider,
                 program,
-                type_var_generator.clone(),
             );
             //type_store.dump(program);
         }
