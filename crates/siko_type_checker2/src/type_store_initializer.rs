@@ -17,7 +17,6 @@ use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::walker::Visitor;
-use std::collections::BTreeMap;
 
 pub struct TypeStoreInitializer<'a> {
     program: &'a Program,
@@ -79,22 +78,12 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store.initialize_expr(expr_id, ty);
             }
             Expr::ClassFunctionCall(class_member_id, args) => {
-                let class_member_type_info = self
+                let class_member_type = self
                     .type_info_provider
-                    .class_member_type_info_map
-                    .get(class_member_id)
-                    .expect("Class member type info not found");
-                let mut arg_map = BTreeMap::new();
-                let function_type = class_member_type_info
-                    .ty
-                    .duplicate(
-                        &mut arg_map,
-                        &mut self.type_info_provider.type_var_generator,
-                    )
-                    .remove_fixed_types();
-                let result_ty = function_type.get_result_type(args.len());
+                    .get_class_member_type(class_member_id);
+                let result_ty = class_member_type.get_result_type(args.len());
                 self.type_store
-                    .initialize_expr_with_func(expr_id, result_ty, function_type);
+                    .initialize_expr_with_func(expr_id, result_ty, class_member_type);
             }
             Expr::DynamicFunctionCall(_, args) => {
                 let mut func_args = Vec::new();
@@ -158,7 +147,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             Expr::StaticFunctionCall(function_id, args) => {
                 let function_type = self
                     .type_info_provider
-                    .get_function_type(function_id, self.group.items.contains(function_id));
+                    .get_function_type(function_id, !self.group.items.contains(function_id));
                 let result_ty = function_type.get_result_type(args.len());
                 self.type_store
                     .initialize_expr_with_func(expr_id, result_ty, function_type);
@@ -220,7 +209,13 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store
                     .initialize_pattern(pattern_id, get_float_type(self.program));
             }
-            Pattern::Guarded(_, _) => {}
+            Pattern::Guarded(_, _) => {
+                let ty = self
+                    .type_info_provider
+                    .type_var_generator
+                    .get_new_type_var();
+                self.type_store.initialize_pattern(pattern_id, ty);
+            }
             Pattern::IntegerLiteral(_) => {
                 self.type_store
                     .initialize_pattern(pattern_id, get_int_type(self.program));

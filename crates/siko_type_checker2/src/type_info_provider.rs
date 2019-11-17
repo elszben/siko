@@ -57,4 +57,17 @@ impl TypeInfoProvider {
             .expect("Record type info not found");
         record_type_info.duplicate(&mut self.type_var_generator)
     }
+
+    pub fn get_class_member_type(&mut self, class_member_id: &ClassMemberId) -> Type {
+        let class_member_type_info = self
+            .class_member_type_info_map
+            .get(class_member_id)
+            .expect("Class member type info not found");
+        let mut arg_map = BTreeMap::new();
+        let function_type = class_member_type_info
+            .ty
+            .duplicate(&mut arg_map, &mut self.type_var_generator)
+            .remove_fixed_types();
+        function_type
+    }
 }
