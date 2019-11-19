@@ -1,6 +1,7 @@
 use crate::common::AdtTypeInfo;
 use crate::dependency_processor::DependencyGroup;
 use crate::error::TypecheckError;
+use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::types::ResolverContext;
@@ -24,6 +25,7 @@ pub struct ExpressionChecker<'a> {
     group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
     type_info_provider: &'a mut TypeInfoProvider,
+    instance_resolver: &'a InstanceResolver,
     errors: &'a mut Vec<TypecheckError>,
 }
 
@@ -33,6 +35,7 @@ impl<'a> ExpressionChecker<'a> {
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
+        instance_resolver: &'a InstanceResolver,
         errors: &'a mut Vec<TypecheckError>,
     ) -> ExpressionChecker<'a> {
         ExpressionChecker {
@@ -40,20 +43,36 @@ impl<'a> ExpressionChecker<'a> {
             group: group,
             type_store: type_store,
             type_info_provider: type_info_provider,
+            instance_resolver: instance_resolver,
             errors: errors,
         }
     }
 
     fn unify(&mut self, ty1: &Type, ty2: &Type, location: LocationId) {
         let mut unifier = Unifier::new(self.type_info_provider.type_var_generator.clone());
-        if unifier.unify(ty1, ty2).is_err() {
+        let mut failed = false;
+        if unifier.unify(ty1, ty2).is_ok() {
+            let constraints = unifier.get_constraints();
+            for constraint in &constraints {
+                let mut unifiers = Vec::new();
+                if !self.instance_resolver.check_instance(
+                    constraint.class_id,
+                    &constraint.ty,
+                    location,
+                    &mut unifiers,
+                    self.type_info_provider.type_var_generator.clone(),
+                ) {
+                    failed = true;
+                    break;
+                }
+            }
+        }
+        if failed {
             let ty_str1 = ty1.get_resolved_type_string(self.program);
             let ty_str2 = ty2.get_resolved_type_string(self.program);
             let err = TypecheckError::TypeMismatch(location, ty_str1, ty_str2);
             self.errors.push(err);
         } else {
-            let cs = unifier.get_constraints();
-            //dbg!(cs);
             self.type_store.apply(&unifier);
             for id in &self.group.items {
                 let info = self.type_info_provider.function_type_info_store.get_mut(id);

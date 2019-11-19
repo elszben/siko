@@ -114,7 +114,7 @@ impl Unifier {
         self.substitution.get_constraints()
     }
 
-    pub fn get_substitution(&self) -> Substitution {
-        self.substitution.clone()
+    pub fn get_substitution(&self) -> &Substitution {
+        &self.substitution
     }
 }

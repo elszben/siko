@@ -1,5 +1,4 @@
 use crate::error::TypecheckError;
-use crate::substitution::Substitution;
 use crate::type_var_generator::TypeVarGenerator;
 use crate::types::BaseType;
 use crate::types::Type;
@@ -106,12 +105,12 @@ impl InstanceResolver {
         index
     }
 
-    pub fn has_instance(
+    fn has_instance(
         &self,
         ty: &Type,
         class_id: ClassId,
         type_var_generator: TypeVarGenerator,
-    ) -> Option<Substitution> {
+    ) -> Option<Unifier> {
         let base_type = ty.get_base_type();
         if let Some(class_instances) = self.instance_map.get(&class_id) {
             if let Some(instances) = class_instances.get(&base_type) {
@@ -121,12 +120,12 @@ impl InstanceResolver {
                         InstanceInfo::AutoDerived(index) => {
                             let instance = self.get_auto_derived_instance(*index);
                             if unifier.unify(ty, &instance.ty).is_ok() {
-                                return Some(unifier.get_substitution());
+                                return Some(unifier);
                             }
                         }
                         InstanceInfo::UserDefined(instance_ty, _, _) => {
                             if unifier.unify(ty, instance_ty).is_ok() {
-                                return Some(unifier.get_substitution());
+                                return Some(unifier);
                             }
                         }
                     }
@@ -186,6 +185,52 @@ impl InstanceResolver {
                     }
                 }
             }
+        }
+    }
+
+    pub fn check_instance(
+        &self,
+        class_id: ClassId,
+        ty: &Type,
+        location_id: LocationId,
+        unifiers: &mut Vec<(Unifier, LocationId)>,
+        mut type_var_generator: TypeVarGenerator,
+    ) -> bool {
+        //println!("Checking instance {} {}", class_id, ty);
+        if let Type::Var(_, constraints) = ty {
+            if constraints.contains(&class_id) {
+                return true;
+            } else {
+                let mut new_constraints = constraints.clone();
+                new_constraints.push(class_id);
+                let new_type = Type::Var(type_var_generator.get_new_index(), new_constraints);
+                let mut unifier = Unifier::new(type_var_generator.clone());
+                let r = unifier.unify(&new_type, ty);
+                assert!(r.is_ok());
+                unifiers.push((unifier, location_id));
+                return true;
+            }
+        }
+        if let Some(unifier) = self.has_instance(&ty, class_id, type_var_generator.clone()) {
+            let constraints = unifier.get_substitution().get_constraints();
+            for constraint in constraints {
+                if constraint.ty.get_base_type() == BaseType::Generic {
+                    unimplemented!();
+                } else {
+                    if !self.check_instance(
+                        constraint.class_id,
+                        &constraint.ty,
+                        location_id,
+                        unifiers,
+                        type_var_generator.clone(),
+                    ) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } else {
+            return false;
         }
     }
 }

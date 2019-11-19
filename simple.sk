@@ -27,6 +27,9 @@ data Color = Red | Blue
 data TestRecord a = { a :: a }
 //data TestRecord2 a = { a :: a }
 
+alma = show
+korte = alma Red 
+
 main  = do
     a <- TestRecord { a = "q" }
     TestRecord b  <- a
