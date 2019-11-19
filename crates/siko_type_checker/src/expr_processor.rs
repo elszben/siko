@@ -293,15 +293,6 @@ impl<'a> ExprProcessor<'a> {
         self.unify_variables(&first_pattern_var, &second_pattern_var, location, errors);
     }
 
-    pub fn check_bind_groups(&mut self, errors: &mut Vec<TypecheckError>) {
-        let bind_groups = self.program.bind_groups.clone();
-        for bind_group in bind_groups {
-            for patterns in bind_group.patterns.windows(2) {
-                self.match_patterns(&patterns[1], &patterns[0], errors);
-            }
-        }
-    }
-
     pub fn export_expr_types(&mut self) {
         for (expr_id, var) in &self.expression_type_var_map {
             let ir_type_id = convert_to_ir_type(var, &mut self.program, &self.type_store);

@@ -846,6 +846,7 @@ pub fn process_expr(
                 type_arg_resolver,
             );
             let mut ir_cases = Vec::new();
+            let mut bind_groups = Vec::new();
             for case in cases {
                 if let Pattern::Or(sub_patterns) = &program.patterns.get(&case.pattern_id).item {
                     let mut all_bindings = BTreeMap::new();
@@ -914,7 +915,7 @@ pub fn process_expr(
                                 let bind_group = BindGroup {
                                     patterns: binding.1.iter().map(|(_, id)| *id).collect(),
                                 };
-                                ir_program.bind_groups.push(bind_group);
+                                bind_groups.push(bind_group);
                             }
                         }
                     }
@@ -960,7 +961,7 @@ pub fn process_expr(
                     ir_cases.push(ir_case);
                 }
             }
-            let ir_expr = IrExpr::CaseOf(ir_body_id, ir_cases);
+            let ir_expr = IrExpr::CaseOf(ir_body_id, ir_cases, bind_groups);
             return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::RecordInitialization(name, items) => {

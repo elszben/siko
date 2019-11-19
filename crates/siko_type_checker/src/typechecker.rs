@@ -112,8 +112,6 @@ impl Typechecker {
                 expr_processor.process_dep_group(group, &mut errors);
             }
 
-            expr_processor.check_bind_groups(&mut errors);
-
             expr_processor
         };
 

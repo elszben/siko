@@ -66,7 +66,7 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
                 walk_expr(item, visitor);
             }
         }
-        Expr::CaseOf(body, cases) => {
+        Expr::CaseOf(body, cases, _) => {
             walk_expr(body, visitor);
             for case in cases {
                 walk_expr(&case.body, visitor);

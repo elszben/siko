@@ -1,5 +1,6 @@
 use crate::class::ClassMemberId;
 use crate::function::FunctionId;
+use crate::pattern::BindGroup;
 use crate::pattern::PatternId;
 use crate::types::TypeDefId;
 use siko_util::format_list;
@@ -112,7 +113,7 @@ pub enum Expr {
     FieldAccess(Vec<FieldAccessInfo>, ExprId),
     TupleFieldAccess(usize, ExprId),
     Formatter(String, Vec<ExprId>),
-    CaseOf(ExprId, Vec<Case>),
+    CaseOf(ExprId, Vec<Case>, Vec<BindGroup>),
     RecordInitialization(TypeDefId, Vec<RecordFieldValueExpr>),
     RecordUpdate(ExprId, Vec<RecordUpdateInfo>),
 }
@@ -152,7 +153,7 @@ impl fmt::Display for Expr {
                 write!(f, "TupleFieldAccess({}, {})", index, expr)
             }
             Expr::Formatter(fmt, items) => write!(f, "Formatter({}, {})", fmt, format_list(items)),
-            Expr::CaseOf(body, cases) => write!(f, "CaseOf({}, {})", body, format_list(cases)),
+            Expr::CaseOf(body, cases, _) => write!(f, "CaseOf({}, {})", body, format_list(cases)),
             Expr::RecordInitialization(type_id, items) => write!(
                 f,
                 "RecordInitialization({}, {})",

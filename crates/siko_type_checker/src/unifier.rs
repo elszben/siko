@@ -427,7 +427,7 @@ impl<'a, 'b> Visitor for Unifier<'a, 'b> {
                     }
                 }
             }
-            Expr::CaseOf(body, cases) => {
+            Expr::CaseOf(body, cases, _) => {
                 let body_var = self.expr_processor.lookup_type_var_for_expr(&body);
                 for case in cases {
                     self.match_pattern_with(&case.pattern_id, &body_var);

@@ -66,6 +66,8 @@ impl<'a> ExpressionChecker<'a> {
                     break;
                 }
             }
+        } else {
+            failed = true;
         }
         if failed {
             let ty_str1 = ty1.get_resolved_type_string(self.program);
@@ -172,7 +174,12 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.match_expr_with(expr_id, &expr_ty);
             }
             Expr::BoolLiteral(_) => {}
-            Expr::CaseOf(case_expr, cases) => {
+            Expr::CaseOf(case_expr, cases, bind_groups) => {
+                for bind_group in bind_groups {
+                    for patterns in bind_group.patterns.windows(2) {
+                        self.match_patterns(patterns[0], patterns[1]);
+                    }
+                }
                 if let Some(first) = cases.first() {
                     self.match_exprs(expr_id, first.body);
                     for case in cases {

@@ -8,7 +8,6 @@ use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::function::Function;
 use crate::function::FunctionId;
-use crate::pattern::BindGroup;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::types::Adt;
@@ -48,7 +47,6 @@ pub struct Program {
     pub class_member_types: BTreeMap<ClassMemberId, (TypeId, TypeId)>,
     pub class_names: BTreeMap<String, ClassId>,
     pub named_types: BTreeMap<String, BTreeMap<String, TypeDefId>>,
-    pub bind_groups: Vec<BindGroup>,
 }
 
 impl Program {
@@ -69,7 +67,6 @@ impl Program {
             class_member_types: BTreeMap::new(),
             class_names: BTreeMap::new(),
             named_types: BTreeMap::new(),
-            bind_groups: Vec::new(),
         }
     }
 

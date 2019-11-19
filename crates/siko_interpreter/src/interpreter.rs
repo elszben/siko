@@ -566,7 +566,7 @@ impl Interpreter {
                 }
                 unreachable!()
             }
-            Expr::CaseOf(body, cases) => {
+            Expr::CaseOf(body, cases, _) => {
                 let case_value = self.eval_expr(*body, environment, sub_context);
                 for case in cases {
                     let mut case_env = Environment::block_child(environment);
@@ -702,7 +702,7 @@ impl Interpreter {
     pub fn get_typedef_id_cache() -> TypeDefIdCache {
         INTERPRETER_CONTEXT.with(|i| {
             let i = i.borrow();
-;            i.as_ref()
+            i.as_ref()
                 .expect("Interpreter not set")
                 .typedefid_cache
                 .clone()
