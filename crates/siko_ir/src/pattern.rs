@@ -1,6 +1,6 @@
+use crate::data::TypeDefId;
 use crate::expr::ExprId;
-use crate::types::TypeDefId;
-use crate::types::TypeSignatureId;
+use crate::type_signature::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use std::fmt;
 

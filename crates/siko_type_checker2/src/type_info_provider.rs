@@ -2,11 +2,11 @@ use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::FunctionTypeInfoStore;
 use crate::common::RecordTypeInfo;
-use crate::type_var_generator::TypeVarGenerator;
-use crate::types::Type;
 use siko_ir::class::ClassMemberId;
+use siko_ir::data::TypeDefId;
 use siko_ir::function::FunctionId;
-use siko_ir::types::TypeDefId;
+use siko_ir::type_var_generator::TypeVarGenerator;
+use siko_ir::types::Type;
 use std::collections::BTreeMap;
 
 pub struct TypeInfoProvider {

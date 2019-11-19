@@ -1,8 +1,8 @@
-use crate::type_var_generator::TypeVarGenerator;
-use crate::types::Type;
 use siko_ir::program::Program;
-use siko_ir::types::TypeSignature;
-use siko_ir::types::TypeSignatureId;
+use siko_ir::type_signature::TypeSignature;
+use siko_ir::type_signature::TypeSignatureId;
+use siko_ir::type_var_generator::TypeVarGenerator;
+use siko_ir::types::Type;
 
 pub fn create_general_function_type(
     func_args: &mut Vec<Type>,

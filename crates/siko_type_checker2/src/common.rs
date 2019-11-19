@@ -1,10 +1,10 @@
-use crate::type_var_generator::TypeVarGenerator;
-use crate::types::Type;
-use crate::unifier::Unifier;
 use siko_ir::class::ClassId;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
 use siko_ir::program::Program;
+use siko_ir::type_var_generator::TypeVarGenerator;
+use siko_ir::types::Type;
+use siko_ir::unifier::Unifier;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 

@@ -2,7 +2,7 @@ use crate::environment::Environment;
 use crate::value::Value;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types::ConcreteType;
+use siko_ir::types_old::ConcreteType;
 
 pub trait ExternFunction {
     fn call(

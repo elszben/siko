@@ -2,7 +2,6 @@ use crate::dependency_processor::DependencyGroup;
 use crate::error::TypecheckError;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
-use crate::types::Type;
 use crate::util::create_general_function_type;
 use crate::util::get_bool_type;
 use crate::util::get_float_type;
@@ -16,6 +15,7 @@ use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
+use siko_ir::types::Type;
 use siko_ir::walker::Visitor;
 
 pub struct TypeStoreInitializer<'a> {

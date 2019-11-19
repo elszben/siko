@@ -8,14 +8,14 @@ use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
 use crate::types::Type;
 use siko_ir::class::ClassMemberId;
+use siko_ir::data::TypeDefId;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
 use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program;
-use siko_ir::types::TypeDefId;
-use siko_ir::types::TypeSignatureId;
+use siko_ir::type_signature::TypeSignatureId;
 use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 

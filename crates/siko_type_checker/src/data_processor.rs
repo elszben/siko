@@ -4,9 +4,9 @@ use crate::common::VariantTypeInfo;
 use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
 use crate::types::Type;
+use siko_ir::data::TypeDef;
+use siko_ir::data::TypeDefId;
 use siko_ir::program::Program;
-use siko_ir::types::TypeDef;
-use siko_ir::types::TypeDefId;
 use std::collections::BTreeMap;
 
 pub struct DataProcessor<'a> {

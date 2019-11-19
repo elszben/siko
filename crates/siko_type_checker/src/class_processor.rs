@@ -7,7 +7,7 @@ use crate::type_processor::process_type_signature;
 use crate::type_store::TypeStore;
 use siko_ir::class::ClassMemberId;
 use siko_ir::program::Program;
-use siko_ir::types::TypeSignature;
+use siko_ir::type_signature::TypeSignature;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;

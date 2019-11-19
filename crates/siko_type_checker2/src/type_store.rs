@@ -1,11 +1,11 @@
 use crate::common::AdtTypeInfo;
 use crate::common::RecordTypeInfo;
-use crate::types::ResolverContext;
-use crate::types::Type;
-use crate::unifier::Unifier;
 use siko_ir::expr::ExprId;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
+use siko_ir::types::ResolverContext;
+use siko_ir::types::Type;
+use siko_ir::unifier::Unifier;
 use std::collections::BTreeMap;
 use std::fmt;
 

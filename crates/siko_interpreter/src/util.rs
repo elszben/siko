@@ -4,7 +4,7 @@ use crate::value::ValueCore;
 use siko_constants::OPTION_NAME;
 use siko_constants::ORDERING_NAME;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types::ConcreteType;
+use siko_ir::types_old::ConcreteType;
 use std::cmp::Ordering;
 
 pub fn get_instance_name_from_kind(kind: &NamedFunctionKind) -> &str {

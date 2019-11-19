@@ -1,8 +1,8 @@
 use crate::type_var_generator::TypeVarGenerator;
 use crate::unifier::Unifier;
 use siko_ir::class::ClassId;
+use siko_ir::data::TypeDefId;
 use siko_ir::program::Program;
-use siko_ir::types::TypeDefId;
 use siko_util::format_list;
 use siko_util::Collector;
 use siko_util::Counter;

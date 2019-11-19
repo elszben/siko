@@ -1,8 +1,8 @@
 use crate::interpreter::Interpreter;
+use siko_ir::data::TypeDefId;
 use siko_ir::function::FunctionId;
-use siko_ir::types::ConcreteType;
-use siko_ir::types::SubstitutionContext;
-use siko_ir::types::TypeDefId;
+use siko_ir::types_old::ConcreteType;
+use siko_ir::types_old::SubstitutionContext;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;

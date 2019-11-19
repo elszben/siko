@@ -3,7 +3,7 @@ use crate::error::TypecheckError;
 use crate::instance_resolver::InstanceResolver;
 use crate::type_store::TypeStore;
 use siko_ir::class::ClassId;
-use siko_ir::types::TypeInstanceResolver;
+use siko_ir::types_old::TypeInstanceResolver;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;

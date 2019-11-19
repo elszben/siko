@@ -1,7 +1,7 @@
 use siko_ir::class::ClassId as IrClassId;
 use siko_ir::class::ClassMemberId as IrClassMemberId;
+use siko_ir::data::TypeDefId;
 use siko_ir::function::FunctionId as IrFunctionId;
-use siko_ir::types::TypeDefId;
 use siko_syntax::class::ClassId;
 use siko_syntax::data::AdtId;
 use siko_syntax::data::RecordFieldId;

@@ -4,8 +4,8 @@ use crate::type_store::TypeStore;
 use crate::type_variable::TypeVariable;
 use crate::types::Type;
 use siko_ir::program::Program;
-use siko_ir::types::TypeSignature;
-use siko_ir::types::TypeSignatureId;
+use siko_ir::type_signature::TypeSignature;
+use siko_ir::type_signature::TypeSignatureId;
 use std::collections::BTreeMap;
 
 pub fn process_type_signature(

@@ -1,8 +1,8 @@
 use crate::class::ClassMemberId;
+use crate::data::TypeDefId;
 use crate::function::FunctionId;
 use crate::pattern::BindGroup;
 use crate::pattern::PatternId;
-use crate::types::TypeDefId;
 use siko_util::format_list;
 use std::fmt;
 
