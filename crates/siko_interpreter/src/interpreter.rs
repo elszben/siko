@@ -127,9 +127,7 @@ impl Interpreter {
                             call_args,
                             func_info.implicit_arg_count,
                         );
-                        if arg_count != 0 {
-                            callable_func_ty = callable_func_ty.get_result_type(arg_count - 1);
-                        }
+                        callable_func_ty = callable_func_ty.get_result_type(arg_count);
                         let result = self.execute(
                             callable.function_id,
                             &mut environment,
@@ -365,23 +363,19 @@ impl Interpreter {
             .class_member_types
             .get(class_member_id)
             .expect("untyped class member");
-
+        let class_member_type = class_member_type.remove_fixed_types();
         let mut arg_types = Vec::new();
         class_member_type.get_args(&mut arg_types);
         let result_type = class_member_type.get_result_type(arg_values.len());
-        println!("args {:?}, result {}", arg_types, result_type);
         let mut call_unifier = self.program.get_unifier();
         for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
-            let r = call_unifier.unify(&arg_value.ty, &arg_type.remove_fixed_types());
+            let r = call_unifier.unify(&arg_value.ty, arg_type);
             assert!(r.is_ok());
         }
-        let function_type = call_unifier.apply(class_member_type);
-        println!("{}", function_type.get_resolved_type_string(&self.program));
+        let r = call_unifier.unify(&result_type, &expr_ty);
+        assert!(r.is_ok());
+        let function_type = call_unifier.apply(&class_member_type);
         let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
-        println!(
-            "class arg {}",
-            class_arg.get_resolved_type_string(&self.program)
-        );
         let cache = self.program.instance_resolution_cache.borrow();
         match cache.get(member.class_id, class_arg) {
             ResolutionResult::AutoDerived => unimplemented!(),
@@ -436,27 +430,20 @@ impl Interpreter {
                     .program
                     .function_types
                     .get(function_id)
-                    .expect("untyped func");
-                println!(
-                    "Function type: {}",
-                    func_ty.get_resolved_type_string(&self.program)
-                );
+                    .expect("untyped func")
+                    .remove_fixed_types();
                 let arg_values: Vec<_> = args
                     .iter()
                     .map(|arg| self.eval_expr(*arg, environment, unifier))
                     .collect();
                 let mut arg_types = Vec::new();
                 func_ty.get_args(&mut arg_types);
-                let result_type = func_ty.get_result_type(args.len());
-                println!("args {:?}, result {}", arg_types, result_type);
                 let mut call_unifier = self.program.get_unifier();
                 for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
-                    println!("--> {} {}", arg_value.ty, arg_type);
                     let r = call_unifier.unify(&arg_value.ty, arg_type);
                     assert!(r.is_ok());
                 }
-                let function_type = call_unifier.apply(func_ty);
-                println!("{}", function_type.get_resolved_type_string(&self.program));
+                let function_type = call_unifier.apply(&func_ty);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
                         function_id: *function_id,
