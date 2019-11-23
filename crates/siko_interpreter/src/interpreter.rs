@@ -8,7 +8,9 @@ use crate::extern_function::ExternFunction;
 use crate::std_ops;
 use crate::std_util;
 use crate::std_util_basic;
+use crate::value::BuiltinCallable;
 use crate::value::Callable;
+use crate::value::CallableKind;
 use crate::value::Value;
 use crate::value::ValueCore;
 use siko_constants::MAIN_FUNCTION;
@@ -88,9 +90,18 @@ impl Interpreter {
                 let mut callable_func_ty = callable_value.ty;
                 callable.values.extend(args);
                 loop {
-                    let func_info = self.program.functions.get(&callable.function_id);
-                    let needed_arg_count =
-                        func_info.arg_locations.len() + func_info.implicit_arg_count;
+                    let (needed_arg_count, implicit_arg_count) = match &callable.kind {
+                        CallableKind::Builtin(builtin) => match builtin {
+                            BuiltinCallable::Show => (1, 0),
+                            _ => unimplemented!(),
+                        },
+                        CallableKind::FunctionId(function_id) => {
+                            let func_info = self.program.functions.get(function_id);
+                            let needed_arg_count =
+                                func_info.arg_locations.len() + func_info.implicit_arg_count;
+                            (needed_arg_count, func_info.implicit_arg_count)
+                        }
+                    };
                     if needed_arg_count > callable.values.len() {
                         return Value::new(ValueCore::Callable(callable), callable_func_ty);
                     } else {
@@ -98,19 +109,25 @@ impl Interpreter {
                         let mut call_args = Vec::new();
                         std::mem::swap(&mut call_args, &mut callable.values);
                         let arg_count = call_args.len();
-                        let mut environment = Environment::new(
-                            callable.function_id,
-                            call_args,
-                            func_info.implicit_arg_count,
-                        );
+                        let mut environment =
+                            Environment::new(callable.kind, call_args, implicit_arg_count);
                         callable_func_ty = callable_func_ty.get_result_type(arg_count);
-                        let result = self.execute(
-                            callable.function_id,
-                            &mut environment,
-                            expr_id,
-                            &callable.unifier,
-                            callable_func_ty.clone(),
-                        );
+                        let result = match &callable.kind {
+                            CallableKind::Builtin(builtin) => self.execute_builtin(
+                                builtin,
+                                &mut environment,
+                                expr_id,
+                                &callable.unifier,
+                                callable_func_ty.clone(),
+                            ),
+                            CallableKind::FunctionId(id) => self.execute(
+                                *id,
+                                &mut environment,
+                                expr_id,
+                                &callable.unifier,
+                                callable_func_ty.clone(),
+                            ),
+                        };
                         if !rest.is_empty() {
                             if let ValueCore::Callable(new_callable) = result.core {
                                 callable = new_callable;
@@ -369,19 +386,22 @@ impl Interpreter {
         match cache.get(member.class_id, class_arg) {
             ResolutionResult::AutoDerived => {
                 let class = self.program.classes.get(&member.class_id);
-                match (class.module.as_ref(), class.name.as_ref()) {
-                    ("Std.Ops", "Show") => {
-                        let input = &arg_values[0];
-                        return Value::new(
-                            ValueCore::String(input.core.show(&self.program)),
-                            self.program.get_string_type(),
-                        );
-                    }
+                let kind = match (class.module.as_ref(), class.name.as_ref()) {
+                    ("Std.Ops", "Show") => CallableKind::Builtin(BuiltinCallable::Show),
                     _ => panic!(
                         "Auto derive of {}/{} is not implemented",
                         class.module, class.name
                     ),
-                }
+                };
+                let callable = Value::new(
+                    ValueCore::Callable(Callable {
+                        kind: kind,
+                        values: vec![],
+                        unifier: call_unifier,
+                    }),
+                    function_type,
+                );
+                return self.call(callable, arg_values, expr_id);
             }
             ResolutionResult::UserDefined(instance_id) => {
                 let instance = self.program.instances.get(instance_id);
@@ -395,7 +415,7 @@ impl Interpreter {
                     };
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
-                        function_id: member_function_id,
+                        kind: CallableKind::FunctionId(member_function_id),
                         values: vec![],
                         unifier: call_unifier,
                     }),
@@ -444,7 +464,7 @@ impl Interpreter {
                 let function_type = call_unifier.apply(&func_ty);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
-                        function_id: *function_id,
+                        kind: CallableKind::FunctionId(*function_id),
                         values: vec![],
                         unifier: call_unifier,
                     }),
@@ -606,6 +626,26 @@ impl Interpreter {
         }
     }
 
+    fn execute_builtin(
+        &self,
+        builtin: &BuiltinCallable,
+        environment: &mut Environment,
+        _: Option<ExprId>,
+        _: &Unifier,
+        _: Type,
+    ) -> Value {
+        match builtin {
+            BuiltinCallable::Show => {
+                let v = environment.get_arg_by_index(0);
+                return Value::new(
+                    ValueCore::String(v.core.show(&self.program)),
+                    self.program.get_string_type(),
+                );
+            }
+            _ => unimplemented!(),
+        }
+    }
+
     fn execute(
         &self,
         id: FunctionId,
@@ -687,7 +727,8 @@ impl Interpreter {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
                     if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
-                        let mut environment = Environment::new(*id, vec![], 0);
+                        let mut environment =
+                            Environment::new(CallableKind::FunctionId(*id), vec![], 0);
                         let unifier = interpreter.program.get_unifier();
                         return interpreter.execute(
                             *id,

@@ -8,9 +8,21 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;
 
+#[derive(Debug, Clone, Copy)]
+pub enum BuiltinCallable {
+    Show,
+    PartialEq,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CallableKind {
+    FunctionId(FunctionId),
+    Builtin(BuiltinCallable),
+}
+
 #[derive(Debug, Clone)]
 pub struct Callable {
-    pub function_id: FunctionId,
+    pub kind: CallableKind,
     pub values: Vec<Value>,
     pub unifier: Unifier,
 }

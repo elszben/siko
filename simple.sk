@@ -1,10 +1,8 @@
 module Main where
 
-data Color = Red Int | Blue deriving Show
+data Color = Red | Blue deriving Show, PartialEq
 
 data Alma = { a :: String, b :: Int} deriving Show
 
-main  = do
-         println "{}" % Red 5
-         println "{}" % Alma { b=5, a = "b"}
+main  = "{}" % Red
 

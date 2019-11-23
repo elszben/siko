@@ -492,7 +492,7 @@ fn parse_unary(parser: &mut Parser, is_arg: bool) -> Result<ExprId, ParseError> 
             let right_expr_info = parser.get_program().exprs.get_mut(&right);
             // FIXME: fix location of these literals
             if let Expr::IntegerLiteral(n) = right_expr_info.item {
-                right_expr_info.item = Expr::IntegerLiteral(-n);;
+                right_expr_info.item = Expr::IntegerLiteral(-n);
                 return Ok(right);
             }
             if let Expr::FloatLiteral(n) = right_expr_info.item {
