@@ -25,7 +25,7 @@ pub struct ExpressionChecker<'a> {
     group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
     type_info_provider: &'a mut TypeInfoProvider,
-    instance_resolver: &'a InstanceResolver,
+    instance_resolver: &'a mut InstanceResolver,
     errors: &'a mut Vec<TypecheckError>,
 }
 
@@ -35,7 +35,7 @@ impl<'a> ExpressionChecker<'a> {
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a InstanceResolver,
+        instance_resolver: &'a mut InstanceResolver,
         errors: &'a mut Vec<TypecheckError>,
     ) -> ExpressionChecker<'a> {
         ExpressionChecker {

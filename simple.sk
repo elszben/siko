@@ -1,20 +1,4 @@
 module Main where
-/*
-class Boo a
-
-instance Boo Int
-
-data A a = A Int (B a) (C a) a deriving Boo
-
-data B a = B a (A a)
-
-data C a = C a (A a)
-
-instance (Boo a) => Boo B a
-instance (Show a) => Boo C a
-
-//instance Boo B Float
-*/
 
 data Foo = Foo Int Float (Bool, Bool)
 
@@ -33,5 +17,5 @@ korte = alma Red
 main  = do
     a <- TestRecord { a = "q" }
     TestRecord b  <- a
-    print b
+    print "{}" % [5]
        

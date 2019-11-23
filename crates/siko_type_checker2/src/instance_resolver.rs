@@ -1,6 +1,8 @@
 use crate::error::TypecheckError;
 use siko_ir::class::ClassId;
 use siko_ir::class::InstanceId;
+use siko_ir::instance_resolution_cache::InstanceResolutionCache;
+use siko_ir::instance_resolution_cache::ResolutionResult;
 use siko_ir::program::Program;
 use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_ir::types::BaseType;
@@ -43,6 +45,7 @@ impl InstanceInfo {
 pub struct InstanceResolver {
     instance_map: BTreeMap<ClassId, BTreeMap<BaseType, Vec<InstanceInfo>>>,
     auto_derived_instances: Vec<AutoDerivedInstance>,
+    cache: InstanceResolutionCache,
 }
 
 impl InstanceResolver {
@@ -50,6 +53,7 @@ impl InstanceResolver {
         InstanceResolver {
             instance_map: BTreeMap::new(),
             auto_derived_instances: Vec::new(),
+            cache: InstanceResolutionCache::new(),
         }
     }
 
@@ -106,7 +110,7 @@ impl InstanceResolver {
     }
 
     fn has_instance(
-        &self,
+        &mut self,
         ty: &Type,
         class_id: ClassId,
         type_var_generator: TypeVarGenerator,
@@ -120,11 +124,19 @@ impl InstanceResolver {
                         InstanceInfo::AutoDerived(index) => {
                             let instance = self.get_auto_derived_instance(*index);
                             if unifier.unify(ty, &instance.ty).is_ok() {
+                                if ty.is_concrete_type() {
+                                    let result = ResolutionResult::AutoDerived;
+                                    self.cache.add(class_id, ty.clone(), result);
+                                }
                                 return Some(unifier);
                             }
                         }
-                        InstanceInfo::UserDefined(instance_ty, _, _) => {
+                        InstanceInfo::UserDefined(instance_ty, instance_id, _) => {
                             if unifier.unify(ty, instance_ty).is_ok() {
+                                if ty.is_concrete_type() {
+                                    let result = ResolutionResult::UserDefined(*instance_id);
+                                    self.cache.add(class_id, ty.clone(), result);
+                                }
                                 return Some(unifier);
                             }
                         }
@@ -189,7 +201,7 @@ impl InstanceResolver {
     }
 
     pub fn check_instance(
-        &self,
+        &mut self,
         class_id: ClassId,
         ty: &Type,
         location_id: LocationId,

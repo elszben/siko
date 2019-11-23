@@ -566,7 +566,7 @@ impl Typechecker {
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a InstanceResolver,
+        instance_resolver: &'a mut InstanceResolver,
         program: &'a Program,
     ) {
         //let func = program.functions.get(function_id);
@@ -592,7 +592,7 @@ impl Typechecker {
         errors: &'a mut Vec<TypecheckError>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a InstanceResolver,
+        instance_resolver: &'a mut InstanceResolver,
         program: &'a Program,
     ) {
         for function in &group.items {
@@ -697,7 +697,7 @@ impl Typechecker {
                 &mut errors,
                 &mut type_store,
                 &mut type_info_provider,
-                &instance_resolver,
+                &mut instance_resolver,
                 program,
             );
             //type_store.dump(program);

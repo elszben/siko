@@ -269,6 +269,30 @@ impl Type {
         }
     }
 
+    pub fn is_concrete_type(&self) -> bool {
+        match self {
+            Type::Tuple(items) => {
+                for item in items {
+                    if !item.is_concrete_type() {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            Type::Named(_, _, items) => {
+                for item in items {
+                    if !item.is_concrete_type() {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            Type::Function(from, to) => from.is_concrete_type() && to.is_concrete_type(),
+            Type::Var(..) => false,
+            Type::FixedTypeArg(..) => false,
+        }
+    }
+
     pub fn get_resolved_type_string(&self, program: &Program) -> String {
         let mut resolver_context = ResolverContext::new(program);
         self.get_resolved_type_string_with_context(&mut resolver_context)
