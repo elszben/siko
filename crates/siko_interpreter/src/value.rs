@@ -1,6 +1,7 @@
 use crate::interpreter::Interpreter;
 use siko_ir::data::TypeDefId;
 use siko_ir::function::FunctionId;
+use siko_ir::program::Program;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use std::cmp::Ordering;
@@ -141,6 +142,40 @@ impl ValueCore {
         match self {
             ValueCore::List(l) => l.clone(),
             _ => unreachable!(),
+        }
+    }
+
+    pub fn show(&self, program: &Program) -> String {
+        match self {
+            ValueCore::Variant(id, index, items) => {
+                let adt = program.typedefs.get(id).get_adt();
+                let variant = &adt.variants[*index];
+                let mut item_strings = Vec::new();
+                for item in items {
+                    let item_str = Interpreter::call_show(item.clone());
+                    item_strings.push(format!("({})", item_str));
+                }
+                if item_strings.is_empty() {
+                    format!("{}", variant.name)
+                } else {
+                    format!("{} {}", variant.name, item_strings.join(" "))
+                }
+            }
+            ValueCore::Record(id, fields) => {
+                let record = program.typedefs.get(id).get_record();
+                let mut field_strings = Vec::new();
+                for (index, field_value) in fields.iter().enumerate() {
+                    let field = &record.fields[index];
+                    let field_str = Interpreter::call_show(field_value.clone());
+                    field_strings.push(format!("{}: {}", field.name, field_str));
+                }
+                if field_strings.is_empty() {
+                    format!("{}", record.name)
+                } else {
+                    format!("{} {{ {} }}", record.name, field_strings.join(", "))
+                }
+            }
+            _ => unimplemented!(),
         }
     }
 }

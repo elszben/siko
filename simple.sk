@@ -1,17 +1,10 @@
 module Main where
 
-data Foo = Foo Int Float (Bool, Bool)
+data Color = Red Int | Blue deriving Show
 
-//foo = show 1
-//foo a :: a -> Int
-//foo a = 1
+data Alma = { a :: String, b :: Int} deriving Show
 
-data Color = Red | Blue
-
-data TestRecord a = { a :: a }
-//data TestRecord2 a = { a :: a }
-
-foo a = show a
-
-main  = print (foo 5)
+main  = do
+         println "{}" % Red 5
+         println "{}" % Alma { b=5, a = "b"}
 

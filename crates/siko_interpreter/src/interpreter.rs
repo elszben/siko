@@ -367,7 +367,22 @@ impl Interpreter {
         let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
         let cache = self.program.instance_resolution_cache.borrow();
         match cache.get(member.class_id, class_arg) {
-            ResolutionResult::AutoDerived => unimplemented!(),
+            ResolutionResult::AutoDerived => {
+                let class = self.program.classes.get(&member.class_id);
+                match (class.module.as_ref(), class.name.as_ref()) {
+                    ("Std.Ops", "Show") => {
+                        let input = &arg_values[0];
+                        return Value::new(
+                            ValueCore::String(input.core.show(&self.program)),
+                            self.program.get_string_type(),
+                        );
+                    }
+                    _ => panic!(
+                        "Auto derive of {}/{} is not implemented",
+                        class.module, class.name
+                    ),
+                }
+            }
             ResolutionResult::UserDefined(instance_id) => {
                 let instance = self.program.instances.get(instance_id);
                 let member_function_id =

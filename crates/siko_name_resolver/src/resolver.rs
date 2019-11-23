@@ -270,6 +270,7 @@ impl Resolver {
                 let ir_class = IrClass {
                     id: ir_class_id,
                     name: class.name.clone(),
+                    module: module.name.clone(),
                     type_signature: None,
                     constraints: Vec::new(),
                     members: members,

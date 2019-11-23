@@ -8,6 +8,7 @@ use std::fmt;
 pub struct Class {
     pub id: ClassId,
     pub name: String,
+    pub module: String,
     pub type_signature: Option<TypeSignatureId>,
     pub constraints: Vec<ClassId>,
     pub members: BTreeMap<String, ClassMemberId>,
