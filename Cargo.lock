@@ -59,7 +59,7 @@ dependencies = [
  "siko_name_resolver 0.1.0",
  "siko_parser 0.1.0",
  "siko_syntax 0.1.0",
- "siko_type_checker2 0.1.0",
+ "siko_type_checker 0.1.0",
  "siko_util 0.1.0",
 ]
 
@@ -123,7 +123,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "siko_type_checker2"
+name = "siko_type_checker"
 version = "0.1.0"
 dependencies = [
  "siko_constants 0.1.0",

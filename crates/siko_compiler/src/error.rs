@@ -9,8 +9,8 @@ use siko_name_resolver::error::Error as ResolverErrorContainer;
 use siko_name_resolver::error::ResolverError;
 use siko_parser::error::LexerError;
 use siko_parser::error::ParseError;
-use siko_type_checker2::error::Error as TypecheckErrorContainer2;
-use siko_type_checker2::error::TypecheckError as TypecheckError2;
+use siko_type_checker::error::Error as TypecheckErrorContainer;
+use siko_type_checker::error::TypecheckError;
 use siko_util::format_list;
 use std::cmp;
 use std::convert::From;
@@ -71,7 +71,7 @@ pub enum Error {
     LexerError(Vec<LexerError>),
     ParseError(ParseError),
     ResolverError(ResolverErrorContainer),
-    TypecheckError2(TypecheckErrorContainer2),
+    TypecheckError(TypecheckErrorContainer),
     RuntimeError(String, LocationId),
 }
 
@@ -728,10 +728,10 @@ impl Error {
                 }
             }
             */
-            Error::TypecheckError2(errs) => {
+            Error::TypecheckError(errs) => {
                 for err in &errs.errors {
                     match err {
-                        TypecheckError2::ConflictingInstances(name, id1, id2) => {
+                        TypecheckError::ConflictingInstances(name, id1, id2) => {
                             eprintln!(
                                 "{} conflicting class instances for class {}",
                                 error.red(),
@@ -742,11 +742,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id2);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::DeriveFailureNoInstanceFound(
-                            type_name,
-                            class_name,
-                            id,
-                        ) => {
+                        TypecheckError::DeriveFailureNoInstanceFound(type_name, class_name, id) => {
                             eprintln!(
                                 "{} auto derive failure, no instance found for class {} for a member of {}",
                                 error.red(),
@@ -756,7 +752,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::DeriveFailureInstanceNotGeneric(
+                        TypecheckError::DeriveFailureInstanceNotGeneric(
                             type_name,
                             class_name,
                             id,
@@ -770,7 +766,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::UntypedExternFunction(name, id) => {
+                        TypecheckError::UntypedExternFunction(name, id) => {
                             eprintln!(
                                 "{} extern function {} does not have a type signature",
                                 error.red(),
@@ -779,7 +775,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::FunctionArgAndSignatureMismatch(
+                        TypecheckError::FunctionArgAndSignatureMismatch(
                             name,
                             arg_count,
                             signature_arg_count,
@@ -810,7 +806,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::MainNotFound => {
+                        TypecheckError::MainNotFound => {
                             eprintln!(
                                 "{} {} function in module {} not found",
                                 error.red(),
@@ -818,21 +814,21 @@ impl Error {
                                 "Main".yellow()
                             );
                         }
-                        TypecheckError2::TypeMismatch(id, expected, found) => {
+                        TypecheckError::TypeMismatch(id, expected, found) => {
                             eprintln!("{} type mismatch in expression", error.red());
                             eprintln!("Expected: {}", expected.yellow());
                             eprintln!("Found:    {}", found.yellow());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::FunctionArgumentMismatch(id, args, func) => {
+                        TypecheckError::FunctionArgumentMismatch(id, args, func) => {
                             eprintln!("{} invalid argument(s)", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                             eprintln!("Argument(s):      {}", args.yellow());
                             eprintln!("Function type:    {}", func.yellow());
                         }
-                        TypecheckError2::InvalidVariantPattern(id, name, expected, found) => {
+                        TypecheckError::InvalidVariantPattern(id, name, expected, found) => {
                             eprintln!(
                                 "{} invalid {} variant pattern, argument count mismatch",
                                 error.red(),
@@ -843,7 +839,7 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::InvalidRecordPattern(id, name, expected, found) => {
+                        TypecheckError::InvalidRecordPattern(id, name, expected, found) => {
                             eprintln!(
                                 "{} invalid {} record pattern, argument count mismatch",
                                 error.red(),
@@ -854,12 +850,12 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::TypeAnnotationNeeded(id) => {
+                        TypecheckError::TypeAnnotationNeeded(id) => {
                             eprintln!("{} Type annotation needed", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
-                        TypecheckError2::InvalidFormatString(id) => {
+                        TypecheckError::InvalidFormatString(id) => {
                             eprintln!("{} invalid format string", error.red());
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
@@ -890,8 +886,8 @@ impl From<ResolverErrorContainer> for Error {
     }
 }
 
-impl From<TypecheckErrorContainer2> for Error {
-    fn from(e: TypecheckErrorContainer2) -> Error {
-        Error::TypecheckError2(e)
+impl From<TypecheckErrorContainer> for Error {
+    fn from(e: TypecheckErrorContainer) -> Error {
+        Error::TypecheckError(e)
     }
 }
