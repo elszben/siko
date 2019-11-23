@@ -82,30 +82,6 @@ impl Interpreter {
         }
     }
 
-    fn get_func_arg_types(&self, ty_id: &Type, arg_count: usize) -> (Vec<Type>, Type) {
-        unimplemented!()
-        /*
-        let (func_arg_types, return_type) =
-            match self.program.types.get(ty_id).expect("type not found") {
-                Type::Function(func_type) => {
-                    let mut arg_types = Vec::new();
-                    if arg_count == 0 {
-                        (arg_types, *ty_id)
-                    } else {
-                        let return_type = func_type.get_arg_and_return_types(
-                            &self.program,
-                            &mut arg_types,
-                            arg_count,
-                        );
-                        (arg_types, return_type)
-                    }
-                }
-                _ => (vec![], *ty_id),
-            };
-        (func_arg_types, return_type)
-        */
-    }
-
     fn call(&self, callable_value: Value, args: Vec<Value>, expr_id: Option<ExprId>) -> Value {
         match callable_value.core {
             ValueCore::Callable(mut callable) => {
@@ -350,6 +326,25 @@ impl Interpreter {
         Interpreter::call_specific_class_member(vec![arg1, arg2], "Ord", "cmp", ordering_ty)
     }
 
+    fn get_call_unifier(
+        &self,
+        arg_values: &Vec<Value>,
+        func_ty: &Type,
+        expected_result_ty: &Type,
+    ) -> Unifier {
+        let mut arg_types = Vec::new();
+        func_ty.get_args(&mut arg_types);
+        let result_type = func_ty.get_result_type(arg_values.len());
+        let mut call_unifier = self.program.get_unifier();
+        for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
+            let r = call_unifier.unify(&arg_value.ty, arg_type);
+            assert!(r.is_ok());
+        }
+        let r = call_unifier.unify(&result_type, expected_result_ty);
+        assert!(r.is_ok());
+        call_unifier
+    }
+
     fn call_class_member(
         &self,
         class_member_id: &ClassMemberId,
@@ -363,17 +358,11 @@ impl Interpreter {
             .class_member_types
             .get(class_member_id)
             .expect("untyped class member");
-        let class_member_type = class_member_type.remove_fixed_types();
-        let mut arg_types = Vec::new();
-        class_member_type.get_args(&mut arg_types);
-        let result_type = class_member_type.get_result_type(arg_values.len());
-        let mut call_unifier = self.program.get_unifier();
-        for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
-            let r = call_unifier.unify(&arg_value.ty, arg_type);
-            assert!(r.is_ok());
-        }
-        let r = call_unifier.unify(&result_type, &expr_ty);
-        assert!(r.is_ok());
+        let call_unifier = self.get_call_unifier(
+            &arg_values,
+            &class_member_type.remove_fixed_types(),
+            &expr_ty,
+        );
         let function_type = call_unifier.apply(&class_member_type);
         let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
         let cache = self.program.instance_resolution_cache.borrow();
@@ -436,13 +425,7 @@ impl Interpreter {
                     .iter()
                     .map(|arg| self.eval_expr(*arg, environment, unifier))
                     .collect();
-                let mut arg_types = Vec::new();
-                func_ty.get_args(&mut arg_types);
-                let mut call_unifier = self.program.get_unifier();
-                for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
-                    let r = call_unifier.unify(&arg_value.ty, arg_type);
-                    assert!(r.is_ok());
-                }
+                let call_unifier = self.get_call_unifier(&arg_values, &func_ty, &expr_ty);
                 let function_type = call_unifier.apply(&func_ty);
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
