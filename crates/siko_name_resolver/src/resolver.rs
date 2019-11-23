@@ -38,6 +38,7 @@ use siko_ir::function::VariantConstructorInfo;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::type_signature::TypeSignature;
 use siko_ir::type_signature::TypeSignatureId;
+use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_location_info::item::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
 use siko_syntax::class::Instance as AstInstance;
@@ -99,14 +100,14 @@ fn check_function_and_function_type_consistency(
 #[derive(Debug)]
 pub struct Resolver {
     modules: BTreeMap<String, Module>,
-    counter: RcCounter,
+    type_var_generator: TypeVarGenerator,
 }
 
 impl Resolver {
     pub fn new() -> Resolver {
         Resolver {
             modules: BTreeMap::new(),
-            counter: RcCounter::new(),
+            type_var_generator: TypeVarGenerator::new(RcCounter::new()),
         }
     }
 
@@ -366,7 +367,7 @@ impl Resolver {
         ir_program: &mut IrProgram,
         errors: &mut Vec<ResolverError>,
     ) -> (Option<TypeSignatureId>, TypeArgResolver) {
-        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
+        let mut type_arg_resolver = TypeArgResolver::new(self.type_var_generator.clone());
 
         for (type_arg, location_id) in function_type.type_args.iter() {
             type_arg_resolver.add_explicit(type_arg.clone(), Vec::new(), *location_id);
@@ -489,7 +490,7 @@ impl Resolver {
             type_signature_ids.push(variant.type_signature_id);
         }
 
-        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
+        let mut type_arg_resolver = TypeArgResolver::new(self.type_var_generator.clone());
         {
             let ir_adt = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_adt();
             ir_adt.type_args.clear();
@@ -594,7 +595,7 @@ impl Resolver {
             type_signature_ids.push(field.type_signature_id);
         }
 
-        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
+        let mut type_arg_resolver = TypeArgResolver::new(self.type_var_generator.clone());
         {
             let ir_record = ir_program.typedefs.get_mut(&ir_typedef_id).get_mut_record();
             ir_record.type_args.clear();
@@ -713,7 +714,7 @@ impl Resolver {
     ) {
         let class = program.classes.get(class_id);
 
-        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
+        let mut type_arg_resolver = TypeArgResolver::new(self.type_var_generator.clone());
 
         let (class_type_signature_id, class_arg) = if let Some(class_type_signature_id) =
             process_class_type_signature(
@@ -896,7 +897,7 @@ impl Resolver {
         module: &Module,
         errors: &mut Vec<ResolverError>,
     ) {
-        let mut type_arg_resolver = TypeArgResolver::new(self.counter.clone());
+        let mut type_arg_resolver = TypeArgResolver::new(self.type_var_generator.clone());
 
         let mut type_args = BTreeMap::new();
 
@@ -1061,7 +1062,7 @@ impl Resolver {
         }
     }
 
-    pub fn resolve(&mut self, program: &Program) -> Result<(IrProgram, RcCounter), Error> {
+    pub fn resolve(&mut self, program: &Program) -> Result<IrProgram, Error> {
         let mut errors = Vec::new();
 
         let mut modules = BTreeMap::new();
@@ -1072,7 +1073,7 @@ impl Resolver {
 
         self.process_module_conflicts(modules)?;
 
-        let mut ir_program = IrProgram::new();
+        let mut ir_program = IrProgram::new(self.type_var_generator.clone());
 
         self.process_items_and_types(program, &mut errors, &mut ir_program);
 
@@ -1212,7 +1213,7 @@ impl Resolver {
                                         &mut errors,
                                     )
                                 } else {
-                                    (None, TypeArgResolver::new(self.counter.clone()))
+                                    (None, TypeArgResolver::new(self.type_var_generator.clone()))
                                 };
                             self.process_function(
                                 program,
@@ -1260,6 +1261,6 @@ impl Resolver {
             ir_program.named_types = named_types;
         }
 
-        Ok((ir_program, self.counter.clone()))
+        Ok(ir_program)
     }
 }

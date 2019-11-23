@@ -1,8 +1,8 @@
 use crate::interpreter::Interpreter;
 use siko_ir::data::TypeDefId;
 use siko_ir::function::FunctionId;
-use siko_ir::types_old::ConcreteType;
-use siko_ir::types_old::SubstitutionContext;
+use siko_ir::types::Type;
+use siko_ir::unifier::Unifier;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -11,17 +11,17 @@ use std::fmt;
 pub struct Callable {
     pub function_id: FunctionId,
     pub values: Vec<Value>,
-    pub sub_context: SubstitutionContext,
+    pub unifier: Unifier,
 }
 
 #[derive(Debug, Clone)]
 pub struct Value {
     pub core: ValueCore,
-    pub ty: ConcreteType,
+    pub ty: Type,
 }
 
 impl Value {
-    pub fn new(core: ValueCore, ty: ConcreteType) -> Value {
+    pub fn new(core: ValueCore, ty: Type) -> Value {
         Value { core: core, ty: ty }
     }
 }

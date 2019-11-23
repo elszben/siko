@@ -29,7 +29,6 @@ use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::walk_expr;
 use siko_location_info::item::LocationId;
-use siko_util::RcCounter;
 use std::collections::BTreeMap;
 
 pub struct Typechecker {}
@@ -288,9 +287,8 @@ impl Typechecker {
             // println!("Processing type for class {}", class.name);
             let type_signature_id = class.type_signature.expect("Class has no type signature");
             let ty = process_type_signature(type_signature_id, program, type_var_generator);
-            let ty = ty.remove_fixed_types();
             let ty = ty.add_constraints(&class.constraints);
-            //println!("class type {}", ty);
+            // println!("class type {}", ty);
             class_types.insert(*class_id, ty);
         }
         for (instance_id, instance) in program.instances.items.iter() {
@@ -619,26 +617,42 @@ impl Typechecker {
         }
     }
 
-    fn process_class_members(&self, program: &Program, type_info_provider: &mut TypeInfoProvider) {
+    fn process_class_members(
+        &self,
+        program: &mut Program,
+        type_info_provider: &mut TypeInfoProvider,
+        class_types: &BTreeMap<ClassId, Type>,
+    ) {
         for (class_member_id, class_member) in &program.class_members.items {
             let ty = process_type_signature(
                 class_member.type_signature,
                 program,
                 &mut type_info_provider.type_var_generator,
             );
-            let class_member_type_info = ClassMemberTypeInfo { ty: ty };
+            let class_member_type_info = ClassMemberTypeInfo { ty: ty.clone() };
+            program.class_member_types.insert(
+                *class_member_id,
+                (
+                    ty,
+                    class_types
+                        .get(&class_member.class_id)
+                        .expect("Class type not found")
+                        .clone(),
+                ),
+            );
             type_info_provider
                 .class_member_type_info_map
                 .insert(*class_member_id, class_member_type_info);
         }
     }
 
-    pub fn check(&self, program: &Program, counter: RcCounter) -> Result<(), Error> {
+    pub fn check(&self, program: &mut Program) -> Result<(), Error> {
         let mut errors = Vec::new();
-        let mut type_var_generator = TypeVarGenerator::new(counter);
+        let mut type_var_generator = program.type_var_generator.clone();
         let mut type_info_provider = TypeInfoProvider::new(type_var_generator.clone());
         let mut class_types = BTreeMap::new();
-        let mut instance_resolver = InstanceResolver::new();
+        let mut instance_resolver =
+            InstanceResolver::new(program.instance_resolution_cache.clone());
 
         self.process_classes_and_user_defined_instances(
             program,
@@ -647,7 +661,7 @@ impl Typechecker {
             &mut class_types,
         );
 
-        self.process_class_members(program, &mut type_info_provider);
+        self.process_class_members(program, &mut type_info_provider, &class_types);
 
         self.process_data_types(&mut instance_resolver, program, &mut type_info_provider);
 
@@ -701,6 +715,7 @@ impl Typechecker {
                 program,
             );
             //type_store.dump(program);
+            type_store.save_expr_types(program);
         }
 
         if !errors.is_empty() {
@@ -708,6 +723,10 @@ impl Typechecker {
         }
 
         // function_type_info_store.dump(program);
+
+        type_info_provider
+            .function_type_info_store
+            .save_function_types(program);
 
         Ok(())
     }

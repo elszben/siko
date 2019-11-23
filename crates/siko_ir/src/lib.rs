@@ -10,6 +10,5 @@ pub mod substitution;
 pub mod type_signature;
 pub mod type_var_generator;
 pub mod types;
-pub mod types_old;
 pub mod unifier;
 pub mod walker;

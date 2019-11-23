@@ -4,6 +4,7 @@ use crate::substitution::Substitution;
 use crate::type_var_generator::TypeVarGenerator;
 use crate::types::Type;
 
+#[derive(Debug, Clone)]
 pub struct Unifier {
     type_var_generator: TypeVarGenerator,
     substitution: Substitution,

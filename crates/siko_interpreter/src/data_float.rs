@@ -6,7 +6,7 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types_old::ConcreteType;
+use siko_ir::types::Type;
 
 pub struct FloatAdd {}
 
@@ -16,7 +16,7 @@ impl ExternFunction for FloatAdd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
@@ -32,7 +32,7 @@ impl ExternFunction for FloatSub {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
@@ -48,7 +48,7 @@ impl ExternFunction for FloatMul {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
@@ -64,7 +64,7 @@ impl ExternFunction for FloatDiv {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
@@ -80,7 +80,7 @@ impl ExternFunction for FloatPartialEq {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
@@ -96,7 +96,7 @@ impl ExternFunction for FloatPartialOrd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        _: ConcreteType,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
@@ -113,7 +113,7 @@ impl ExternFunction for FloatShow {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let value = environment.get_arg_by_index(0).core.as_float();
         return Value::new(ValueCore::String(value.to_string()), ty);

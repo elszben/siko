@@ -9,8 +9,6 @@ use siko_name_resolver::error::Error as ResolverErrorContainer;
 use siko_name_resolver::error::ResolverError;
 use siko_parser::error::LexerError;
 use siko_parser::error::ParseError;
-use siko_type_checker::error::Error as TypecheckErrorContainer;
-use siko_type_checker::error::TypecheckError;
 use siko_type_checker2::error::Error as TypecheckErrorContainer2;
 use siko_type_checker2::error::TypecheckError as TypecheckError2;
 use siko_util::format_list;
@@ -73,7 +71,6 @@ pub enum Error {
     LexerError(Vec<LexerError>),
     ParseError(ParseError),
     ResolverError(ResolverErrorContainer),
-    TypecheckError(TypecheckErrorContainer),
     TypecheckError2(TypecheckErrorContainer2),
     RuntimeError(String, LocationId),
 }
@@ -547,6 +544,7 @@ impl Error {
                 let location_set = location_info.get_item_location(id);
                 print_location_set(file_manager, location_set);
             }
+            /*
             Error::TypecheckError(errs) => {
                 for err in &errs.errors {
                     match err {
@@ -729,6 +727,7 @@ impl Error {
                     }
                 }
             }
+            */
             Error::TypecheckError2(errs) => {
                 for err in &errs.errors {
                     match err {
@@ -888,12 +887,6 @@ impl From<ParseError> for Error {
 impl From<ResolverErrorContainer> for Error {
     fn from(e: ResolverErrorContainer) -> Error {
         Error::ResolverError(e)
-    }
-}
-
-impl From<TypecheckErrorContainer> for Error {
-    fn from(e: TypecheckErrorContainer) -> Error {
-        Error::TypecheckError(e)
     }
 }
 

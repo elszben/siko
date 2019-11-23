@@ -44,6 +44,14 @@ impl FunctionTypeInfoStore {
             );
         }
     }
+
+    pub fn save_function_types(&self, program: &mut Program) {
+        for (function_id, function) in &self.function_type_info_map {
+            program
+                .function_types
+                .insert(*function_id, function.function_type.clone());
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

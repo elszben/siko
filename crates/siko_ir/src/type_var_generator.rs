@@ -1,7 +1,7 @@
 use crate::types::Type;
 use siko_util::RcCounter;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TypeVarGenerator {
     counter: RcCounter,
 }

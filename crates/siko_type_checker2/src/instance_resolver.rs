@@ -9,7 +9,9 @@ use siko_ir::types::BaseType;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_location_info::item::LocationId;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct AutoDerivedInstance {
@@ -45,15 +47,15 @@ impl InstanceInfo {
 pub struct InstanceResolver {
     instance_map: BTreeMap<ClassId, BTreeMap<BaseType, Vec<InstanceInfo>>>,
     auto_derived_instances: Vec<AutoDerivedInstance>,
-    cache: InstanceResolutionCache,
+    cache: Rc<RefCell<InstanceResolutionCache>>,
 }
 
 impl InstanceResolver {
-    pub fn new() -> InstanceResolver {
+    pub fn new(cache: Rc<RefCell<InstanceResolutionCache>>) -> InstanceResolver {
         InstanceResolver {
             instance_map: BTreeMap::new(),
             auto_derived_instances: Vec::new(),
-            cache: InstanceResolutionCache::new(),
+            cache: cache,
         }
     }
 
@@ -126,7 +128,8 @@ impl InstanceResolver {
                             if unifier.unify(ty, &instance.ty).is_ok() {
                                 if ty.is_concrete_type() {
                                     let result = ResolutionResult::AutoDerived;
-                                    self.cache.add(class_id, ty.clone(), result);
+                                    let mut cache = self.cache.borrow_mut();
+                                    cache.add(class_id, ty.clone(), result);
                                 }
                                 return Some(unifier);
                             }
@@ -135,7 +138,8 @@ impl InstanceResolver {
                             if unifier.unify(ty, instance_ty).is_ok() {
                                 if ty.is_concrete_type() {
                                     let result = ResolutionResult::UserDefined(*instance_id);
-                                    self.cache.add(class_id, ty.clone(), result);
+                                    let mut cache = self.cache.borrow_mut();
+                                    cache.add(class_id, ty.clone(), result);
                                 }
                                 return Some(unifier);
                             }

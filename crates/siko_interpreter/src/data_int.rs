@@ -7,7 +7,7 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types_old::ConcreteType;
+use siko_ir::types::Type;
 
 pub struct IntAdd {}
 
@@ -17,7 +17,7 @@ impl ExternFunction for IntAdd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -33,7 +33,7 @@ impl ExternFunction for IntSub {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -49,7 +49,7 @@ impl ExternFunction for IntMul {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -65,7 +65,7 @@ impl ExternFunction for IntDiv {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -81,7 +81,7 @@ impl ExternFunction for IntPartialEq {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -97,7 +97,7 @@ impl ExternFunction for IntPartialOrd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        _: ConcreteType,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -114,7 +114,7 @@ impl ExternFunction for IntOrd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        _: ConcreteType,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_int();
         let r = environment.get_arg_by_index(1).core.as_int();
@@ -131,7 +131,7 @@ impl ExternFunction for IntShow {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let value = environment.get_arg_by_index(0).core.as_int();
         return Value::new(ValueCore::String(value.to_string()), ty);

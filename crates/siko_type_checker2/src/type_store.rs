@@ -240,4 +240,11 @@ impl TypeStore {
             );
         }
     }
+
+    pub fn save_expr_types(&self, program: &mut Program) {
+        for (expr_id, _) in &self.expr_types {
+            let ty = self.get_expr_type(expr_id).clone();
+            program.expr_types.insert(*expr_id, ty);
+        }
+    }
 }

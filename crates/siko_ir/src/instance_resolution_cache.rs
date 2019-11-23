@@ -9,6 +9,7 @@ pub enum ResolutionResult {
     AutoDerived,
 }
 
+#[derive(Debug)]
 pub struct InstanceResolutionCache {
     cache: BTreeMap<(ClassId, Type), ResolutionResult>,
 }

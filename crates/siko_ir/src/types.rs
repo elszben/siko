@@ -122,6 +122,11 @@ impl Type {
                 cs.extend(constraints);
                 Type::Var(*index, cs)
             }
+            Type::FixedTypeArg(name, index, cs) => {
+                let mut cs = cs.clone();
+                cs.extend(constraints);
+                Type::FixedTypeArg(name.clone(), *index, cs)
+            }
             _ => unreachable!(),
         }
     }
@@ -290,6 +295,13 @@ impl Type {
             Type::Function(from, to) => from.is_concrete_type() && to.is_concrete_type(),
             Type::Var(..) => false,
             Type::FixedTypeArg(..) => false,
+        }
+    }
+
+    pub fn get_type_args(&self) -> Vec<Type> {
+        match self {
+            Type::Named(_, _, items) => items.clone(),
+            _ => unreachable!(),
         }
     }
 

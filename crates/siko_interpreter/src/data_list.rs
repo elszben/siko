@@ -5,7 +5,7 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types_old::ConcreteType;
+use siko_ir::types::Type;
 
 pub struct Show {}
 
@@ -15,7 +15,7 @@ impl ExternFunction for Show {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let list = environment.get_arg_by_index(0).core.as_list();
         let mut subs = Vec::new();

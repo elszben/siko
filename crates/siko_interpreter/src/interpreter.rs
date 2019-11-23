@@ -23,13 +23,12 @@ use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionKind;
+use siko_ir::instance_resolution_cache::ResolutionResult;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use siko_ir::types_old::ConcreteType;
-use siko_ir::types_old::SubstitutionContext;
-use siko_ir::types_old::Type;
-use siko_ir::types_old::TypeId;
+use siko_ir::types::Type;
+use siko_ir::unifier::Unifier;
 use siko_location_info::error_context::ErrorContext;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -83,7 +82,9 @@ impl Interpreter {
         }
     }
 
-    fn get_func_arg_types(&self, ty_id: &TypeId, arg_count: usize) -> (Vec<TypeId>, TypeId) {
+    fn get_func_arg_types(&self, ty_id: &Type, arg_count: usize) -> (Vec<Type>, Type) {
+        unimplemented!()
+        /*
         let (func_arg_types, return_type) =
             match self.program.types.get(ty_id).expect("type not found") {
                 Type::Function(func_type) => {
@@ -102,23 +103,7 @@ impl Interpreter {
                 _ => (vec![], *ty_id),
             };
         (func_arg_types, return_type)
-    }
-
-    fn get_subtitution_context(
-        &self,
-        func_arg_types: &[TypeId],
-        args: &[Value],
-        return_type: &ConcreteType,
-        func_return_type: TypeId,
-    ) -> SubstitutionContext {
-        let mut sub_context = SubstitutionContext::new();
-        for (arg_type, func_arg_type) in args.iter().zip(func_arg_types.iter()) {
-            self.program
-                .match_generic_types(&arg_type.ty, *func_arg_type, &mut sub_context);
-        }
-        self.program
-            .match_generic_types(&return_type, func_return_type, &mut sub_context);
-        sub_context
+        */
     }
 
     fn call(&self, callable_value: Value, args: Vec<Value>, expr_id: Option<ExprId>) -> Value {
@@ -142,12 +127,14 @@ impl Interpreter {
                             call_args,
                             func_info.implicit_arg_count,
                         );
-                        callable_func_ty = callable_func_ty.get_func_type(arg_count);
+                        if arg_count != 0 {
+                            callable_func_ty = callable_func_ty.get_result_type(arg_count - 1);
+                        }
                         let result = self.execute(
                             callable.function_id,
                             &mut environment,
                             expr_id,
-                            &callable.sub_context,
+                            &callable.unifier,
                             callable_func_ty.clone(),
                         );
                         if !rest.is_empty() {
@@ -173,7 +160,7 @@ impl Interpreter {
         pattern_id: &PatternId,
         value: &Value,
         environment: &mut Environment,
-        sub_context: &SubstitutionContext,
+        unifier: &Unifier,
     ) -> bool {
         let pattern = &self.program.patterns.get(pattern_id).item;
         match pattern {
@@ -185,7 +172,7 @@ impl Interpreter {
                 ValueCore::Tuple(vs) => {
                     for (index, id) in ids.iter().enumerate() {
                         let v = &vs[index];
-                        if !self.match_pattern(id, v, environment, sub_context) {
+                        if !self.match_pattern(id, v, environment, unifier) {
                             return false;
                         }
                     }
@@ -200,7 +187,7 @@ impl Interpreter {
                     if type_id == p_type_id {
                         for (index, p_id) in p_ids.iter().enumerate() {
                             let v = &vs[index];
-                            if !self.match_pattern(p_id, v, environment, sub_context) {
+                            if !self.match_pattern(p_id, v, environment, unifier) {
                                 return false;
                             }
                         }
@@ -217,7 +204,7 @@ impl Interpreter {
                     if type_id == p_type_id && index == p_index {
                         for (index, p_id) in p_ids.iter().enumerate() {
                             let v = &vs[index];
-                            if !self.match_pattern(p_id, v, environment, sub_context) {
+                            if !self.match_pattern(p_id, v, environment, unifier) {
                                 return false;
                             }
                         }
@@ -230,14 +217,14 @@ impl Interpreter {
                 }
             },
             Pattern::Guarded(id, guard_expr_id) => {
-                if self.match_pattern(id, value, environment, sub_context) {
-                    let guard_value = self.eval_expr(*guard_expr_id, environment, sub_context);
+                if self.match_pattern(id, value, environment, unifier) {
+                    let guard_value = self.eval_expr(*guard_expr_id, environment, unifier);
                     return guard_value.core.as_bool();
                 } else {
                     return false;
                 }
             }
-            Pattern::Typed(id, _) => self.match_pattern(id, value, environment, sub_context),
+            Pattern::Typed(id, _) => self.match_pattern(id, value, environment, unifier),
             Pattern::Wildcard => {
                 return true;
             }
@@ -273,45 +260,43 @@ impl Interpreter {
     }
 
     pub fn call_show(arg: Value) -> String {
-        let string_ty = Interpreter::get_string_concrete_type();
+        let string_ty = Interpreter::get_string_type();
         let v = Interpreter::call_specific_class_member(vec![arg], "Show", "show", string_ty);
         v.core.as_string()
     }
 
-    pub fn get_string_concrete_type() -> ConcreteType {
+    pub fn get_string_type() -> Type {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
             let i = b.as_ref().expect("Interpreter not set");
-            let string_ty = i.program.string_concrete_type();
+            let string_ty = i.program.get_string_type();
             string_ty
         })
     }
 
-    pub fn get_bool_concrete_type() -> ConcreteType {
+    pub fn get_bool_type() -> Type {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
             let i = b.as_ref().expect("Interpreter not set");
-            let string_ty = i.program.bool_concrete_type();
+            let string_ty = i.program.get_bool_type();
             string_ty
         })
     }
 
-    pub fn get_optional_ordering_concrete_type() -> ConcreteType {
+    pub fn get_optional_ordering_type() -> Type {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
             let i = b.as_ref().expect("Interpreter not set");
-            let option_ordering_ty = i
-                .program
-                .option_concrete_type(i.program.ordering_concrete_type());
+            let option_ordering_ty = i.program.get_option_type(i.program.get_ordering_type());
             option_ordering_ty
         })
     }
 
-    pub fn get_ordering_concrete_type() -> ConcreteType {
+    pub fn get_ordering_type() -> Type {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
             let i = b.as_ref().expect("Interpreter not set");
-            i.program.ordering_concrete_type()
+            i.program.get_ordering_type()
         })
     }
 
@@ -319,7 +304,7 @@ impl Interpreter {
         args: Vec<Value>,
         class_name: &str,
         member_name: &str,
-        expr_ty: ConcreteType,
+        expr_ty: Type,
     ) -> Value {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
@@ -348,12 +333,12 @@ impl Interpreter {
     }
 
     pub fn call_op_eq(arg1: Value, arg2: Value) -> Value {
-        let bool_ty = Interpreter::get_bool_concrete_type();
+        let bool_ty = Interpreter::get_bool_type();
         Interpreter::call_specific_class_member(vec![arg1, arg2], "PartialEq", "opEq", bool_ty)
     }
 
     pub fn call_op_partial_cmp(arg1: Value, arg2: Value) -> Value {
-        let option_ordering_ty = Interpreter::get_optional_ordering_concrete_type();
+        let option_ordering_ty = Interpreter::get_optional_ordering_type();
         Interpreter::call_specific_class_member(
             vec![arg1, arg2],
             "PartialOrd",
@@ -363,7 +348,7 @@ impl Interpreter {
     }
 
     pub fn call_op_cmp(arg1: Value, arg2: Value) -> Value {
-        let ordering_ty = Interpreter::get_ordering_concrete_type();
+        let ordering_ty = Interpreter::get_ordering_type();
         Interpreter::call_specific_class_member(vec![arg1, arg2], "Ord", "cmp", ordering_ty)
     }
 
@@ -372,32 +357,35 @@ impl Interpreter {
         class_member_id: &ClassMemberId,
         arg_values: Vec<Value>,
         expr_id: Option<ExprId>,
-        expr_ty: ConcreteType,
+        expr_ty: Type,
     ) -> Value {
         let member = self.program.class_members.get(class_member_id);
-        let (class_member_type_id, class_arg_ty_id) = self
+        let (class_member_type, class_arg_ty) = self
             .program
             .class_member_types
             .get(class_member_id)
             .expect("untyped class member");
-        let (func_arg_types, return_type) =
-            self.get_func_arg_types(class_member_type_id, arg_values.len());
-        let callee_sub_context = self.get_subtitution_context(
-            &func_arg_types[..],
-            &arg_values[..],
-            &expr_ty,
-            return_type,
+
+        let mut arg_types = Vec::new();
+        class_member_type.get_args(&mut arg_types);
+        let result_type = class_member_type.get_result_type(arg_values.len());
+        println!("args {:?}, result {}", arg_types, result_type);
+        let mut call_unifier = self.program.get_unifier();
+        for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
+            let r = call_unifier.unify(&arg_value.ty, &arg_type.remove_fixed_types());
+            assert!(r.is_ok());
+        }
+        let function_type = call_unifier.apply(class_member_type);
+        println!("{}", function_type.get_resolved_type_string(&self.program));
+        let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
+        println!(
+            "class arg {}",
+            class_arg.get_resolved_type_string(&self.program)
         );
-        let instance_selector_ty = self
-            .program
-            .to_concrete_type(class_arg_ty_id, &callee_sub_context);
-        let concrete_function_type = self
-            .program
-            .to_concrete_type(class_member_type_id, &callee_sub_context);
-        //println!("instance selector {} {}", instance_selector_ty, member.name);
-        let resolver = self.program.type_instance_resolver.borrow();
-        if let Some(instances) = resolver.instance_map.get(&member.class_id) {
-            if let Some(instance_id) = instances.get(&instance_selector_ty) {
+        let cache = self.program.instance_resolution_cache.borrow();
+        match cache.get(member.class_id, class_arg) {
+            ResolutionResult::AutoDerived => unimplemented!(),
+            ResolutionResult::UserDefined(instance_id) => {
                 let instance = self.program.instances.get(instance_id);
                 let member_function_id =
                     if let Some(instance_member) = instance.members.get(&member.name) {
@@ -411,19 +399,12 @@ impl Interpreter {
                     ValueCore::Callable(Callable {
                         function_id: member_function_id,
                         values: vec![],
-                        sub_context: callee_sub_context,
+                        unifier: call_unifier,
                     }),
-                    concrete_function_type,
+                    function_type,
                 );
                 return self.call(callable, arg_values, expr_id);
-            } else {
-                for (a, b) in instances {
-                    println!("{} {}", a, b);
-                }
-                panic!("Did not find {}", instance_selector_ty);
             }
-        } else {
-            unreachable!()
         }
     }
 
@@ -431,17 +412,17 @@ impl Interpreter {
         &self,
         expr_id: ExprId,
         environment: &mut Environment,
-        sub_context: &SubstitutionContext,
+        unifier: &Unifier,
     ) -> Value {
         let expr = &self.program.exprs.get(&expr_id).item;
         //println!("Eval {} {}", expr_id, expr);
-        let expr_ty_id = self
+        let expr_ty = self
             .program
             .expr_types
             .get(&expr_id)
             .expect("Untyped expr")
             .clone();
-        let expr_ty = self.program.to_concrete_type(&expr_ty_id, sub_context);
+        let expr_ty = unifier.apply(&expr_ty);
         match expr {
             Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty),
             Expr::StringLiteral(v) => Value::new(ValueCore::String(v.clone()), expr_ty),
@@ -456,34 +437,41 @@ impl Interpreter {
                     .function_types
                     .get(function_id)
                     .expect("untyped func");
-                let (func_arg_types, return_type) = self.get_func_arg_types(func_ty, args.len());
+                println!(
+                    "Function type: {}",
+                    func_ty.get_resolved_type_string(&self.program)
+                );
                 let arg_values: Vec<_> = args
                     .iter()
-                    .map(|arg| self.eval_expr(*arg, environment, sub_context))
+                    .map(|arg| self.eval_expr(*arg, environment, unifier))
                     .collect();
-                let callee_sub_context = self.get_subtitution_context(
-                    &func_arg_types[..],
-                    &arg_values[..],
-                    &expr_ty,
-                    return_type,
-                );
-                let concrete_function_type =
-                    self.program.to_concrete_type(func_ty, &callee_sub_context);
+                let mut arg_types = Vec::new();
+                func_ty.get_args(&mut arg_types);
+                let result_type = func_ty.get_result_type(args.len());
+                println!("args {:?}, result {}", arg_types, result_type);
+                let mut call_unifier = self.program.get_unifier();
+                for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
+                    println!("--> {} {}", arg_value.ty, arg_type);
+                    let r = call_unifier.unify(&arg_value.ty, arg_type);
+                    assert!(r.is_ok());
+                }
+                let function_type = call_unifier.apply(func_ty);
+                println!("{}", function_type.get_resolved_type_string(&self.program));
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
                         function_id: *function_id,
                         values: vec![],
-                        sub_context: callee_sub_context,
+                        unifier: call_unifier,
                     }),
-                    concrete_function_type,
+                    function_type,
                 );
                 return self.call(callable, arg_values, Some(expr_id));
             }
             Expr::DynamicFunctionCall(function_expr_id, args) => {
-                let function_expr_id = self.eval_expr(*function_expr_id, environment, sub_context);
+                let function_expr_id = self.eval_expr(*function_expr_id, environment, unifier);
                 let arg_values: Vec<_> = args
                     .iter()
-                    .map(|arg| self.eval_expr(*arg, environment, sub_context))
+                    .map(|arg| self.eval_expr(*arg, environment, unifier))
                     .collect();
                 return self.call(function_expr_id, arg_values, Some(expr_id));
             }
@@ -492,13 +480,13 @@ impl Interpreter {
                 let mut result = Value::new(ValueCore::Tuple(vec![]), expr_ty);
                 assert!(!exprs.is_empty());
                 for expr in exprs {
-                    result = self.eval_expr(*expr, &mut environment, sub_context);
+                    result = self.eval_expr(*expr, &mut environment, unifier);
                 }
                 return result;
             }
             Expr::Bind(pattern_id, expr_id) => {
-                let value = self.eval_expr(*expr_id, environment, sub_context);
-                let r = self.match_pattern(pattern_id, &value, environment, sub_context);
+                let value = self.eval_expr(*expr_id, environment, unifier);
+                let r = self.match_pattern(pattern_id, &value, environment, unifier);
                 assert!(r);
                 return Value::new(ValueCore::Tuple(vec![]), expr_ty);
             }
@@ -506,29 +494,29 @@ impl Interpreter {
                 return environment.get_value(pattern_id);
             }
             Expr::If(cond, true_branch, false_branch) => {
-                let cond_value = self.eval_expr(*cond, environment, sub_context);
+                let cond_value = self.eval_expr(*cond, environment, unifier);
                 if cond_value.core.as_bool() {
-                    return self.eval_expr(*true_branch, environment, sub_context);
+                    return self.eval_expr(*true_branch, environment, unifier);
                 } else {
-                    return self.eval_expr(*false_branch, environment, sub_context);
+                    return self.eval_expr(*false_branch, environment, unifier);
                 }
             }
             Expr::Tuple(exprs) => {
                 let values: Vec<_> = exprs
                     .iter()
-                    .map(|e| self.eval_expr(*e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, unifier))
                     .collect();
                 return Value::new(ValueCore::Tuple(values), expr_ty);
             }
             Expr::List(exprs) => {
                 let values: Vec<_> = exprs
                     .iter()
-                    .map(|e| self.eval_expr(*e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, unifier))
                     .collect();
                 return Value::new(ValueCore::List(values), expr_ty);
             }
             Expr::TupleFieldAccess(index, tuple) => {
-                let tuple_value = self.eval_expr(*tuple, environment, sub_context);
+                let tuple_value = self.eval_expr(*tuple, environment, unifier);
                 if let ValueCore::Tuple(t) = &tuple_value.core {
                     return t[*index].clone();
                 } else {
@@ -539,7 +527,7 @@ impl Interpreter {
                 let subs: Vec<_> = fmt.split("{}").collect();
                 let values: Vec<_> = args
                     .iter()
-                    .map(|e| self.eval_expr(*e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, unifier))
                     .collect();
                 let mut result = String::new();
                 for (index, sub) in subs.iter().enumerate() {
@@ -552,7 +540,7 @@ impl Interpreter {
                 return Value::new(ValueCore::String(result), expr_ty);
             }
             Expr::FieldAccess(infos, record_expr) => {
-                let record = self.eval_expr(*record_expr, environment, sub_context);
+                let record = self.eval_expr(*record_expr, environment, unifier);
                 let (id, values) = if let ValueCore::Record(id, values) = &record.core {
                     (id, values)
                 } else {
@@ -567,12 +555,11 @@ impl Interpreter {
                 unreachable!()
             }
             Expr::CaseOf(body, cases, _) => {
-                let case_value = self.eval_expr(*body, environment, sub_context);
+                let case_value = self.eval_expr(*body, environment, unifier);
                 for case in cases {
                     let mut case_env = Environment::block_child(environment);
-                    if self.match_pattern(&case.pattern_id, &case_value, &mut case_env, sub_context)
-                    {
-                        let val = self.eval_expr(case.body, &mut case_env, sub_context);
+                    if self.match_pattern(&case.pattern_id, &case_value, &mut case_env, unifier) {
+                        let val = self.eval_expr(case.body, &mut case_env, unifier);
                         return val;
                     }
                 }
@@ -585,18 +572,18 @@ impl Interpreter {
                     // dummy value
                 }
                 for item in items {
-                    let value = self.eval_expr(item.expr_id, environment, sub_context);
+                    let value = self.eval_expr(item.expr_id, environment, unifier);
                     values[item.index] = value;
                 }
                 return Value::new(ValueCore::Record(*type_id, values), expr_ty);
             }
             Expr::RecordUpdate(record_expr_id, updates) => {
-                let value = self.eval_expr(*record_expr_id, environment, sub_context);
+                let value = self.eval_expr(*record_expr_id, environment, unifier);
                 if let ValueCore::Record(id, mut values) = value.core {
                     for update in updates {
                         if id == update.record_id {
                             for item in &update.items {
-                                let value = self.eval_expr(item.expr_id, environment, sub_context);
+                                let value = self.eval_expr(item.expr_id, environment, unifier);
                                 values[item.index] = value;
                             }
                             return Value::new(ValueCore::Record(id, values), expr_ty);
@@ -608,7 +595,7 @@ impl Interpreter {
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let arg_values: Vec<_> = args
                     .iter()
-                    .map(|e| self.eval_expr(*e, environment, sub_context))
+                    .map(|e| self.eval_expr(*e, environment, unifier))
                     .collect();
                 return self.call_class_member(class_member_id, arg_values, Some(expr_id), expr_ty);
             }
@@ -622,7 +609,7 @@ impl Interpreter {
         environment: &mut Environment,
         current_expr: Option<ExprId>,
         kind: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         if let Some(f) = self
             .extern_functions
@@ -639,14 +626,14 @@ impl Interpreter {
         id: FunctionId,
         environment: &mut Environment,
         current_expr: Option<ExprId>,
-        sub_context: &SubstitutionContext,
-        expr_ty: ConcreteType,
+        unifier: &Unifier,
+        expr_ty: Type,
     ) -> Value {
         let function = self.program.functions.get(&id);
         match &function.info {
             FunctionInfo::NamedFunction(info) => match info.body {
                 Some(body) => {
-                    return self.eval_expr(body, environment, sub_context);
+                    return self.eval_expr(body, environment, unifier);
                 }
                 None => {
                     return self.call_extern(
@@ -660,7 +647,7 @@ impl Interpreter {
                 }
             },
             FunctionInfo::Lambda(info) => {
-                return self.eval_expr(info.body, environment, sub_context);
+                return self.eval_expr(info.body, environment, unifier);
             }
             FunctionInfo::VariantConstructor(info) => {
                 let adt = self.program.typedefs.get(&info.type_id).get_adt();
@@ -716,13 +703,13 @@ impl Interpreter {
                 FunctionInfo::NamedFunction(info) => {
                     if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
                         let mut environment = Environment::new(*id, vec![], 0);
-                        let sub_context = SubstitutionContext::new();
+                        let unifier = interpreter.program.get_unifier();
                         return interpreter.execute(
                             *id,
                             &mut environment,
                             None,
-                            &sub_context,
-                            ConcreteType::Tuple(vec![]),
+                            &unifier,
+                            Type::Tuple(vec![]),
                         );
                     }
                 }

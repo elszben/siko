@@ -1,6 +1,6 @@
 use siko_ir::class::ClassId;
+use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_location_info::item::LocationId;
-use siko_util::RcCounter;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
@@ -14,14 +14,14 @@ pub struct TypeArgInfo {
 #[derive(Clone)]
 pub struct TypeArgResolver {
     args: BTreeMap<String, TypeArgInfo>,
-    index: RcCounter,
+    type_var_generator: TypeVarGenerator,
 }
 
 impl TypeArgResolver {
-    pub fn new(counter: RcCounter) -> TypeArgResolver {
+    pub fn new(type_var_generator: TypeVarGenerator) -> TypeArgResolver {
         TypeArgResolver {
             args: BTreeMap::new(),
-            index: counter,
+            type_var_generator: type_var_generator,
         }
     }
 
@@ -31,7 +31,7 @@ impl TypeArgResolver {
         constraints: Vec<ClassId>,
         location_id: LocationId,
     ) -> usize {
-        let index = self.index.next();
+        let index = self.type_var_generator.get_new_index();
         let info = TypeArgInfo {
             index: index,
             constraints: constraints,

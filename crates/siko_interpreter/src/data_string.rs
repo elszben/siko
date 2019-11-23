@@ -7,7 +7,7 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types_old::ConcreteType;
+use siko_ir::types::Type;
 
 pub struct StringAdd {}
 
@@ -17,7 +17,7 @@ impl ExternFunction for StringAdd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_string();
         let r = environment.get_arg_by_index(1).core.as_string();
@@ -33,7 +33,7 @@ impl ExternFunction for StringPartialEq {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_string();
         let r = environment.get_arg_by_index(1).core.as_string();
@@ -49,7 +49,7 @@ impl ExternFunction for StringPartialOrd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        _: ConcreteType,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_string();
         let r = environment.get_arg_by_index(1).core.as_string();
@@ -66,7 +66,7 @@ impl ExternFunction for StringOrd {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        _: ConcreteType,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_string();
         let r = environment.get_arg_by_index(1).core.as_string();
@@ -83,7 +83,7 @@ impl ExternFunction for StringShow {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let value = environment.get_arg_by_index(0).core.as_string();
         return Value::new(ValueCore::String(value.to_string()), ty);

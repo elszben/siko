@@ -7,7 +7,7 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::types_old::ConcreteType;
+use siko_ir::types::Type;
 use std::collections::BTreeMap;
 
 pub struct Empty {}
@@ -18,7 +18,7 @@ impl ExternFunction for Empty {
         _: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         return Value::new(ValueCore::Map(BTreeMap::new()), ty);
     }
@@ -32,7 +32,7 @@ impl ExternFunction for Insert {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let mut first_arg = environment.get_arg_by_index(0);
         let mut map_type_args = first_arg.ty.get_type_args();
@@ -58,7 +58,7 @@ impl ExternFunction for Remove {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: ConcreteType,
+        ty: Type,
     ) -> Value {
         let mut first_arg = environment.get_arg_by_index(0);
         let mut map_type_args = first_arg.ty.get_type_args();
@@ -83,7 +83,7 @@ impl ExternFunction for Get {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        _: ConcreteType,
+        _: Type,
     ) -> Value {
         let first_arg = environment.get_arg_by_index(0);
         let mut map_type_args = first_arg.ty.get_type_args();

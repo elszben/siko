@@ -12,7 +12,6 @@ siko_syntax = { path = "../siko_syntax" }
 siko_constants = { path = "../siko_constants" }
 siko_interpreter = { path = "../siko_interpreter" }
 siko_parser = { path = "../siko_parser" }
-siko_type_checker = { path = "../siko_type_checker" }
 siko_type_checker2 = { path = "../siko_type_checker2" }
 siko_name_resolver = { path = "../siko_name_resolver" }
 
