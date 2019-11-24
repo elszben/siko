@@ -2,16 +2,15 @@ module Main where
 
 import Std.Util
 
-boo :: String -> Int
-boo a = 5
+data Color = Red Int | Blue deriving PartialEq, PartialOrd
 
-foo = boo
+data Person = { name :: String, age :: Int} deriving PartialEq, PartialOrd
 
-id a = a
-
-main  = 
-        do
-            print "{}" % (id foo "a")
-            show 5 5
-
-    
+main  = do
+    assert (Red 5 < Red 6)
+    assert !(Red 5 < Red 5)
+    assert (Red 5 <= Red 6)
+    assert (Red 5 <= Red 5)
+    assert (Red 5 >= Red 5)
+    assert (Red 6 > Red 5)
+    assert !(Red 5 > Red 5)

@@ -434,6 +434,24 @@ impl Interpreter {
                             return self.call(callable, arg_values, expr_id);
                         }
                     }
+                    ("Std.Ops", "PartialOrd") => {
+                        if member.name == "partialCmp" {
+                            CallableKind::Builtin(BuiltinCallable::PartialOrd)
+                        } else {
+                            let member_function_id = member
+                                .default_implementation
+                                .expect("Default implementation not found");
+                            let callable = Value::new(
+                                ValueCore::Callable(Callable {
+                                    kind: CallableKind::FunctionId(member_function_id),
+                                    values: vec![],
+                                    unifier: call_unifier,
+                                }),
+                                function_type,
+                            );
+                            return self.call(callable, arg_values, expr_id);
+                        }
+                    }
                     _ => panic!(
                         "Auto derive of {}/{} is not implemented",
                         class.module, class.name
@@ -746,14 +764,14 @@ impl Interpreter {
                         } else if index1 == index2 {
                             for (item1, item2) in items1.iter().zip(items2.iter()) {
                                 let value =
-                                    Interpreter::call_op_partial_eq(item1.clone(), item2.clone());
+                                    Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
                                 let some_index = self
                                     .program
-                                    .get_adt_by_name("Std.Option", "Option")
+                                    .get_adt_by_name("Data.Option", "Option")
                                     .get_variant_index("Some");
                                 let equal_index = self
                                     .program
-                                    .get_adt_by_name("Std.Ordering", "Ordering")
+                                    .get_adt_by_name("Data.Ordering", "Ordering")
                                     .get_variant_index("Equal");
                                 if let ValueCore::Variant(_, index, items) = &value.core {
                                     if *index == some_index {
@@ -769,6 +787,7 @@ impl Interpreter {
                                 }
                                 return value;
                             }
+                            return get_opt_ordering_value(Some(Ordering::Equal));
                         } else {
                             return get_opt_ordering_value(Some(Ordering::Greater));
                         }
