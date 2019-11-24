@@ -7,8 +7,7 @@ data Color = Red Int | Blue deriving PartialEq
 data Person = { name :: String, age :: Int} deriving PartialEq
 
 main  = do
-    color <- Red 5 == Red 5
-    person <- Person { age = 5, name = "Lily" } == Person { age = 5, name = "Lily" }
-    assert (color == Some Equal)
-    assert (person == Some Equal)
-    
+    assert (Red 5 == Red 5)
+    assert (Red 5 != Red 6)
+    assert (Person { age = 5, name = "Lily" } == Person { age = 5, name = "Lily" })
+    assert (Person { age = 5, name = "Lily" } != Person { age = 5, name = "Nina" })

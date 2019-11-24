@@ -67,7 +67,7 @@ impl Substitution {
     pub fn apply(&self, ty: &Type) -> Type {
         match ty {
             Type::Var(index, _) => match self.var_map.get(index) {
-                Some(ty) => ty.clone(),
+                Some(ty) => self.apply(ty),
                 None => ty.clone(),
             },
             Type::Function(ty1, ty2) => {
@@ -82,7 +82,7 @@ impl Substitution {
                 Type::Named(n.clone(), *id, items)
             }
             Type::FixedTypeArg(_, index, _) => match self.var_map.get(index) {
-                Some(ty) => ty.clone(),
+                Some(ty) => self.apply(ty),
                 None => ty.clone(),
             },
         }

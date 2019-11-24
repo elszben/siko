@@ -361,12 +361,14 @@ impl Interpreter {
         func_ty: &Type,
         expected_result_ty: &Type,
     ) -> Unifier {
-        println!("Func type {}", func_ty);
+        //println!("Func type {}", func_ty);
         let mut arg_types = Vec::new();
         func_ty.get_args(&mut arg_types);
+        /*
         for (index, arg) in arg_values.iter().enumerate() {
             println!("{}.arg {}", index, arg.ty);
         }
+        */
         let result_type = func_ty.get_result_type(arg_values.len());
         let mut call_unifier = self.program.get_unifier();
         for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
@@ -409,7 +411,24 @@ impl Interpreter {
             ResolutionResult::AutoDerived => {
                 let kind = match (class.module.as_ref(), class.name.as_ref()) {
                     ("Std.Ops", "Show") => CallableKind::Builtin(BuiltinCallable::Show),
-                    ("Std.Ops", "PartialEq") => CallableKind::Builtin(BuiltinCallable::PartialEq),
+                    ("Std.Ops", "PartialEq") => {
+                        if member.name == "opEq" {
+                            CallableKind::Builtin(BuiltinCallable::PartialEq)
+                        } else {
+                            let member_function_id = member
+                                .default_implementation
+                                .expect("Default implementation not found");
+                            let callable = Value::new(
+                                ValueCore::Callable(Callable {
+                                    kind: CallableKind::FunctionId(member_function_id),
+                                    values: vec![],
+                                    unifier: call_unifier,
+                                }),
+                                function_type,
+                            );
+                            return self.call(callable, arg_values, expr_id);
+                        }
+                    }
                     _ => panic!(
                         "Auto derive of {}/{} is not implemented",
                         class.module, class.name
