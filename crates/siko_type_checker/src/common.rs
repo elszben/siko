@@ -151,6 +151,7 @@ impl RecordTypeInfo {
     }
 }
 
+#[derive(Clone)]
 pub struct FunctionTypeInfo {
     pub displayed_name: String,
     pub args: Vec<Type>,
@@ -158,16 +159,52 @@ pub struct FunctionTypeInfo {
     pub result: Type,
     pub function_type: Type,
     pub body: Option<ExprId>,
-    pub location_id: LocationId,
 }
 
 impl FunctionTypeInfo {
-    pub fn apply(&mut self, unifier: &Unifier) {
+    pub fn apply(&mut self, unifier: &Unifier) -> bool {
+        let mut changed = false;
         for arg in &mut self.args {
-            *arg = unifier.apply(arg);
+            if arg.apply(unifier) {
+                changed = true;
+            }
         }
-        self.result = unifier.apply(&self.result);
-        self.function_type = unifier.apply(&self.function_type);
+        if self.result.apply(unifier) {
+            changed = true;
+        }
+        if self.function_type.apply(unifier) {
+            changed = true;
+        }
+        changed
+    }
+
+    pub fn duplicate(&self, type_var_generator: &mut TypeVarGenerator) -> FunctionTypeInfo {
+        let mut arg_map = BTreeMap::new();
+        FunctionTypeInfo {
+            displayed_name: self.displayed_name.clone(),
+            args: self
+                .args
+                .iter()
+                .map(|ty| ty.duplicate(&mut arg_map, type_var_generator))
+                .collect(),
+            typed: self.typed,
+            result: self.result.duplicate(&mut arg_map, type_var_generator),
+            function_type: self
+                .function_type
+                .duplicate(&mut arg_map, type_var_generator),
+            body: self.body,
+        }
+    }
+
+    pub fn remove_fixed_types(&self) -> FunctionTypeInfo {
+        FunctionTypeInfo {
+            displayed_name: self.displayed_name.clone(),
+            args: self.args.iter().map(|ty| ty.remove_fixed_types()).collect(),
+            typed: self.typed,
+            result: self.result.remove_fixed_types(),
+            function_type: self.function_type.remove_fixed_types(),
+            body: self.body,
+        }
     }
 }
 

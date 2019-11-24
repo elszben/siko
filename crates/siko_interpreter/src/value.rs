@@ -12,6 +12,7 @@ use std::fmt;
 pub enum BuiltinCallable {
     Show,
     PartialEq,
+    PartialOrd,
 }
 
 #[derive(Debug, Clone, Copy)]

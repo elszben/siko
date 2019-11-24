@@ -1,3 +1,4 @@
+use crate::common::FunctionTypeInfo;
 use siko_ir::program::Program;
 use siko_ir::type_signature::TypeSignature;
 use siko_ir::type_signature::TypeSignatureId;
@@ -19,6 +20,23 @@ pub fn create_general_function_type(
     } else {
         let v = type_var_generator.get_new_type_var();
         (v.clone(), v)
+    }
+}
+
+pub fn create_general_function_type_info(
+    arg_count: usize,
+    type_var_generator: &mut TypeVarGenerator,
+) -> FunctionTypeInfo {
+    let mut func_args = Vec::new();
+    let (function_type, result_type) =
+        create_general_function_type(&mut func_args, arg_count, type_var_generator);
+    FunctionTypeInfo {
+        displayed_name: format!("<general>"),
+        args: func_args,
+        typed: false,
+        result: result_type,
+        function_type: function_type,
+        body: None,
     }
 }
 

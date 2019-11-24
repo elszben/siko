@@ -1,0 +1,14 @@
+module Main where
+
+import Std.Util
+
+data Color = Red Int | Blue deriving PartialEq
+
+data Person = { name :: String, age :: Int} deriving PartialEq
+
+main  = do
+    color <- Red 5 == Red 5
+    person <- Person { age = 5, name = "Lily" } == Person { age = 5, name = "Lily" }
+    assert (color == Some Equal)
+    assert (person == Some Equal)
+    

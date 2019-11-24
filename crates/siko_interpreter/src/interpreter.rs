@@ -8,6 +8,7 @@ use crate::extern_function::ExternFunction;
 use crate::std_ops;
 use crate::std_util;
 use crate::std_util_basic;
+use crate::util::get_opt_ordering_value;
 use crate::value::BuiltinCallable;
 use crate::value::Callable;
 use crate::value::CallableKind;
@@ -33,6 +34,7 @@ use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_location_info::error_context::ErrorContext;
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::thread_local;
 
@@ -93,7 +95,8 @@ impl Interpreter {
                     let (needed_arg_count, implicit_arg_count) = match &callable.kind {
                         CallableKind::Builtin(builtin) => match builtin {
                             BuiltinCallable::Show => (1, 0),
-                            _ => unimplemented!(),
+                            BuiltinCallable::PartialEq => (2, 0),
+                            BuiltinCallable::PartialOrd => (2, 0),
                         },
                         CallableKind::FunctionId(function_id) => {
                             let func_info = self.program.functions.get(function_id);
@@ -338,6 +341,15 @@ impl Interpreter {
         )
     }
 
+    pub fn call_op_partial_eq(arg1: Value, arg2: Value) -> Value {
+        Interpreter::call_specific_class_member(
+            vec![arg1, arg2],
+            "PartialEq",
+            "opEq",
+            Interpreter::get_bool_type(),
+        )
+    }
+
     pub fn call_op_cmp(arg1: Value, arg2: Value) -> Value {
         let ordering_ty = Interpreter::get_ordering_type();
         Interpreter::call_specific_class_member(vec![arg1, arg2], "Ord", "cmp", ordering_ty)
@@ -349,11 +361,16 @@ impl Interpreter {
         func_ty: &Type,
         expected_result_ty: &Type,
     ) -> Unifier {
+        println!("Func type {}", func_ty);
         let mut arg_types = Vec::new();
         func_ty.get_args(&mut arg_types);
+        for (index, arg) in arg_values.iter().enumerate() {
+            println!("{}.arg {}", index, arg.ty);
+        }
         let result_type = func_ty.get_result_type(arg_values.len());
         let mut call_unifier = self.program.get_unifier();
         for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
+            //println!("arg_value {} arg_type {}", arg_value.ty, arg_type);
             let r = call_unifier.unify(&arg_value.ty, arg_type);
             assert!(r.is_ok());
         }
@@ -369,6 +386,9 @@ impl Interpreter {
         expr_id: Option<ExprId>,
         expr_ty: Type,
     ) -> Value {
+        for arg in &arg_values {
+            assert!(arg.ty.is_concrete_type());
+        }
         let member = self.program.class_members.get(class_member_id);
         let (class_member_type, class_arg_ty) = self
             .program
@@ -383,11 +403,13 @@ impl Interpreter {
         let function_type = call_unifier.apply(&class_member_type);
         let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
         let cache = self.program.instance_resolution_cache.borrow();
+        let class = self.program.classes.get(&member.class_id);
+        assert!(class_arg.is_concrete_type());
         match cache.get(member.class_id, class_arg) {
             ResolutionResult::AutoDerived => {
-                let class = self.program.classes.get(&member.class_id);
                 let kind = match (class.module.as_ref(), class.name.as_ref()) {
                     ("Std.Ops", "Show") => CallableKind::Builtin(BuiltinCallable::Show),
+                    ("Std.Ops", "PartialEq") => CallableKind::Builtin(BuiltinCallable::PartialEq),
                     _ => panic!(
                         "Auto derive of {}/{} is not implemented",
                         class.module, class.name
@@ -460,6 +482,9 @@ impl Interpreter {
                     .iter()
                     .map(|arg| self.eval_expr(*arg, environment, unifier))
                     .collect();
+                for arg in &arg_values {
+                    assert!(arg.ty.is_concrete_type());
+                }
                 let call_unifier = self.get_call_unifier(&arg_values, &func_ty, &expr_ty);
                 let function_type = call_unifier.apply(&func_ty);
                 let callable = Value::new(
@@ -642,7 +667,91 @@ impl Interpreter {
                     self.program.get_string_type(),
                 );
             }
-            _ => unimplemented!(),
+            BuiltinCallable::PartialEq => {
+                let lhs = environment.get_arg_by_index(0);
+                let rhs = environment.get_arg_by_index(1);
+                if let ValueCore::Variant(id1, index1, items1) = &lhs.core {
+                    if let ValueCore::Variant(id2, index2, items2) = &rhs.core {
+                        assert_eq!(id1, id2);
+                        if index1 != index2 {
+                            return Value::new(
+                                ValueCore::Bool(false),
+                                self.program.get_bool_type(),
+                            );
+                        } else {
+                            for (item1, item2) in items1.iter().zip(items2.iter()) {
+                                let value =
+                                    Interpreter::call_op_partial_eq(item1.clone(), item2.clone());
+                                if let ValueCore::Bool(false) = value.core {
+                                    return Value::new(
+                                        ValueCore::Bool(false),
+                                        self.program.get_bool_type(),
+                                    );
+                                }
+                            }
+                            return Value::new(ValueCore::Bool(true), self.program.get_bool_type());
+                        }
+                    }
+                }
+                if let ValueCore::Record(id1, items1) = &lhs.core {
+                    if let ValueCore::Record(id2, items2) = &rhs.core {
+                        assert_eq!(id1, id2);
+                        for (item1, item2) in items1.iter().zip(items2.iter()) {
+                            let value =
+                                Interpreter::call_op_partial_eq(item1.clone(), item2.clone());
+                            if let ValueCore::Bool(false) = value.core {
+                                return Value::new(
+                                    ValueCore::Bool(false),
+                                    self.program.get_bool_type(),
+                                );
+                            }
+                        }
+                        return Value::new(ValueCore::Bool(true), self.program.get_bool_type());
+                    }
+                }
+                unimplemented!()
+            }
+            BuiltinCallable::PartialOrd => {
+                let lhs = environment.get_arg_by_index(0);
+                let rhs = environment.get_arg_by_index(1);
+                if let ValueCore::Variant(id1, index1, items1) = lhs.core {
+                    if let ValueCore::Variant(id2, index2, items2) = rhs.core {
+                        assert_eq!(id1, id2);
+                        if index1 < index2 {
+                            return get_opt_ordering_value(Some(Ordering::Less));
+                        } else if index1 == index2 {
+                            for (item1, item2) in items1.iter().zip(items2.iter()) {
+                                let value =
+                                    Interpreter::call_op_partial_eq(item1.clone(), item2.clone());
+                                let some_index = self
+                                    .program
+                                    .get_adt_by_name("Std.Option", "Option")
+                                    .get_variant_index("Some");
+                                let equal_index = self
+                                    .program
+                                    .get_adt_by_name("Std.Ordering", "Ordering")
+                                    .get_variant_index("Equal");
+                                if let ValueCore::Variant(_, index, items) = &value.core {
+                                    if *index == some_index {
+                                        let ordering_value = &items[0];
+                                        if let ValueCore::Variant(_, index, _) =
+                                            &ordering_value.core
+                                        {
+                                            if *index == equal_index {
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                }
+                                return value;
+                            }
+                        } else {
+                            return get_opt_ordering_value(Some(Ordering::Greater));
+                        }
+                    }
+                }
+                unimplemented!()
+            }
         }
     }
 
@@ -654,6 +763,7 @@ impl Interpreter {
         unifier: &Unifier,
         expr_ty: Type,
     ) -> Value {
+        assert!(expr_ty.is_concrete_type());
         let function = self.program.functions.get(&id);
         match &function.info {
             FunctionInfo::NamedFunction(info) => match info.body {

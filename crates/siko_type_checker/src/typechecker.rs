@@ -28,7 +28,6 @@ use siko_ir::types::BaseType;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::walk_expr;
-use siko_location_info::item::LocationId;
 use std::collections::BTreeMap;
 
 pub struct Typechecker {}
@@ -310,7 +309,6 @@ impl Typechecker {
         name: String,
         function: &Function,
         body: ExprId,
-        location_id: LocationId,
         type_var_generator: &mut TypeVarGenerator,
     ) -> FunctionTypeInfo {
         let mut args = Vec::new();
@@ -327,7 +325,6 @@ impl Typechecker {
             result: result_type,
             function_type: func_type,
             body: Some(body),
-            location_id,
         };
         function_type_info
     }
@@ -362,7 +359,6 @@ impl Typechecker {
                         result: result_type.clone(),
                         function_type: func_type,
                         body: None,
-                        location_id: record.location_id,
                     };
 
                     for (index, field_type) in record_type_info.field_types.iter().enumerate() {
@@ -386,12 +382,13 @@ impl Typechecker {
                 }
                 FunctionInfo::VariantConstructor(i) => {
                     let adt = program.typedefs.get(&i.type_id).get_adt();
-                    let adt_type_info = type_info_provider
+                    let mut adt_type_info = type_info_provider
                         .adt_type_info_map
                         .get(&i.type_id)
-                        .expect("Adt type info not found");
+                        .expect("Adt type info not found")
+                        .clone();
 
-                    let variant_type_info = &adt_type_info.variant_types[i.index];
+                    let mut variant_type_info = adt_type_info.variant_types[i.index].clone();
 
                     let mut func_args = Vec::new();
 
@@ -401,11 +398,6 @@ impl Typechecker {
                         type_var_generator,
                     );
 
-                    let location = program
-                        .type_signatures
-                        .get(&adt.variants[i.index].type_signature_id)
-                        .location_id;
-
                     let mut func_type_info = FunctionTypeInfo {
                         displayed_name: format!("{}/{}_ctor", adt.name, adt.variants[i.index].name),
                         args: func_args.clone(),
@@ -413,19 +405,22 @@ impl Typechecker {
                         result: result_type.clone(),
                         function_type: func_type,
                         body: None,
-                        location_id: location,
                     };
 
-                    for (index, item_type) in variant_type_info.item_types.iter().enumerate() {
+                    let count = variant_type_info.item_types.len();
+                    for index in 0..count {
+                        let item_type = &variant_type_info.item_types[index];
                         let mut unifier = Unifier::new(type_var_generator.clone());
-                        let arg_type = &func_args[index];
+                        let arg_type = &func_type_info.args[index];
                         unifier.unify(&item_type.0, arg_type).expect("Unify failed");
                         func_type_info.apply(&unifier);
+                        variant_type_info.apply(&unifier);
+                        adt_type_info.apply(&unifier);
                     }
 
                     let mut unifier = Unifier::new(type_var_generator.clone());
                     unifier
-                        .unify(&adt_type_info.adt_type, &result_type)
+                        .unify(&adt_type_info.adt_type, &func_type_info.result)
                         .expect("Unify failed");
 
                     func_type_info.apply(&unifier);
@@ -439,7 +434,6 @@ impl Typechecker {
                         displayed_name,
                         function,
                         i.body,
-                        i.location_id,
                         type_var_generator,
                     );
                     type_info_provider
@@ -468,7 +462,6 @@ impl Typechecker {
                             result: result_type.clone(),
                             function_type: func_type,
                             body: i.body,
-                            location_id: i.location_id,
                         };
 
                         let mut unifier = Unifier::new(type_var_generator.clone());
@@ -498,7 +491,6 @@ impl Typechecker {
                                 displayed_name,
                                 function,
                                 body,
-                                i.location_id,
                                 type_var_generator,
                             );
                             type_info_provider
@@ -722,7 +714,7 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        // function_type_info_store.dump(program);
+        //type_info_provider.function_type_info_store.dump(program);
 
         type_info_provider
             .function_type_info_store

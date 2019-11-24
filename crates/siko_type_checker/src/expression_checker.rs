@@ -117,18 +117,18 @@ impl<'a> ExpressionChecker<'a> {
     }
 
     fn check_function_call(&mut self, expr_id: ExprId, args: &Vec<ExprId>) {
-        let func_type = self.type_store.get_func_type_for_expr(&expr_id);
-        let arg_count = func_type.get_arg_count();
-        if arg_count >= args.len() {
-            let mut arg_types = Vec::new();
-            func_type.get_args(&mut arg_types);
-            for (arg, arg_type) in args.iter().zip(arg_types.iter()) {
-                self.match_expr_with(*arg, arg_type);
+        let func_type_info = self.type_store.get_func_type_for_expr(&expr_id);
+        if func_type_info.args.len() >= args.len() {
+            for (index, arg) in args.iter().enumerate() {
+                let func_type_info = self.type_store.get_func_type_for_expr(&expr_id);
+                let arg_type = &func_type_info.args[index].clone();
+                self.match_expr_with(*arg, &arg_type);
             }
         } else {
             let mut context = ResolverContext::new(self.program);
-            let function_type_string =
-                func_type.get_resolved_type_string_with_context(&mut context);
+            let function_type_string = func_type_info
+                .function_type
+                .get_resolved_type_string_with_context(&mut context);
             let arg_type_strings: Vec<_> = args
                 .iter()
                 .map(|arg| {
@@ -192,8 +192,8 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.check_function_call(expr_id, args);
             }
             Expr::DynamicFunctionCall(func_expr_id, args) => {
-                let func_type = self.type_store.get_func_type_for_expr(&expr_id).clone();
-                self.match_expr_with(*func_expr_id, &func_type);
+                let func_type_info = self.type_store.get_func_type_for_expr(&expr_id).clone();
+                self.match_expr_with(*func_expr_id, &func_type_info.function_type);
                 self.check_function_call(expr_id, args);
             }
             Expr::Do(items) => {

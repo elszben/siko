@@ -1,8 +1,7 @@
 module Main where
 
-data Color = Red | Blue deriving Show, PartialEq
+import Std.Util
 
-data Alma = { a :: String, b :: Int} deriving Show
-
-main  = "{}" % Red
-
+main  = True == 5
+            
+    

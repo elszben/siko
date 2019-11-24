@@ -1,5 +1,6 @@
 use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
+use crate::common::FunctionTypeInfo;
 use crate::common::FunctionTypeInfoStore;
 use crate::common::RecordTypeInfo;
 use siko_ir::class::ClassMemberId;
@@ -28,14 +29,10 @@ impl TypeInfoProvider {
         }
     }
 
-    pub fn get_function_type(&mut self, function_id: &FunctionId, clone: bool) -> Type {
-        let mut arg_map = BTreeMap::new();
-        let ty = &self
-            .function_type_info_store
-            .get(&function_id)
-            .function_type;
+    pub fn get_function_type(&mut self, function_id: &FunctionId, clone: bool) -> FunctionTypeInfo {
+        let ty = &self.function_type_info_store.get(&function_id).clone();
         if clone {
-            ty.duplicate(&mut arg_map, &mut self.type_var_generator)
+            ty.duplicate(&mut self.type_var_generator)
                 .remove_fixed_types()
         } else {
             ty.clone()

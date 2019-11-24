@@ -51,6 +51,17 @@ pub struct Adt {
     pub derived_classes: Vec<DerivedClass>,
 }
 
+impl Adt {
+    pub fn get_variant_index(&self, name: &str) -> usize {
+        for (index, variant) in self.variants.iter().enumerate() {
+            if variant.name == name {
+                return index;
+            }
+        }
+        unreachable!()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum TypeDef {
     Record(Record),

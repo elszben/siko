@@ -1,4 +1,5 @@
 use crate::common::AdtTypeInfo;
+use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use siko_ir::expr::ExprId;
 use siko_ir::pattern::PatternId;
@@ -11,7 +12,7 @@ use std::fmt;
 
 pub enum ExpressionTypeState {
     ExprType(Type),
-    FunctionCall(Type, Type),
+    FunctionCall(FunctionTypeInfo, Type),
     RecordInitialization(RecordTypeInfo, Type),
 }
 
@@ -37,7 +38,9 @@ impl fmt::Display for ExpressionTypeState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ExpressionTypeState::ExprType(ty) => write!(f, "{}", ty),
-            ExpressionTypeState::FunctionCall(ty1, ty2) => write!(f, "FC {}, {}", ty1, ty2),
+            ExpressionTypeState::FunctionCall(func_ty_info, ty2) => {
+                write!(f, "FC {}, {}", func_ty_info.function_type, ty2)
+            }
             ExpressionTypeState::RecordInitialization(i, ty) => {
                 write!(f, "RI {}, {}", i.record_type, ty)
             }
@@ -99,7 +102,12 @@ impl TypeStore {
         assert!(r.is_none());
     }
 
-    pub fn initialize_expr_with_func(&mut self, expr_id: ExprId, ty: Type, func_ty: Type) {
+    pub fn initialize_expr_with_func(
+        &mut self,
+        expr_id: ExprId,
+        ty: Type,
+        func_ty: FunctionTypeInfo,
+    ) {
         let r = self
             .expr_types
             .insert(expr_id, ExpressionTypeState::FunctionCall(func_ty, ty));
@@ -154,10 +162,10 @@ impl TypeStore {
         }
     }
 
-    pub fn get_func_type_for_expr(&self, expr_id: &ExprId) -> &Type {
+    pub fn get_func_type_for_expr(&self, expr_id: &ExprId) -> &FunctionTypeInfo {
         match self.expr_types.get(expr_id).expect("Expr type not found") {
             ExpressionTypeState::ExprType(_) => unreachable!(),
-            ExpressionTypeState::FunctionCall(func_type, _) => func_type,
+            ExpressionTypeState::FunctionCall(func_ty_info, _) => func_ty_info,
             ExpressionTypeState::RecordInitialization(..) => unreachable!(),
         }
     }
