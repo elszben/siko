@@ -151,7 +151,6 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 let expr_ty = Type::Tuple(Vec::new());
                 self.match_expr_with(expr_id, &expr_ty);
             }
-            Expr::BoolLiteral(_) => {}
             Expr::CaseOf(case_expr, cases, bind_groups) => {
                 for bind_group in bind_groups {
                     for patterns in bind_group.patterns.windows(2) {
@@ -348,7 +347,6 @@ impl<'a> Visitor for ExpressionChecker<'a> {
         //println!("C {} {:?}", pattern_id, pattern);
         match pattern {
             Pattern::Binding(_) => {}
-            Pattern::BoolLiteral(_) => {}
             Pattern::FloatLiteral(_) => {}
             Pattern::Guarded(inner, guard_expr_id) => {
                 self.match_patterns(*inner, pattern_id);

@@ -2,7 +2,6 @@ use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
 use crate::interpreter::Interpreter;
 use crate::value::Value;
-use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
@@ -15,11 +14,11 @@ impl ExternFunction for And {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: Type,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_bool();
         let r = environment.get_arg_by_index(1).core.as_bool();
-        return Value::new(ValueCore::Bool(l && r), ty);
+        return Interpreter::get_bool_value(l && r);
     }
 }
 
@@ -31,14 +30,14 @@ impl ExternFunction for Or {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: Type,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_bool();
         if l {
-            return Value::new(ValueCore::Bool(l), ty);
+            return Interpreter::get_bool_value(l);
         } else {
             let r = environment.get_arg_by_index(1).core.as_bool();
-            return Value::new(ValueCore::Bool(r), ty);
+            return Interpreter::get_bool_value(r);
         }
     }
 }

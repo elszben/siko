@@ -42,7 +42,6 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
         }
         Expr::IntegerLiteral(_) => {}
         Expr::FloatLiteral(_) => {}
-        Expr::BoolLiteral(_) => {}
         Expr::StringLiteral(_) => {}
         Expr::Do(items) => {
             for item in items {
@@ -123,7 +122,6 @@ fn walk_pattern(pattern_id: &PatternId, visitor: &mut dyn Visitor) {
         Pattern::IntegerLiteral(_) => {}
         Pattern::FloatLiteral(_) => {}
         Pattern::StringLiteral(_) => {}
-        Pattern::BoolLiteral(_) => {}
         Pattern::Typed(id, _) => {
             walk_pattern(id, visitor);
         }

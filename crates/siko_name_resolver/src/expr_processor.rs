@@ -327,15 +327,6 @@ fn process_pattern(
                 IrPattern::StringLiteral(v.clone())
             }
         }
-        Pattern::BoolLiteral(v) => {
-            if irrefutable {
-                let err = ResolverError::NotIrrefutablePattern(location_id);
-                errors.push(err);
-                IrPattern::Wildcard
-            } else {
-                IrPattern::BoolLiteral(*v)
-            }
-        }
         Pattern::Typed(pattern_id, type_signature_id) => {
             let ir_pattern_id = process_pattern(
                 case_expr_id,
@@ -722,10 +713,6 @@ pub fn process_expr(
         }
         Expr::FloatLiteral(v) => {
             let ir_expr = IrExpr::FloatLiteral(v.clone());
-            return add_expr(ir_expr, id, ir_program, program);
-        }
-        Expr::BoolLiteral(v) => {
-            let ir_expr = IrExpr::BoolLiteral(v.clone());
             return add_expr(ir_expr, id, ir_program, program);
         }
         Expr::StringLiteral(v) => {

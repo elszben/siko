@@ -76,7 +76,6 @@ impl Ord for Value {
 pub enum ValueCore {
     Int(i64),
     Float(f64),
-    Bool(bool),
     String(String),
     Tuple(Vec<Value>),
     Callable(Callable),
@@ -110,8 +109,9 @@ impl ValueCore {
 
     pub fn as_bool(&self) -> bool {
         match self {
-            ValueCore::Bool(b) => *b,
-            _ => unreachable!(),
+            ValueCore::Variant(_, 0, _) => true,
+            ValueCore::Variant(_, 1, _) => false,
+            _ => panic!("Trying to use {:?} as bool", self),
         }
     }
 
@@ -198,7 +198,6 @@ impl fmt::Display for ValueCore {
         match self {
             ValueCore::Int(v) => write!(f, "{}", v),
             ValueCore::Float(v) => write!(f, "{}", v),
-            ValueCore::Bool(v) => write!(f, "{}", v),
             ValueCore::String(v) => write!(f, "{}", v),
             ValueCore::Tuple(vs) => {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v.core)).collect();

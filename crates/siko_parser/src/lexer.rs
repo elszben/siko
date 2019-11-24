@@ -128,8 +128,6 @@ impl Lexer {
             "then" => Token::KeywordThen,
             "else" => Token::KeywordElse,
             "do" => Token::KeywordDo,
-            "True" => Token::BoolLiteral(true),
-            "False" => Token::BoolLiteral(false),
             "as" => Token::KeywordAs,
             "extern" => Token::KeywordExtern,
             "hiding" => Token::KeywordHiding,

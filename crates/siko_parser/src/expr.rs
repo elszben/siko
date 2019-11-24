@@ -189,17 +189,6 @@ fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternI
                 unreachable!()
             }
         }
-        TokenKind::BoolLiteral => {
-            let start_index = parser.get_index();
-            let literal = parser.advance()?;
-            if let Token::BoolLiteral(b) = literal.token {
-                let pattern = Pattern::BoolLiteral(b);
-                let id = parser.add_pattern(pattern, start_index);
-                id
-            } else {
-                unreachable!()
-            }
-        }
         TokenKind::VarIdentifier => {
             let start_index = parser.get_index();
             let name = parser.var_identifier("pattern binding")?;
@@ -390,12 +379,6 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, ParseError> {
             let id = parser.add_expr(expr, start_index);
             id
         }
-        Token::BoolLiteral(b) => {
-            parser.advance()?;
-            let expr = Expr::BoolLiteral(b);
-            let id = parser.add_expr(expr, start_index);
-            id
-        }
         Token::StringLiteral(s) => {
             parser.advance()?;
             if parser.current(TokenKind::Formatter) {
@@ -451,7 +434,6 @@ fn parse_primary(parser: &mut Parser) -> Result<ExprId, ParseError> {
             | TokenKind::VarIdentifier
             | TokenKind::IntegerLiteral
             | TokenKind::FloatLiteral
-            | TokenKind::BoolLiteral
             | TokenKind::StringLiteral
             | TokenKind::LParen
             | TokenKind::KeywordIf

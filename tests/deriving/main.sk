@@ -4,6 +4,8 @@ data Foo = { alma :: String }
 data Foo2 = { alma :: String } deriving ()
 data Foo3 = { alma :: String } deriving Show
 data Foo4 = { alma :: String } deriving Eq, PartialEq
+data Foo5 = { alma :: String } deriving (Eq, PartialEq)
+data Foo6 = { alma :: String } deriving (Eq)
 
 data Boo = One | Two
 data Boo2 = One2 | Two2 deriving ()

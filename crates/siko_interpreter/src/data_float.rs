@@ -80,11 +80,11 @@ impl ExternFunction for FloatPartialEq {
         environment: &mut Environment,
         _: Option<ExprId>,
         _: &NamedFunctionKind,
-        ty: Type,
+        _: Type,
     ) -> Value {
         let l = environment.get_arg_by_index(0).core.as_float();
         let r = environment.get_arg_by_index(1).core.as_float();
-        return Value::new(ValueCore::Bool(l == r), ty);
+        return Interpreter::get_bool_value(l == r);
     }
 }
 

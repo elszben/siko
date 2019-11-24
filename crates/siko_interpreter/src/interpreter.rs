@@ -243,13 +243,6 @@ impl Interpreter {
                 };
                 return r;
             }
-            Pattern::BoolLiteral(p_v) => {
-                let r = match &value.core {
-                    ValueCore::Bool(v) => p_v == v,
-                    _ => false,
-                };
-                return r;
-            }
         }
     }
 
@@ -272,8 +265,24 @@ impl Interpreter {
         INTERPRETER_CONTEXT.with(|i| {
             let b = i.borrow();
             let i = b.as_ref().expect("Interpreter not set");
-            let string_ty = i.program.get_bool_type();
-            string_ty
+            let bool_ty = i.program.get_bool_type();
+            bool_ty
+        })
+    }
+
+    pub fn get_bool_value(v: bool) -> Value {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect("Interpreter not set");
+            let bool_ty = i.program.get_bool_type();
+            if let Type::Named(_, id, _) = &bool_ty {
+                Value::new(
+                    ValueCore::Variant(*id, if v == true { 0 } else { 1 }, vec![]),
+                    bool_ty,
+                )
+            } else {
+                unreachable!()
+            }
         })
     }
 
@@ -509,7 +518,6 @@ impl Interpreter {
             Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty),
             Expr::StringLiteral(v) => Value::new(ValueCore::String(v.clone()), expr_ty),
             Expr::FloatLiteral(v) => Value::new(ValueCore::Float(*v), expr_ty),
-            Expr::BoolLiteral(v) => Value::new(ValueCore::Bool(*v), expr_ty),
             Expr::ArgRef(arg_ref) => {
                 return environment.get_arg(arg_ref);
             }
@@ -640,7 +648,7 @@ impl Interpreter {
             Expr::RecordInitialization(type_id, items) => {
                 let mut values: Vec<_> = Vec::with_capacity(items.len());
                 for _ in 0..items.len() {
-                    values.push(Value::new(ValueCore::Bool(false), expr_ty.clone()));
+                    values.push(Value::new(ValueCore::Tuple(vec![]), expr_ty.clone()));
                     // dummy value
                 }
                 for item in items {
@@ -716,22 +724,17 @@ impl Interpreter {
                     if let ValueCore::Variant(id2, index2, items2) = &rhs.core {
                         assert_eq!(id1, id2);
                         if index1 != index2 {
-                            return Value::new(
-                                ValueCore::Bool(false),
-                                self.program.get_bool_type(),
-                            );
+                            return Interpreter::get_bool_value(false);
                         } else {
                             for (item1, item2) in items1.iter().zip(items2.iter()) {
                                 let value =
                                     Interpreter::call_op_partial_eq(item1.clone(), item2.clone());
-                                if let ValueCore::Bool(false) = value.core {
-                                    return Value::new(
-                                        ValueCore::Bool(false),
-                                        self.program.get_bool_type(),
-                                    );
+                                let v = value.core.as_bool();
+                                if !v {
+                                    return Interpreter::get_bool_value(false);
                                 }
                             }
-                            return Value::new(ValueCore::Bool(true), self.program.get_bool_type());
+                            return Interpreter::get_bool_value(true);
                         }
                     }
                 }
@@ -741,14 +744,12 @@ impl Interpreter {
                         for (item1, item2) in items1.iter().zip(items2.iter()) {
                             let value =
                                 Interpreter::call_op_partial_eq(item1.clone(), item2.clone());
-                            if let ValueCore::Bool(false) = value.core {
-                                return Value::new(
-                                    ValueCore::Bool(false),
-                                    self.program.get_bool_type(),
-                                );
+                            let v = value.core.as_bool();
+                            if !v {
+                                return Interpreter::get_bool_value(false);
                             }
                         }
-                        return Value::new(ValueCore::Bool(true), self.program.get_bool_type());
+                        return Interpreter::get_bool_value(true);
                     }
                 }
                 unimplemented!()

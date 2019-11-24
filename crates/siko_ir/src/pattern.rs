@@ -32,7 +32,6 @@ pub enum Pattern {
     IntegerLiteral(i64),
     FloatLiteral(f64),
     StringLiteral(String),
-    BoolLiteral(bool),
     Typed(PatternId, TypeSignatureId),
 }
 

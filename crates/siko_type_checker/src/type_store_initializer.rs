@@ -4,7 +4,6 @@ use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::util::create_general_function_type_info;
 use crate::util::function_argument_mismatch;
-use crate::util::get_bool_type;
 use crate::util::get_float_type;
 use crate::util::get_int_type;
 use crate::util::get_list_type;
@@ -66,10 +65,6 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .type_var_generator
                     .get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
-            }
-            Expr::BoolLiteral(_) => {
-                self.type_store
-                    .initialize_expr(expr_id, get_bool_type(self.program));
             }
             Expr::CaseOf(..) => {
                 let ty = self
@@ -251,10 +246,6 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .type_var_generator
                     .get_new_type_var();
                 self.type_store.initialize_pattern(pattern_id, ty);
-            }
-            Pattern::BoolLiteral(_) => {
-                self.type_store
-                    .initialize_pattern(pattern_id, get_bool_type(self.program));
             }
             Pattern::FloatLiteral(_) => {
                 self.type_store

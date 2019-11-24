@@ -8,7 +8,6 @@ pub enum Token {
     StringLiteral(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
-    BoolLiteral(bool),
     KeywordWhere,
     KeywordData,
     KeywordModule,
@@ -67,7 +66,6 @@ impl Token {
             Token::StringLiteral(..) => TokenKind::StringLiteral,
             Token::IntegerLiteral(..) => TokenKind::IntegerLiteral,
             Token::FloatLiteral(..) => TokenKind::FloatLiteral,
-            Token::BoolLiteral(..) => TokenKind::BoolLiteral,
             Token::KeywordWhere => TokenKind::KeywordWhere,
             Token::KeywordData => TokenKind::KeywordData,
             Token::KeywordModule => TokenKind::KeywordModule,
@@ -119,7 +117,6 @@ pub enum TokenKind {
     StringLiteral,
     IntegerLiteral,
     FloatLiteral,
-    BoolLiteral,
     KeywordWhere,
     KeywordData,
     KeywordModule,
@@ -181,7 +178,6 @@ impl TokenKind {
             TokenKind::StringLiteral => format!("string literal"),
             TokenKind::FloatLiteral => format!("float literal"),
             TokenKind::IntegerLiteral => format!("integer literal"),
-            TokenKind::BoolLiteral => format!("bool literal"),
             _ => {
                 let name = format!("{:?}", self);
                 let name = name.to_lowercase();

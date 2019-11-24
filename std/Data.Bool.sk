@@ -1,19 +1,6 @@
 module Data.Bool where
 
-data Bool = extern
-
-instance PartialEq Bool where
-    opEq a b = case (a, b) of
-                (True, True) -> True
-                (False, False) -> True
-                _ -> False
-
-instance PartialOrd Bool where
-    partialCmp a b = case (a, b) of
-                        (True, True) -> Some Equal
-                        (True, False) -> Some Greater
-                        (False, False) -> Some Equal
-                        (False, True) -> Some Less
+data Bool = True | False deriving (PartialEq, PartialOrd, Show)
 
 instance Ord Bool where
     cmp a b = case (a, b) of
@@ -21,6 +8,3 @@ instance Ord Bool where
                 (True, False) -> Greater
                 (False, False) -> Equal
                 (False, True) -> Less
-
-instance Show Bool where
-    show a = if a == True then "True" else "False"

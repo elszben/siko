@@ -251,7 +251,6 @@ impl<'a> Parser<'a> {
                 | TokenKind::IntegerLiteral
                 | TokenKind::FloatLiteral
                 | TokenKind::StringLiteral
-                | TokenKind::BoolLiteral
                 | TokenKind::VarIdentifier
                 | TokenKind::TypeIdentifier
                 | TokenKind::Wildcard => {
@@ -846,30 +845,43 @@ impl<'a> Parser<'a> {
     fn parse_deriving(&mut self) -> Result<Vec<DerivedClass>, ParseError> {
         if self.current(TokenKind::KeywordDeriving) {
             self.expect(TokenKind::KeywordDeriving)?;
-            if self.current(TokenKind::LParen) {
+            let paren_needed = if self.current(TokenKind::LParen) {
                 self.expect(TokenKind::LParen)?;
-                self.expect(TokenKind::RParen)?;
-                return Ok(Vec::new());
+                true
             } else {
-                let mut derived_classes = Vec::new();
-                loop {
-                    let start_index = self.get_index();
-                    let name = self.parse_qualified_type_name()?;
-                    let end_index = self.get_index();
-                    let location_id = self.get_location_id(start_index, end_index);
-                    let derived_class = DerivedClass {
-                        name: name,
-                        location_id: location_id,
-                    };
-                    derived_classes.push(derived_class);
-                    if self.current(TokenKind::EndOfItem) {
+                false
+            };
+            let mut derived_classes = Vec::new();
+            loop {
+                if paren_needed {
+                    if self.current(TokenKind::RParen) {
                         break;
-                    } else {
-                        self.expect(TokenKind::Comma)?;
                     }
                 }
-                return Ok(derived_classes);
+                let start_index = self.get_index();
+                let name = self.parse_qualified_type_name()?;
+                let end_index = self.get_index();
+                let location_id = self.get_location_id(start_index, end_index);
+                let derived_class = DerivedClass {
+                    name: name,
+                    location_id: location_id,
+                };
+                derived_classes.push(derived_class);
+                if paren_needed {
+                    if self.current(TokenKind::RParen) {
+                        break;
+                    }
+                }
+                if self.current(TokenKind::EndOfItem) {
+                    break;
+                } else {
+                    self.expect(TokenKind::Comma)?;
+                }
             }
+            if paren_needed {
+                self.expect(TokenKind::RParen)?;
+            }
+            return Ok(derived_classes);
         } else {
             return Ok(Vec::new());
         }
