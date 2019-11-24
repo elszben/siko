@@ -2,6 +2,16 @@ module Main where
 
 import Std.Util
 
-main  = True == 5
-            
+boo :: String -> Int
+boo a = 5
+
+foo = boo
+
+id a = a
+
+main  = 
+        do
+            print "{}" % (id foo "a")
+            show 5 5
+
     

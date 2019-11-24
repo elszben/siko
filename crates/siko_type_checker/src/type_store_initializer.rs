@@ -3,6 +3,7 @@ use crate::error::TypecheckError;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::util::create_general_function_type_info;
+use crate::util::function_argument_mismatch;
 use crate::util::get_bool_type;
 use crate::util::get_float_type;
 use crate::util::get_int_type;
@@ -77,18 +78,30 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
-            Expr::ClassFunctionCall(class_member_id, _) => {
+            Expr::ClassFunctionCall(class_member_id, args) => {
                 let class_member_type = self
                     .type_info_provider
                     .get_class_member_type(class_member_id);
-                let func_arg_count = class_member_type.get_arg_count();
                 let mut func_type_info = create_general_function_type_info(
-                    func_arg_count,
+                    args.len(),
                     &mut self.type_info_provider.type_var_generator,
                 );
                 let mut unifier = self.program.get_unifier();
                 let r = unifier.unify(&func_type_info.function_type, &class_member_type);
-                assert!(r.is_ok());
+                if r.is_err() {
+                    let args: Vec<_> = args
+                        .iter()
+                        .map(|arg| self.type_store.get_expr_type(arg).clone())
+                        .collect();
+                    let location = self.program.exprs.get(&expr_id).location_id;
+                    function_argument_mismatch(
+                        self.program,
+                        &class_member_type,
+                        args,
+                        location,
+                        self.errors,
+                    )
+                }
                 func_type_info.apply(&unifier);
                 self.type_store.initialize_expr_with_func(
                     expr_id,
@@ -157,12 +170,38 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store.initialize_expr(expr_id, ty);
             }
             Expr::StaticFunctionCall(function_id, args) => {
-                let func_type_info = self
+                let static_func_type_info = self
                     .type_info_provider
                     .get_function_type(function_id, !self.group.items.contains(function_id));
-                let result_ty = func_type_info.function_type.get_result_type(args.len());
-                self.type_store
-                    .initialize_expr_with_func(expr_id, result_ty, func_type_info);
+                let mut func_type_info = create_general_function_type_info(
+                    args.len(),
+                    &mut self.type_info_provider.type_var_generator,
+                );
+                let mut unifier = self.program.get_unifier();
+                let r = unifier.unify(
+                    &func_type_info.function_type,
+                    &static_func_type_info.function_type,
+                );
+                if r.is_err() {
+                    let args: Vec<_> = args
+                        .iter()
+                        .map(|arg| self.type_store.get_expr_type(arg).clone())
+                        .collect();
+                    let location = self.program.exprs.get(&expr_id).location_id;
+                    function_argument_mismatch(
+                        self.program,
+                        &static_func_type_info.function_type,
+                        args,
+                        location,
+                        self.errors,
+                    )
+                }
+                func_type_info.apply(&unifier);
+                self.type_store.initialize_expr_with_func(
+                    expr_id,
+                    func_type_info.result.clone(),
+                    func_type_info,
+                );
             }
             Expr::StringLiteral(_) => {
                 self.type_store

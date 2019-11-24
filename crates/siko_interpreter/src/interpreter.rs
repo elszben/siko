@@ -361,22 +361,27 @@ impl Interpreter {
         func_ty: &Type,
         expected_result_ty: &Type,
     ) -> Unifier {
-        //println!("Func type {}", func_ty);
+        /*println!("Func type {}", func_ty);
         let mut arg_types = Vec::new();
         func_ty.get_args(&mut arg_types);
-        /*
         for (index, arg) in arg_values.iter().enumerate() {
             println!("{}.arg {}", index, arg.ty);
         }
-        */
-        let result_type = func_ty.get_result_type(arg_values.len());
+        for (index, arg) in arg_types.iter().enumerate() {
+            println!("{}.argty {}", index, arg);
+        }*/
         let mut call_unifier = self.program.get_unifier();
-        for (arg_value, arg_type) in arg_values.iter().zip(arg_types.iter()) {
-            //println!("arg_value {} arg_type {}", arg_value.ty, arg_type);
-            let r = call_unifier.unify(&arg_value.ty, arg_type);
+        let mut func_ty = func_ty.clone();
+        for arg in arg_values {
+            let mut arg_types = Vec::new();
+            func_ty.get_args(&mut arg_types);
+            let r = call_unifier.unify(&arg.ty, &arg_types[0]);
             assert!(r.is_ok());
+            func_ty.apply(&call_unifier);
+            func_ty = func_ty.get_result_type(1);
         }
-        let r = call_unifier.unify(&result_type, expected_result_ty);
+        //println!("{} {}", expected_result_ty, func_ty);
+        let r = call_unifier.unify(&func_ty, expected_result_ty);
         assert!(r.is_ok());
         call_unifier
     }

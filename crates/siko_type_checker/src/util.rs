@@ -1,9 +1,13 @@
 use crate::common::FunctionTypeInfo;
+use crate::error::TypecheckError;
 use siko_ir::program::Program;
 use siko_ir::type_signature::TypeSignature;
 use siko_ir::type_signature::TypeSignatureId;
 use siko_ir::type_var_generator::TypeVarGenerator;
+use siko_ir::types::ResolverContext;
 use siko_ir::types::Type;
+use siko_location_info::item::LocationId;
+use siko_util::format_list;
 
 pub fn create_general_function_type(
     func_args: &mut Vec<Type>,
@@ -110,4 +114,22 @@ pub fn process_type_signature(
         TypeSignature::Variant(..) => panic!("Variant should not appear here"),
         TypeSignature::Wildcard => type_var_generator.get_new_type_var(),
     }
+}
+
+pub fn function_argument_mismatch(
+    program: &Program,
+    func_type: &Type,
+    args: Vec<Type>,
+    location: LocationId,
+    errors: &mut Vec<TypecheckError>,
+) {
+    let mut context = ResolverContext::new(program);
+    let function_type_string = func_type.get_resolved_type_string_with_context(&mut context);
+    let arg_type_strings: Vec<_> = args
+        .iter()
+        .map(|arg| arg.get_resolved_type_string_with_context(&mut context))
+        .collect();
+    let arguments = format_list(&arg_type_strings[..]);
+    let err = TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
+    errors.push(err);
 }

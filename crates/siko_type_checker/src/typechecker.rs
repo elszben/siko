@@ -326,6 +326,7 @@ impl Typechecker {
             function_type: func_type,
             body: Some(body),
         };
+
         function_type_info
     }
 

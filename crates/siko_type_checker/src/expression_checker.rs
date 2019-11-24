@@ -13,12 +13,10 @@ use siko_ir::function::FunctionId;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
-use siko_ir::types::ResolverContext;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::Visitor;
 use siko_location_info::item::LocationId;
-use siko_util::format_list;
 
 pub struct ExpressionChecker<'a> {
     program: &'a Program,
@@ -117,30 +115,10 @@ impl<'a> ExpressionChecker<'a> {
     }
 
     fn check_function_call(&mut self, expr_id: ExprId, args: &Vec<ExprId>) {
-        let func_type_info = self.type_store.get_func_type_for_expr(&expr_id);
-        if func_type_info.args.len() >= args.len() {
-            for (index, arg) in args.iter().enumerate() {
-                let func_type_info = self.type_store.get_func_type_for_expr(&expr_id);
-                let arg_type = &func_type_info.args[index].clone();
-                self.match_expr_with(*arg, &arg_type);
-            }
-        } else {
-            let mut context = ResolverContext::new(self.program);
-            let function_type_string = func_type_info
-                .function_type
-                .get_resolved_type_string_with_context(&mut context);
-            let arg_type_strings: Vec<_> = args
-                .iter()
-                .map(|arg| {
-                    let ty = self.type_store.get_expr_type(arg);
-                    ty.get_resolved_type_string_with_context(&mut context)
-                })
-                .collect();
-            let location = self.program.exprs.get(&expr_id).location_id;
-            let arguments = format_list(&arg_type_strings[..]);
-            let err =
-                TypecheckError::FunctionArgumentMismatch(location, arguments, function_type_string);
-            self.errors.push(err);
+        for (index, arg) in args.iter().enumerate() {
+            let func_type_info = self.type_store.get_func_type_for_expr(&expr_id);
+            let arg_type = &func_type_info.args[index].clone();
+            self.match_expr_with(*arg, &arg_type);
         }
     }
 }
