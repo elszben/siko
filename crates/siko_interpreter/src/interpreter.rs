@@ -756,8 +756,8 @@ impl Interpreter {
             BuiltinCallable::PartialOrd => {
                 let lhs = environment.get_arg_by_index(0);
                 let rhs = environment.get_arg_by_index(1);
-                if let ValueCore::Variant(id1, index1, items1) = lhs.core {
-                    if let ValueCore::Variant(id2, index2, items2) = rhs.core {
+                if let ValueCore::Variant(id1, index1, items1) = &lhs.core {
+                    if let ValueCore::Variant(id2, index2, items2) = &rhs.core {
                         assert_eq!(id1, id2);
                         if index1 < index2 {
                             return get_opt_ordering_value(Some(Ordering::Less));
@@ -791,6 +791,35 @@ impl Interpreter {
                         } else {
                             return get_opt_ordering_value(Some(Ordering::Greater));
                         }
+                    }
+                }
+                if let ValueCore::Record(id1, items1) = &lhs.core {
+                    if let ValueCore::Record(id2, items2) = &rhs.core {
+                        assert_eq!(id1, id2);
+                        for (item1, item2) in items1.iter().zip(items2.iter()) {
+                            let value =
+                                Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
+                            let some_index = self
+                                .program
+                                .get_adt_by_name("Data.Option", "Option")
+                                .get_variant_index("Some");
+                            let equal_index = self
+                                .program
+                                .get_adt_by_name("Data.Ordering", "Ordering")
+                                .get_variant_index("Equal");
+                            if let ValueCore::Variant(_, index, items) = &value.core {
+                                if *index == some_index {
+                                    let ordering_value = &items[0];
+                                    if let ValueCore::Variant(_, index, _) = &ordering_value.core {
+                                        if *index == equal_index {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            return value;
+                        }
+                        return get_opt_ordering_value(Some(Ordering::Equal));
                     }
                 }
                 unimplemented!()
