@@ -38,23 +38,13 @@ impl Typechecker {
         Typechecker {}
     }
 
-    fn process_derived_instances_instances(
+    fn process_derived_instances(
         &self,
         instance_resolver: &mut InstanceResolver,
         errors: &mut Vec<TypecheckError>,
         program: &Program,
         type_info_provider: &mut TypeInfoProvider,
     ) {
-        instance_resolver.check_conflicts(
-            errors,
-            program,
-            type_info_provider.type_var_generator.clone(),
-        );
-
-        if !errors.is_empty() {
-            return;
-        }
-
         loop {
             let mut instance_changed = false;
             for (id, adt_type_info) in &type_info_provider.adt_type_info_map {
@@ -707,7 +697,7 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        self.process_derived_instances_instances(
+        self.process_derived_instances(
             &mut instance_resolver,
             &mut errors,
             program,
