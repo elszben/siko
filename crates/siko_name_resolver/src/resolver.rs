@@ -39,7 +39,7 @@ use siko_ir::program::Program as IrProgram;
 use siko_ir::type_signature::TypeSignature;
 use siko_ir::type_signature::TypeSignatureId;
 use siko_ir::type_var_generator::TypeVarGenerator;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
 use siko_syntax::class::Instance as AstInstance;
 use siko_syntax::data::AdtId;

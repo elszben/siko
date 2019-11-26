@@ -2,7 +2,7 @@ use crate::import::ImportedItemInfo;
 use crate::import::ImportedMemberInfo;
 use crate::item::DataMember;
 use crate::item::Item;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use siko_syntax::module::ModuleId;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

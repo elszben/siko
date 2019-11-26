@@ -1,5 +1,5 @@
 use crate::item::Item;
-use crate::item::LocationId;
+use crate::location_id::LocationId;
 use crate::location_set::LocationSet;
 use siko_util::Counter;
 use std::collections::BTreeMap;

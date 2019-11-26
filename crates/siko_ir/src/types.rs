@@ -305,6 +305,15 @@ impl Type {
         }
     }
 
+    pub fn collect_type_args(&self, args: &mut Vec<usize>, program: &Program) {
+        let mut resolver_context = ResolverContext::new(program);
+        let mut collector = Collector::new();
+        self.collect(&mut collector, &mut resolver_context);
+        for arg in collector.items {
+            args.push(arg.0);
+        }
+    }
+
     pub fn get_resolved_type_string(&self, program: &Program) -> String {
         let mut resolver_context = ResolverContext::new(program);
         self.get_resolved_type_string_with_context(&mut resolver_context)

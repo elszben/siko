@@ -8,7 +8,7 @@ use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_ir::types::BaseType;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;

@@ -26,7 +26,7 @@ use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::program::Program as IrProgram;
 use siko_location_info::item::ItemInfo;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use siko_syntax::expr::Expr;
 use siko_syntax::expr::ExprId;
 use siko_syntax::pattern::Pattern;

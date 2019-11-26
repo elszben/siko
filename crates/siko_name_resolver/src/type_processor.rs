@@ -8,7 +8,7 @@ use siko_ir::program::Program as IrProgram;
 use siko_ir::type_signature::TypeSignature as IrTypeSignature;
 use siko_ir::type_signature::TypeSignatureId as IrTypeSignatureId;
 use siko_location_info::item::ItemInfo;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use siko_syntax::program::Program;
 use siko_syntax::types::TypeSignature as AstTypeSignature;
 use siko_syntax::types::TypeSignatureId;

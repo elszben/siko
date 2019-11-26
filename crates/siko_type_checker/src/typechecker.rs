@@ -13,6 +13,7 @@ use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::type_store_initializer::TypeStoreInitializer;
+use crate::undefined_var_checker::UndefinedVarChecker;
 use crate::util::create_general_function_type;
 use crate::util::process_type_signature;
 use siko_ir::class::ClassId;
@@ -575,6 +576,14 @@ impl Typechecker {
         );
         walk_expr(&body, &mut checker);
         checker.match_expr_with(body, &result_ty);
+        let function_type_info = type_info_provider.function_type_info_store.get(function_id);
+        let mut func_args = Vec::new();
+        function_type_info
+            .function_type
+            .collect_type_args(&mut func_args, program);
+        let mut undef_var_checker =
+            UndefinedVarChecker::new(program, type_store, errors, func_args);
+        walk_expr(&body, &mut undef_var_checker);
     }
 
     fn process_dep_group<'a, 'b>(

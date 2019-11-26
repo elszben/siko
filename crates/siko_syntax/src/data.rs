@@ -1,5 +1,5 @@
 use crate::types::TypeSignatureId;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 
 #[derive(Debug, Clone)]
 pub struct DerivedClass {

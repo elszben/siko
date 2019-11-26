@@ -1,6 +1,6 @@
 use crate::item::DataMember;
 use crate::item::Item;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use siko_syntax::class::ClassId;
 use siko_syntax::export_import::EIItem;
 use siko_syntax::export_import::EIList;

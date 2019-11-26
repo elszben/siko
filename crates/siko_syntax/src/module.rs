@@ -8,7 +8,7 @@ use crate::export_import::EIList;
 use crate::function::FunctionId;
 use crate::function::FunctionTypeId;
 use crate::import::ImportId;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

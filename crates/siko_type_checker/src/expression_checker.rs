@@ -16,7 +16,7 @@ use siko_ir::program::Program;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::Visitor;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 
 pub struct ExpressionChecker<'a> {
     program: &'a Program,

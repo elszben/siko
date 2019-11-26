@@ -6,7 +6,7 @@ use siko_ir::type_signature::TypeSignatureId;
 use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_ir::types::ResolverContext;
 use siko_ir::types::Type;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use siko_util::format_list;
 
 pub fn create_general_function_type(

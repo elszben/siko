@@ -1,7 +1,7 @@
 use crate::class::ClassId;
 use crate::function::FunctionId;
 use crate::type_signature::TypeSignatureId;
-use siko_location_info::item::LocationId;
+use siko_location_info::location_id::LocationId;
 use std::fmt;
 
 #[derive(Debug, Clone)]

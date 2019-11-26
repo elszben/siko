@@ -1,3 +1,4 @@
+use crate::location_id::LocationId;
 use crate::location_set::LocationSet;
 
 #[derive(Clone)]
@@ -9,11 +10,6 @@ impl Item {
     pub fn new(location: LocationSet) -> Item {
         Item { location: location }
     }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub struct LocationId {
-    pub id: usize,
 }
 
 #[derive(Debug, Clone)]
