@@ -676,6 +676,15 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::CyclicClassDependencies(id, path) => {
+                            eprintln!(
+                                "{} cyclic class dependencies: {}",
+                                error.red(),
+                                path.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

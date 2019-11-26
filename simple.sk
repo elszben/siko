@@ -1,3 +1,3 @@
 module Main where
-    
-main = println "{}" % True
+
+main = println "Hello {}" % "World"

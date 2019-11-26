@@ -276,17 +276,50 @@ impl Typechecker {
         }
     }
 
+    fn check_class_dependencies(
+        &self,
+        class_id: ClassId,
+        program: &Program,
+        class_group: &Vec<ClassId>,
+    ) -> Option<Vec<ClassId>> {
+        let class = program.classes.get(&class_id);
+        for dep in &class.constraints {
+            if class_group.contains(dep) {
+                let mut full_path = class_group.clone();
+                full_path.push(*dep);
+                return Some(full_path);
+            }
+            let mut extended_group = class_group.clone();
+            extended_group.push(*dep);
+            if let Some(p) = self.check_class_dependencies(*dep, program, &extended_group) {
+                return Some(p);
+            }
+        }
+        None
+    }
+
     fn process_classes_and_user_defined_instances(
         &self,
         program: &Program,
         type_var_generator: &mut TypeVarGenerator,
         instance_resolver: &mut InstanceResolver,
         class_types: &mut BTreeMap<ClassId, Type>,
+        errors: &mut Vec<TypecheckError>,
     ) {
         for (class_id, class) in program.classes.items.iter() {
             // println!("Processing type for class {}", class.name);
             let type_signature_id = class.type_signature.expect("Class has no type signature");
             let ty = process_type_signature(type_signature_id, program, type_var_generator);
+            let class_group = vec![*class_id];
+            if let Some(path) = self.check_class_dependencies(*class_id, program, &class_group) {
+                let path: Vec<_> = path
+                    .into_iter()
+                    .map(|id| program.classes.get(&id).name.clone())
+                    .collect();
+                let path = format!("{}", path.join(" -> "));
+                let err = TypecheckError::CyclicClassDependencies(class.location_id, path);
+                errors.push(err);
+            }
             let ty = ty.add_constraints(&class.constraints);
             // println!("class type {}", ty);
             class_types.insert(*class_id, ty);
@@ -661,6 +694,7 @@ impl Typechecker {
             &mut type_var_generator,
             &mut instance_resolver,
             &mut class_types,
+            &mut errors,
         );
 
         self.process_class_members(program, &mut type_info_provider, &class_types);

@@ -14,6 +14,7 @@ pub enum TypecheckError {
     InvalidRecordPattern(LocationId, String, usize, usize),
     TypeAnnotationNeeded(LocationId),
     InvalidFormatString(LocationId),
+    CyclicClassDependencies(LocationId, String),
 }
 
 #[derive(Debug)]
