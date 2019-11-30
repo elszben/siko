@@ -13,6 +13,7 @@ pub enum BuiltinCallable {
     Show,
     PartialEq,
     PartialOrd,
+    Ord,
 }
 
 #[derive(Debug, Clone, Copy)]

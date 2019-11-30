@@ -156,6 +156,25 @@ impl InstanceResolver {
         }
     }
 
+    fn check_dependencies_for_single_instance(
+        &mut self,
+        ty: &Type,
+        class_id: ClassId,
+        location: LocationId,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+    ) {
+        let class = program.classes.get(&class_id);
+        for dep in &class.constraints {
+            let dep_class = program.classes.get(dep);
+            let mut unifiers = Vec::new();
+            if !self.check_instance(*dep, &ty, location, &mut unifiers) {
+                let err = TypecheckError::MissingInstance(dep_class.name.clone(), location);
+                errors.push(err);
+            }
+        }
+    }
+
     pub fn check_instance_dependencies(
         &mut self,
         program: &Program,
@@ -165,20 +184,20 @@ impl InstanceResolver {
             for (_, instances) in class_instances {
                 for instance in instances {
                     match instance {
-                        InstanceInfo::AutoDerived(_) => {}
+                        InstanceInfo::AutoDerived(index) => {
+                            let instance = self.auto_derived_instances[index].clone();
+                            self.check_dependencies_for_single_instance(
+                                &instance.ty,
+                                class_id,
+                                instance.location,
+                                program,
+                                errors,
+                            );
+                        }
                         InstanceInfo::UserDefined(ty, _, location) => {
-                            let class = program.classes.get(&class_id);
-                            for dep in &class.constraints {
-                                let dep_class = program.classes.get(dep);
-                                let mut unifiers = Vec::new();
-                                if !self.check_instance(*dep, &ty, location, &mut unifiers) {
-                                    let err = TypecheckError::MissingInstance(
-                                        dep_class.name.clone(),
-                                        location,
-                                    );
-                                    errors.push(err);
-                                }
-                            }
+                            self.check_dependencies_for_single_instance(
+                                &ty, class_id, location, program, errors,
+                            );
                         }
                     }
                 }

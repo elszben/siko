@@ -1081,11 +1081,11 @@ impl<'a> Parser<'a> {
         } else {
             Vec::new()
         };
-        let start_index = self.get_index();
         let class_name = self.type_identifier("class name")?;
+        let start_index = self.get_index();
+        let type_signature_id = self.parse_function_type(false, false)?;
         let end_index = self.get_index();
         let instance_location_id = self.get_location_id(start_index, end_index);
-        let type_signature_id = self.parse_function_type(false, false)?;
         let mut member_functions = BTreeMap::new();
         let mut member_function_types = BTreeMap::new();
         if self.current_kind() == TokenKind::KeywordWhere {

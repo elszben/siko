@@ -1,13 +1,3 @@
 module Main where
 
-class (Korte a) => Alma a
-
-class Korte a
-
-data Foo a = Foo a
-
-//instance Korte (Foo a)
-
-instance Alma (Foo a)
-
 main = println "Hello {}" % "World"

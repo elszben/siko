@@ -97,6 +97,7 @@ impl Interpreter {
                             BuiltinCallable::Show => (1, 0),
                             BuiltinCallable::PartialEq => (2, 0),
                             BuiltinCallable::PartialOrd => (2, 0),
+                            BuiltinCallable::Ord => (2, 0),
                         },
                         CallableKind::FunctionId(function_id) => {
                             let func_info = self.program.functions.get(function_id);
@@ -461,6 +462,24 @@ impl Interpreter {
                             return self.call(callable, arg_values, expr_id);
                         }
                     }
+                    ("Std.Ops", "Ord") => {
+                        if member.name == "cmp" {
+                            CallableKind::Builtin(BuiltinCallable::Ord)
+                        } else {
+                            let member_function_id = member
+                                .default_implementation
+                                .expect("Default implementation not found");
+                            let callable = Value::new(
+                                ValueCore::Callable(Callable {
+                                    kind: CallableKind::FunctionId(member_function_id),
+                                    values: vec![],
+                                    unifier: call_unifier,
+                                }),
+                                function_type,
+                            );
+                            return self.call(callable, arg_values, expr_id);
+                        }
+                    }
                     _ => panic!(
                         "Auto derive of {}/{} is not implemented",
                         class.module, class.name
@@ -755,6 +774,77 @@ impl Interpreter {
                 unimplemented!()
             }
             BuiltinCallable::PartialOrd => {
+                let lhs = environment.get_arg_by_index(0);
+                let rhs = environment.get_arg_by_index(1);
+                if let ValueCore::Variant(id1, index1, items1) = &lhs.core {
+                    if let ValueCore::Variant(id2, index2, items2) = &rhs.core {
+                        assert_eq!(id1, id2);
+                        if index1 < index2 {
+                            return get_opt_ordering_value(Some(Ordering::Less));
+                        } else if index1 == index2 {
+                            for (item1, item2) in items1.iter().zip(items2.iter()) {
+                                let value =
+                                    Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
+                                let some_index = self
+                                    .program
+                                    .get_adt_by_name("Data.Option", "Option")
+                                    .get_variant_index("Some");
+                                let equal_index = self
+                                    .program
+                                    .get_adt_by_name("Data.Ordering", "Ordering")
+                                    .get_variant_index("Equal");
+                                if let ValueCore::Variant(_, index, items) = &value.core {
+                                    if *index == some_index {
+                                        let ordering_value = &items[0];
+                                        if let ValueCore::Variant(_, index, _) =
+                                            &ordering_value.core
+                                        {
+                                            if *index == equal_index {
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                }
+                                return value;
+                            }
+                            return get_opt_ordering_value(Some(Ordering::Equal));
+                        } else {
+                            return get_opt_ordering_value(Some(Ordering::Greater));
+                        }
+                    }
+                }
+                if let ValueCore::Record(id1, items1) = &lhs.core {
+                    if let ValueCore::Record(id2, items2) = &rhs.core {
+                        assert_eq!(id1, id2);
+                        for (item1, item2) in items1.iter().zip(items2.iter()) {
+                            let value =
+                                Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
+                            let some_index = self
+                                .program
+                                .get_adt_by_name("Data.Option", "Option")
+                                .get_variant_index("Some");
+                            let equal_index = self
+                                .program
+                                .get_adt_by_name("Data.Ordering", "Ordering")
+                                .get_variant_index("Equal");
+                            if let ValueCore::Variant(_, index, items) = &value.core {
+                                if *index == some_index {
+                                    let ordering_value = &items[0];
+                                    if let ValueCore::Variant(_, index, _) = &ordering_value.core {
+                                        if *index == equal_index {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            return value;
+                        }
+                        return get_opt_ordering_value(Some(Ordering::Equal));
+                    }
+                }
+                unimplemented!()
+            }
+            BuiltinCallable::Ord => {
                 let lhs = environment.get_arg_by_index(0);
                 let rhs = environment.get_arg_by_index(1);
                 if let ValueCore::Variant(id1, index1, items1) = &lhs.core {
