@@ -9,6 +9,7 @@ use crate::std_ops;
 use crate::std_util;
 use crate::std_util_basic;
 use crate::util::get_opt_ordering_value;
+use crate::util::get_ordering_value;
 use crate::value::BuiltinCallable;
 use crate::value::Callable;
 use crate::value::CallableKind;
@@ -372,7 +373,8 @@ impl Interpreter {
         func_ty: &Type,
         expected_result_ty: &Type,
     ) -> Unifier {
-        /*println!("Func type {}", func_ty);
+        /*
+        println!("Func type {}", func_ty);
         let mut arg_types = Vec::new();
         func_ty.get_args(&mut arg_types);
         for (index, arg) in arg_values.iter().enumerate() {
@@ -834,36 +836,24 @@ impl Interpreter {
                     if let ValueCore::Variant(id2, index2, items2) = &rhs.core {
                         assert_eq!(id1, id2);
                         if index1 < index2 {
-                            return get_opt_ordering_value(Some(Ordering::Less));
+                            return get_ordering_value(Ordering::Less);
                         } else if index1 == index2 {
                             for (item1, item2) in items1.iter().zip(items2.iter()) {
-                                let value =
-                                    Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
-                                let some_index = self
-                                    .program
-                                    .get_adt_by_name("Data.Option", "Option")
-                                    .get_variant_index("Some");
+                                let value = Interpreter::call_op_cmp(item1.clone(), item2.clone());
                                 let equal_index = self
                                     .program
                                     .get_adt_by_name("Data.Ordering", "Ordering")
                                     .get_variant_index("Equal");
-                                if let ValueCore::Variant(_, index, items) = &value.core {
-                                    if *index == some_index {
-                                        let ordering_value = &items[0];
-                                        if let ValueCore::Variant(_, index, _) =
-                                            &ordering_value.core
-                                        {
-                                            if *index == equal_index {
-                                                continue;
-                                            }
-                                        }
+                                if let ValueCore::Variant(_, index, _) = &value.core {
+                                    if *index == equal_index {
+                                        continue;
                                     }
                                 }
                                 return value;
                             }
-                            return get_opt_ordering_value(Some(Ordering::Equal));
+                            return get_ordering_value(Ordering::Equal);
                         } else {
-                            return get_opt_ordering_value(Some(Ordering::Greater));
+                            return get_ordering_value(Ordering::Greater);
                         }
                     }
                 }
@@ -871,29 +861,19 @@ impl Interpreter {
                     if let ValueCore::Record(id2, items2) = &rhs.core {
                         assert_eq!(id1, id2);
                         for (item1, item2) in items1.iter().zip(items2.iter()) {
-                            let value =
-                                Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
-                            let some_index = self
-                                .program
-                                .get_adt_by_name("Data.Option", "Option")
-                                .get_variant_index("Some");
+                            let value = Interpreter::call_op_cmp(item1.clone(), item2.clone());
                             let equal_index = self
                                 .program
                                 .get_adt_by_name("Data.Ordering", "Ordering")
                                 .get_variant_index("Equal");
-                            if let ValueCore::Variant(_, index, items) = &value.core {
-                                if *index == some_index {
-                                    let ordering_value = &items[0];
-                                    if let ValueCore::Variant(_, index, _) = &ordering_value.core {
-                                        if *index == equal_index {
-                                            continue;
-                                        }
-                                    }
+                            if let ValueCore::Variant(_, index, _) = &value.core {
+                                if *index == equal_index {
+                                    continue;
                                 }
                             }
                             return value;
                         }
-                        return get_opt_ordering_value(Some(Ordering::Equal));
+                        return get_ordering_value(Ordering::Equal);
                     }
                 }
                 unimplemented!()
