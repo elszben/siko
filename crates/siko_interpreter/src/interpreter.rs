@@ -18,6 +18,7 @@ use siko_constants::MAIN_FUNCTION;
 use siko_constants::MAIN_MODULE;
 use siko_constants::OPTION_NAME;
 use siko_constants::ORDERING_NAME;
+use siko_ir::class::ClassMember;
 use siko_ir::class::ClassMemberId;
 use siko_ir::data::Adt;
 use siko_ir::data::TypeDefId;
@@ -396,6 +397,18 @@ impl Interpreter {
         call_unifier
     }
 
+    fn check_member(
+        class_member: &ClassMember,
+        name: &str,
+        builtin: BuiltinCallable,
+    ) -> Option<CallableKind> {
+        if class_member.name == name {
+            Some(CallableKind::Builtin(builtin))
+        } else {
+            None
+        }
+    }
+
     fn call_class_member(
         &self,
         class_member_id: &ClassMemberId,
@@ -425,75 +438,45 @@ impl Interpreter {
         match cache.get(member.class_id, class_arg) {
             ResolutionResult::AutoDerived => {
                 let kind = match (class.module.as_ref(), class.name.as_ref()) {
-                    ("Std.Ops", "Show") => CallableKind::Builtin(BuiltinCallable::Show),
+                    ("Std.Ops", "Show") => Some(CallableKind::Builtin(BuiltinCallable::Show)),
                     ("Std.Ops", "PartialEq") => {
-                        if member.name == "opEq" {
-                            CallableKind::Builtin(BuiltinCallable::PartialEq)
-                        } else {
-                            let member_function_id = member
-                                .default_implementation
-                                .expect("Default implementation not found");
-                            let callable = Value::new(
-                                ValueCore::Callable(Callable {
-                                    kind: CallableKind::FunctionId(member_function_id),
-                                    values: vec![],
-                                    unifier: call_unifier,
-                                }),
-                                function_type,
-                            );
-                            return self.call(callable, arg_values, expr_id);
-                        }
+                        Interpreter::check_member(member, "opEq", BuiltinCallable::PartialEq)
                     }
                     ("Std.Ops", "PartialOrd") => {
-                        if member.name == "partialCmp" {
-                            CallableKind::Builtin(BuiltinCallable::PartialOrd)
-                        } else {
-                            let member_function_id = member
-                                .default_implementation
-                                .expect("Default implementation not found");
-                            let callable = Value::new(
-                                ValueCore::Callable(Callable {
-                                    kind: CallableKind::FunctionId(member_function_id),
-                                    values: vec![],
-                                    unifier: call_unifier,
-                                }),
-                                function_type,
-                            );
-                            return self.call(callable, arg_values, expr_id);
-                        }
+                        Interpreter::check_member(member, "partialCmp", BuiltinCallable::PartialOrd)
                     }
                     ("Std.Ops", "Ord") => {
-                        if member.name == "cmp" {
-                            CallableKind::Builtin(BuiltinCallable::Ord)
-                        } else {
-                            let member_function_id = member
-                                .default_implementation
-                                .expect("Default implementation not found");
-                            let callable = Value::new(
-                                ValueCore::Callable(Callable {
-                                    kind: CallableKind::FunctionId(member_function_id),
-                                    values: vec![],
-                                    unifier: call_unifier,
-                                }),
-                                function_type,
-                            );
-                            return self.call(callable, arg_values, expr_id);
-                        }
+                        Interpreter::check_member(member, "cmp", BuiltinCallable::Ord)
                     }
                     _ => panic!(
                         "Auto derive of {}/{} is not implemented",
                         class.module, class.name
                     ),
                 };
-                let callable = Value::new(
-                    ValueCore::Callable(Callable {
-                        kind: kind,
-                        values: vec![],
-                        unifier: call_unifier,
-                    }),
-                    function_type,
-                );
-                return self.call(callable, arg_values, expr_id);
+                if let Some(kind) = kind {
+                    let callable = Value::new(
+                        ValueCore::Callable(Callable {
+                            kind: kind,
+                            values: vec![],
+                            unifier: call_unifier,
+                        }),
+                        function_type,
+                    );
+                    return self.call(callable, arg_values, expr_id);
+                } else {
+                    let member_function_id = member
+                        .default_implementation
+                        .expect("Default implementation not found");
+                    let callable = Value::new(
+                        ValueCore::Callable(Callable {
+                            kind: CallableKind::FunctionId(member_function_id),
+                            values: vec![],
+                            unifier: call_unifier,
+                        }),
+                        function_type,
+                    );
+                    return self.call(callable, arg_values, expr_id);
+                }
             }
             ResolutionResult::UserDefined(instance_id) => {
                 let instance = self.program.instances.get(instance_id);
