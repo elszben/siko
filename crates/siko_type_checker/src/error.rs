@@ -16,6 +16,7 @@ pub enum TypecheckError {
     InvalidFormatString(LocationId),
     CyclicClassDependencies(LocationId, String),
     MissingInstance(String, LocationId),
+    ClassNotAutoDerivable(String, LocationId),
 }
 
 #[derive(Debug)]

@@ -13,6 +13,7 @@ pub struct Class {
     pub constraints: Vec<ClassId>,
     pub members: BTreeMap<String, ClassMemberId>,
     pub location_id: LocationId,
+    pub auto_derivable: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]

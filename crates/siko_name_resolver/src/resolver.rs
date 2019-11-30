@@ -267,6 +267,10 @@ impl Resolver {
                         members.insert(class_member.name.clone(), ir_class_member_id);
                     }
                 }
+                let auto_derivable_classes: Vec<_> =
+                    vec!["PartialEq", "Eq", "PartialOrd", "Ord", "Show"];
+                let auto_derivable = module.name == "Std.Ops"
+                    && auto_derivable_classes.contains(&class.name.as_ref());
                 let ir_class = IrClass {
                     id: ir_class_id,
                     name: class.name.clone(),
@@ -275,6 +279,7 @@ impl Resolver {
                     constraints: Vec::new(),
                     members: members,
                     location_id: class.location_id,
+                    auto_derivable: auto_derivable,
                 };
                 ir_program.classes.add_item(ir_class_id, ir_class);
             }

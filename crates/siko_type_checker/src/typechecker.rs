@@ -162,6 +162,7 @@ impl Typechecker {
         instance_resolver: &mut InstanceResolver,
         program: &Program,
         type_info_provider: &mut TypeInfoProvider,
+        errors: &mut Vec<TypecheckError>,
     ) {
         for (typedef_id, typedef) in program.typedefs.items.iter() {
             match typedef {
@@ -194,6 +195,14 @@ impl Typechecker {
                     }
                     let mut derived_classes = Vec::new();
                     for derived_class in &adt.derived_classes {
+                        let class = program.classes.get(&derived_class.class_id);
+                        if !class.auto_derivable {
+                            let err = TypecheckError::ClassNotAutoDerivable(
+                                class.name.clone(),
+                                derived_class.location_id,
+                            );
+                            errors.push(err);
+                        }
                         let instance_ty = Type::Named(adt.name.clone(), *typedef_id, args.clone());
                         let instance_index = instance_resolver.add_auto_derived(
                             derived_class.class_id,
@@ -238,6 +247,14 @@ impl Typechecker {
                     }
                     let mut derived_classes = Vec::new();
                     for derived_class in &record.derived_classes {
+                        let class = program.classes.get(&derived_class.class_id);
+                        if !class.auto_derivable {
+                            let err = TypecheckError::ClassNotAutoDerivable(
+                                class.name.clone(),
+                                derived_class.location_id,
+                            );
+                            errors.push(err);
+                        }
                         let instance_ty =
                             Type::Named(record.name.clone(), *typedef_id, args.clone());
                         let instance_index = instance_resolver.add_auto_derived(
@@ -689,7 +706,12 @@ impl Typechecker {
 
         self.process_class_members(program, &mut type_info_provider, &class_types);
 
-        self.process_data_types(&mut instance_resolver, program, &mut type_info_provider);
+        self.process_data_types(
+            &mut instance_resolver,
+            program,
+            &mut type_info_provider,
+            &mut errors,
+        );
 
         instance_resolver.check_conflicts(&mut errors, program);
 
