@@ -1,6 +1,6 @@
 module Data.Bool where
 
-data Bool = True | False deriving (PartialEq, PartialOrd, Show)
+data Bool = True | False deriving (PartialEq, PartialOrd, Show, Eq)
 
 instance Ord Bool where
     cmp a b = case (a, b) of

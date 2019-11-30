@@ -19,6 +19,7 @@ pub struct AutoDerivedInstance {
     pub location: LocationId,
 }
 
+#[derive(Clone)]
 pub enum InstanceInfo {
     UserDefined(Type, InstanceId, LocationId),
     AutoDerived(usize),
@@ -48,14 +49,19 @@ pub struct InstanceResolver {
     instance_map: BTreeMap<ClassId, BTreeMap<BaseType, Vec<InstanceInfo>>>,
     auto_derived_instances: Vec<AutoDerivedInstance>,
     cache: Rc<RefCell<InstanceResolutionCache>>,
+    type_var_generator: TypeVarGenerator,
 }
 
 impl InstanceResolver {
-    pub fn new(cache: Rc<RefCell<InstanceResolutionCache>>) -> InstanceResolver {
+    pub fn new(
+        cache: Rc<RefCell<InstanceResolutionCache>>,
+        type_var_generator: TypeVarGenerator,
+    ) -> InstanceResolver {
         InstanceResolver {
             instance_map: BTreeMap::new(),
             auto_derived_instances: Vec::new(),
             cache: cache,
+            type_var_generator: type_var_generator,
         }
     }
 
@@ -111,17 +117,12 @@ impl InstanceResolver {
         index
     }
 
-    fn has_instance(
-        &mut self,
-        ty: &Type,
-        class_id: ClassId,
-        type_var_generator: TypeVarGenerator,
-    ) -> Option<Unifier> {
+    fn has_instance(&mut self, ty: &Type, class_id: ClassId) -> Option<Unifier> {
         let base_type = ty.get_base_type();
         if let Some(class_instances) = self.instance_map.get(&class_id) {
             if let Some(instances) = class_instances.get(&base_type) {
                 for instance in instances {
-                    let mut unifier = Unifier::new(type_var_generator.clone());
+                    let mut unifier = Unifier::new(self.type_var_generator.clone());
                     match instance {
                         InstanceInfo::AutoDerived(index) => {
                             let instance = self.get_auto_derived_instance(*index);
@@ -155,12 +156,37 @@ impl InstanceResolver {
         }
     }
 
-    pub fn check_conflicts(
-        &self,
-        errors: &mut Vec<TypecheckError>,
+    pub fn check_instance_dependencies(
+        &mut self,
         program: &Program,
-        type_var_generator: TypeVarGenerator,
+        errors: &mut Vec<TypecheckError>,
     ) {
+        for (class_id, class_instances) in self.instance_map.clone() {
+            for (_, instances) in class_instances {
+                for instance in instances {
+                    match instance {
+                        InstanceInfo::AutoDerived(_) => {}
+                        InstanceInfo::UserDefined(ty, _, location) => {
+                            let class = program.classes.get(&class_id);
+                            for dep in &class.constraints {
+                                let dep_class = program.classes.get(dep);
+                                let mut unifiers = Vec::new();
+                                if !self.check_instance(*dep, &ty, location, &mut unifiers) {
+                                    let err = TypecheckError::MissingInstance(
+                                        dep_class.name.clone(),
+                                        location,
+                                    );
+                                    errors.push(err);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn check_conflicts(&self, errors: &mut Vec<TypecheckError>, program: &Program) {
         for (class_id, class_instances) in &self.instance_map {
             let class = program.classes.get(&class_id);
             let mut first_generic_instance_location = None;
@@ -187,7 +213,7 @@ impl InstanceResolver {
                             if first_index < second_index {
                                 let first = first_instance.get_type(self);
                                 let second = second_instance.get_type(self);
-                                let mut unifier = Unifier::new(type_var_generator.clone());
+                                let mut unifier = Unifier::new(self.type_var_generator.clone());
                                 if unifier.unify(first, second).is_ok() {
                                     let err = TypecheckError::ConflictingInstances(
                                         class.name.clone(),
@@ -210,7 +236,6 @@ impl InstanceResolver {
         ty: &Type,
         location_id: LocationId,
         unifiers: &mut Vec<(Unifier, LocationId)>,
-        mut type_var_generator: TypeVarGenerator,
     ) -> bool {
         //println!("Checking instance {} {}", class_id, ty);
         if let Type::Var(_, constraints) = ty {
@@ -219,15 +244,15 @@ impl InstanceResolver {
             } else {
                 let mut new_constraints = constraints.clone();
                 new_constraints.push(class_id);
-                let new_type = Type::Var(type_var_generator.get_new_index(), new_constraints);
-                let mut unifier = Unifier::new(type_var_generator.clone());
+                let new_type = Type::Var(self.type_var_generator.get_new_index(), new_constraints);
+                let mut unifier = Unifier::new(self.type_var_generator.clone());
                 let r = unifier.unify(&new_type, ty);
                 assert!(r.is_ok());
                 unifiers.push((unifier, location_id));
                 return true;
             }
         }
-        if let Some(unifier) = self.has_instance(&ty, class_id, type_var_generator.clone()) {
+        if let Some(unifier) = self.has_instance(&ty, class_id) {
             let constraints = unifier.get_substitution().get_constraints();
             for constraint in constraints {
                 if constraint.ty.get_base_type() == BaseType::Generic {
@@ -238,7 +263,6 @@ impl InstanceResolver {
                         &constraint.ty,
                         location_id,
                         unifiers,
-                        type_var_generator.clone(),
                     ) {
                         return false;
                     }

@@ -58,7 +58,6 @@ impl<'a> ExpressionChecker<'a> {
                     &constraint.ty,
                     location,
                     &mut unifiers,
-                    self.type_info_provider.type_var_generator.clone(),
                 ) {
                     failed = true;
                     break;

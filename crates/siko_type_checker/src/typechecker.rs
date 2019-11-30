@@ -60,7 +60,6 @@ impl Typechecker {
                                 &item_type.0,
                                 item_type.1,
                                 &mut unifiers,
-                                type_info_provider.type_var_generator.clone(),
                             ) {
                             } else {
                                 let err = TypecheckError::DeriveFailureNoInstanceFound(
@@ -111,7 +110,6 @@ impl Typechecker {
                             &field_type.0,
                             field_type.1,
                             &mut unifiers,
-                            type_info_provider.type_var_generator.clone(),
                         ) {
                         } else {
                             let err = TypecheckError::DeriveFailureNoInstanceFound(
@@ -676,8 +674,10 @@ impl Typechecker {
         let mut type_var_generator = program.type_var_generator.clone();
         let mut type_info_provider = TypeInfoProvider::new(type_var_generator.clone());
         let mut class_types = BTreeMap::new();
-        let mut instance_resolver =
-            InstanceResolver::new(program.instance_resolution_cache.clone());
+        let mut instance_resolver = InstanceResolver::new(
+            program.instance_resolution_cache.clone(),
+            type_var_generator.clone(),
+        );
 
         self.process_classes_and_user_defined_instances(
             program,
@@ -691,7 +691,7 @@ impl Typechecker {
 
         self.process_data_types(&mut instance_resolver, program, &mut type_info_provider);
 
-        instance_resolver.check_conflicts(&mut errors, program, type_var_generator.clone());
+        instance_resolver.check_conflicts(&mut errors, program);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
@@ -703,6 +703,12 @@ impl Typechecker {
             program,
             &mut type_info_provider,
         );
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
+        instance_resolver.check_instance_dependencies(program, &mut errors);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));

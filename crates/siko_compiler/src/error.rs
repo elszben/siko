@@ -685,6 +685,11 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::MissingInstance(class, id) => {
+                            eprintln!("{} missing instance of {}", error.red(), class.yellow());
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

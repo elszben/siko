@@ -15,6 +15,7 @@ pub enum TypecheckError {
     TypeAnnotationNeeded(LocationId),
     InvalidFormatString(LocationId),
     CyclicClassDependencies(LocationId, String),
+    MissingInstance(String, LocationId),
 }
 
 #[derive(Debug)]
