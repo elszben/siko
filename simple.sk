@@ -1,7 +1,5 @@
 module Main where
 
-class Korte a
-
-data A = A deriving Korte
+foo a = println a
 
 main = println "Hello {}" % "World"

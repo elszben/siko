@@ -77,6 +77,7 @@ impl<'a> Visitor for ExprVisualizer<'a> {
     }
     fn visit_expr(&mut self, expr_id: ExprId, expr: &Expr) {
         let label = match expr {
+            Expr::ArgRef(arg_ref) => format!("Arg({})", arg_ref.index),
             Expr::StaticFunctionCall(id, args) => {
                 for (index, arg) in args.iter().enumerate() {
                     write!(
@@ -133,6 +134,19 @@ impl<'a> Visitor for ExprVisualizer<'a> {
                 .expect("Write failed");
                 format!("ExprValue")
             }
+            Expr::Formatter(fmt, args) => {
+                for (index, arg) in args.iter().enumerate() {
+                    write!(
+                        self.output_file,
+                        "expr{} -> expr{} [label=\"{}\"]\n",
+                        arg.id,
+                        expr_id.id,
+                        format!("arg{}", index)
+                    )
+                    .expect("Write failed");
+                }
+                format!("Formatter({})", fmt)
+            }
             Expr::Do(exprs) => {
                 for (index, step) in exprs.iter().enumerate() {
                     write!(
@@ -167,6 +181,19 @@ impl<'a> Visitor for ExprVisualizer<'a> {
                 .expect("Write failed");
                 format!("Bind")
             }
+            Expr::Tuple(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    write!(
+                        self.output_file,
+                        "expr{} -> expr{} [label=\"{}\"]\n",
+                        item.id,
+                        expr_id.id,
+                        format!("item{}", index)
+                    )
+                    .expect("Write failed");
+                }
+                format!("Tuple()")
+            }
             _ => format!("{}", expr),
         };
         write!(
@@ -177,5 +204,29 @@ impl<'a> Visitor for ExprVisualizer<'a> {
         .expect("Write failed");
     }
 
-    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {}
+    fn visit_pattern(&mut self, pattern_id: PatternId, pattern: &Pattern) {
+        let label = match pattern {
+            Pattern::Binding(name) => format!("Pattern({})", name),
+            Pattern::Tuple(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    write!(
+                        self.output_file,
+                        "pattern{} -> pattern{} [label=\"{}\"]\n",
+                        pattern_id.id,
+                        item.id,
+                        format!("item{}", index)
+                    )
+                    .expect("Write failed");
+                }
+                format!("Tuple()")
+            }
+            _ => format!("{:?}", pattern),
+        };
+        write!(
+            self.output_file,
+            "pattern{} [label=\"{}\"]\n",
+            pattern_id.id, label
+        )
+        .expect("Write failed");
+    }
 }
