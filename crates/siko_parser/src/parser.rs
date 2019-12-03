@@ -9,8 +9,16 @@ use crate::error::ParseError;
 use crate::token::Token;
 use crate::token::TokenInfo;
 use crate::token::TokenKind;
+use siko_constants::get_qualified_list_type_name;
 use siko_constants::BuiltinOperator;
-use siko_constants::FULL_LIST_NAME;
+use siko_constants::LIST_MODULE_NAME;
+use siko_constants::OPTION_MODULE_NAME;
+use siko_constants::RESULT_MODULE_NAME;
+use siko_constants::ORDERING_MODULE_NAME;
+use siko_constants::BOOL_MODULE_NAME;
+use siko_constants::INT_MODULE_NAME;
+use siko_constants::FLOAT_MODULE_NAME;
+use siko_constants::STRING_MODULE_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
 use siko_location_info::item::ItemInfo;
@@ -473,7 +481,7 @@ impl<'a> Parser<'a> {
                     self.expect(TokenKind::LBracket)?;
                     let arg = self.parse_function_type(parsing_variant, allow_wildcard)?;
                     self.expect(TokenKind::RBracket)?;
-                    let ty = TypeSignature::Named(FULL_LIST_NAME.to_string(), vec![arg]);
+                    let ty = TypeSignature::Named(get_qualified_list_type_name(), vec![arg]);
                     let id = self.add_type_signature(ty, start_index);
                     return Ok(id);
                 }
@@ -1270,16 +1278,16 @@ impl<'a> Parser<'a> {
         }
 
         let implicit_modules = vec![
-            "Data.Int",
-            "Data.Float",
-            "Data.String",
-            "Std.Ops",
-            "Data.Bool",
-            "Data.Ordering",
-            "Data.Option",
-            "Data.Result",
-            "Data.List",
+            INT_MODULE_NAME,
+            FLOAT_MODULE_NAME,
+            STRING_MODULE_NAME,
+            BOOL_MODULE_NAME,
+            ORDERING_MODULE_NAME,
+            OPTION_MODULE_NAME,
+            RESULT_MODULE_NAME,
+            LIST_MODULE_NAME,
             "Std.Util.Basic",
+            "Std.Ops",
         ];
         for implicit_module in implicit_modules {
             let mut modules_without_implicit_module = Vec::new();

@@ -17,8 +17,10 @@ use crate::value::Value;
 use crate::value::ValueCore;
 use siko_constants::MAIN_FUNCTION;
 use siko_constants::MAIN_MODULE;
-use siko_constants::OPTION_NAME;
-use siko_constants::ORDERING_NAME;
+use siko_constants::OPTION_MODULE_NAME;
+use siko_constants::OPTION_TYPE_NAME;
+use siko_constants::ORDERING_MODULE_NAME;
+use siko_constants::ORDERING_TYPE_NAME;
 use siko_ir::class::ClassMember;
 use siko_ir::class::ClassMemberId;
 use siko_ir::data::Adt;
@@ -772,11 +774,11 @@ impl Interpreter {
                                     Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
                                 let some_index = self
                                     .program
-                                    .get_adt_by_name("Data.Option", "Option")
+                                    .get_adt_by_name(OPTION_MODULE_NAME, OPTION_TYPE_NAME)
                                     .get_variant_index("Some");
                                 let equal_index = self
                                     .program
-                                    .get_adt_by_name("Data.Ordering", "Ordering")
+                                    .get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME)
                                     .get_variant_index("Equal");
                                 if let ValueCore::Variant(_, index, items) = &value.core {
                                     if *index == some_index {
@@ -806,11 +808,11 @@ impl Interpreter {
                                 Interpreter::call_op_partial_cmp(item1.clone(), item2.clone());
                             let some_index = self
                                 .program
-                                .get_adt_by_name("Data.Option", "Option")
+                                .get_adt_by_name(OPTION_MODULE_NAME, OPTION_TYPE_NAME)
                                 .get_variant_index("Some");
                             let equal_index = self
                                 .program
-                                .get_adt_by_name("Data.Ordering", "Ordering")
+                                .get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME)
                                 .get_variant_index("Equal");
                             if let ValueCore::Variant(_, index, items) = &value.core {
                                 if *index == some_index {
@@ -842,7 +844,7 @@ impl Interpreter {
                                 let value = Interpreter::call_op_cmp(item1.clone(), item2.clone());
                                 let equal_index = self
                                     .program
-                                    .get_adt_by_name("Data.Ordering", "Ordering")
+                                    .get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME)
                                     .get_variant_index("Equal");
                                 if let ValueCore::Variant(_, index, _) = &value.core {
                                     if *index == equal_index {
@@ -864,7 +866,7 @@ impl Interpreter {
                             let value = Interpreter::call_op_cmp(item1.clone(), item2.clone());
                             let equal_index = self
                                 .program
-                                .get_adt_by_name("Data.Ordering", "Ordering")
+                                .get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME)
                                 .get_variant_index("Equal");
                             if let ValueCore::Variant(_, index, _) = &value.core {
                                 if *index == equal_index {
@@ -936,8 +938,8 @@ impl Interpreter {
     }
 
     fn build_typedefid_cache(&mut self) {
-        let option = self.program.get_adt_by_name("Data.Option", OPTION_NAME);
-        let ordering = self.program.get_adt_by_name("Data.Ordering", ORDERING_NAME);
+        let option = self.program.get_adt_by_name(OPTION_MODULE_NAME, OPTION_TYPE_NAME);
+        let ordering = self.program.get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME);
         let cache = TypeDefIdCache {
             option_id: option.id,
             ordering_id: ordering.id,

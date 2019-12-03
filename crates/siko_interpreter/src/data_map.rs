@@ -9,6 +9,7 @@ use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
 use std::collections::BTreeMap;
+use siko_constants::MAP_MODULE_NAME;
 
 pub struct Empty {}
 
@@ -99,8 +100,8 @@ impl ExternFunction for Get {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    interpreter.add_extern_function("Data.Map", "empty", Box::new(Empty {}));
-    interpreter.add_extern_function("Data.Map", "insert", Box::new(Insert {}));
-    interpreter.add_extern_function("Data.Map", "remove", Box::new(Remove {}));
-    interpreter.add_extern_function("Data.Map", "get", Box::new(Get {}));
+    interpreter.add_extern_function(MAP_MODULE_NAME, "empty", Box::new(Empty {}));
+    interpreter.add_extern_function(MAP_MODULE_NAME, "insert", Box::new(Insert {}));
+    interpreter.add_extern_function(MAP_MODULE_NAME, "remove", Box::new(Remove {}));
+    interpreter.add_extern_function(MAP_MODULE_NAME, "get", Box::new(Get {}));
 }

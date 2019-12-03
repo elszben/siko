@@ -1,7 +1,7 @@
 module Main where
 
 import Std.Util
-import Data.Map
+import Map
 
 -- get_stuff k v :: (Ord k, Show v) => Map k v -> k -> ()
 get_stuff1 m k = case get m k of

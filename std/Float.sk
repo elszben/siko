@@ -1,4 +1,4 @@
-module Data.Float where
+module Float where
 
 data Float = extern
 

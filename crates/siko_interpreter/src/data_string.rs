@@ -5,6 +5,7 @@ use crate::util::get_opt_ordering_value;
 use crate::util::get_ordering_value;
 use crate::value::Value;
 use crate::value::ValueCore;
+use siko_constants::STRING_MODULE_NAME;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
@@ -91,9 +92,9 @@ impl ExternFunction for StringShow {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    interpreter.add_extern_function("Data.String", "opAdd", Box::new(StringAdd {}));
-    interpreter.add_extern_function("Data.String", "opEq", Box::new(StringPartialEq {}));
-    interpreter.add_extern_function("Data.String", "partialCmp", Box::new(StringPartialOrd {}));
-    interpreter.add_extern_function("Data.String", "cmp", Box::new(StringOrd {}));
-    interpreter.add_extern_function("Data.String", "show", Box::new(StringShow {}));
+    interpreter.add_extern_function(STRING_MODULE_NAME, "opAdd", Box::new(StringAdd {}));
+    interpreter.add_extern_function(STRING_MODULE_NAME, "opEq", Box::new(StringPartialEq {}));
+    interpreter.add_extern_function(STRING_MODULE_NAME, "partialCmp", Box::new(StringPartialOrd {}));
+    interpreter.add_extern_function(STRING_MODULE_NAME, "cmp", Box::new(StringOrd {}));
+    interpreter.add_extern_function(STRING_MODULE_NAME, "show", Box::new(StringShow {}));
 }
