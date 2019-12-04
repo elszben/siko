@@ -349,6 +349,10 @@ impl Lexer {
                         self.advance()?;
                         continue;
                     }
+                    '\x0d' => {
+                        self.advance()?;
+                        continue;
+                    }
                     '=' => Token::Equal,
                     ',' => Token::Comma,
                     '{' => Token::LCurly,
