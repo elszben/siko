@@ -41,6 +41,7 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     let mut config = Config::new();
     let mut success = true;
     let mut std_path = format!("std");
+    let mut file_given = false;
     for (index, arg) in args.iter().enumerate() {
         match arg.as_ref() {
             "-m" => {
@@ -57,12 +58,27 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
                     std_path = args[index + 1].to_string();
                 }
             }
+            "-h" => {
+                println!("arguments: <filename>+|<options>");
+                println!("-m measure durations");
+                println!("-i visualize");
+                println!("-s <path> path to std");
+                success = false;
+            }
             _ => {
+                file_given = true;
                 if !process_dir(arg.clone(), &mut inputs) {
                     success = false;
                 }
             }
         }
+    }
+    if !file_given  {
+        if success {
+            eprintln!("no file given to compile");    
+        }
+        success = false;
+        
     }
     if success {
         if !process_dir(std_path, &mut inputs) {
