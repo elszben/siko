@@ -25,7 +25,7 @@ impl ResolverContext {
         ResolverContext {
             type_args: BTreeMap::new(),
             next_index: Counter::new(),
-            list_type_id: program.get_named_type("Data.List", "List"),
+            list_type_id: program.get_list_type_id(),
             class_names: class_names,
         }
     }

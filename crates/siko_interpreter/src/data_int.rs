@@ -8,6 +8,8 @@ use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
+use siko_constants::INT_MODULE_NAME;
+
 
 pub struct IntAdd {}
 
@@ -139,12 +141,12 @@ impl ExternFunction for IntShow {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    interpreter.add_extern_function("Data.Int", "opAdd", Box::new(IntAdd {}));
-    interpreter.add_extern_function("Data.Int", "opSub", Box::new(IntSub {}));
-    interpreter.add_extern_function("Data.Int", "opMul", Box::new(IntMul {}));
-    interpreter.add_extern_function("Data.Int", "opDiv", Box::new(IntDiv {}));
-    interpreter.add_extern_function("Data.Int", "opEq", Box::new(IntPartialEq {}));
-    interpreter.add_extern_function("Data.Int", "partialCmp", Box::new(IntPartialOrd {}));
-    interpreter.add_extern_function("Data.Int", "cmp", Box::new(IntOrd {}));
-    interpreter.add_extern_function("Data.Int", "show", Box::new(IntShow {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "opAdd", Box::new(IntAdd {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "opSub", Box::new(IntSub {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "opMul", Box::new(IntMul {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "opDiv", Box::new(IntDiv {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "opEq", Box::new(IntPartialEq {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "partialCmp", Box::new(IntPartialOrd {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "cmp", Box::new(IntOrd {}));
+    interpreter.add_extern_function(INT_MODULE_NAME, "show", Box::new(IntShow {}));
 }

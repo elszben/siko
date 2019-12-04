@@ -1,4 +1,4 @@
-module Data.Int where
+module Int where
 
 data Int = extern
 

@@ -19,10 +19,20 @@ use crate::type_signature::TypeSignatureId;
 use crate::type_var_generator::TypeVarGenerator;
 use crate::types::Type;
 use crate::unifier::Unifier;
-use siko_constants::BOOL_NAME;
-use siko_constants::OPTION_NAME;
-use siko_constants::ORDERING_NAME;
-use siko_constants::STRING_NAME;
+use siko_constants::BOOL_MODULE_NAME;
+use siko_constants::BOOL_TYPE_NAME;
+use siko_constants::INT_MODULE_NAME;
+use siko_constants::INT_TYPE_NAME;
+use siko_constants::FLOAT_MODULE_NAME;
+use siko_constants::FLOAT_TYPE_NAME;
+use siko_constants::LIST_MODULE_NAME;
+use siko_constants::LIST_TYPE_NAME;
+use siko_constants::OPTION_MODULE_NAME;
+use siko_constants::OPTION_TYPE_NAME;
+use siko_constants::ORDERING_MODULE_NAME;
+use siko_constants::ORDERING_TYPE_NAME;
+use siko_constants::STRING_MODULE_NAME;
+use siko_constants::STRING_TYPE_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
@@ -69,39 +79,55 @@ impl Program {
         }
     }
 
+    pub fn get_list_type_id(&self) -> TypeDefId {
+        let id = self.get_named_type(LIST_MODULE_NAME, LIST_TYPE_NAME);
+        id
+    }
+
     pub fn get_list_type(&self, ty: Type) -> Type {
-        let id = self.get_named_type("Data.List", "List");
-        Type::Named("List".to_string(), id, vec![ty])
+        let id = self.get_list_type_id();
+        Type::Named(LIST_TYPE_NAME.to_string(), id, vec![ty])
     }
 
     pub fn get_string_type(&self) -> Type {
-        let id = self.get_named_type("Data.String", "String");
-        Type::Named("String".to_string(), id, Vec::new())
+        let id = self.get_named_type(STRING_MODULE_NAME, STRING_TYPE_NAME);
+        Type::Named(STRING_TYPE_NAME.to_string(), id, Vec::new())
     }
 
     pub fn get_bool_type(&self) -> Type {
-        let id = self.get_named_type("Data.Bool", BOOL_NAME);
-        Type::Named("Bool".to_string(), id, Vec::new())
+        let id = self.get_named_type(BOOL_MODULE_NAME, BOOL_TYPE_NAME);
+        Type::Named(BOOL_TYPE_NAME.to_string(), id, Vec::new())
     }
 
     pub fn get_float_type(&self) -> Type {
-        let id = self.get_named_type("Data.Float", "Float");
-        Type::Named("Float".to_string(), id, Vec::new())
+        let id = self.get_named_type(FLOAT_MODULE_NAME, FLOAT_TYPE_NAME);
+        Type::Named(FLOAT_TYPE_NAME.to_string(), id, Vec::new())
     }
 
     pub fn get_int_type(&self) -> Type {
-        let id = self.get_named_type("Data.Int", "Int");
-        Type::Named("Int".to_string(), id, Vec::new())
+        let id = self.get_named_type(INT_MODULE_NAME, INT_TYPE_NAME);
+        Type::Named(INT_TYPE_NAME.to_string(), id, Vec::new())
     }
 
     pub fn get_ordering_type(&self) -> Type {
-        let id = self.get_named_type("Data.Ordering", "Ordering");
-        Type::Named("Ordering".to_string(), id, Vec::new())
+        let id = self.get_named_type(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME);
+        Type::Named(ORDERING_TYPE_NAME.to_string(), id, Vec::new())
     }
 
     pub fn get_option_type(&self, ty: Type) -> Type {
-        let id = self.get_named_type("Data.Option", "Option");
-        Type::Named("Option".to_string(), id, vec![ty])
+        let id = self.get_named_type(OPTION_MODULE_NAME, OPTION_TYPE_NAME);
+        Type::Named(OPTION_TYPE_NAME.to_string(), id, vec![ty])
+    }
+
+    pub fn get_show_type(&self) -> Type {
+    let class_id = self
+        .class_names
+        .get("Show")
+        .expect("Show not found")
+        .clone();
+    let mut var = self.type_var_generator.clone();
+    let index = var.get_new_index();
+    Type::Var(index, vec![class_id])
     }
 
     pub fn get_adt_by_name(&self, module: &str, name: &str) -> &Adt {

@@ -1,4 +1,4 @@
-module Data.Map where
+module Map where
 
 data Map k v = extern
 

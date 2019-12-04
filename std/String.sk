@@ -1,4 +1,4 @@
-module Data.String where
+module String where
 
 data String = extern
 

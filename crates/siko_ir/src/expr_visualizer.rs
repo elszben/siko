@@ -134,6 +134,27 @@ impl<'a> Visitor for ExprVisualizer<'a> {
                 .expect("Write failed");
                 format!("ExprValue")
             }
+            Expr::If(cond, true_branch, false_branch) => {
+                write!(
+                    self.output_file,
+                    "expr{} -> expr{} [label=\"{}\"]\n",
+                    cond.id, expr_id.id, "Condition"
+                )
+                .expect("Write failed");
+                write!(
+                    self.output_file,
+                    "expr{} -> expr{} [label=\"{}\"]\n",
+                    true_branch.id, expr_id.id, "True branch"
+                )
+                .expect("Write failed");
+                write!(
+                    self.output_file,
+                    "expr{} -> expr{} [label=\"{}\"]\n",
+                    false_branch.id, expr_id.id, "False branch"
+                )
+                .expect("Write failed");
+                format!("if")
+            }
             Expr::Formatter(fmt, args) => {
                 for (index, arg) in args.iter().enumerate() {
                     write!(

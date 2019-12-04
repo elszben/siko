@@ -4,10 +4,6 @@ use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::util::create_general_function_type_info;
 use crate::util::function_argument_mismatch;
-use crate::util::get_float_type;
-use crate::util::get_int_type;
-use crate::util::get_list_type;
-use crate::util::get_string_type;
 use crate::util::process_type_signature;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
@@ -138,11 +134,11 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Expr::FloatLiteral(_) => {
                 self.type_store
-                    .initialize_expr(expr_id, get_float_type(self.program));
+                    .initialize_expr(expr_id, self.program.get_float_type());
             }
             Expr::Formatter(..) => {
                 self.type_store
-                    .initialize_expr(expr_id, get_string_type(self.program));
+                    .initialize_expr(expr_id, self.program.get_string_type());
             }
             Expr::If(..) => {
                 let ty = self
@@ -153,11 +149,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Expr::IntegerLiteral(_) => {
                 self.type_store
-                    .initialize_expr(expr_id, get_int_type(self.program));
+                    .initialize_expr(expr_id, self.program.get_int_type());
             }
             Expr::List(_) => {
-                let ty = get_list_type(
-                    self.program,
+                let ty = self.program.get_list_type(
                     self.type_info_provider
                         .type_var_generator
                         .get_new_type_var(),
@@ -200,7 +195,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Expr::StringLiteral(_) => {
                 self.type_store
-                    .initialize_expr(expr_id, get_string_type(self.program));
+                    .initialize_expr(expr_id, self.program.get_string_type());
             }
             Expr::RecordInitialization(id, _) => {
                 let record_type_info = self.type_info_provider.get_record_type_info(id);
@@ -249,7 +244,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Pattern::FloatLiteral(_) => {
                 self.type_store
-                    .initialize_pattern(pattern_id, get_float_type(self.program));
+                    .initialize_pattern(pattern_id, self.program.get_float_type());
             }
             Pattern::Guarded(_, _) => {
                 let ty = self
@@ -260,7 +255,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Pattern::IntegerLiteral(_) => {
                 self.type_store
-                    .initialize_pattern(pattern_id, get_int_type(self.program));
+                    .initialize_pattern(pattern_id, self.program.get_int_type());
             }
             Pattern::Record(typedef_id, fields) => {
                 let record_type_info = self.type_info_provider.get_record_type_info(typedef_id);
@@ -284,7 +279,7 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
             }
             Pattern::StringLiteral(_) => {
                 self.type_store
-                    .initialize_pattern(pattern_id, get_string_type(self.program));
+                    .initialize_pattern(pattern_id, self.program.get_string_type());
             }
             Pattern::Typed(_, type_signature) => {
                 let ty = process_type_signature(

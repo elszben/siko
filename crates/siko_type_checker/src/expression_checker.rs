@@ -4,9 +4,6 @@ use crate::error::TypecheckError;
 use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
-use crate::util::get_bool_type;
-use crate::util::get_list_type;
-use crate::util::get_show_type;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
@@ -230,15 +227,12 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     self.errors.push(err);
                 }
                 for arg in args {
-                    let show_type = get_show_type(
-                        self.program,
-                        &mut self.type_info_provider.type_var_generator,
-                    );
+                    let show_type = self.program.get_show_type();
                     self.match_expr_with(*arg, &show_type);
                 }
             }
             Expr::If(cond, true_branch, false_branch) => {
-                let bool_ty = get_bool_type(self.program);
+                let bool_ty = self.program.get_bool_type();
                 self.match_expr_with(*cond, &bool_ty);
                 self.match_exprs(*true_branch, *false_branch);
                 self.match_exprs(expr_id, *true_branch);
@@ -247,7 +241,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Expr::List(items) => {
                 if let Some(first) = items.first() {
                     let ty = self.type_store.get_expr_type(first).clone();
-                    let ty = get_list_type(self.program, ty);
+                    let ty = self.program.get_list_type(ty);
                     self.match_expr_with(expr_id, &ty);
                     for item in items {
                         self.match_exprs(*first, *item);
@@ -349,7 +343,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Pattern::FloatLiteral(_) => {}
             Pattern::Guarded(inner, guard_expr_id) => {
                 self.match_patterns(*inner, pattern_id);
-                let bool_ty = get_bool_type(self.program);
+                let bool_ty = self.program.get_bool_type();
                 self.match_expr_with(*guard_expr_id, &bool_ty);
             }
             Pattern::IntegerLiteral(_) => {}

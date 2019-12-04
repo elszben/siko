@@ -6,6 +6,7 @@ use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
+use siko_constants::LIST_MODULE_NAME;
 
 pub struct Show {}
 
@@ -28,5 +29,5 @@ impl ExternFunction for Show {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    interpreter.add_extern_function("Data.List", "show", Box::new(Show {}));
+    interpreter.add_extern_function(LIST_MODULE_NAME, "show", Box::new(Show {}));
 }

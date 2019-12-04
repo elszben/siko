@@ -7,6 +7,7 @@ use crate::value::ValueCore;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
+use siko_constants::FLOAT_MODULE_NAME;
 
 pub struct FloatAdd {}
 
@@ -121,11 +122,11 @@ impl ExternFunction for FloatShow {
 }
 
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
-    interpreter.add_extern_function("Data.Float", "opAdd", Box::new(FloatAdd {}));
-    interpreter.add_extern_function("Data.Float", "opSub", Box::new(FloatSub {}));
-    interpreter.add_extern_function("Data.Float", "opMul", Box::new(FloatMul {}));
-    interpreter.add_extern_function("Data.Float", "opDiv", Box::new(FloatDiv {}));
-    interpreter.add_extern_function("Data.Float", "opEq", Box::new(FloatPartialEq {}));
-    interpreter.add_extern_function("Data.Float", "partialCmp", Box::new(FloatPartialOrd {}));
-    interpreter.add_extern_function("Data.Float", "show", Box::new(FloatShow {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "opAdd", Box::new(FloatAdd {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "opSub", Box::new(FloatSub {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "opMul", Box::new(FloatMul {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "opDiv", Box::new(FloatDiv {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "opEq", Box::new(FloatPartialEq {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "partialCmp", Box::new(FloatPartialOrd {}));
+    interpreter.add_extern_function(FLOAT_MODULE_NAME, "show", Box::new(FloatShow {}));
 }
