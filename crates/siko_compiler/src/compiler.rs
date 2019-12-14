@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::Error;
+use siko_cfg::cfg::ControlFlowGraph;
 use siko_interpreter::interpreter::Interpreter;
 use siko_ir::expr_visualizer::ExprVisualizer;
 use siko_location_info::error_context::ErrorContext;
@@ -118,6 +119,8 @@ impl Compiler {
         }
 
         ElapsedTimeMeasureCollector::print_instance_resolver_time();
+
+        ControlFlowGraph::process_functions(&ir_program);
 
         Interpreter::run(ir_program, self.context());
 

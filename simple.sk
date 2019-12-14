@@ -1,3 +1,13 @@
 module Main where
 
+data Color = Red | Blue | Green
+
+foo a = if a > 5 then print "korte"
+        else case Red of
+            Blue -> print "Blue"
+            Red -> print "Red"
+            Green -> if True then
+                print "GreenTrue"
+                else print "Whatisthisthen"
+
 main = println "Hello {}" % "World"

@@ -48,10 +48,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "siko_cfg"
+version = "0.1.0"
+dependencies = [
+ "siko_constants 0.1.0",
+ "siko_ir 0.1.0",
+ "siko_location_info 0.1.0",
+ "siko_syntax 0.1.0",
+ "siko_util 0.1.0",
+]
+
+[[package]]
 name = "siko_compiler"
 version = "0.1.0"
 dependencies = [
  "colored 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "siko_cfg 0.1.0",
  "siko_constants 0.1.0",
  "siko_interpreter 0.1.0",
  "siko_ir 0.1.0",
