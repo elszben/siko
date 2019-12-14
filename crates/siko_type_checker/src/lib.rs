@@ -1,8 +1,6 @@
 pub mod common;
-pub mod dependency_processor;
 pub mod error;
 pub mod expression_checker;
-pub mod function_dep_processor;
 pub mod instance_resolver;
 pub mod type_info_provider;
 pub mod type_store;

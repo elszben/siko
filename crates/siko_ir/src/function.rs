@@ -117,4 +117,22 @@ impl Function {
             _ => None,
         }
     }
+
+    pub fn get_body(&self) -> Option<ExprId> {
+        match &self.info {
+            FunctionInfo::Lambda(i) => Some(i.body),
+            FunctionInfo::NamedFunction(i) => i.body.clone(),
+            FunctionInfo::RecordConstructor(_) => None,
+            FunctionInfo::VariantConstructor(_) => None,
+        }
+    }
+
+    pub fn is_typed(&self) -> bool {
+        match &self.info {
+            FunctionInfo::Lambda(_) => false,
+            FunctionInfo::NamedFunction(i) => i.type_signature.is_some(),
+            FunctionInfo::RecordConstructor(_) => true,
+            FunctionInfo::VariantConstructor(_) => true,
+        }
+    }
 }

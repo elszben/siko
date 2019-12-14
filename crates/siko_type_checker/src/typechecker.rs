@@ -4,11 +4,9 @@ use crate::common::DeriveInfo;
 use crate::common::FunctionTypeInfo;
 use crate::common::RecordTypeInfo;
 use crate::common::VariantTypeInfo;
-use crate::dependency_processor::DependencyGroup;
 use crate::error::Error;
 use crate::error::TypecheckError;
 use crate::expression_checker::ExpressionChecker;
-use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
@@ -29,6 +27,7 @@ use siko_ir::types::BaseType;
 use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::walk_expr;
+use siko_util::dependency_processor::DependencyGroup;
 use std::collections::BTreeMap;
 
 pub struct Typechecker {}
@@ -732,10 +731,9 @@ impl Typechecker {
             return Err(Error::typecheck_err(errors));
         }
 
-        let function_dep_processor =
-            FunctionDependencyProcessor::new(program, &type_info_provider.function_type_info_store);
+        program.calculate_function_dependencies();
 
-        let ordered_dep_groups = function_dep_processor.process_functions();
+        let ordered_dep_groups = program.function_dependency_groups.clone();
 
         self.check_main(program, &mut errors);
 

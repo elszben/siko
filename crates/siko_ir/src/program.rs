@@ -12,6 +12,7 @@ use crate::expr::ExprId;
 use crate::function::Function;
 use crate::function::FunctionId;
 use crate::function::FunctionInfo;
+use crate::function_dep_processor::FunctionDependencyProcessor;
 use crate::instance_resolution_cache::InstanceResolutionCache;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
@@ -37,6 +38,7 @@ use siko_constants::ORDERING_TYPE_NAME;
 use siko_constants::STRING_MODULE_NAME;
 use siko_constants::STRING_TYPE_NAME;
 use siko_location_info::item::ItemInfo;
+use siko_util::dependency_processor::DependencyGroup;
 use siko_util::ItemContainer;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -59,6 +61,7 @@ pub struct Program {
     pub class_member_types: BTreeMap<ClassMemberId, (Type, Type)>,
     pub named_types: BTreeMap<String, BTreeMap<String, TypeDefId>>,
     pub type_var_generator: TypeVarGenerator,
+    pub function_dependency_groups: Vec<DependencyGroup<FunctionId>>,
 }
 
 impl Program {
@@ -79,6 +82,7 @@ impl Program {
             class_member_types: BTreeMap::new(),
             named_types: BTreeMap::new(),
             type_var_generator: type_var_generator,
+            function_dependency_groups: Vec::new(),
         }
     }
 
@@ -181,5 +185,11 @@ impl Program {
             }
         }
         None
+    }
+
+    pub fn calculate_function_dependencies(&mut self) {
+        let function_dep_processor = FunctionDependencyProcessor::new(self);
+
+        self.function_dependency_groups = function_dep_processor.process_functions();
     }
 }

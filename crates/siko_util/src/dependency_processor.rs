@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DependencyGroup<T> {
     pub items: BTreeSet<T>,
 }

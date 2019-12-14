@@ -1,5 +1,4 @@
 use crate::common::AdtTypeInfo;
-use crate::dependency_processor::DependencyGroup;
 use crate::error::TypecheckError;
 use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
@@ -14,6 +13,7 @@ use siko_ir::types::Type;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::Visitor;
 use siko_location_info::location_id::LocationId;
+use siko_util::dependency_processor::DependencyGroup;
 
 pub struct ExpressionChecker<'a> {
     program: &'a Program,

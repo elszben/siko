@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::thread_local;
 use std::time::Duration;
 use std::time::Instant;
+pub mod dependency_processor;
 
 #[derive(Debug, Clone)]
 pub struct RcCounter {

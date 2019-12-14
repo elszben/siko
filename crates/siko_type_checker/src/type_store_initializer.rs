@@ -1,4 +1,3 @@
-use crate::dependency_processor::DependencyGroup;
 use crate::error::TypecheckError;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
@@ -13,6 +12,7 @@ use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
 use siko_ir::types::Type;
 use siko_ir::walker::Visitor;
+use siko_util::dependency_processor::DependencyGroup;
 
 pub struct TypeStoreInitializer<'a> {
     program: &'a Program,

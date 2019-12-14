@@ -1,19 +1,15 @@
-use crate::common::FunctionTypeInfoStore;
-use siko_ir::expr::Expr;
-use siko_ir::expr::ExprId;
-use siko_ir::function::FunctionId;
-use siko_ir::pattern::Pattern;
-use siko_ir::pattern::PatternId;
-use siko_ir::program::Program;
-use siko_ir::walker::walk_expr;
-use siko_ir::walker::Visitor;
-#[allow(unused)]
-use siko_util::format_list;
+use crate::expr::Expr;
+use crate::expr::ExprId;
+use crate::function::FunctionId;
+use crate::pattern::Pattern;
+use crate::pattern::PatternId;
+use crate::program::Program;
+use crate::walker::walk_expr;
+use crate::walker::Visitor;
+use siko_util::dependency_processor::DependencyCollector;
+use siko_util::dependency_processor::DependencyGroup;
+use siko_util::dependency_processor::DependencyProcessor;
 use std::collections::BTreeSet;
-
-use crate::dependency_processor::DependencyCollector;
-use crate::dependency_processor::DependencyGroup;
-use crate::dependency_processor::DependencyProcessor;
 
 struct FunctionDependencyCollector<'a> {
     program: &'a Program,
@@ -50,25 +46,17 @@ impl<'a> Visitor for FunctionDependencyCollector<'a> {
 
 pub struct FunctionDependencyProcessor<'a> {
     program: &'a Program,
-    function_type_info_store: &'a FunctionTypeInfoStore,
 }
 
 impl<'a> FunctionDependencyProcessor<'a> {
-    pub fn new(
-        program: &'a Program,
-        function_type_info_store: &'a FunctionTypeInfoStore,
-    ) -> FunctionDependencyProcessor<'a> {
-        FunctionDependencyProcessor {
-            program: program,
-            function_type_info_store: function_type_info_store,
-        }
+    pub fn new(program: &'a Program) -> FunctionDependencyProcessor<'a> {
+        FunctionDependencyProcessor { program: program }
     }
 
     pub fn process_functions(&self) -> Vec<DependencyGroup<FunctionId>> {
         let mut functions = Vec::new();
-        for (id, _) in &self.program.functions.items {
-            let type_info = self.function_type_info_store.get(id);
-            if let Some(_) = type_info.body {
+        for (id, function) in &self.program.functions.items {
+            if let Some(_) = function.get_body() {
                 functions.push(*id);
             }
         }
@@ -82,8 +70,8 @@ impl<'a> FunctionDependencyProcessor<'a> {
 
 impl<'a> DependencyCollector<FunctionId> for FunctionDependencyProcessor<'a> {
     fn collect(&self, function_id: FunctionId) -> Vec<FunctionId> {
-        let type_info = self.function_type_info_store.get(&function_id);
-        let body = type_info.body.unwrap();
+        let function = self.program.functions.get(&function_id);
+        let body = function.get_body().unwrap();
         let mut collector = FunctionDependencyCollector::new(self.program);
         walk_expr(&body, &mut collector);
         let deps: Vec<_> = collector.used_functions.into_iter().collect();
@@ -91,8 +79,8 @@ impl<'a> DependencyCollector<FunctionId> for FunctionDependencyProcessor<'a> {
         let mut deps: BTreeSet<_> = deps
             .iter()
             .filter(|dep_id| {
-                let dep_info = self.function_type_info_store.get(dep_id);
-                !dep_info.typed
+                let function = self.program.functions.get(dep_id);
+                !function.is_typed()
             })
             .map(|id| *id)
             .collect();
