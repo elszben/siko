@@ -11,6 +11,7 @@ use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::function::Function;
 use crate::function::FunctionId;
+use crate::function::FunctionInfo;
 use crate::instance_resolution_cache::InstanceResolutionCache;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
@@ -21,12 +22,14 @@ use crate::types::Type;
 use crate::unifier::Unifier;
 use siko_constants::BOOL_MODULE_NAME;
 use siko_constants::BOOL_TYPE_NAME;
-use siko_constants::INT_MODULE_NAME;
-use siko_constants::INT_TYPE_NAME;
 use siko_constants::FLOAT_MODULE_NAME;
 use siko_constants::FLOAT_TYPE_NAME;
+use siko_constants::INT_MODULE_NAME;
+use siko_constants::INT_TYPE_NAME;
 use siko_constants::LIST_MODULE_NAME;
 use siko_constants::LIST_TYPE_NAME;
+use siko_constants::MAIN_FUNCTION;
+use siko_constants::MAIN_MODULE;
 use siko_constants::OPTION_MODULE_NAME;
 use siko_constants::OPTION_TYPE_NAME;
 use siko_constants::ORDERING_MODULE_NAME;
@@ -120,14 +123,14 @@ impl Program {
     }
 
     pub fn get_show_type(&self) -> Type {
-    let class_id = self
-        .class_names
-        .get("Show")
-        .expect("Show not found")
-        .clone();
-    let mut var = self.type_var_generator.clone();
-    let index = var.get_new_index();
-    Type::Var(index, vec![class_id])
+        let class_id = self
+            .class_names
+            .get("Show")
+            .expect("Show not found")
+            .clone();
+        let mut var = self.type_var_generator.clone();
+        let index = var.get_new_index();
+        Type::Var(index, vec![class_id])
     }
 
     pub fn get_adt_by_name(&self, module: &str, name: &str) -> &Adt {
@@ -164,5 +167,19 @@ impl Program {
 
     pub fn get_unifier(&self) -> Unifier {
         Unifier::new(self.type_var_generator.clone())
+    }
+
+    pub fn get_main(&self) -> Option<FunctionId> {
+        for (id, function) in &self.functions.items {
+            match &function.info {
+                FunctionInfo::NamedFunction(info) => {
+                    if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
+                        return Some(*id);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
     }
 }

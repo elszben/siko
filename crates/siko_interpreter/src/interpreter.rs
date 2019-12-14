@@ -15,8 +15,6 @@ use crate::value::Callable;
 use crate::value::CallableKind;
 use crate::value::Value;
 use crate::value::ValueCore;
-use siko_constants::MAIN_FUNCTION;
-use siko_constants::MAIN_MODULE;
 use siko_constants::OPTION_MODULE_NAME;
 use siko_constants::OPTION_TYPE_NAME;
 use siko_constants::ORDERING_MODULE_NAME;
@@ -938,8 +936,12 @@ impl Interpreter {
     }
 
     fn build_typedefid_cache(&mut self) {
-        let option = self.program.get_adt_by_name(OPTION_MODULE_NAME, OPTION_TYPE_NAME);
-        let ordering = self.program.get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME);
+        let option = self
+            .program
+            .get_adt_by_name(OPTION_MODULE_NAME, OPTION_TYPE_NAME);
+        let ordering = self
+            .program
+            .get_adt_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME);
         let cache = TypeDefIdCache {
             option_id: option.id,
             ordering_id: ordering.id,
@@ -961,29 +963,15 @@ impl Interpreter {
     }
 
     fn execute_main(interpreter: &Interpreter) -> Value {
-        for (id, function) in &interpreter.program.functions.items {
-            match &function.info {
-                FunctionInfo::NamedFunction(info) => {
-                    if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
-                        let mut environment =
-                            Environment::new(CallableKind::FunctionId(*id), vec![], 0);
-                        let unifier = interpreter.program.get_unifier();
-                        return interpreter.execute(
-                            *id,
-                            &mut environment,
-                            None,
-                            &unifier,
-                            Type::Tuple(vec![]),
-                        );
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        panic!(
-            "Cannot find function {} in module {}",
-            MAIN_FUNCTION, MAIN_MODULE
+        let main_id = interpreter.program.get_main().expect("Main does not exist");
+        let mut environment = Environment::new(CallableKind::FunctionId(main_id), vec![], 0);
+        let unifier = interpreter.program.get_unifier();
+        return interpreter.execute(
+            main_id,
+            &mut environment,
+            None,
+            &unifier,
+            Type::Tuple(vec![]),
         );
     }
 
