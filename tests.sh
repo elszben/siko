@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 ./build.sh
 
 TESTS=$(find tests -mindepth 1 -maxdepth 1)
