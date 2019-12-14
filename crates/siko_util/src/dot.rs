@@ -25,9 +25,15 @@ impl Graph {
         let node = Node {
             name: name,
             index: index,
+            elements: Vec::new(),
         };
         self.nodes.push(node);
         index
+    }
+
+    pub fn add_element(&mut self, node: usize, element: String) {
+        let node = &mut self.nodes[node];
+        node.elements.push(element);
     }
 
     pub fn add_edge(&mut self, name: String, from: usize, to: usize) {
@@ -45,10 +51,18 @@ impl Graph {
         let filename = format!("{}/{}.dot", dots_folder, self.name);
         let mut output = File::create(filename)?;
         write!(output, "digraph D {{\n")?;
-        write!(output, "node [shape=rectangle fontname=Arial];\n")?;
+        write!(
+            output,
+            "node [shape=record fontname=Arial splines=ortho];\n"
+        )?;
 
         for node in &self.nodes {
-            write!(output, "node{} [label=\"{}\"]\n", node.index, node.name)?;
+            let elements = node.elements.join("|");
+            write!(
+                output,
+                "node{} [label=\"{{{}|{}}}\"]\n",
+                node.index, node.name, elements
+            )?;
         }
 
         for edge in &self.edges {
@@ -67,6 +81,7 @@ impl Graph {
 pub struct Node {
     pub name: String,
     pub index: usize,
+    pub elements: Vec<String>,
 }
 
 pub struct Edge {

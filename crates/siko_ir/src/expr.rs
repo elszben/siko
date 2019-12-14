@@ -117,6 +117,32 @@ pub enum Expr {
     RecordUpdate(ExprId, Vec<RecordUpdateInfo>),
 }
 
+impl Expr {
+    pub fn as_plain_text(&self) -> String {
+        match self {
+            Expr::StaticFunctionCall(id, args) => format!("StaticFunctionCall"),
+            Expr::DynamicFunctionCall(id_expr, args) => format!("DynamicFunctionCall"),
+            Expr::ClassFunctionCall(class_member_id, args) => format!("ClassFunctionCall",),
+            Expr::If(cond, true_branch, false_branch) => format!("If"),
+            Expr::Tuple(items) => format!("Tuple"),
+            Expr::List(items) => format!("List"),
+            Expr::IntegerLiteral(v) => format!("Integer"),
+            Expr::FloatLiteral(v) => format!("Float"),
+            Expr::StringLiteral(v) => format!("String"),
+            Expr::Do(items) => format!("Do"),
+            Expr::Bind(pattern_id, expr) => format!("Bind"),
+            Expr::ArgRef(v) => format!("ArgRef"),
+            Expr::ExprValue(id, index) => format!("ExprValue"),
+            Expr::FieldAccess(accesses, expr) => format!("FieldAccess"),
+            Expr::TupleFieldAccess(index, expr) => format!("TupleFieldAccess"),
+            Expr::Formatter(fmt, items) => format!("Formatter"),
+            Expr::CaseOf(body, cases, _) => format!("CaseOf"),
+            Expr::RecordInitialization(type_id, items) => format!("RecordInitialization",),
+            Expr::RecordUpdate(expr_id, items) => format!("RecordUpdate"),
+        }
+    }
+}
+
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

@@ -7,19 +7,37 @@ use siko_ir::program::Program;
 use siko_util::dot::Graph;
 use siko_util::Counter;
 use std::collections::BTreeMap;
+use std::fmt;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct BlockId {
+    pub id: usize,
+}
+
+impl fmt::Display for BlockId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "#{}", self.id)
+    }
+}
+
+impl From<usize> for BlockId {
+    fn from(id: usize) -> BlockId {
+        BlockId { id: id }
+    }
+}
 
 pub struct BasicBlock {
-    id: usize,
-    source: Option<usize>,
+    id: BlockId,
+    sources: Vec<BlockId>,
     exprs: Vec<ExprId>,
     patterns: Vec<PatternId>,
 }
 
 impl BasicBlock {
-    pub fn new(id: usize, source: Option<usize>) -> BasicBlock {
+    pub fn new(id: BlockId) -> BasicBlock {
         BasicBlock {
             id: id,
-            source: source,
+            sources: Vec::new(),
             exprs: Vec::new(),
             patterns: Vec::new(),
         }
@@ -29,7 +47,7 @@ impl BasicBlock {
 pub struct ControlFlowGraph {
     name: String,
     next_block: Counter,
-    blocks: BTreeMap<usize, BasicBlock>,
+    blocks: BTreeMap<BlockId, BasicBlock>,
 }
 
 impl ControlFlowGraph {
@@ -50,98 +68,176 @@ impl ControlFlowGraph {
         }
     }
 
-    fn process_expr(&mut self, expr_id: ExprId, program: &Program, block: &mut BasicBlock) {
+    fn add_to_block(&mut self, block_id: BlockId, expr_id: ExprId) {
+        let block = self.blocks.get_mut(&block_id).expect("Block not found");
         block.exprs.push(expr_id);
+    }
+
+    fn add_source(&mut self, block_id: BlockId, source: BlockId) {
+        let block = self.blocks.get_mut(&block_id).expect("Block not found");
+        block.sources.push(source);
+    }
+
+    fn process_expr(&mut self, expr_id: ExprId, program: &Program, block_id: BlockId) -> BlockId {
         let expr = &program.exprs.get(&expr_id).item;
         match expr {
-            Expr::ArgRef(_) => {}
+            Expr::ArgRef(_) => {
+                self.add_to_block(block_id, expr_id);
+                block_id
+            }
             Expr::Bind(_, rhs) => {
-                self.process_expr(*rhs, program, block);
+                let block_id = self.process_expr(*rhs, program, block_id);
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::CaseOf(case_expr, cases, _) => {
+                let block_id = self.process_expr(*case_expr, program, block_id);
+                self.add_to_block(block_id, expr_id);
+                let next = self.create_block();
                 for case in cases {
-                    self.process_block(case.body, program, Some(block.id));
+                    let case_block_id = self.process_block(case.body, program, Some(block_id));
+                    self.add_source(next, case_block_id);
                 }
-                block.exprs.push(*case_expr);
+                next
             }
             Expr::ClassFunctionCall(_, args) => {
+                let mut block_id = block_id;
                 for arg in args {
-                    self.process_expr(*arg, program, block);
+                    block_id = self.process_expr(*arg, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::DynamicFunctionCall(_, args) => {
+                let mut block_id = block_id;
                 for arg in args {
-                    self.process_expr(*arg, program, block);
+                    block_id = self.process_expr(*arg, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::Do(items) => {
+                let mut block_id = block_id;
                 for item in items {
-                    self.process_expr(*item, program, block);
+                    block_id = self.process_expr(*item, program, block_id);
                 }
+                block_id
             }
-            Expr::ExprValue(_, _) => {}
+            Expr::ExprValue(_, _) => {
+                self.add_to_block(block_id, expr_id);
+                block_id
+            }
             Expr::FieldAccess(_, receiver_expr_id) => {
-                self.process_expr(*receiver_expr_id, program, block);
+                let block_id = self.process_expr(*receiver_expr_id, program, block_id);
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
-            Expr::FloatLiteral(_) => {}
+            Expr::FloatLiteral(_) => {
+                self.add_to_block(block_id, expr_id);
+                block_id
+            }
             Expr::Formatter(_, args) => {
+                let mut block_id = block_id;
                 for arg in args {
-                    self.process_expr(*arg, program, block);
+                    block_id = self.process_expr(*arg, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::If(cond, true_branch, false_branch) => {
-                self.process_expr(*cond, program, block);
-                self.process_block(*true_branch, program, Some(block.id));
-                self.process_block(*false_branch, program, Some(block.id));
+                let block_id = self.process_expr(*cond, program, block_id);
+                let true_block_id = self.process_block(*true_branch, program, Some(block_id));
+                let false_block_id = self.process_block(*false_branch, program, Some(block_id));
+                self.add_to_block(block_id, expr_id);
+                let next = self.create_block();
+                self.add_source(next, true_block_id);
+                self.add_source(next, false_block_id);
+                next
             }
-            Expr::IntegerLiteral(_) => {}
+            Expr::IntegerLiteral(_) => {
+                self.add_to_block(block_id, expr_id);
+                block_id
+            }
             Expr::List(items) => {
+                let mut block_id = block_id;
                 for item in items {
-                    self.process_expr(*item, program, block);
+                    block_id = self.process_expr(*item, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::StaticFunctionCall(_, args) => {
+                let mut block_id = block_id;
                 for arg in args {
-                    self.process_expr(*arg, program, block);
+                    block_id = self.process_expr(*arg, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
-            Expr::StringLiteral(_) => {}
+            Expr::StringLiteral(_) => {
+                self.add_to_block(block_id, expr_id);
+                block_id
+            }
             Expr::RecordInitialization(_, items) => {
+                let mut block_id = block_id;
                 for item in items {
-                    self.process_expr(item.expr_id, program, block);
+                    block_id = self.process_expr(item.expr_id, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::RecordUpdate(receiver_expr_id, updates) => {
-                self.process_expr(*receiver_expr_id, program, block);
+                let mut block_id = self.process_expr(*receiver_expr_id, program, block_id);
                 for update in updates {
                     for item in &update.items {
-                        self.process_block(item.expr_id, program, Some(block.id));
+                        block_id = self.process_block(item.expr_id, program, Some(block_id));
                     }
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::Tuple(items) => {
+                let mut block_id = block_id;
                 for item in items {
-                    self.process_expr(*item, program, block);
+                    block_id = self.process_expr(*item, program, block_id);
                 }
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
             Expr::TupleFieldAccess(_, receiver_expr_id) => {
-                self.process_expr(*receiver_expr_id, program, block);
+                let block_id = self.process_expr(*receiver_expr_id, program, block_id);
+                self.add_to_block(block_id, expr_id);
+                block_id
             }
         }
     }
 
-    fn process_block(&mut self, expr_id: ExprId, program: &Program, source: Option<usize>) {
-        let block_id = self.next_block.next();
-        let mut block = BasicBlock::new(block_id, source);
-        self.process_expr(expr_id, program, &mut block);
+    fn create_block(&mut self) -> BlockId {
+        let block_id = self.next_block.next().into();
+        let block = BasicBlock::new(block_id);
         self.blocks.insert(block_id, block);
+        block_id
+    }
+
+    fn process_block(
+        &mut self,
+        expr_id: ExprId,
+        program: &Program,
+        source: Option<BlockId>,
+    ) -> BlockId {
+        let block_id = self.create_block();
+        if let Some(source) = source {
+            self.add_source(block_id, source);
+        }
+        let new_block_id = self.process_expr(expr_id, program, block_id);
+        new_block_id
     }
 
     pub fn process_functions(program: &Program) -> BTreeMap<FunctionId, ControlFlowGraph> {
         let mut cfgs = BTreeMap::new();
         for (id, _) in program.functions.items.iter() {
             if let Some(cfg) = ControlFlowGraph::create(program, *id) {
-                let dot_graph = cfg.to_dot_graph();
+                let dot_graph = cfg.to_dot_graph(program);
                 dot_graph.generate_dot().expect("CFG dump failed");
                 cfgs.insert(*id, cfg);
             }
@@ -149,16 +245,21 @@ impl ControlFlowGraph {
         cfgs
     }
 
-    pub fn to_dot_graph(&self) -> Graph {
+    pub fn to_dot_graph(&self, program: &Program) -> Graph {
         let mut graph = Graph::new(self.name.clone());
         let mut index_map = BTreeMap::new();
-        for (id, _) in &self.blocks {
+        for (id, block) in &self.blocks {
             let block_name = format!("BB{}", id);
             let block_index = graph.add_node(block_name.clone());
+            for expr_id in &block.exprs {
+                let expr = &program.exprs.get(expr_id).item;
+                let s = format!("{}{}", expr_id, expr.as_plain_text());
+                graph.add_element(block_index, s);
+            }
             index_map.insert(id, block_index);
         }
         for (id, block) in &self.blocks {
-            if let Some(source) = block.source {
+            for source in &block.sources {
                 let to_index = index_map.get(&id).expect("To index not found");
                 let source_index = index_map.get(&source).expect("Source index not found");
                 graph.add_edge(format!(" "), *source_index, *to_index);

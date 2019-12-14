@@ -2,12 +2,30 @@ module Main where
 
 data Color = Red | Blue | Green
 
-foo a = if a > 5 then print "korte"
+foo a = do
+    print "alma"
+    if a > 5 then print "korte"
         else case Red of
             Blue -> print "Blue"
             Red -> print "Red"
             Green -> if True then
                 print "GreenTrue"
                 else print "Whatisthisthen"
+    print "alma"
+    if a > 5 then print "korte"
+        else case Red of
+            Blue -> print "Blue"
+            Red -> print "Red"
+            Green -> if True then
+                print "GreenTrue"
+                else print "Whatisthisthen"
+    print "alma"
 
-main = println "Hello {}" % "World"
+main =  do
+        println "a"
+        case Red of
+            Blue -> println "a"
+            Red -> println "a"
+        println "a"
+        foo (if True then 4 else 5)
+        println "a"
