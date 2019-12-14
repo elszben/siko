@@ -40,7 +40,9 @@ impl Graph {
     }
 
     pub fn generate_dot(&self) -> IoResult<()> {
-        let filename = format!("dots/{}.dot", self.name);
+        let dots_folder = "dots";
+        let _ = std::fs::create_dir_all(dots_folder);
+        let filename = format!("{}/{}.dot", dots_folder, self.name);
         let mut output = File::create(filename)?;
         write!(output, "digraph D {{\n")?;
         write!(output, "node [shape=rectangle fontname=Arial];\n")?;
