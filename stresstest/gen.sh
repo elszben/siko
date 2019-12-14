@@ -1,17 +1,21 @@
 #!/bin/bash
 
-for index in $(seq 1 500); do
+SCRIPTDIR=`dirname $0`
+
+cd $SCRIPTDIR
+
+for index in $(seq 1 4000); do
 
 cat > Module${index}.sk << EOL
 module Module${index} where
 
 import Std.Util
-import Data.Map
+import Map
     
 data FooBar = Alma Int FooBar | Korte Float (Float, Float) (Option Int)
     
 data Simple = { alma :: String }
-data Simple2 a = { alma :: Option a } deriving Eq
+data Simple2 a = { alma :: Option a } deriving Eq, PartialEq
 data Simple3 a = extern 
 
 factorial :: Int -> Int
