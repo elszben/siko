@@ -1,13 +1,13 @@
-use crate::data_float;
-use crate::data_int;
-use crate::data_list;
-use crate::data_map;
-use crate::data_string;
 use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
+use crate::float;
+use crate::int;
+use crate::list;
+use crate::map;
 use crate::std_ops;
 use crate::std_util;
 use crate::std_util_basic;
+use crate::string;
 use crate::util::get_opt_ordering_value;
 use crate::util::get_ordering_value;
 use crate::value::BuiltinCallable;
@@ -987,11 +987,11 @@ impl Interpreter {
 
     pub fn run(program: Program, error_context: ErrorContext) -> Value {
         let mut interpreter = Interpreter::new(program, error_context);
-        data_int::register_extern_functions(&mut interpreter);
-        data_float::register_extern_functions(&mut interpreter);
-        data_string::register_extern_functions(&mut interpreter);
-        data_map::register_extern_functions(&mut interpreter);
-        data_list::register_extern_functions(&mut interpreter);
+        int::register_extern_functions(&mut interpreter);
+        float::register_extern_functions(&mut interpreter);
+        string::register_extern_functions(&mut interpreter);
+        map::register_extern_functions(&mut interpreter);
+        list::register_extern_functions(&mut interpreter);
         std_util_basic::register_extern_functions(&mut interpreter);
         std_util::register_extern_functions(&mut interpreter);
         std_ops::register_extern_functions(&mut interpreter);

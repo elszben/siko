@@ -73,12 +73,11 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
             }
         }
     }
-    if !file_given  {
+    if !file_given {
         if success {
-            eprintln!("no file given to compile");    
+            eprintln!("no file given to compile");
         }
         success = false;
-        
     }
     if success {
         if !process_dir(std_path, &mut inputs) {

@@ -5,11 +5,11 @@ use crate::util::create_none;
 use crate::util::create_some;
 use crate::value::Value;
 use crate::value::ValueCore;
+use siko_constants::MAP_MODULE_NAME;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
 use std::collections::BTreeMap;
-use siko_constants::MAP_MODULE_NAME;
 
 pub struct Empty {}
 

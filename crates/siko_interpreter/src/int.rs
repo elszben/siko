@@ -5,11 +5,10 @@ use crate::util::get_opt_ordering_value;
 use crate::util::get_ordering_value;
 use crate::value::Value;
 use crate::value::ValueCore;
+use siko_constants::INT_MODULE_NAME;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
-use siko_constants::INT_MODULE_NAME;
-
 
 pub struct IntAdd {}
 

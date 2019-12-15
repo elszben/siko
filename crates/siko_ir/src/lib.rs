@@ -1,7 +1,6 @@
 pub mod class;
 pub mod data;
 pub mod expr;
-pub mod expr_visualizer;
 pub mod function;
 pub mod function_dep_processor;
 pub mod instance_resolution_cache;

@@ -94,7 +94,11 @@ impl ExternFunction for StringShow {
 pub fn register_extern_functions(interpreter: &mut Interpreter) {
     interpreter.add_extern_function(STRING_MODULE_NAME, "opAdd", Box::new(StringAdd {}));
     interpreter.add_extern_function(STRING_MODULE_NAME, "opEq", Box::new(StringPartialEq {}));
-    interpreter.add_extern_function(STRING_MODULE_NAME, "partialCmp", Box::new(StringPartialOrd {}));
+    interpreter.add_extern_function(
+        STRING_MODULE_NAME,
+        "partialCmp",
+        Box::new(StringPartialOrd {}),
+    );
     interpreter.add_extern_function(STRING_MODULE_NAME, "cmp", Box::new(StringOrd {}));
     interpreter.add_extern_function(STRING_MODULE_NAME, "show", Box::new(StringShow {}));
 }

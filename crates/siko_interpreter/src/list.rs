@@ -3,10 +3,10 @@ use crate::extern_function::ExternFunction;
 use crate::interpreter::Interpreter;
 use crate::value::Value;
 use crate::value::ValueCore;
+use siko_constants::LIST_MODULE_NAME;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
-use siko_constants::LIST_MODULE_NAME;
 
 pub struct Show {}
 

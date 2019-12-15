@@ -46,7 +46,11 @@ pub fn create_some(value: Value) -> Value {
 
 pub fn create_none(value_ty: Type) -> Value {
     let cache = Interpreter::get_typedef_id_cache();
-    let concrete_type = Type::Named(OPTION_TYPE_NAME.to_string(), cache.option_id, vec![value_ty]);
+    let concrete_type = Type::Named(
+        OPTION_TYPE_NAME.to_string(),
+        cache.option_id,
+        vec![value_ty],
+    );
     let core = ValueCore::Variant(
         cache.option_id,
         cache.option_variants.get_index("None"),

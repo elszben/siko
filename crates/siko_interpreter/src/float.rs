@@ -4,10 +4,10 @@ use crate::interpreter::Interpreter;
 use crate::util::get_opt_ordering_value;
 use crate::value::Value;
 use crate::value::ValueCore;
+use siko_constants::FLOAT_MODULE_NAME;
 use siko_ir::expr::ExprId;
 use siko_ir::function::NamedFunctionKind;
 use siko_ir::types::Type;
-use siko_constants::FLOAT_MODULE_NAME;
 
 pub struct FloatAdd {}
 
@@ -127,6 +127,10 @@ pub fn register_extern_functions(interpreter: &mut Interpreter) {
     interpreter.add_extern_function(FLOAT_MODULE_NAME, "opMul", Box::new(FloatMul {}));
     interpreter.add_extern_function(FLOAT_MODULE_NAME, "opDiv", Box::new(FloatDiv {}));
     interpreter.add_extern_function(FLOAT_MODULE_NAME, "opEq", Box::new(FloatPartialEq {}));
-    interpreter.add_extern_function(FLOAT_MODULE_NAME, "partialCmp", Box::new(FloatPartialOrd {}));
+    interpreter.add_extern_function(
+        FLOAT_MODULE_NAME,
+        "partialCmp",
+        Box::new(FloatPartialOrd {}),
+    );
     interpreter.add_extern_function(FLOAT_MODULE_NAME, "show", Box::new(FloatShow {}));
 }

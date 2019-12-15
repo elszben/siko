@@ -2,7 +2,6 @@ use crate::config::Config;
 use crate::error::Error;
 use siko_cfg::cfg::ControlFlowGraph;
 use siko_interpreter::interpreter::Interpreter;
-use siko_ir::expr_visualizer::ExprVisualizer;
 use siko_location_info::error_context::ErrorContext;
 use siko_location_info::file_manager::FileManager;
 use siko_location_info::filepath::FilePath;
@@ -110,12 +109,6 @@ impl Compiler {
             let typechecker = Typechecker::new();
 
             typechecker.check(&mut ir_program)?;
-        }
-
-        if self.config.visualize {
-            for (id, _) in &ir_program.functions.items {
-                ExprVisualizer::generate(&id, &ir_program);
-            }
         }
 
         ElapsedTimeMeasureCollector::print_instance_resolver_time();
