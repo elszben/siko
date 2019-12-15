@@ -26,11 +26,16 @@ impl From<usize> for BlockId {
     }
 }
 
+pub enum BlockElement {
+    Expr(ExprId),
+    Pattern(PatternId),
+    Terminator(ExprId),
+}
+
 pub struct BasicBlock {
     id: BlockId,
     sources: Vec<BlockId>,
-    exprs: Vec<ExprId>,
-    patterns: Vec<PatternId>,
+    elements: Vec<BlockElement>,
 }
 
 impl BasicBlock {
@@ -38,8 +43,7 @@ impl BasicBlock {
         BasicBlock {
             id: id,
             sources: Vec::new(),
-            exprs: Vec::new(),
-            patterns: Vec::new(),
+            elements: Vec::new(),
         }
     }
 }
@@ -68,9 +72,14 @@ impl ControlFlowGraph {
         }
     }
 
-    fn add_to_block(&mut self, block_id: BlockId, expr_id: ExprId) {
+    fn add_expr_to_block(&mut self, block_id: BlockId, expr_id: ExprId) {
         let block = self.blocks.get_mut(&block_id).expect("Block not found");
-        block.exprs.push(expr_id);
+        block.elements.push(BlockElement::Expr(expr_id));
+    }
+
+    fn add_terminator_to_block(&mut self, block_id: BlockId, expr_id: ExprId) {
+        let block = self.blocks.get_mut(&block_id).expect("Block not found");
+        block.elements.push(BlockElement::Terminator(expr_id));
     }
 
     fn add_source(&mut self, block_id: BlockId, source: BlockId) {
@@ -82,17 +91,17 @@ impl ControlFlowGraph {
         let expr = &program.exprs.get(&expr_id).item;
         match expr {
             Expr::ArgRef(_) => {
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::Bind(_, rhs) => {
                 let block_id = self.process_expr(*rhs, program, block_id);
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::CaseOf(case_expr, cases, _) => {
                 let block_id = self.process_expr(*case_expr, program, block_id);
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 let next = self.create_block();
                 for case in cases {
                     let case_block_id = self.process_block(case.body, program, Some(block_id));
@@ -105,7 +114,7 @@ impl ControlFlowGraph {
                 for arg in args {
                     block_id = self.process_expr(*arg, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::DynamicFunctionCall(_, args) => {
@@ -113,27 +122,32 @@ impl ControlFlowGraph {
                 for arg in args {
                     block_id = self.process_expr(*arg, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::Do(items) => {
                 let mut block_id = block_id;
+                self.add_expr_to_block(block_id, expr_id);
+                let next = self.create_block();
+                self.add_source(next, block_id);
+                block_id = next;
                 for item in items {
                     block_id = self.process_expr(*item, program, block_id);
                 }
+                self.add_terminator_to_block(block_id, expr_id);
                 block_id
             }
             Expr::ExprValue(_, _) => {
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::FieldAccess(_, receiver_expr_id) => {
                 let block_id = self.process_expr(*receiver_expr_id, program, block_id);
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::FloatLiteral(_) => {
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::Formatter(_, args) => {
@@ -141,21 +155,21 @@ impl ControlFlowGraph {
                 for arg in args {
                     block_id = self.process_expr(*arg, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::If(cond, true_branch, false_branch) => {
                 let block_id = self.process_expr(*cond, program, block_id);
                 let true_block_id = self.process_block(*true_branch, program, Some(block_id));
                 let false_block_id = self.process_block(*false_branch, program, Some(block_id));
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 let next = self.create_block();
                 self.add_source(next, true_block_id);
                 self.add_source(next, false_block_id);
                 next
             }
             Expr::IntegerLiteral(_) => {
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::List(items) => {
@@ -163,7 +177,7 @@ impl ControlFlowGraph {
                 for item in items {
                     block_id = self.process_expr(*item, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::StaticFunctionCall(_, args) => {
@@ -171,11 +185,11 @@ impl ControlFlowGraph {
                 for arg in args {
                     block_id = self.process_expr(*arg, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::StringLiteral(_) => {
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::RecordInitialization(_, items) => {
@@ -183,7 +197,7 @@ impl ControlFlowGraph {
                 for item in items {
                     block_id = self.process_expr(item.expr_id, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::RecordUpdate(receiver_expr_id, updates) => {
@@ -193,7 +207,7 @@ impl ControlFlowGraph {
                         block_id = self.process_block(item.expr_id, program, Some(block_id));
                     }
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::Tuple(items) => {
@@ -201,12 +215,12 @@ impl ControlFlowGraph {
                 for item in items {
                     block_id = self.process_expr(*item, program, block_id);
                 }
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
             Expr::TupleFieldAccess(_, receiver_expr_id) => {
                 let block_id = self.process_expr(*receiver_expr_id, program, block_id);
-                self.add_to_block(block_id, expr_id);
+                self.add_expr_to_block(block_id, expr_id);
                 block_id
             }
         }
@@ -251,9 +265,19 @@ impl ControlFlowGraph {
         for (id, block) in &self.blocks {
             let block_name = format!("BB{}", id);
             let block_index = graph.add_node(block_name.clone());
-            for expr_id in &block.exprs {
-                let expr = &program.exprs.get(expr_id).item;
-                let s = format!("{}{}", expr_id, expr.as_plain_text());
+            for element in &block.elements {
+                let s = match element {
+                    BlockElement::Expr(expr_id) => {
+                        let expr = &program.exprs.get(expr_id).item;
+                        let s = format!("{}{}", expr_id, expr.as_plain_text());
+                        s
+                    }
+                    BlockElement::Pattern(pattern_id) => unimplemented!(),
+                    BlockElement::Terminator(expr_id) => {
+                        let s = format!("BlockEnd{}", expr_id);
+                        s
+                    }
+                };
                 graph.add_element(block_index, s);
             }
             index_map.insert(id, block_index);

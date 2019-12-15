@@ -22,10 +22,11 @@ foo a = do
     print "alma"
 
 main =  do
-        println "a"
-        case Red of
-            Blue -> println "a"
-            Red -> println "a"
-        println "a"
-        foo (if True then 4 else 5)
-        println "a"
+            println "a"
+            do
+                case Red of
+                    Blue -> println "a"
+                    Red -> println "a"
+                println "a"
+                foo (if True then 4 else 5)
+            println "a"
