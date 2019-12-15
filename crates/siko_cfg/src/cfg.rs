@@ -32,9 +32,14 @@ pub enum BlockElement {
     Terminator(ExprId),
 }
 
+pub enum Edge {
+    If(bool),
+    Case(usize),
+    Jump,
+}
+
 pub struct BasicBlock {
     id: BlockId,
-    sources: Vec<BlockId>,
     elements: Vec<BlockElement>,
 }
 
@@ -42,7 +47,6 @@ impl BasicBlock {
     pub fn new(id: BlockId) -> BasicBlock {
         BasicBlock {
             id: id,
-            sources: Vec::new(),
             elements: Vec::new(),
         }
     }
@@ -52,6 +56,7 @@ pub struct ControlFlowGraph {
     name: String,
     next_block: Counter,
     blocks: BTreeMap<BlockId, BasicBlock>,
+    edges: Vec<(BlockId, BlockId, Edge)>,
 }
 
 impl ControlFlowGraph {
@@ -63,9 +68,10 @@ impl ControlFlowGraph {
             name: name,
             next_block: Counter::new(),
             blocks: BTreeMap::new(),
+            edges: Vec::new(),
         };
         if let Some(body) = function.get_body() {
-            cfg.process_block(body, program, None);
+            cfg.process_block(body, program, Edge::Jump, None);
             Some(cfg)
         } else {
             None
@@ -82,9 +88,8 @@ impl ControlFlowGraph {
         block.elements.push(BlockElement::Terminator(expr_id));
     }
 
-    fn add_source(&mut self, block_id: BlockId, source: BlockId) {
-        let block = self.blocks.get_mut(&block_id).expect("Block not found");
-        block.sources.push(source);
+    fn add_edge(&mut self, from: BlockId, to: BlockId, edge: Edge) {
+        self.edges.push((from, to, edge));
     }
 
     fn process_expr(&mut self, expr_id: ExprId, program: &Program, block_id: BlockId) -> BlockId {
@@ -103,9 +108,10 @@ impl ControlFlowGraph {
                 let block_id = self.process_expr(*case_expr, program, block_id);
                 self.add_expr_to_block(block_id, expr_id);
                 let next = self.create_block();
-                for case in cases {
-                    let case_block_id = self.process_block(case.body, program, Some(block_id));
-                    self.add_source(next, case_block_id);
+                for (index, case) in cases.iter().enumerate() {
+                    let case_block_id =
+                        self.process_block(case.body, program, Edge::Case(index), Some(block_id));
+                    self.add_edge(case_block_id, next, Edge::Jump);
                 }
                 next
             }
@@ -129,7 +135,7 @@ impl ControlFlowGraph {
                 let mut block_id = block_id;
                 self.add_expr_to_block(block_id, expr_id);
                 let next = self.create_block();
-                self.add_source(next, block_id);
+                self.add_edge(block_id, next, Edge::Jump);
                 block_id = next;
                 for item in items {
                     block_id = self.process_expr(*item, program, block_id);
@@ -160,12 +166,14 @@ impl ControlFlowGraph {
             }
             Expr::If(cond, true_branch, false_branch) => {
                 let block_id = self.process_expr(*cond, program, block_id);
-                let true_block_id = self.process_block(*true_branch, program, Some(block_id));
-                let false_block_id = self.process_block(*false_branch, program, Some(block_id));
+                let true_block_id =
+                    self.process_block(*true_branch, program, Edge::If(true), Some(block_id));
+                let false_block_id =
+                    self.process_block(*false_branch, program, Edge::If(false), Some(block_id));
                 self.add_expr_to_block(block_id, expr_id);
                 let next = self.create_block();
-                self.add_source(next, true_block_id);
-                self.add_source(next, false_block_id);
+                self.add_edge(true_block_id, next, Edge::Jump);
+                self.add_edge(false_block_id, next, Edge::Jump);
                 next
             }
             Expr::IntegerLiteral(_) => {
@@ -204,7 +212,7 @@ impl ControlFlowGraph {
                 let mut block_id = self.process_expr(*receiver_expr_id, program, block_id);
                 for update in updates {
                     for item in &update.items {
-                        block_id = self.process_block(item.expr_id, program, Some(block_id));
+                        block_id = self.process_expr(item.expr_id, program, block_id);
                     }
                 }
                 self.add_expr_to_block(block_id, expr_id);
@@ -237,11 +245,12 @@ impl ControlFlowGraph {
         &mut self,
         expr_id: ExprId,
         program: &Program,
+        edge: Edge,
         source: Option<BlockId>,
     ) -> BlockId {
         let block_id = self.create_block();
         if let Some(source) = source {
-            self.add_source(block_id, source);
+            self.add_edge(source, block_id, edge);
         }
         let new_block_id = self.process_expr(expr_id, program, block_id);
         new_block_id
@@ -282,12 +291,15 @@ impl ControlFlowGraph {
             }
             index_map.insert(id, block_index);
         }
-        for (id, block) in &self.blocks {
-            for source in &block.sources {
-                let to_index = index_map.get(&id).expect("To index not found");
-                let source_index = index_map.get(&source).expect("Source index not found");
-                graph.add_edge(format!(" "), *source_index, *to_index);
-            }
+        for (from, to, edge) in &self.edges {
+            let s = match edge {
+                Edge::If(b) => format!("If/{}", b),
+                Edge::Case(i) => format!("Case/{}", i),
+                Edge::Jump => format!(" "),
+            };
+            let to_index = index_map.get(to).expect("To index not found");
+            let source_index = index_map.get(from).expect("Source index not found");
+            graph.add_edge(s, *source_index, *to_index);
         }
         graph
     }
