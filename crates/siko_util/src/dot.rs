@@ -36,7 +36,7 @@ impl Graph {
         node.elements.push(element);
     }
 
-    pub fn add_edge(&mut self, name: String, from: usize, to: usize) {
+    pub fn add_edge(&mut self, name: Option<String>, from: usize, to: usize) {
         let edge = Edge {
             name: name,
             from: from,
@@ -66,11 +66,15 @@ impl Graph {
         }
 
         for edge in &self.edges {
-            write!(
-                output,
-                "node{} -> node{} [label=\"{}\"]\n",
-                edge.from, edge.to, edge.name
-            )?;
+            if let Some(name) = &edge.name {
+                write!(
+                    output,
+                    "node{} -> node{} [label=\"{}\"]\n",
+                    edge.from, edge.to, name
+                )?;
+            } else {
+                write!(output, "node{} -> node{} \n", edge.from, edge.to)?;
+            }
         }
 
         write!(output, "}}\n")?;
@@ -85,7 +89,7 @@ pub struct Node {
 }
 
 pub struct Edge {
-    pub name: String,
+    pub name: Option<String>,
     pub from: usize,
     pub to: usize,
 }

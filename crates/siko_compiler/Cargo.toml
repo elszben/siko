@@ -14,6 +14,6 @@ siko_interpreter = { path = "../siko_interpreter" }
 siko_parser = { path = "../siko_parser" }
 siko_type_checker = { path = "../siko_type_checker" }
 siko_name_resolver = { path = "../siko_name_resolver" }
-siko_cfg = { path = "../siko_cfg" }
+siko_flow_graph = { path = "../siko_flow_graph" }
 
 colored = "1.7.0"

@@ -20,13 +20,21 @@ foo a = do
                 print "GreenTrue"
                 else print "Whatisthisthen"
     print "alma"
+    5
 
 main =  do
-            println "a"
-            do
-                case Red of
-                    Blue -> println "a"
-                    Red -> println "a"
-                println "a"
-                foo (if True then 4 else 5)
-            println "a"
+    println "a"
+    do
+        case Red of
+            Blue -> println "a"
+            Red -> println "a"
+        println "a"
+        foo (if True then 4 else 5)
+    println "a"
+
+valueTest a b = do
+        (a, c) <- (a, a + b)
+        (a, b) <- (foo b, 4)
+
+guard = case Red of
+            Red if 5*5 > 1 -> ()

@@ -3,6 +3,7 @@ use crate::data::TypeDefId;
 use crate::function::FunctionId;
 use crate::pattern::BindGroup;
 use crate::pattern::PatternId;
+use crate::program::Program;
 use siko_util::format_list;
 use std::fmt;
 
@@ -118,11 +119,16 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn as_plain_text(&self) -> String {
+    pub fn as_plain_text(&self, program: &Program) -> String {
         match self {
-            Expr::StaticFunctionCall(id, args) => format!("StaticFunctionCall"),
+            Expr::StaticFunctionCall(id, args) => {
+                format!("StaticFunctionCall({})", program.functions.get(id).info)
+            }
             Expr::DynamicFunctionCall(id_expr, args) => format!("DynamicFunctionCall"),
-            Expr::ClassFunctionCall(class_member_id, args) => format!("ClassFunctionCall",),
+            Expr::ClassFunctionCall(class_member_id, args) => format!(
+                "ClassFunctionCall({})",
+                program.class_members.get(class_member_id).name
+            ),
             Expr::If(cond, true_branch, false_branch) => format!("If"),
             Expr::Tuple(items) => format!("Tuple"),
             Expr::List(items) => format!("List"),

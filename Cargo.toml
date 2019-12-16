@@ -10,5 +10,5 @@ members = ["crates/siko_util",
            "crates/siko_compiler", 
            "crates/siko_interpreter",
            "crates/siko_location_info",
-           "crates/siko_cfg",
+           "crates/siko_flow_graph",
            "crates/siko"]
