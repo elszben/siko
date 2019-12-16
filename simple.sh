@@ -6,6 +6,6 @@ set -e
 
 rm -rf dots
 
-./siko simple.sk $@
+./siko simple.sk -i $@
 
 ./draw.sh

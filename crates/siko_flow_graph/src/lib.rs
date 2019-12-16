@@ -52,8 +52,19 @@ fn process_pattern(
             }
             block_id
         }
+        Pattern::IntegerLiteral(_) => block_id,
+        Pattern::StringLiteral(_) => block_id,
+        Pattern::FloatLiteral(_) => block_id,
+        Pattern::Typed(item, _) => {
+            return process_pattern(*item, program, block_id, cfg, dfg, environment);
+        }
+        Pattern::Record(_, items) => {
+            for item in items {
+                process_pattern(*item, program, block_id, cfg, dfg, environment);
+            }
+            block_id
+        }
         Pattern::Wildcard => block_id,
-        _ => panic!("{:?} not implemented in CFG", pattern),
     }
 }
 

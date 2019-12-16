@@ -112,7 +112,9 @@ impl Compiler {
 
         ElapsedTimeMeasureCollector::print_instance_resolver_time();
 
-        siko_flow_graph::process_functions(&ir_program);
+        if self.config.visualize {
+            siko_flow_graph::process_functions(&ir_program);
+        }
 
         Interpreter::run(ir_program, self.context());
 
