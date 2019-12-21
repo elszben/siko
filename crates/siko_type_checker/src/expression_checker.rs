@@ -265,10 +265,16 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Expr::RecordUpdate(receiver_expr_id, record_updates) => {
                 let location_id = self.program.exprs.get(&expr_id).location_id;
                 let receiver_ty = self.type_store.get_expr_type(receiver_expr_id);
-                let real_record_type = if let Type::Named(_, id, _) = receiver_ty {
-                    Some(id)
-                } else {
-                    None
+                let real_record_type = match receiver_ty {
+                    Type::Named(_, id, _) => Some(*id),
+                    Type::Var(_, _) => {
+                        if record_updates.len() == 1 {
+                            Some(record_updates[0].record_id)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
                 };
                 let mut expected_records = Vec::new();
                 let mut matching_update = None;
@@ -280,7 +286,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                         .get_record();
                     expected_records.push(record.name.clone());
                     if let Some(id) = real_record_type {
-                        if record_update.record_id == *id {
+                        if record_update.record_id == id {
                             matching_update = Some(record_update);
                         }
                     }

@@ -3,6 +3,7 @@ use crate::expr::ExprId;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::program::Program;
+use std::collections::BTreeSet;
 
 pub trait Visitor {
     fn get_program(&self) -> &Program;
@@ -79,9 +80,12 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
         }
         Expr::RecordUpdate(record_expr_id, updates) => {
             walk_expr(record_expr_id, visitor);
+            let mut visited = BTreeSet::new();
             for update in updates {
                 for item in &update.items {
-                    walk_expr(&item.expr_id, visitor);
+                    if visited.insert(item.expr_id) {
+                        walk_expr(&item.expr_id, visitor);
+                    }
                 }
             }
         }
