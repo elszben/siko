@@ -2,8 +2,8 @@ module Main where
 
 import Std.Util
 
-data Person = { name :: String, age :: Int }
 data Person2 = { title :: String, age :: Int }
+data Person = { name :: String, age :: Int }
 
 createPerson name = Person { name = name, age = 5 }
 

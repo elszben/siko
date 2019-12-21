@@ -581,7 +581,7 @@ impl Typechecker {
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
         instance_resolver: &'a mut InstanceResolver,
-        program: &'a Program,
+        program: &'a mut Program,
     ) {
         //let func = program.functions.get(function_id);
         //println!("Checking {}", func.info);
@@ -598,11 +598,15 @@ impl Typechecker {
         );
         walk_expr(&body, &mut checker);
         checker.match_expr_with(body, &result_ty);
+        let disambiguations = checker.get_disambiguations();
         let function_type_info = type_info_provider.function_type_info_store.get(function_id);
         let mut func_args = Vec::new();
         function_type_info
             .function_type
             .collect_type_args(&mut func_args, program);
+        for (expr_id, selected_index) in disambiguations {
+            program.disambiguate_expr(expr_id, selected_index);
+        }
         let mut undef_var_checker =
             UndefinedVarChecker::new(program, type_store, errors, func_args);
         walk_expr(&body, &mut undef_var_checker);
@@ -615,7 +619,7 @@ impl Typechecker {
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
         instance_resolver: &'a mut InstanceResolver,
-        program: &'a Program,
+        program: &'a mut Program,
     ) {
         for function in &group.items {
             self.init_expr_types(

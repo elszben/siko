@@ -156,7 +156,8 @@ fn process_expr(
             cfg.add_expr_to_block(block_id, expr_id);
             (block_id, value_id)
         }
-        Expr::FieldAccess(_, receiver_expr_id) => {
+        Expr::FieldAccess(infos, receiver_expr_id) => {
+            assert_eq!(infos.len(), 1);
             let (block_id, value_id) =
                 process_expr(*receiver_expr_id, program, block_id, cfg, dfg, environment);
             let value_id = dfg.create_value(ValueSource::Expr(expr_id));
@@ -258,13 +259,13 @@ fn process_expr(
                 process_expr(*receiver_expr_id, program, block_id, cfg, dfg, environment);
             let next_value_id = dfg.create_value(ValueSource::Expr(expr_id));
             dfg.add_edge(value_id, next_value_id, DfgEdge::RecordUpdateSource);
-            for update in updates {
-                for item in &update.items {
-                    let (bid, value_id) =
-                        process_expr(item.expr_id, program, block_id, cfg, dfg, environment);
-                    block_id = bid;
-                    dfg.add_edge(value_id, next_value_id, DfgEdge::RecordField(item.index));
-                }
+            assert_eq!(updates.len(), 1);
+            let update = &updates[0];
+            for item in &update.items {
+                let (bid, value_id) =
+                    process_expr(item.expr_id, program, block_id, cfg, dfg, environment);
+                block_id = bid;
+                dfg.add_edge(value_id, next_value_id, DfgEdge::RecordField(item.index));
             }
             cfg.add_expr_to_block(block_id, expr_id);
             (block_id, next_value_id)

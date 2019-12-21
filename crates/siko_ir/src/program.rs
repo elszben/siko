@@ -192,4 +192,18 @@ impl Program {
 
         self.function_dependency_groups = function_dep_processor.process_functions();
     }
+
+    pub fn disambiguate_expr(&mut self, expr_id: ExprId, selected_index: usize) {
+        let expr_info = self.exprs.get_mut(&expr_id);
+        match expr_info.item.clone() {
+            Expr::FieldAccess(infos, receiver) => {
+                expr_info.item = Expr::FieldAccess(vec![infos[selected_index].clone()], receiver);
+            }
+            Expr::RecordUpdate(receiver, updates) => {
+                expr_info.item =
+                    Expr::RecordUpdate(receiver, vec![updates[selected_index].clone()]);
+            }
+            _ => {}
+        }
+    }
 }

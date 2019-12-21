@@ -22,6 +22,7 @@ pub struct ExpressionChecker<'a> {
     type_info_provider: &'a mut TypeInfoProvider,
     instance_resolver: &'a mut InstanceResolver,
     errors: &'a mut Vec<TypecheckError>,
+    disambiguations: Vec<(ExprId, usize)>,
 }
 
 impl<'a> ExpressionChecker<'a> {
@@ -40,6 +41,7 @@ impl<'a> ExpressionChecker<'a> {
             type_info_provider: type_info_provider,
             instance_resolver: instance_resolver,
             errors: errors,
+            disambiguations: Vec::new(),
         }
     }
 
@@ -117,6 +119,10 @@ impl<'a> ExpressionChecker<'a> {
             self.match_expr_with(*arg, &arg_type);
         }
     }
+
+    pub fn get_disambiguations(&self) -> Vec<(ExprId, usize)> {
+        self.disambiguations.clone()
+    }
 }
 
 impl<'a> Visitor for ExpressionChecker<'a> {
@@ -180,7 +186,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 let mut failed = true;
                 let receiver_ty = self.type_store.get_expr_type(receiver_expr_id).clone();
                 if let Type::Named(_, id, _) = receiver_ty {
-                    for info in infos {
+                    for (index, info) in infos.iter().enumerate() {
                         if info.record_id == id {
                             let mut record_type_info =
                                 self.type_info_provider.get_record_type_info(&id);
@@ -194,6 +200,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                                 let field_ty = &record_type_info.field_types[info.index].0;
                                 self.match_expr_with(expr_id, field_ty);
                                 failed = false;
+                                self.disambiguations.push((expr_id, index));
                                 break;
                             }
                         }
@@ -278,7 +285,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 };
                 let mut expected_records = Vec::new();
                 let mut matching_update = None;
-                for record_update in record_updates {
+                for (index, record_update) in record_updates.iter().enumerate() {
                     let record = self
                         .program
                         .typedefs
@@ -288,6 +295,8 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                     if let Some(id) = real_record_type {
                         if record_update.record_id == id {
                             matching_update = Some(record_update);
+                            self.disambiguations.push((expr_id, index));
+                            break;
                         }
                     }
                 }
