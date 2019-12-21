@@ -8,5 +8,5 @@ TESTS=$(find tests -mindepth 1 -maxdepth 1)
 
 for TEST in $TESTS; do
     echo "Running $TEST"
-    ./siko $TEST
+    ./siko $TEST $@
 done

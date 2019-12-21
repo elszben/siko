@@ -320,7 +320,7 @@ fn process_function(
         let mut cfg = ControlFlowGraph::new(cfg_name);
         let mut dfg = DataflowGraph::new(dfg_name);
         let mut args = Vec::new();
-        for index in 0..function.arg_locations.len() {
+        for index in 0..(function.arg_locations.len() + function.implicit_arg_count) {
             let value_id = dfg.create_value(ValueSource::Arg(index));
             args.push(value_id);
         }
