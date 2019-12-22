@@ -17,7 +17,8 @@ impl ExternFunction for Print {
         _: &NamedFunctionKind,
         ty: Type,
     ) -> Value {
-        let v = environment.get_arg_by_index(0).core.as_string();
+        let v = environment.get_arg_by_index(0);
+        let v = Interpreter::call_show(v);
         print!("{}", v);
         return Value::new(ValueCore::Tuple(vec![]), ty);
     }
@@ -33,7 +34,8 @@ impl ExternFunction for PrintLn {
         _: &NamedFunctionKind,
         ty: Type,
     ) -> Value {
-        let v = environment.get_arg_by_index(0).core.as_string();
+        let v = environment.get_arg_by_index(0);
+        let v = Interpreter::call_show(v);
         println!("{}", v);
         return Value::new(ValueCore::Tuple(vec![]), ty);
     }

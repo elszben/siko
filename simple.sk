@@ -1,40 +1,4 @@
 module Main where
 
-data Color = Red | Blue | Green
-
-foo a = do
-    print "alma"
-    if a > 5 then print "korte"
-        else case Red of
-            Blue -> print "Blue"
-            Red -> print "Red"
-            Green -> if True then
-                print "GreenTrue"
-                else print "Whatisthisthen"
-    print "alma"
-    if a > 5 then print "korte"
-        else case Red of
-            Blue -> print "Blue"
-            Red -> print "Red"
-            Green -> if True then
-                print "GreenTrue"
-                else print "Whatisthisthen"
-    print "alma"
-    5
-
-main =  do
-    println "a"
-    do
-        case Red of
-            Blue -> println "a"
-            Red -> println "a"
-        println "a"
-        foo (if True then 4 else 5)
-    println "a"
-
-valueTest a b = do
-        (a, c) <- (a, a + b)
-        (a, b) <- (foo b, 4)
-
-guard = case Red of
-            Red if 5*5 > 1 -> ()
+main = do
+    println [5, 5]
