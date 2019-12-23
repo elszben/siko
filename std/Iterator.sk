@@ -1,0 +1,9 @@
+module Iterator where
+
+data Iterator a = extern
+
+map a b :: (a -> b) -> Iterator a -> Iterator b
+map f i = extern
+
+forEach a :: (a -> ()) -> Iterator a -> ()
+forEach f i = extern

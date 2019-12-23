@@ -3,6 +3,7 @@ pub mod extern_function;
 pub mod float;
 pub mod int;
 pub mod interpreter;
+pub mod iterator;
 pub mod list;
 pub mod map;
 pub mod std_ops;

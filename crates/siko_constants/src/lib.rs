@@ -60,7 +60,25 @@ pub const STRING_MODULE_NAME: &str = "String";
 pub const STRING_TYPE_NAME: &str = "String";
 pub const LIST_MODULE_NAME: &str = "List";
 pub const LIST_TYPE_NAME: &str = "List";
+pub const ITERATOR_MODULE_NAME: &str = "Iterator";
 
 pub fn get_qualified_list_type_name() -> String {
     format!("{}.{}", LIST_MODULE_NAME, LIST_TYPE_NAME)
+}
+
+pub fn get_implicit_module_list() -> Vec<&'static str> {
+    let implicit_modules = vec![
+        INT_MODULE_NAME,
+        FLOAT_MODULE_NAME,
+        STRING_MODULE_NAME,
+        BOOL_MODULE_NAME,
+        ORDERING_MODULE_NAME,
+        OPTION_MODULE_NAME,
+        RESULT_MODULE_NAME,
+        LIST_MODULE_NAME,
+        ITERATOR_MODULE_NAME,
+        "Std.Util.Basic",
+        "Std.Ops",
+    ];
+    implicit_modules
 }

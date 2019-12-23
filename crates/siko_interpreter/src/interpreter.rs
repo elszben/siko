@@ -2,6 +2,7 @@ use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
 use crate::float;
 use crate::int;
+use crate::iterator;
 use crate::list;
 use crate::map;
 use crate::std_ops;
@@ -324,6 +325,14 @@ impl Interpreter {
             let class_member_id = class.members.get(member_name).expect("show not found");
             let v = i.call_class_member(class_member_id, args, None, expr_ty);
             v
+        })
+    }
+
+    pub fn call_func(callable: Value, args: Vec<Value>, expr_id: Option<ExprId>) -> Value {
+        INTERPRETER_CONTEXT.with(|i| {
+            let b = i.borrow();
+            let i = b.as_ref().expect("Interpreter not set");
+            return i.call(callable, args, expr_id);
         })
     }
 
@@ -995,6 +1004,7 @@ impl Interpreter {
         std_util_basic::register_extern_functions(&mut interpreter);
         std_util::register_extern_functions(&mut interpreter);
         std_ops::register_extern_functions(&mut interpreter);
+        iterator::register_extern_functions(&mut interpreter);
         interpreter.build_typedefid_cache();
         INTERPRETER_CONTEXT.with(|c| {
             let mut p = c.borrow_mut();

@@ -13,3 +13,6 @@ get m k = extern
 
 remove k v :: (Ord k) => Map k v -> k -> (Map k v, Option v)
 remove m k = extern
+
+iter k v :: Map k v -> Iterator (k, v)
+iter m = extern

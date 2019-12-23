@@ -9,16 +9,9 @@ use crate::error::ParseError;
 use crate::token::Token;
 use crate::token::TokenInfo;
 use crate::token::TokenKind;
+use siko_constants::get_implicit_module_list;
 use siko_constants::get_qualified_list_type_name;
 use siko_constants::BuiltinOperator;
-use siko_constants::BOOL_MODULE_NAME;
-use siko_constants::FLOAT_MODULE_NAME;
-use siko_constants::INT_MODULE_NAME;
-use siko_constants::LIST_MODULE_NAME;
-use siko_constants::OPTION_MODULE_NAME;
-use siko_constants::ORDERING_MODULE_NAME;
-use siko_constants::RESULT_MODULE_NAME;
-use siko_constants::STRING_MODULE_NAME;
 use siko_location_info::filepath::FilePath;
 use siko_location_info::item::Item;
 use siko_location_info::item::ItemInfo;
@@ -1277,18 +1270,7 @@ impl<'a> Parser<'a> {
             self.program.modules.add_item(m_id, module);
         }
 
-        let implicit_modules = vec![
-            INT_MODULE_NAME,
-            FLOAT_MODULE_NAME,
-            STRING_MODULE_NAME,
-            BOOL_MODULE_NAME,
-            ORDERING_MODULE_NAME,
-            OPTION_MODULE_NAME,
-            RESULT_MODULE_NAME,
-            LIST_MODULE_NAME,
-            "Std.Util.Basic",
-            "Std.Ops",
-        ];
+        let implicit_modules = get_implicit_module_list();
         for implicit_module in implicit_modules {
             let mut modules_without_implicit_module = Vec::new();
             for (module_id, module) in &self.program.modules.items {

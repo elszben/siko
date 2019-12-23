@@ -1,4 +1,16 @@
 module Main where
 
+import Map
+
+moo x = x * 2 
+
 main = do
-    println [5, 5]
+    numbers <- [5, 5]
+    numbers |> List.iter
+            |> forEach \x -> println "-> {}" % x
+    numbers2 <- numbers |> List.iter |> toList
+    double <- numbers |> List.iter
+            |> map moo
+            |> toList
+    println numbers2
+    println double

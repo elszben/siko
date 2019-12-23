@@ -84,6 +84,8 @@ pub enum ValueCore {
     Record(TypeDefId, Vec<Value>),
     List(Vec<Value>),
     Map(BTreeMap<Value, Value>),
+    Iterator(Box<Value>),
+    IteratorMap(Box<Value>, Box<Value>),
 }
 
 impl ValueCore {
@@ -192,6 +194,24 @@ impl ValueCore {
             _ => unimplemented!(),
         }
     }
+
+    pub fn as_iterator(&self) -> Box<dyn Iterator<Item = Value>> {
+        match self {
+            ValueCore::Iterator(v) => match v.core.clone() {
+                ValueCore::List(v) => Box::new(v.into_iter()),
+                //ValueCore::Map(v) => Box::new(v.into_iter()),
+                _ => unreachable!(),
+            },
+            ValueCore::IteratorMap(v, func) => {
+                let func = *func.clone();
+                let iterator = v.core.as_iterator();
+                let iterator =
+                    iterator.map(move |x| Interpreter::call_func(func.clone(), vec![x], None));
+                Box::new(iterator)
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl fmt::Display for ValueCore {
@@ -224,6 +244,8 @@ impl fmt::Display for ValueCore {
                     .collect();
                 write!(f, "{{{}}}", ss.join(", "))
             }
+            ValueCore::Iterator(v) => write!(f, "Iterator({})", v.core),
+            ValueCore::IteratorMap(v, func) => write!(f, "IteratorMap({}, {})", v.core, func.core),
         }
     }
 }
