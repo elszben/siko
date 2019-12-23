@@ -94,12 +94,13 @@ fn main() {
     let (config, inputs, success) = process_args(args);
 
     if !success {
-        return;
+        std::process::exit(1);
     }
 
     let mut compiler = Compiler::new(config);
 
     if let Err(e) = compiler.compile(inputs) {
         compiler.report_error(e);
+        std::process::exit(1);
     }
 }
