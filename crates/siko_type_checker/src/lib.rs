@@ -1,3 +1,4 @@
+pub mod class_constraint_checker;
 pub mod common;
 pub mod error;
 pub mod expression_checker;

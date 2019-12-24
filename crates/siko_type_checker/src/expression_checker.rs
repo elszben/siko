@@ -1,6 +1,5 @@
 use crate::common::AdtTypeInfo;
 use crate::error::TypecheckError;
-use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use siko_ir::expr::Expr;
@@ -20,7 +19,6 @@ pub struct ExpressionChecker<'a> {
     group: &'a DependencyGroup<FunctionId>,
     type_store: &'a mut TypeStore,
     type_info_provider: &'a mut TypeInfoProvider,
-    instance_resolver: &'a mut InstanceResolver,
     errors: &'a mut Vec<TypecheckError>,
     disambiguations: Vec<(ExprId, usize)>,
 }
@@ -31,7 +29,6 @@ impl<'a> ExpressionChecker<'a> {
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a mut InstanceResolver,
         errors: &'a mut Vec<TypecheckError>,
     ) -> ExpressionChecker<'a> {
         ExpressionChecker {
@@ -39,7 +36,6 @@ impl<'a> ExpressionChecker<'a> {
             group: group,
             type_store: type_store,
             type_info_provider: type_info_provider,
-            instance_resolver: instance_resolver,
             errors: errors,
             disambiguations: Vec::new(),
         }
@@ -47,25 +43,7 @@ impl<'a> ExpressionChecker<'a> {
 
     fn unify(&mut self, ty1: &Type, ty2: &Type, location: LocationId) {
         let mut unifier = Unifier::new(self.type_info_provider.type_var_generator.clone());
-        let mut failed = false;
-        if unifier.unify(ty1, ty2).is_ok() {
-            let constraints = unifier.get_constraints();
-            for constraint in &constraints {
-                let mut unifiers = Vec::new();
-                if !self.instance_resolver.check_instance(
-                    constraint.class_id,
-                    &constraint.ty,
-                    location,
-                    &mut unifiers,
-                ) {
-                    failed = true;
-                    break;
-                }
-            }
-        } else {
-            failed = true;
-        }
-        if failed {
+        if !unifier.unify(ty1, ty2).is_ok() {
             let ty_str1 = ty1.get_resolved_type_string(self.program);
             let ty_str2 = ty2.get_resolved_type_string(self.program);
             let err = TypecheckError::TypeMismatch(location, ty_str1, ty_str2);
@@ -171,6 +149,8 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 self.check_function_call(expr_id, args);
             }
             Expr::DynamicFunctionCall(func_expr_id, args) => {
+                self.type_store
+                    .remove_fixed_types_from_expr_type(&func_expr_id);
                 let func_type_info = self.type_store.get_func_type_for_expr(&expr_id).clone();
                 self.match_expr_with(*func_expr_id, &func_type_info.function_type);
                 self.check_function_call(expr_id, args);

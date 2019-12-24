@@ -170,6 +170,23 @@ impl TypeStore {
         }
     }
 
+    pub fn remove_fixed_types_from_expr_type(&mut self, expr_id: &ExprId) {
+        match self
+            .expr_types
+            .get_mut(expr_id)
+            .expect("Expr type not found")
+        {
+            ExpressionTypeState::ExprType(ty) => {
+                *ty = ty.remove_fixed_types();
+            }
+            ExpressionTypeState::FunctionCall(func_ty_info, ty) => {
+                *func_ty_info = func_ty_info.remove_fixed_types();
+                *ty = ty.remove_fixed_types();
+            }
+            ExpressionTypeState::RecordInitialization(..) => unreachable!(),
+        }
+    }
+
     pub fn get_record_type_info_for_expr(&self, expr_id: &ExprId) -> &RecordTypeInfo {
         match self.expr_types.get(expr_id).expect("Expr type not found") {
             ExpressionTypeState::ExprType(_) => unreachable!(),

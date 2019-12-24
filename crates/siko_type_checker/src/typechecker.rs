@@ -1,3 +1,4 @@
+use crate::class_constraint_checker::ClassConstraintChecker;
 use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::DeriveInfo;
@@ -580,7 +581,6 @@ impl Typechecker {
         group: &'a DependencyGroup<FunctionId>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a mut InstanceResolver,
         program: &'a mut Program,
     ) {
         //let func = program.functions.get(function_id);
@@ -588,28 +588,54 @@ impl Typechecker {
         let function_type_info = type_info_provider.function_type_info_store.get(function_id);
         let result_ty = function_type_info.result.clone();
         let body = function_type_info.body.expect("body not found");
-        let mut checker = ExpressionChecker::new(
-            program,
-            group,
-            type_store,
-            type_info_provider,
-            instance_resolver,
-            errors,
-        );
+        let mut checker =
+            ExpressionChecker::new(program, group, type_store, type_info_provider, errors);
         walk_expr(&body, &mut checker);
         checker.match_expr_with(body, &result_ty);
         let disambiguations = checker.get_disambiguations();
+        for (expr_id, selected_index) in disambiguations {
+            program.disambiguate_expr(expr_id, selected_index);
+        }
+    }
+
+    fn check_undefined_vars<'a>(
+        &self,
+        function_id: &FunctionId,
+        errors: &'a mut Vec<TypecheckError>,
+        type_store: &'a mut TypeStore,
+        type_info_provider: &'a mut TypeInfoProvider,
+        program: &'a mut Program,
+    ) {
         let function_type_info = type_info_provider.function_type_info_store.get(function_id);
         let mut func_args = Vec::new();
         function_type_info
             .function_type
             .collect_type_args(&mut func_args, program);
-        for (expr_id, selected_index) in disambiguations {
-            program.disambiguate_expr(expr_id, selected_index);
-        }
         let mut undef_var_checker =
             UndefinedVarChecker::new(program, type_store, errors, func_args);
+        let body = function_type_info.body.expect("body not found");
         walk_expr(&body, &mut undef_var_checker);
+    }
+
+    fn check_class_constraints<'a>(
+        &self,
+        function_id: &FunctionId,
+        errors: &'a mut Vec<TypecheckError>,
+        type_store: &'a mut TypeStore,
+        type_info_provider: &'a mut TypeInfoProvider,
+        program: &'a mut Program,
+        instance_resolver: &'a mut InstanceResolver,
+    ) {
+        let function_type_info = type_info_provider.function_type_info_store.get(function_id);
+        let body = function_type_info.body.expect("body not found");
+        let mut class_constraint_checker = ClassConstraintChecker::new(
+            program,
+            type_store,
+            errors,
+            type_info_provider,
+            instance_resolver,
+        );
+        walk_expr(&body, &mut class_constraint_checker);
     }
 
     fn process_dep_group<'a, 'b>(
@@ -639,8 +665,26 @@ impl Typechecker {
                 group,
                 type_store,
                 type_info_provider,
-                instance_resolver,
                 program,
+            );
+        }
+
+        for function in &group.items {
+            self.check_undefined_vars(function, errors, type_store, type_info_provider, program);
+        }
+
+        if !errors.is_empty() {
+            return;
+        }
+
+        for function in &group.items {
+            self.check_class_constraints(
+                function,
+                errors,
+                type_store,
+                type_info_provider,
+                program,
+                instance_resolver,
             );
         }
     }

@@ -11,3 +11,7 @@ main = do
             |> map twice
             |> toList
     assert (double == [10, 10])
+    double <- numbers |> List.iter
+            |> map (\x -> x * 2)
+            |> toList
+    assert (double == [10, 10])

@@ -57,21 +57,29 @@ impl Unifier {
                     return Err(Error::Fail);
                 }
             }
-            (Type::FixedTypeArg(_, _, constraints1), Type::Var(index2, constraints2)) => {
-                for c in constraints2 {
-                    if !constraints1.contains(c) {
-                        return Err(Error::Fail);
+            (Type::FixedTypeArg(_, index1, constraints1), Type::Var(index2, constraints2)) => {
+                if index1 == index2 {
+                    Ok(())
+                } else {
+                    for c in constraints2 {
+                        if !constraints1.contains(c) {
+                            return Err(Error::Fail);
+                        }
                     }
+                    return self.substitution.add(*index2, &type1);
                 }
-                return self.substitution.add(*index2, &type1);
             }
-            (Type::Var(index1, constraints1), Type::FixedTypeArg(_, _, constraints2)) => {
-                for c in constraints1 {
-                    if !constraints2.contains(c) {
-                        return Err(Error::Fail);
+            (Type::Var(index1, constraints1), Type::FixedTypeArg(_, index2, constraints2)) => {
+                if index1 == index2 {
+                    Ok(())
+                } else {
+                    for c in constraints1 {
+                        if !constraints2.contains(c) {
+                            return Err(Error::Fail);
+                        }
                     }
+                    return self.substitution.add(*index1, &type2);
                 }
-                return self.substitution.add(*index1, &type2);
             }
             (Type::Var(index, constraints), type2) => {
                 for c in constraints {
