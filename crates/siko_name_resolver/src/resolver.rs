@@ -8,6 +8,7 @@ use crate::item::DataMember;
 use crate::item::Item;
 use crate::item::RecordField;
 use crate::item::Variant;
+use crate::lambda_arg_shifter::LambdaArgShifter;
 use crate::lambda_helper::LambdaHelper;
 use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
@@ -39,6 +40,7 @@ use siko_ir::program::Program as IrProgram;
 use siko_ir::type_signature::TypeSignature;
 use siko_ir::type_signature::TypeSignatureId;
 use siko_ir::type_var_generator::TypeVarGenerator;
+use siko_ir::walker::walk_expr;
 use siko_location_info::location_id::LocationId;
 use siko_syntax::class::ClassId as AstClassId;
 use siko_syntax::class::Instance as AstInstance;
@@ -174,14 +176,15 @@ impl Resolver {
                 let record_ctor_info = RecordConstructorInfo {
                     type_id: ir_typedef_id,
                 };
+                let arg_locations: Vec<_> = record
+                    .fields
+                    .iter()
+                    .map(|field_id| program.record_fields.get(field_id).location_id)
+                    .collect();
                 let ir_ctor_function = IrFunction {
                     id: ir_ctor_id,
-                    arg_locations: record
-                        .fields
-                        .iter()
-                        .map(|field_id| program.record_fields.get(field_id).location_id)
-                        .collect(),
-                    implicit_arg_count: 0,
+                    arg_count: arg_locations.len(),
+                    arg_locations: arg_locations,
                     info: FunctionInfo::RecordConstructor(record_ctor_info),
                 };
                 ir_program.functions.add_item(ir_ctor_id, ir_ctor_function);
@@ -471,10 +474,12 @@ impl Resolver {
             kind: kind,
         };
 
+        let arg_locations: Vec<_> = function.args.iter().map(|arg| arg.1).collect();
+
         let ir_function = IrFunction {
             id: ir_function_id,
-            arg_locations: function.args.iter().map(|arg| arg.1).collect(),
-            implicit_arg_count: 0,
+            arg_count: arg_locations.len(),
+            arg_locations: arg_locations,
             info: FunctionInfo::NamedFunction(named_info),
         };
         ir_program.functions.add_item(ir_function_id, ir_function);
@@ -549,18 +554,19 @@ impl Resolver {
                         type_id: ir_typedef_id,
                         index: index,
                     };
+                    let arg_locations: Vec<_> = items
+                        .iter()
+                        .map(|item| {
+                            ir_program
+                                .type_signatures
+                                .get(&item.type_signature_id)
+                                .location_id
+                        })
+                        .collect();
                     let ir_ctor_function = IrFunction {
                         id: ir_ctor_id,
-                        arg_locations: items
-                            .iter()
-                            .map(|item| {
-                                ir_program
-                                    .type_signatures
-                                    .get(&item.type_signature_id)
-                                    .location_id
-                            })
-                            .collect(),
-                        implicit_arg_count: 0,
+                        arg_count: arg_locations.len(),
+                        arg_locations: arg_locations,
                         info: FunctionInfo::VariantConstructor(variant_ctor_info),
                     };
                     ir_program.functions.add_item(ir_ctor_id, ir_ctor_function);
@@ -1265,6 +1271,23 @@ impl Resolver {
                 }
             }
             ir_program.named_types = named_types;
+        }
+
+        let mut lambdas = Vec::new();
+
+        for (_, function) in ir_program.functions.items.iter() {
+            match &function.info {
+                FunctionInfo::Lambda(info) => {
+                    let capture_count = function.arg_count - function.arg_locations.len();
+                    lambdas.push((info.body, capture_count));
+                }
+                _ => {}
+            }
+        }
+
+        for (body, capture_count) in lambdas {
+            let mut shifter = LambdaArgShifter::new(&mut ir_program, capture_count);
+            walk_expr(&body, &mut shifter);
         }
 
         Ok(ir_program)

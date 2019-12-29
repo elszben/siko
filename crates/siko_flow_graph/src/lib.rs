@@ -320,15 +320,11 @@ fn process_function(
         let mut cfg = ControlFlowGraph::new(cfg_name);
         let mut dfg = DataflowGraph::new(dfg_name);
         let mut args = Vec::new();
-        for index in 0..(function.arg_locations.len() + function.implicit_arg_count) {
+        for index in 0..function.arg_count {
             let value_id = dfg.create_value(ValueSource::Arg(index));
             args.push(value_id);
         }
-        let mut environment = Environment::new(
-            CallableKind::FunctionId(function_id),
-            args,
-            function.implicit_arg_count,
-        );
+        let mut environment = Environment::new(CallableKind::FunctionId(function_id), args);
         process_block(
             body,
             program,

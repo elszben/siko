@@ -1,7 +1,6 @@
 use crate::data::TypeDefId;
 use crate::expr::ExprId;
 use crate::type_signature::TypeSignatureId;
-use siko_location_info::location_id::LocationId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -33,12 +32,6 @@ pub enum Pattern {
     FloatLiteral(f64),
     StringLiteral(String),
     Typed(PatternId, TypeSignatureId),
-}
-
-#[derive(Debug, Clone)]
-pub struct PatternInfo {
-    pub pattern: Pattern,
-    pub location_id: LocationId,
 }
 
 #[derive(Debug, Clone)]

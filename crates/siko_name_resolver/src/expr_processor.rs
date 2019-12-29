@@ -497,10 +497,12 @@ pub fn process_expr(
 
             let captures = local_lambda_helper.captures();
 
+            let arg_locations: Vec<_> = args.iter().map(|arg| arg.1).collect();
+
             let ir_function = IrFunction {
                 id: ir_lambda_id,
-                arg_locations: args.iter().map(|arg| arg.1).collect(),
-                implicit_arg_count: captures.len(),
+                arg_count: arg_locations.len() + captures.len(),
+                arg_locations: arg_locations,
                 info: FunctionInfo::Lambda(lambda_info),
             };
             ir_program.functions.add_item(ir_lambda_id, ir_function);

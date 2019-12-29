@@ -6,6 +6,7 @@ pub mod expr_processor;
 pub mod import;
 pub mod import_processor;
 pub mod item;
+pub mod lambda_arg_shifter;
 pub mod lambda_helper;
 pub mod module;
 pub mod resolver;

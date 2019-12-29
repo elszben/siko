@@ -113,17 +113,11 @@ impl<'a> Visitor for ExpressionChecker<'a> {
         //println!("C {} {}", expr_id, expr);
         match expr {
             Expr::ArgRef(arg_ref) => {
-                let func = self.program.functions.get(&arg_ref.id);
-                let index = if arg_ref.captured {
-                    arg_ref.index
-                } else {
-                    func.implicit_arg_count + arg_ref.index
-                };
                 let func_type_info = self
                     .type_info_provider
                     .function_type_info_store
                     .get(&arg_ref.id);
-                let arg_ty = func_type_info.args[index].clone();
+                let arg_ty = func_type_info.args[arg_ref.index].clone();
                 self.match_expr_with(expr_id, &arg_ty);
             }
             Expr::Bind(pattern_id, rhs) => {

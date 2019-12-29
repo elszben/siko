@@ -351,12 +351,8 @@ impl Typechecker {
         type_var_generator: &mut TypeVarGenerator,
     ) -> FunctionTypeInfo {
         let mut args = Vec::new();
-
-        let (func_type, result_type) = create_general_function_type(
-            &mut args,
-            function.arg_locations.len() + function.implicit_arg_count,
-            type_var_generator,
-        );
+        let (func_type, result_type) =
+            create_general_function_type(&mut args, function.arg_count, type_var_generator);
         let function_type_info = FunctionTypeInfo {
             displayed_name: name,
             args: args,

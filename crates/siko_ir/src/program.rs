@@ -9,6 +9,7 @@ use crate::data::TypeDef;
 use crate::data::TypeDefId;
 use crate::expr::Expr;
 use crate::expr::ExprId;
+use crate::expr::FunctionArgumentRef;
 use crate::function::Function;
 use crate::function::FunctionId;
 use crate::function::FunctionInfo;
@@ -205,5 +206,20 @@ impl Program {
             }
             _ => {}
         }
+    }
+
+    pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
+        self.expr_types.get(expr_id).expect("Expr type not found")
+    }
+
+    pub fn get_function_type(&self, function_id: &FunctionId) -> &Type {
+        self.function_types
+            .get(function_id)
+            .expect("Function type not found")
+    }
+
+    pub fn update_arg_ref(&mut self, expr_id: &ExprId, arg_ref: FunctionArgumentRef) {
+        let expr = &mut self.exprs.get_mut(&expr_id).item;
+        *expr = Expr::ArgRef(arg_ref);
     }
 }

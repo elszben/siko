@@ -95,18 +95,16 @@ impl Interpreter {
                 let mut callable_func_ty = callable_value.ty;
                 callable.values.extend(args);
                 loop {
-                    let (needed_arg_count, implicit_arg_count) = match &callable.kind {
+                    let needed_arg_count = match &callable.kind {
                         CallableKind::Builtin(builtin) => match builtin {
-                            BuiltinCallable::Show => (1, 0),
-                            BuiltinCallable::PartialEq => (2, 0),
-                            BuiltinCallable::PartialOrd => (2, 0),
-                            BuiltinCallable::Ord => (2, 0),
+                            BuiltinCallable::Show => 1,
+                            BuiltinCallable::PartialEq => 2,
+                            BuiltinCallable::PartialOrd => 2,
+                            BuiltinCallable::Ord => 2,
                         },
                         CallableKind::FunctionId(function_id) => {
-                            let func_info = self.program.functions.get(function_id);
-                            let needed_arg_count =
-                                func_info.arg_locations.len() + func_info.implicit_arg_count;
-                            (needed_arg_count, func_info.implicit_arg_count)
+                            let func = self.program.functions.get(function_id);
+                            func.arg_count
                         }
                     };
                     if needed_arg_count > callable.values.len() {
@@ -116,8 +114,7 @@ impl Interpreter {
                         let mut call_args = Vec::new();
                         std::mem::swap(&mut call_args, &mut callable.values);
                         let arg_count = call_args.len();
-                        let mut environment =
-                            Environment::new(callable.kind, call_args, implicit_arg_count);
+                        let mut environment = Environment::new(callable.kind, call_args);
                         callable_func_ty = callable_func_ty.get_result_type(arg_count);
                         let result = match &callable.kind {
                             CallableKind::Builtin(builtin) => self.execute_builtin(
@@ -520,12 +517,7 @@ impl Interpreter {
     ) -> Value {
         let expr = &self.program.exprs.get(&expr_id).item;
         //println!("Eval {} {}", expr_id, expr);
-        let expr_ty = self
-            .program
-            .expr_types
-            .get(&expr_id)
-            .expect("Untyped expr")
-            .clone();
+        let expr_ty = self.program.get_expr_type(&expr_id).clone();
         let expr_ty = unifier.apply(&expr_ty);
         match expr {
             Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty),
@@ -537,9 +529,7 @@ impl Interpreter {
             Expr::StaticFunctionCall(function_id, args) => {
                 let func_ty = self
                     .program
-                    .function_types
-                    .get(function_id)
-                    .expect("untyped func")
+                    .get_function_type(function_id)
                     .remove_fixed_types();
                 let arg_values: Vec<_> = args
                     .iter()
@@ -973,7 +963,7 @@ impl Interpreter {
 
     fn execute_main(interpreter: &Interpreter) -> Value {
         let main_id = interpreter.program.get_main().expect("Main does not exist");
-        let mut environment = Environment::new(CallableKind::FunctionId(main_id), vec![], 0);
+        let mut environment = Environment::new(CallableKind::FunctionId(main_id), vec![]);
         let unifier = interpreter.program.get_unifier();
         return interpreter.execute(
             main_id,
