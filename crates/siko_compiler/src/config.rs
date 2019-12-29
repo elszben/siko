@@ -1,6 +1,7 @@
 pub struct Config {
     pub measure_durations: bool,
     pub visualize: bool,
+    pub compile: bool,
 }
 
 impl Config {
@@ -8,6 +9,7 @@ impl Config {
         Config {
             measure_durations: false,
             visualize: false,
+            compile: false,
         }
     }
 }

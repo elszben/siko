@@ -44,6 +44,9 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     let mut file_given = false;
     for (index, arg) in args.iter().enumerate() {
         match arg.as_ref() {
+            "-c" => {
+                config.compile = true;
+            }
             "-m" => {
                 config.measure_durations = true;
             }
@@ -60,6 +63,7 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
             }
             "-h" => {
                 println!("arguments: <filename>+|<options>");
+                println!("-c compile");
                 println!("-m measure durations");
                 println!("-i visualize");
                 println!("-s <path> path to std");

@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::Error;
+use siko_backend::backend::Backend;
 use siko_interpreter::interpreter::Interpreter;
 use siko_location_info::error_context::ErrorContext;
 use siko_location_info::file_manager::FileManager;
@@ -116,7 +117,11 @@ impl Compiler {
             siko_flow_graph::process_functions(&ir_program);
         }
 
-        Interpreter::run(ir_program, self.context());
+        if self.config.compile {
+            let mir_program = Backend::compile(&ir_program);
+        } else {
+            Interpreter::run(ir_program, self.context());
+        }
 
         //println!("Result {}", value);
         Ok(())

@@ -14,7 +14,7 @@ pub enum Error {
     RecursiveType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Substitution {
     var_map: BTreeMap<usize, Type>,
     constraints: BTreeMap<ClassId, Vec<Type>>,

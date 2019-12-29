@@ -9,7 +9,7 @@ use std::time::Instant;
 pub mod dependency_processor;
 pub mod dot;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RcCounter {
     c: Rc<RefCell<Counter>>,
 }
@@ -27,7 +27,7 @@ impl RcCounter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Counter {
     value: usize,
 }

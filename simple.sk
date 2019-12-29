@@ -2,15 +2,12 @@ module Main where
 
 import Map
 
-moo x = x * 2 
+moo x = do
+        a <- \x -> x + x
+        a 3
 
 main = do
-    numbers <- [5, 5]
-    numbers |> List.iter
-            |> forEach \x -> println "-> {}" % x
-    numbers2 <- numbers |> List.iter |> toList
-    double <- numbers |> List.iter
-            |> map moo
-            |> toList
-    println numbers2
-    println double
+        a <- moo 5
+        b <- moo "a"
+        c <- moo 3
+        print "a: {}" % a
