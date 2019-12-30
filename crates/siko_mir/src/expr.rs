@@ -19,14 +19,22 @@ impl From<usize> for ExprId {
     }
 }
 
+pub struct Case {
+    pub pattern_id: PatternId,
+    pub body: ExprId,
+}
+
 pub enum Expr {
     ArgRef(usize),
     Bind(PatternId, ExprId),
+    CaseOf(ExprId, Vec<Case>),
     Do(Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
     ExprValue(ExprId, PatternId),
+    FieldAccess(usize, ExprId),
     FloatLiteral(f64),
     Formatter(String, Vec<ExprId>),
+    If(ExprId, ExprId, ExprId),
     IntegerLiteral(i64),
     List(Vec<ExprId>),
     StaticFunctionCall(FunctionId, Vec<ExprId>),

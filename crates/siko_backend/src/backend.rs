@@ -10,13 +10,13 @@ use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type as IrType;
 use siko_ir::unifier::Unifier;
-use siko_location_info::item::ItemInfo;
 use siko_mir::data::Adt as MirAdt;
 use siko_mir::data::Record as MirRecord;
 use siko_mir::data::RecordField as MirRecordField;
 use siko_mir::data::TypeDef as MirTypeDef;
 use siko_mir::data::TypeDefId as MirTypeDefId;
 use siko_mir::data::Variant as MirVariant;
+use siko_mir::expr::Case as MirCase;
 use siko_mir::expr::Expr as MirExpr;
 use siko_mir::expr::ExprId as MirExprId;
 use siko_mir::function::Function as MirFunction;
@@ -435,6 +435,42 @@ fn process_expr(
             );
             MirExpr::Bind(mir_pattern_id, mir_rhs)
         }
+        IrExpr::CaseOf(body, cases, _) => {
+            let mir_body = process_expr(
+                body,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            let cases: Vec<_> = cases
+                .iter()
+                .map(|case| {
+                    let mir_case_body = process_expr(
+                        &case.body,
+                        ir_program,
+                        mir_program,
+                        unifier,
+                        function_queue,
+                        typedef_store,
+                    );
+                    let mir_case_pattern = process_pattern(
+                        &case.pattern_id,
+                        ir_program,
+                        mir_program,
+                        unifier,
+                        function_queue,
+                        typedef_store,
+                    );
+                    MirCase {
+                        body: mir_case_body,
+                        pattern_id: mir_case_pattern,
+                    }
+                })
+                .collect();
+            MirExpr::CaseOf(mir_body, cases)
+        }
         IrExpr::ClassFunctionCall(class_member_id, args) => {
             let mir_args: Vec<_> = args
                 .iter()
@@ -521,6 +557,19 @@ fn process_expr(
             );
             MirExpr::ExprValue(mir_expr_id, mir_pattern_id)
         }
+        IrExpr::FieldAccess(infos, receiver_expr_id) => {
+            assert_eq!(infos.len(), 1);
+            let mir_receiver_expr_id = process_expr(
+                receiver_expr_id,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            MirExpr::FieldAccess(infos[0].index, mir_receiver_expr_id)
+        }
+        IrExpr::FloatLiteral(v) => MirExpr::FloatLiteral(*v),
         IrExpr::Formatter(fmt, args) => {
             let mir_args: Vec<_> = args
                 .iter()
@@ -536,6 +585,33 @@ fn process_expr(
                 })
                 .collect();
             MirExpr::Formatter(fmt.clone(), mir_args)
+        }
+        IrExpr::If(cond, true_branch, false_branch) => {
+            let mir_cond = process_expr(
+                cond,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            let mir_true_branch = process_expr(
+                true_branch,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            let mir_false_branch = process_expr(
+                false_branch,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            MirExpr::If(mir_cond, mir_true_branch, mir_false_branch)
         }
         IrExpr::IntegerLiteral(value) => MirExpr::IntegerLiteral(*value),
         IrExpr::List(items) => {
@@ -554,6 +630,8 @@ fn process_expr(
                 .collect();
             MirExpr::List(mir_items)
         }
+        IrExpr::RecordInitialization(..) => unimplemented!(),
+        IrExpr::RecordUpdate(..) => unimplemented!(),
         IrExpr::StaticFunctionCall(func_id, args) => {
             let function_type = ir_program.get_function_type(func_id).remove_fixed_types();
             let mut arg_types: Vec<_> = args
@@ -599,8 +677,16 @@ fn process_expr(
                 .collect();
             MirExpr::Tuple(mir_items)
         }
-        _ => {
-            panic!("Compiling expr {} is not yet implemented", expr);
+        IrExpr::TupleFieldAccess(index, receiver_expr_id) => {
+            let mir_receiver_expr_id = process_expr(
+                receiver_expr_id,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            MirExpr::FieldAccess(*index, mir_receiver_expr_id)
         }
     };
     return mir_program.add_expr(mir_expr, item_info.location_id, mir_expr_ty);
