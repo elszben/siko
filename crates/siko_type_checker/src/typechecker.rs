@@ -796,7 +796,7 @@ impl Typechecker {
                 program,
             );
             //type_store.dump(program);
-            type_store.save_expr_types(program);
+            type_store.save_expr_and_pattern_types(program);
         }
 
         if !errors.is_empty() {

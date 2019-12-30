@@ -259,9 +259,51 @@ fn process_pattern(
     typedef_store: &mut TypeDefStore,
 ) -> MirPatternId {
     let item_info = &ir_program.patterns.get(ir_pattern_id);
+    let mut ir_pattern_ty = ir_program.get_pattern_type(ir_pattern_id).clone();
+    ir_pattern_ty.apply(unifier);
+    let mir_pattern_ty = process_type(&ir_pattern_ty, typedef_store, ir_program, mir_program);
     let pattern = &item_info.item;
     let mir_pattern = match pattern {
         IrPattern::Binding(name) => MirPattern::Binding(name.clone()),
+        IrPattern::FloatLiteral(v) => MirPattern::FloatLiteral(v.clone()),
+        IrPattern::Guarded(sub, guard_expr) => {
+            let mir_sub = process_pattern(
+                sub,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            let mir_guard_expr = process_expr(
+                guard_expr,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            MirPattern::Guarded(mir_sub, mir_guard_expr)
+        }
+        IrPattern::IntegerLiteral(v) => MirPattern::IntegerLiteral(v.clone()),
+        IrPattern::Record(_, items) => {
+            let mir_typedef_id = typedef_store.add_type(ir_pattern_ty, ir_program, mir_program);
+            let mir_items: Vec<_> = items
+                .iter()
+                .map(|item| {
+                    process_pattern(
+                        item,
+                        ir_program,
+                        mir_program,
+                        unifier,
+                        function_queue,
+                        typedef_store,
+                    )
+                })
+                .collect();
+            MirPattern::Record(mir_typedef_id, mir_items)
+        }
+        IrPattern::StringLiteral(v) => MirPattern::StringLiteral(v.clone()),
         IrPattern::Tuple(items) => {
             let mir_items: Vec<_> = items
                 .iter()
@@ -278,19 +320,36 @@ fn process_pattern(
                 .collect();
             MirPattern::Tuple(mir_items)
         }
-        _ => {
-            panic!("Compiling pattern {:?} is not yet implemented", pattern);
+        IrPattern::Typed(sub, _) => {
+            return process_pattern(
+                sub,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
         }
+        IrPattern::Variant(_, index, items) => {
+            let mir_typedef_id = typedef_store.add_type(ir_pattern_ty, ir_program, mir_program);
+            let mir_items: Vec<_> = items
+                .iter()
+                .map(|item| {
+                    process_pattern(
+                        item,
+                        ir_program,
+                        mir_program,
+                        unifier,
+                        function_queue,
+                        typedef_store,
+                    )
+                })
+                .collect();
+            MirPattern::Variant(mir_typedef_id, *index, mir_items)
+        }
+        IrPattern::Wildcard => MirPattern::Wildcard,
     };
-    let mir_pattern_info = ItemInfo {
-        item: mir_pattern,
-        location_id: item_info.location_id,
-    };
-    let mir_pattern_id = mir_program.patterns.get_id();
-    mir_program
-        .patterns
-        .add_item(mir_pattern_id, mir_pattern_info);
-    mir_pattern_id
+    return mir_program.add_pattern(mir_pattern, item_info.location_id, mir_pattern_ty);
 }
 
 fn process_class_member_call(

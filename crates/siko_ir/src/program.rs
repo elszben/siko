@@ -58,6 +58,7 @@ pub struct Program {
     pub instances: ItemContainer<InstanceId, Instance>,
     pub instance_resolution_cache: Rc<RefCell<InstanceResolutionCache>>,
     pub expr_types: BTreeMap<ExprId, Type>,
+    pub pattern_types: BTreeMap<PatternId, Type>,
     pub function_types: BTreeMap<FunctionId, Type>,
     pub class_names: BTreeMap<String, ClassId>,
     pub class_member_types: BTreeMap<ClassMemberId, (Type, Type)>,
@@ -81,6 +82,7 @@ impl Program {
             instances: ItemContainer::new(),
             instance_resolution_cache: Rc::new(RefCell::new(InstanceResolutionCache::new())),
             expr_types: BTreeMap::new(),
+            pattern_types: BTreeMap::new(),
             function_types: BTreeMap::new(),
             class_names: BTreeMap::new(),
             class_member_types: BTreeMap::new(),
@@ -215,6 +217,12 @@ impl Program {
 
     pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
         self.expr_types.get(expr_id).expect("Expr type not found")
+    }
+
+    pub fn get_pattern_type(&self, pattern_id: &PatternId) -> &Type {
+        self.pattern_types
+            .get(pattern_id)
+            .expect("Pattern type not found")
     }
 
     pub fn get_function_type(&self, function_id: &FunctionId) -> &Type {

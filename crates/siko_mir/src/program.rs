@@ -16,6 +16,7 @@ pub struct Program {
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
     pub expr_types: BTreeMap<ExprId, Type>,
     pub patterns: ItemContainer<PatternId, ItemInfo<Pattern>>,
+    pub pattern_types: BTreeMap<PatternId, Type>,
     pub functions: ItemContainer<FunctionId, Function>,
     pub typedefs: ItemContainer<TypeDefId, TypeDef>,
 }
@@ -26,6 +27,7 @@ impl Program {
             exprs: ItemContainer::new(),
             expr_types: BTreeMap::new(),
             patterns: ItemContainer::new(),
+            pattern_types: BTreeMap::new(),
             functions: ItemContainer::new(),
             typedefs: ItemContainer::new(),
         }
@@ -40,5 +42,21 @@ impl Program {
         self.exprs.add_item(expr_id, expr_info);
         self.expr_types.insert(expr_id, ty);
         expr_id
+    }
+
+    pub fn add_pattern(
+        &mut self,
+        pattern: Pattern,
+        location_id: LocationId,
+        ty: Type,
+    ) -> PatternId {
+        let pattern_info = ItemInfo {
+            item: pattern,
+            location_id: location_id,
+        };
+        let pattern_id = self.patterns.get_id();
+        self.patterns.add_item(pattern_id, pattern_info);
+        self.pattern_types.insert(pattern_id, ty);
+        pattern_id
     }
 }
