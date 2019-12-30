@@ -37,6 +37,8 @@ pub enum Expr {
     If(ExprId, ExprId, ExprId),
     IntegerLiteral(i64),
     List(Vec<ExprId>),
+    RecordInitialization(Vec<(ExprId, usize)>),
+    RecordUpdate(ExprId, Vec<(ExprId, usize)>),
     StaticFunctionCall(FunctionId, Vec<ExprId>),
     StringLiteral(String),
     Tuple(Vec<ExprId>),

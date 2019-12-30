@@ -630,8 +630,50 @@ fn process_expr(
                 .collect();
             MirExpr::List(mir_items)
         }
-        IrExpr::RecordInitialization(..) => unimplemented!(),
-        IrExpr::RecordUpdate(..) => unimplemented!(),
+        IrExpr::RecordInitialization(_, fields) => {
+            let mir_fields = fields
+                .iter()
+                .map(|field| {
+                    let field_expr = process_expr(
+                        &field.expr_id,
+                        ir_program,
+                        mir_program,
+                        unifier,
+                        function_queue,
+                        typedef_store,
+                    );
+                    (field_expr, field.index)
+                })
+                .collect();
+            MirExpr::RecordInitialization(mir_fields)
+        }
+        IrExpr::RecordUpdate(receiver_expr_id, updates) => {
+            let mir_receiver_expr_id = process_expr(
+                receiver_expr_id,
+                ir_program,
+                mir_program,
+                unifier,
+                function_queue,
+                typedef_store,
+            );
+            assert_eq!(updates.len(), 1);
+            let mir_updates = updates[0]
+                .items
+                .iter()
+                .map(|item| {
+                    let field_expr = process_expr(
+                        &item.expr_id,
+                        ir_program,
+                        mir_program,
+                        unifier,
+                        function_queue,
+                        typedef_store,
+                    );
+                    (field_expr, item.index)
+                })
+                .collect();
+            MirExpr::RecordUpdate(mir_receiver_expr_id, mir_updates)
+        }
         IrExpr::StaticFunctionCall(func_id, args) => {
             let function_type = ir_program.get_function_type(func_id).remove_fixed_types();
             let mut arg_types: Vec<_> = args
