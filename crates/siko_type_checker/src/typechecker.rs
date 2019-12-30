@@ -1,10 +1,6 @@
 use crate::class_constraint_checker::ClassConstraintChecker;
-use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
-use crate::common::DeriveInfo;
 use crate::common::FunctionTypeInfo;
-use crate::common::RecordTypeInfo;
-use crate::common::VariantTypeInfo;
 use crate::error::Error;
 use crate::error::TypecheckError;
 use crate::expression_checker::ExpressionChecker;
@@ -17,6 +13,10 @@ use crate::util::create_general_function_type;
 use crate::util::process_type_signature;
 use siko_ir::class::ClassId;
 use siko_ir::data::TypeDef;
+use siko_ir::data_type_info::AdtTypeInfo;
+use siko_ir::data_type_info::DeriveInfo;
+use siko_ir::data_type_info::RecordTypeInfo;
+use siko_ir::data_type_info::VariantTypeInfo;
 use siko_ir::expr::ExprId;
 use siko_ir::function::Function;
 use siko_ir::function::FunctionId;
@@ -808,6 +808,15 @@ impl Typechecker {
         type_info_provider
             .function_type_info_store
             .save_function_types(program);
+
+        std::mem::swap(
+            &mut program.adt_type_info_map,
+            &mut type_info_provider.adt_type_info_map,
+        );
+        std::mem::swap(
+            &mut program.record_type_info_map,
+            &mut type_info_provider.record_type_info_map,
+        );
 
         Ok(())
     }

@@ -25,6 +25,7 @@ pub struct Record {
     pub fields: Vec<RecordField>,
     pub constructor: FunctionId,
     pub location_id: LocationId,
+    pub external: bool,
     pub derived_classes: Vec<DerivedClass>,
 }
 

@@ -197,6 +197,7 @@ impl Resolver {
                     fields: Vec::new(),
                     constructor: ir_ctor_id,
                     location_id: record.location_id,
+                    external: record.external,
                     derived_classes: Vec::new(),
                 };
 

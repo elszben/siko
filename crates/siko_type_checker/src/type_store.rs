@@ -1,6 +1,6 @@
-use crate::common::AdtTypeInfo;
 use crate::common::FunctionTypeInfo;
-use crate::common::RecordTypeInfo;
+use siko_ir::data_type_info::AdtTypeInfo;
+use siko_ir::data_type_info::RecordTypeInfo;
 use siko_ir::expr::ExprId;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;

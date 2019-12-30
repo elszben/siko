@@ -1,3 +1,4 @@
+use crate::data::TypeDefId;
 use crate::expr::ExprId;
 use crate::types::Type;
 use std::fmt;
@@ -19,8 +20,14 @@ impl From<usize> for FunctionId {
     }
 }
 
+pub enum FunctionInfo {
+    Normal(ExprId),
+    Extern,
+    VariantConstructor(TypeDefId, usize),
+}
+
 pub struct Function {
     pub name: String,
     pub function_type: Type,
-    pub body: Option<ExprId>,
+    pub info: FunctionInfo,
 }

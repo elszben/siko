@@ -13,17 +13,13 @@ pub struct Record {
     pub module: String,
     pub id: TypeDefId,
     pub fields: Vec<RecordField>,
-}
-
-#[derive(Debug, Clone)]
-pub struct VariantItem {
-    pub ty: Type,
+    pub external: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Variant {
     pub name: String,
-    pub items: Vec<VariantItem>,
+    pub items: Vec<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,7 +27,6 @@ pub struct Adt {
     pub name: String,
     pub module: String,
     pub id: TypeDefId,
-    pub type_args: Vec<usize>,
     pub variants: Vec<Variant>,
 }
 

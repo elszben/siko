@@ -1,7 +1,7 @@
-use crate::common::AdtTypeInfo;
 use crate::error::TypecheckError;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
+use siko_ir::data_type_info::AdtTypeInfo;
 use siko_ir::expr::Expr;
 use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;

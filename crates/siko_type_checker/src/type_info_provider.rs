@@ -1,10 +1,10 @@
-use crate::common::AdtTypeInfo;
 use crate::common::ClassMemberTypeInfo;
 use crate::common::FunctionTypeInfo;
 use crate::common::FunctionTypeInfoStore;
-use crate::common::RecordTypeInfo;
 use siko_ir::class::ClassMemberId;
 use siko_ir::data::TypeDefId;
+use siko_ir::data_type_info::AdtTypeInfo;
+use siko_ir::data_type_info::RecordTypeInfo;
 use siko_ir::function::FunctionId;
 use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_ir::types::Type;

@@ -7,6 +7,8 @@ use crate::class::InstanceId;
 use crate::data::Adt;
 use crate::data::TypeDef;
 use crate::data::TypeDefId;
+use crate::data_type_info::AdtTypeInfo;
+use crate::data_type_info::RecordTypeInfo;
 use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::expr::FunctionArgumentRef;
@@ -45,7 +47,6 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-#[derive(Debug)]
 pub struct Program {
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
     pub exprs: ItemContainer<ExprId, ItemInfo<Expr>>,
@@ -63,6 +64,8 @@ pub struct Program {
     pub named_types: BTreeMap<String, BTreeMap<String, TypeDefId>>,
     pub type_var_generator: TypeVarGenerator,
     pub function_dependency_groups: Vec<DependencyGroup<FunctionId>>,
+    pub adt_type_info_map: BTreeMap<TypeDefId, AdtTypeInfo>,
+    pub record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
 }
 
 impl Program {
@@ -84,6 +87,8 @@ impl Program {
             named_types: BTreeMap::new(),
             type_var_generator: type_var_generator,
             function_dependency_groups: Vec::new(),
+            adt_type_info_map: BTreeMap::new(),
+            record_type_info_map: BTreeMap::new(),
         }
     }
 

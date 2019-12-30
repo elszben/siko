@@ -1,5 +1,6 @@
 pub mod class;
 pub mod data;
+pub mod data_type_info;
 pub mod expr;
 pub mod function;
 pub mod function_dep_processor;

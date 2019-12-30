@@ -1,13 +1,20 @@
 module Main where
 
-import Map
+data Color = Red | Blue | Green
 
-moo x = do
-        a <- \x -> x + x
-        a 3
+data Stuff a = Stuff a
+
+data Stuff2 = { name :: String }
+
+data Expr =
+        StringLiteral String |
+        Tuple Expr
+
+moo x = x
 
 main = do
-        a <- moo 5
-        b <- moo "a"
-        c <- moo 3
-        print "a: {}" % a
+        moo Red
+        moo (Stuff Blue)
+        moo (Stuff True)
+        moo (Stuff2 "a")
+        moo (StringLiteral "f")
