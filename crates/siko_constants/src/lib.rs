@@ -61,6 +61,8 @@ pub const STRING_TYPE_NAME: &str = "String";
 pub const LIST_MODULE_NAME: &str = "List";
 pub const LIST_TYPE_NAME: &str = "List";
 pub const ITERATOR_MODULE_NAME: &str = "Iterator";
+pub const TRUE_NAME: &str = "True";
+pub const FALSE_NAME: &str = "False";
 
 pub fn get_qualified_list_type_name() -> String {
     format!("{}.{}", LIST_MODULE_NAME, LIST_TYPE_NAME)

@@ -10,6 +10,7 @@ siko_util = { path = "../siko_util" }
 siko_ir = { path = "../siko_ir" }
 siko_mir = { path = "../siko_mir" }
 siko_backend = { path = "../siko_backend" }
+siko_transpiler = { path = "../siko_transpiler" }
 siko_syntax = { path = "../siko_syntax" }
 siko_constants = { path = "../siko_constants" }
 siko_interpreter = { path = "../siko_interpreter" }

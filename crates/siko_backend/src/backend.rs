@@ -1,7 +1,13 @@
 use crate::format_rewriter::FormatRewriter;
+use siko_constants::BOOL_MODULE_NAME;
+use siko_constants::BOOL_TYPE_NAME;
+use siko_constants::FALSE_NAME;
+use siko_constants::TRUE_NAME;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
+use siko_ir::data::Record as IrRecord;
 use siko_ir::data::TypeDef as IrTypeDef;
+use siko_ir::data_type_info::RecordTypeInfo;
 use siko_ir::expr::Expr as IrExpr;
 use siko_ir::expr::ExprId as IrExprId;
 use siko_ir::expr::FunctionArgumentRef;
@@ -185,6 +191,55 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
+    pub fn create_bool(&mut self, value: bool, location: LocationId) -> IrExprId {
+        let bool_ty = self.ir_program.get_bool_type();
+        let ctor = self.ir_program.get_constructor_by_name(
+            BOOL_MODULE_NAME,
+            BOOL_TYPE_NAME,
+            if value { TRUE_NAME } else { FALSE_NAME },
+        );
+        let expr = IrExpr::StaticFunctionCall(ctor, vec![]);
+        self.add_expr(expr, location, bool_ty)
+    }
+
+    pub fn add_arg_ref(
+        &mut self,
+        index: usize,
+        function_id: IrFunctionId,
+        location: LocationId,
+        arg_ty: IrType,
+    ) -> IrExprId {
+        let arg_ref = FunctionArgumentRef::new(false, function_id, index);
+        let arg_ref_expr = IrExpr::ArgRef(arg_ref);
+        let arg_ref_expr_id = self.add_expr(arg_ref_expr, location, arg_ty);
+        arg_ref_expr_id
+    }
+
+    pub fn add_record_pattern(
+        &mut self,
+        source_expr: IrExprId,
+        record: &IrRecord,
+        record_type_info: &RecordTypeInfo,
+        location: LocationId,
+    ) -> (IrExprId, Vec<IrExprId>) {
+        let mut field_patterns = Vec::new();
+        let mut values = Vec::new();
+        for (index, (field_type, _)) in record_type_info.field_types.iter().enumerate() {
+            let field = &record.fields[index];
+            let field_pattern = IrPattern::Binding(field.name.clone());
+            let field_pattern_id = self.add_pattern(field_pattern, location, field_type.clone());
+            field_patterns.push(field_pattern_id);
+            let expr_value_expr = IrExpr::ExprValue(source_expr, field_pattern_id);
+            let expr_value_expr_id = self.add_expr(expr_value_expr, location, field_type.clone());
+            values.push(expr_value_expr_id);
+        }
+        let pattern = IrPattern::Record(record.id, field_patterns);
+        let pattern_id = self.add_pattern(pattern, location, record_type_info.record_type.clone());
+        let bind_expr = IrExpr::Bind(pattern_id, source_expr);
+        let bind_expr_id = self.add_expr(bind_expr, location, IrType::Tuple(vec![]));
+        (bind_expr_id, values)
+    }
+
     pub fn add_expr(&mut self, expr: IrExpr, location_id: LocationId, expr_ty: IrType) -> IrExprId {
         let id = self.ir_program.exprs.get_id();
         self.ir_program
@@ -209,14 +264,106 @@ impl<'a> FunctionBuilder<'a> {
     }
 }
 
-fn generate_auto_derived_intance_member(
+#[derive(Debug)]
+enum DerivedClass {
+    Show,
+    PartialEq,
+    PartialOrd,
+    Ord,
+}
+
+fn generate_show_instance_member_for_record(
+    ir_program: &mut IrProgram,
+    location: LocationId,
+    function_id: IrFunctionId,
+    record: &IrRecord,
+    record_type_info: RecordTypeInfo,
+) -> (IrExprId, IrType) {
+    let string_ty = ir_program.get_string_type();
+    let mut builder = FunctionBuilder::new(ir_program);
+    let arg_ref_expr_id = builder.add_arg_ref(
+        0,
+        function_id,
+        location,
+        record_type_info.record_type.clone(),
+    );
+    let (bind_expr_id, values) =
+        builder.add_record_pattern(arg_ref_expr_id, record, &record_type_info, location);
+    let field_fmt_str_args: Vec<_> = std::iter::repeat("{{}}").take(values.len()).collect();
+    let fmt_str = format!("{} {{ {} }}", record.name, field_fmt_str_args.join(", "));
+    let fmt_expr = IrExpr::Formatter(fmt_str, values);
+    let fmt_expr_id = builder.add_expr(fmt_expr, location, string_ty.clone());
+    let items = vec![bind_expr_id, fmt_expr_id];
+    let body = builder.add_expr(IrExpr::Do(items), location, string_ty.clone());
+    let function_type = IrType::Function(
+        Box::new(record_type_info.record_type.clone()),
+        Box::new(string_ty),
+    );
+    (body, function_type)
+}
+
+fn generate_partialeq_instance_member_for_record(
+    ir_program: &mut IrProgram,
+    location: LocationId,
+    function_id: IrFunctionId,
+    record: &IrRecord,
+    record_type_info: RecordTypeInfo,
+    class_member_id: ClassMemberId,
+) -> (IrExprId, IrType) {
+    let bool_ty = ir_program.get_bool_type();
+    let mut builder = FunctionBuilder::new(ir_program);
+    let arg_ref_expr_id_0 = builder.add_arg_ref(
+        0,
+        function_id,
+        location,
+        record_type_info.record_type.clone(),
+    );
+    let arg_ref_expr_id_1 = builder.add_arg_ref(
+        1,
+        function_id,
+        location,
+        record_type_info.record_type.clone(),
+    );
+    let (bind_expr_id_0, values_0) =
+        builder.add_record_pattern(arg_ref_expr_id_0, record, &record_type_info, location);
+    let (bind_expr_id_1, values_1) =
+        builder.add_record_pattern(arg_ref_expr_id_1, record, &record_type_info, location);
+    let mut true_branch = builder.create_bool(true, location);
+    for (value_0, value_1) in values_0.iter().zip(values_1.iter()) {
+        let call_expr = IrExpr::ClassFunctionCall(class_member_id, vec![*value_0, *value_1]);
+        let call_expr_id = builder.add_expr(call_expr, location, bool_ty.clone());
+        let false_branch = builder.create_bool(false, location);
+        let if_expr = IrExpr::If(call_expr_id, true_branch, false_branch);
+        true_branch = builder.add_expr(if_expr, location, bool_ty.clone());
+    }
+    let items = vec![bind_expr_id_0, bind_expr_id_1, true_branch];
+    let body = builder.add_expr(IrExpr::Do(items), location, bool_ty.clone());
+    let function_type = IrType::Function(
+        Box::new(record_type_info.record_type.clone()),
+        Box::new(bool_ty),
+    );
+    let function_type = IrType::Function(
+        Box::new(record_type_info.record_type.clone()),
+        Box::new(function_type),
+    );
+    (body, function_type)
+}
+
+fn generate_auto_derived_instance_member(
     class_id: ClassId,
     ir_type: &IrType,
     ir_program: &mut IrProgram,
     mir_program: &mut MirProgram,
     function_queue: &mut FunctionQueue,
-    arg_count: usize,
+    derived_class: DerivedClass,
+    class_member_id: ClassMemberId,
 ) {
+    let arg_count = match derived_class {
+        DerivedClass::Show => 1,
+        DerivedClass::PartialEq => 2,
+        DerivedClass::PartialOrd => 2,
+        DerivedClass::Ord => 2,
+    };
     match ir_type {
         IrType::Named(_, typedef_id, _) => {
             let typedef = ir_program.typedefs.get(&typedef_id).clone();
@@ -240,44 +387,32 @@ fn generate_auto_derived_intance_member(
                     let r = unifier.unify(&record_type_info.record_type, &ir_type);
                     assert!(r.is_ok());
                     let function_id = ir_program.functions.get_id();
-                    let string_ty = ir_program.get_string_type();
-                    let mut builder = FunctionBuilder::new(ir_program);
-                    let arg_ref = FunctionArgumentRef::new(false, function_id, 0);
-                    let arg_ref_expr = IrExpr::ArgRef(arg_ref);
-                    let arg_ref_expr_id = builder.add_expr(arg_ref_expr, location, ir_type.clone());
-                    let mut field_patterns = Vec::new();
-                    let mut fmt_args = Vec::new();
-                    for (index, (field_type, _)) in record_type_info.field_types.iter().enumerate()
-                    {
-                        let field = &record.fields[index];
-                        let field_pattern = IrPattern::Binding(field.name.clone());
-                        let field_pattern_id =
-                            builder.add_pattern(field_pattern, location, field_type.clone());
-                        field_patterns.push(field_pattern_id);
-                        let expr_value_expr = IrExpr::ExprValue(arg_ref_expr_id, field_pattern_id);
-                        let expr_value_expr_id =
-                            builder.add_expr(expr_value_expr, location, field_type.clone());
-                        fmt_args.push(expr_value_expr_id);
-                    }
-                    let pattern = IrPattern::Record(*typedef_id, field_patterns);
-                    let pattern_id = builder.add_pattern(pattern, location, ir_type.clone());
-                    let bind_expr = IrExpr::Bind(pattern_id, arg_ref_expr_id);
-                    let bind_expr_id = builder.add_expr(bind_expr, location, IrType::Tuple(vec![]));
-                    let field_fmt_str_args: Vec<_> =
-                        std::iter::repeat("{{}}").take(fmt_args.len()).collect();
-                    let fmt_str =
-                        format!("{} {{ {} }}", record.name, field_fmt_str_args.join(", "));
-                    let fmt_expr = IrExpr::Formatter(fmt_str, fmt_args);
-                    let fmt_expr_id = builder.add_expr(fmt_expr, location, string_ty.clone());
-                    let items = vec![bind_expr_id, fmt_expr_id];
-                    let body = builder.add_expr(IrExpr::Do(items), location, string_ty.clone());
+                    let (body, function_type) = match derived_class {
+                        DerivedClass::Show => generate_show_instance_member_for_record(
+                            ir_program,
+                            location,
+                            function_id,
+                            &record,
+                            record_type_info,
+                        ),
+                        DerivedClass::PartialEq => generate_partialeq_instance_member_for_record(
+                            ir_program,
+                            location,
+                            function_id,
+                            &record,
+                            record_type_info,
+                            class_member_id,
+                        ),
+                        DerivedClass::PartialOrd => unimplemented!(),
+                        DerivedClass::Ord => unimplemented!(),
+                    };
                     let info = NamedFunctionInfo {
                         body: Some(body),
                         kind: NamedFunctionKind::Free,
                         location_id: location,
                         type_signature: None,
                         module: record.module.clone(),
-                        name: format!("show_{}", function_id.id),
+                        name: format!("{:?}_{}", derived_class, function_id.id),
                     };
                     let function_info = FunctionInfo::NamedFunction(info);
                     let function = IrFunction {
@@ -286,8 +421,6 @@ fn generate_auto_derived_intance_member(
                         arg_locations: vec![location],
                         info: function_info,
                     };
-                    let function_type =
-                        IrType::Function(Box::new(ir_type.clone()), Box::new(string_ty));
                     ir_program.function_types.insert(function_id, function_type);
                     ir_program.functions.add_item(function_id, function);
                     let item = FunctionQueueItem::Normal(function_id, ir_program.get_unifier());
@@ -302,7 +435,7 @@ fn generate_auto_derived_intance_member(
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FunctionQueueItem {
     Normal(IrFunctionId, Unifier),
-    AutoDerive(IrType, ClassId),
+    AutoDerive(IrType, ClassId, ClassMemberId),
 }
 
 pub struct FunctionQueue {
@@ -354,22 +487,53 @@ impl FunctionQueue {
                             typedef_store,
                         );
                     }
-                    FunctionQueueItem::AutoDerive(ir_type, class_id) => {
+                    FunctionQueueItem::AutoDerive(ir_type, class_id, class_member_id) => {
                         let class = ir_program.classes.get(&class_id);
                         match (class.module.as_ref(), class.name.as_ref()) {
                             ("Std.Ops", "Show") => {
-                                generate_auto_derived_intance_member(
+                                generate_auto_derived_instance_member(
                                     class_id,
                                     &ir_type,
                                     ir_program,
                                     mir_program,
                                     self,
-                                    1,
+                                    DerivedClass::Show,
+                                    class_member_id,
                                 );
                             }
-                            ("Std.Ops", "PartialEq") => unimplemented!(),
-                            ("Std.Ops", "PartialOrd") => unimplemented!(),
-                            ("Std.Ops", "Ord") => unimplemented!(),
+                            ("Std.Ops", "PartialEq") => {
+                                generate_auto_derived_instance_member(
+                                    class_id,
+                                    &ir_type,
+                                    ir_program,
+                                    mir_program,
+                                    self,
+                                    DerivedClass::PartialEq,
+                                    class_member_id,
+                                );
+                            }
+                            ("Std.Ops", "PartialOrd") => {
+                                generate_auto_derived_instance_member(
+                                    class_id,
+                                    &ir_type,
+                                    ir_program,
+                                    mir_program,
+                                    self,
+                                    DerivedClass::PartialOrd,
+                                    class_member_id,
+                                );
+                            }
+                            ("Std.Ops", "Ord") => {
+                                generate_auto_derived_instance_member(
+                                    class_id,
+                                    &ir_type,
+                                    ir_program,
+                                    mir_program,
+                                    self,
+                                    DerivedClass::Ord,
+                                    class_member_id,
+                                );
+                            }
                             _ => panic!(
                                 "Auto derive of {}/{} is not implemented",
                                 class.module, class.name
@@ -566,7 +730,8 @@ fn process_class_member_call(
     assert!(class_arg.is_concrete_type());
     match cache.get(member.class_id, class_arg.clone()) {
         ResolutionResult::AutoDerived => {
-            let queue_item = FunctionQueueItem::AutoDerive(class_arg.clone(), member.class_id);
+            let queue_item =
+                FunctionQueueItem::AutoDerive(class_arg.clone(), member.class_id, *class_member_id);
             let mir_function_id = function_queue.insert(queue_item, mir_program);
             mir_function_id
         }
@@ -957,7 +1122,8 @@ fn process_function(
                 MirFunctionInfo::Extern
             };
             let mir_function = MirFunction {
-                name: format!("{}", info),
+                name: info.name.clone(),
+                module: info.module.clone(),
                 info: mir_function_info,
                 function_type: mir_function_type,
             };
@@ -975,8 +1141,13 @@ fn process_function(
                 function_queue,
                 typedef_store,
             );
+            let lambda_name = format!("{}", info);
+            let lambda_name = lambda_name.replace("/", "_");
+            let lambda_name = lambda_name.replace(".", "_");
+            let lambda_name = lambda_name.replace("#", "_");
             let mir_function = MirFunction {
-                name: format!("{}", info),
+                name: lambda_name,
+                module: info.module.clone(),
                 info: MirFunctionInfo::Normal(mir_body),
                 function_type: mir_function_type,
             };
@@ -985,10 +1156,13 @@ fn process_function(
                 .add_item(mir_function_id, mir_function);
         }
         FunctionInfo::VariantConstructor(info) => {
+            let adt = ir_program.typedefs.get(&info.type_id).get_adt();
+            let module = adt.module.clone();
             let result_ty = function_type.get_result_type(function.arg_count);
             let mir_typedef_id = typedef_store.add_type(result_ty, ir_program, mir_program);
             let mir_function = MirFunction {
-                name: format!("{}", info),
+                name: format!("{}_ctor", adt.name),
+                module: module,
                 info: MirFunctionInfo::VariantConstructor(mir_typedef_id, info.index),
                 function_type: mir_function_type,
             };
@@ -1019,14 +1193,6 @@ impl Backend {
             &mut mir_program,
         );
         function_queue.process_items(ir_program, &mut mir_program, &mut typedef_store);
-        for (id, function) in mir_program.functions.items.iter() {
-            println!(
-                "{}, {} {}",
-                id,
-                function.name,
-                function.function_type.as_string()
-            );
-        }
         Ok(mir_program)
     }
 }

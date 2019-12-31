@@ -489,6 +489,7 @@ pub fn process_expr(
 
             let lambda_info = LambdaInfo {
                 body: ir_lambda_body,
+                module: module.name.clone(),
                 host_info: local_lambda_helper.host_function_name(),
                 host_function: local_lambda_helper.host_function(),
                 index: local_lambda_helper.get_lambda_index(),

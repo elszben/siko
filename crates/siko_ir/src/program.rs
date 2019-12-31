@@ -164,6 +164,12 @@ impl Program {
         }
     }
 
+    pub fn get_constructor_by_name(&self, module: &str, name: &str, variant: &str) -> FunctionId {
+        let adt = self.get_adt_by_name(module, name);
+        let index = adt.get_variant_index(variant);
+        adt.variants[index].constructor
+    }
+
     pub fn get_named_type(&self, module: &str, name: &str) -> TypeDefId {
         self.named_types
             .get(module)

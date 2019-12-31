@@ -10,6 +10,7 @@ use siko_name_resolver::resolver::Resolver;
 use siko_parser::lexer::Lexer;
 use siko_parser::parser::Parser;
 use siko_syntax::program::Program;
+use siko_transpiler::transpiler::Transpiler;
 use siko_type_checker::typechecker::Typechecker;
 use siko_util::ElapsedTimeMeasure;
 use siko_util::ElapsedTimeMeasureCollector;
@@ -117,8 +118,10 @@ impl Compiler {
             siko_flow_graph::process_functions(&ir_program);
         }
 
-        if self.config.compile {
+        if let Some(compile_target) = &self.config.compile {
             let mir_program = Backend::compile(&mut ir_program);
+            let mir_program = mir_program.expect("TODO");
+            Transpiler::process(&mir_program, compile_target).expect("Transpiler failed");
         } else {
             Interpreter::run(ir_program, self.context());
         }

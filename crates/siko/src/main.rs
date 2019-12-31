@@ -36,16 +36,36 @@ fn process_dir(arg: String, inputs: &mut Vec<CompilerInput>) -> bool {
     true
 }
 
+fn print_usage() {
+    println!("arguments: OPTIONS FILENAME... ");
+    println!("Options:");
+    println!("\t-c <path> compile");
+    println!("\t-m measure durations");
+    println!("\t-i visualize");
+    println!("\t-s <path> path to std");
+}
+
 fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
     let mut inputs = Vec::new();
     let mut config = Config::new();
     let mut success = true;
     let mut std_path = format!("std");
     let mut file_given = false;
-    for (index, arg) in args.iter().enumerate() {
-        match arg.as_ref() {
+    let arg_len = args.len();
+    let mut index = 0;
+    while index < arg_len {
+        let arg = args[index].as_ref();
+        match arg {
             "-c" => {
-                config.compile = true;
+                if index + 1 >= args.len() {
+                    eprintln!("{} missing path after -c", "ERROR:".red(),);
+                    success = false;
+                    break;
+                } else {
+                    let output_file = args[index + 1].to_string();
+                    config.compile = Some(output_file);
+                    index += 1;
+                }
             }
             "-m" => {
                 config.measure_durations = true;
@@ -57,25 +77,24 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
                 if index + 1 >= args.len() {
                     eprintln!("{} missing path after -s", "ERROR:".red(),);
                     success = false;
+                    break;
                 } else {
                     std_path = args[index + 1].to_string();
+                    index += 1;
                 }
             }
             "-h" => {
-                println!("arguments: <filename>+|<options>");
-                println!("-c compile");
-                println!("-m measure durations");
-                println!("-i visualize");
-                println!("-s <path> path to std");
                 success = false;
             }
             _ => {
                 file_given = true;
-                if !process_dir(arg.clone(), &mut inputs) {
+                if !process_dir(arg.to_string(), &mut inputs) {
                     success = false;
+                    break;
                 }
             }
         }
+        index += 1;
     }
     if !file_given {
         if success {
@@ -87,6 +106,9 @@ fn process_args(args: Vec<String>) -> (Config, Vec<CompilerInput>, bool) {
         if !process_dir(std_path, &mut inputs) {
             success = false;
         }
+    }
+    if !success {
+        print_usage();
     }
     //println!("Compiling {} file(s)", inputs.len());
     (config, inputs, success)

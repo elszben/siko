@@ -28,6 +28,7 @@ pub enum FunctionInfo {
 
 pub struct Function {
     pub name: String,
+    pub module: String,
     pub function_type: Type,
     pub info: FunctionInfo,
 }

@@ -73,6 +73,7 @@ dependencies = [
  "siko_name_resolver 0.1.0",
  "siko_parser 0.1.0",
  "siko_syntax 0.1.0",
+ "siko_transpiler 0.1.0",
  "siko_type_checker 0.1.0",
  "siko_util 0.1.0",
 ]
@@ -153,6 +154,15 @@ version = "0.1.0"
 dependencies = [
  "siko_constants 0.1.0",
  "siko_location_info 0.1.0",
+ "siko_util 0.1.0",
+]
+
+[[package]]
+name = "siko_transpiler"
+version = "0.1.0"
+dependencies = [
+ "siko_constants 0.1.0",
+ "siko_mir 0.1.0",
  "siko_util 0.1.0",
 ]
 

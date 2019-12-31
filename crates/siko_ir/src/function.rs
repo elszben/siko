@@ -48,6 +48,7 @@ impl fmt::Display for NamedFunctionInfo {
 #[derive(Debug, Clone)]
 pub struct LambdaInfo {
     pub body: ExprId,
+    pub module: String,
     pub host_info: String,
     pub host_function: FunctionId,
     pub index: usize,
