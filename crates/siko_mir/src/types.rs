@@ -2,7 +2,6 @@ use crate::data::TypeDefId;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Type {
-    Tuple(Vec<Type>),
     Named(String, TypeDefId),
     Function(Box<Type>, Box<Type>),
 }
@@ -14,13 +13,6 @@ impl Type {
 
     fn as_string_internal(&self, need_parens: bool) -> String {
         match self {
-            Type::Tuple(items) => {
-                let ss: Vec<_> = items
-                    .iter()
-                    .map(|item| item.as_string_internal(false))
-                    .collect();
-                format!("({})", ss.join(", "))
-            }
             Type::Function(from, to) => {
                 let from_str = from.as_string_internal(true);
                 let to_str = to.as_string_internal(true);

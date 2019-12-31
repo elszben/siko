@@ -118,7 +118,7 @@ impl Compiler {
         }
 
         if self.config.compile {
-            let mir_program = Backend::compile(&ir_program);
+            let mir_program = Backend::compile(&mut ir_program);
         } else {
             Interpreter::run(ir_program, self.context());
         }

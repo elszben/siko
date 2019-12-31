@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 pub struct DeriveInfo {
     pub class_id: ClassId,
     pub instance_index: usize,
+    pub location_id: LocationId,
 }
 
 #[derive(Clone)]

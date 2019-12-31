@@ -1,20 +1,7 @@
 module Main where
 
-data Color = Red | Blue | Green
+data Foo = { name :: String } deriving (Show)
+data Boo = { name :: Foo } deriving (Show)
 
-data Stuff a = Stuff a
-
-data Stuff2 = { name :: String }
-
-data Expr =
-        StringLiteral String |
-        Tuple Expr
-
-moo x = x
-
-main = do
-        moo Red
-        moo (Stuff Blue)
-        moo (Stuff True)
-        moo (Stuff2 "a")
-        moo (StringLiteral "f")
+main = 
+    println "boo {}" % (Boo (Foo "alma"))

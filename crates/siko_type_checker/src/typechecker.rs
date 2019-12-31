@@ -212,6 +212,7 @@ impl Typechecker {
                         let derive_info = DeriveInfo {
                             class_id: derived_class.class_id,
                             instance_index: instance_index,
+                            location_id: derived_class.location_id,
                         };
                         derived_classes.push(derive_info);
                     }
@@ -265,6 +266,7 @@ impl Typechecker {
                         let derive_info = DeriveInfo {
                             class_id: derived_class.class_id,
                             instance_index: instance_index,
+                            location_id: derived_class.location_id,
                         };
                         derived_classes.push(derive_info);
                     }

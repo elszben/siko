@@ -1,15 +1,24 @@
+use crate::format_rewriter::FormatRewriter;
+use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::data::TypeDef as IrTypeDef;
 use siko_ir::expr::Expr as IrExpr;
 use siko_ir::expr::ExprId as IrExprId;
+use siko_ir::expr::FunctionArgumentRef;
+use siko_ir::function::Function as IrFunction;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
+use siko_ir::function::NamedFunctionInfo;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::instance_resolution_cache::ResolutionResult;
 use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type as IrType;
 use siko_ir::unifier::Unifier;
+use siko_ir::walker::walk_expr;
+use siko_location_info::item::ItemInfo;
+use siko_location_info::location_id::LocationId;
 use siko_mir::data::Adt as MirAdt;
 use siko_mir::data::Record as MirRecord;
 use siko_mir::data::RecordField as MirRecordField;
@@ -37,6 +46,40 @@ impl TypeDefStore {
         TypeDefStore {
             typedefs: BTreeMap::new(),
         }
+    }
+
+    pub fn add_tuple(
+        &mut self,
+        ty: IrType,
+        field_types: Vec<MirType>,
+        mir_program: &mut MirProgram,
+    ) -> (String, MirTypeDefId) {
+        let mut newly_added = false;
+        let mir_typedef_id = *self.typedefs.entry(ty.clone()).or_insert_with(|| {
+            newly_added = true;
+            mir_program.typedefs.get_id()
+        });
+        let name = format!("tuple#{}", mir_typedef_id.id);
+        if newly_added {
+            let mut fields = Vec::new();
+            for (index, field_ty) in field_types.into_iter().enumerate() {
+                let mir_field = MirRecordField {
+                    name: format!("field#{}", index),
+                    ty: field_ty,
+                };
+                fields.push(mir_field);
+            }
+            let mir_record = MirRecord {
+                id: mir_typedef_id,
+                module: format!("<generated>"),
+                name: name.clone(),
+                fields: fields,
+                external: false,
+            };
+            let mir_typedef = MirTypeDef::Record(mir_record);
+            mir_program.typedefs.add_item(mir_typedef_id, mir_typedef);
+        }
+        (name, mir_typedef_id)
     }
 
     pub fn add_type(
@@ -131,19 +174,135 @@ impl TypeDefStore {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FunctionQueueItem {
-    function_id: IrFunctionId,
-    unifier: Unifier,
+struct FunctionBuilder<'a> {
+    ir_program: &'a mut IrProgram,
 }
 
-impl FunctionQueueItem {
-    pub fn new(function_id: IrFunctionId, unifier: Unifier) -> FunctionQueueItem {
-        FunctionQueueItem {
-            function_id: function_id,
-            unifier: unifier,
+impl<'a> FunctionBuilder<'a> {
+    pub fn new(ir_program: &'a mut IrProgram) -> FunctionBuilder<'a> {
+        FunctionBuilder {
+            ir_program: ir_program,
         }
     }
+
+    pub fn add_expr(&mut self, expr: IrExpr, location_id: LocationId, expr_ty: IrType) -> IrExprId {
+        let id = self.ir_program.exprs.get_id();
+        self.ir_program
+            .exprs
+            .add_item(id, ItemInfo::new(expr, location_id));
+        self.ir_program.expr_types.insert(id, expr_ty);
+        id
+    }
+
+    pub fn add_pattern(
+        &mut self,
+        pattern: IrPattern,
+        location_id: LocationId,
+        pattern_ty: IrType,
+    ) -> IrPatternId {
+        let id = self.ir_program.patterns.get_id();
+        self.ir_program
+            .patterns
+            .add_item(id, ItemInfo::new(pattern, location_id));
+        self.ir_program.pattern_types.insert(id, pattern_ty);
+        id
+    }
+}
+
+fn generate_auto_derived_intance_member(
+    class_id: ClassId,
+    ir_type: &IrType,
+    ir_program: &mut IrProgram,
+    mir_program: &mut MirProgram,
+    function_queue: &mut FunctionQueue,
+    arg_count: usize,
+) {
+    match ir_type {
+        IrType::Named(_, typedef_id, _) => {
+            let typedef = ir_program.typedefs.get(&typedef_id).clone();
+            match typedef {
+                IrTypeDef::Adt(adt) => {}
+                IrTypeDef::Record(record) => {
+                    let record_type_info = ir_program
+                        .record_type_info_map
+                        .get(&typedef_id)
+                        .expect("Record type info not found")
+                        .clone();
+                    let mut location = None;
+                    for derived_class in &record_type_info.derived_classes {
+                        if derived_class.class_id == class_id {
+                            location = Some(derived_class.location_id);
+                            break;
+                        }
+                    }
+                    let location = location.expect("Derive location not found");
+                    let mut unifier = ir_program.get_unifier();
+                    let r = unifier.unify(&record_type_info.record_type, &ir_type);
+                    assert!(r.is_ok());
+                    let function_id = ir_program.functions.get_id();
+                    let string_ty = ir_program.get_string_type();
+                    let mut builder = FunctionBuilder::new(ir_program);
+                    let arg_ref = FunctionArgumentRef::new(false, function_id, 0);
+                    let arg_ref_expr = IrExpr::ArgRef(arg_ref);
+                    let arg_ref_expr_id = builder.add_expr(arg_ref_expr, location, ir_type.clone());
+                    let mut field_patterns = Vec::new();
+                    let mut fmt_args = Vec::new();
+                    for (index, (field_type, _)) in record_type_info.field_types.iter().enumerate()
+                    {
+                        let field = &record.fields[index];
+                        let field_pattern = IrPattern::Binding(field.name.clone());
+                        let field_pattern_id =
+                            builder.add_pattern(field_pattern, location, field_type.clone());
+                        field_patterns.push(field_pattern_id);
+                        let expr_value_expr = IrExpr::ExprValue(arg_ref_expr_id, field_pattern_id);
+                        let expr_value_expr_id =
+                            builder.add_expr(expr_value_expr, location, field_type.clone());
+                        fmt_args.push(expr_value_expr_id);
+                    }
+                    let pattern = IrPattern::Record(*typedef_id, field_patterns);
+                    let pattern_id = builder.add_pattern(pattern, location, ir_type.clone());
+                    let bind_expr = IrExpr::Bind(pattern_id, arg_ref_expr_id);
+                    let bind_expr_id = builder.add_expr(bind_expr, location, IrType::Tuple(vec![]));
+                    let field_fmt_str_args: Vec<_> =
+                        std::iter::repeat("{{}}").take(fmt_args.len()).collect();
+                    let fmt_str =
+                        format!("{} {{ {} }}", record.name, field_fmt_str_args.join(", "));
+                    let fmt_expr = IrExpr::Formatter(fmt_str, fmt_args);
+                    let fmt_expr_id = builder.add_expr(fmt_expr, location, string_ty.clone());
+                    let items = vec![bind_expr_id, fmt_expr_id];
+                    let body = builder.add_expr(IrExpr::Do(items), location, string_ty.clone());
+                    let info = NamedFunctionInfo {
+                        body: Some(body),
+                        kind: NamedFunctionKind::Free,
+                        location_id: location,
+                        type_signature: None,
+                        module: record.module.clone(),
+                        name: format!("show_{}", function_id.id),
+                    };
+                    let function_info = FunctionInfo::NamedFunction(info);
+                    let function = IrFunction {
+                        id: function_id,
+                        arg_count: arg_count,
+                        arg_locations: vec![location],
+                        info: function_info,
+                    };
+                    let function_type =
+                        IrType::Function(Box::new(ir_type.clone()), Box::new(string_ty));
+                    ir_program.function_types.insert(function_id, function_type);
+                    ir_program.functions.add_item(function_id, function);
+                    let item = FunctionQueueItem::Normal(function_id, ir_program.get_unifier());
+                    function_queue.insert(item, mir_program);
+                }
+            }
+        }
+        _ => unimplemented!(),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FunctionQueueItem {
+    Normal(IrFunctionId, Unifier),
+    AutoDerive(IrType, ClassId),
 }
 
 pub struct FunctionQueue {
@@ -177,21 +336,47 @@ impl FunctionQueue {
 
     pub fn process_items(
         &mut self,
-        ir_program: &IrProgram,
+        ir_program: &mut IrProgram,
         mir_program: &mut MirProgram,
         typedef_store: &mut TypeDefStore,
     ) {
         while !self.pending.is_empty() {
             if let Some((item, mir_function_id)) = self.pending.pop() {
-                process_function(
-                    &item.function_id,
-                    mir_function_id,
-                    ir_program,
-                    mir_program,
-                    &item.unifier,
-                    self,
-                    typedef_store,
-                );
+                match item {
+                    FunctionQueueItem::Normal(function_id, unifier) => {
+                        process_function(
+                            &function_id,
+                            mir_function_id,
+                            ir_program,
+                            mir_program,
+                            &unifier,
+                            self,
+                            typedef_store,
+                        );
+                    }
+                    FunctionQueueItem::AutoDerive(ir_type, class_id) => {
+                        let class = ir_program.classes.get(&class_id);
+                        match (class.module.as_ref(), class.name.as_ref()) {
+                            ("Std.Ops", "Show") => {
+                                generate_auto_derived_intance_member(
+                                    class_id,
+                                    &ir_type,
+                                    ir_program,
+                                    mir_program,
+                                    self,
+                                    1,
+                                );
+                            }
+                            ("Std.Ops", "PartialEq") => unimplemented!(),
+                            ("Std.Ops", "PartialOrd") => unimplemented!(),
+                            ("Std.Ops", "Ord") => unimplemented!(),
+                            _ => panic!(
+                                "Auto derive of {}/{} is not implemented",
+                                class.module, class.name
+                            ),
+                        }
+                    }
+                }
             }
         }
     }
@@ -220,7 +405,9 @@ fn process_type(
                 .iter()
                 .map(|item| process_type(item, typedef_store, ir_program, mir_program))
                 .collect();
-            MirType::Tuple(items)
+            let (name, mir_typedef_id) =
+                typedef_store.add_tuple(ir_type.clone(), items, mir_program);
+            MirType::Named(name, mir_typedef_id)
         }
     }
 }
@@ -355,9 +542,11 @@ fn process_pattern(
 fn process_class_member_call(
     arg_types: &Vec<IrType>,
     ir_program: &IrProgram,
+    mir_program: &mut MirProgram,
     class_member_id: &ClassMemberId,
     expr_ty: IrType,
-) -> (IrFunctionId, Unifier) {
+    function_queue: &mut FunctionQueue,
+) -> MirFunctionId {
     for arg in arg_types {
         assert!(arg.is_concrete_type());
     }
@@ -374,14 +563,12 @@ fn process_class_member_call(
     );
     let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
     let cache = ir_program.instance_resolution_cache.borrow();
-    let class = ir_program.classes.get(&member.class_id);
     assert!(class_arg.is_concrete_type());
-    match cache.get(member.class_id, class_arg) {
+    match cache.get(member.class_id, class_arg.clone()) {
         ResolutionResult::AutoDerived => {
-            panic!(
-                "Auto derive of {}/{} is not implemented",
-                class.module, class.name
-            );
+            let queue_item = FunctionQueueItem::AutoDerive(class_arg.clone(), member.class_id);
+            let mir_function_id = function_queue.insert(queue_item, mir_program);
+            mir_function_id
         }
         ResolutionResult::UserDefined(instance_id) => {
             let instance = ir_program.instances.get(instance_id);
@@ -393,7 +580,9 @@ fn process_class_member_call(
                         .default_implementation
                         .expect("Default implementation not found")
                 };
-            (member_function_id, call_unifier)
+            let queue_item = FunctionQueueItem::Normal(member_function_id, call_unifier);
+            let mir_function_id = function_queue.insert(queue_item, mir_program);
+            mir_function_id
         }
     }
 }
@@ -492,10 +681,14 @@ fn process_expr(
             for arg_type in &mut arg_types {
                 arg_type.apply(unifier);
             }
-            let (func_id, call_unifier) =
-                process_class_member_call(&arg_types, ir_program, class_member_id, ir_expr_ty);
-            let queue_item = FunctionQueueItem::new(func_id, call_unifier);
-            let mir_function_id = function_queue.insert(queue_item, mir_program);
+            let mir_function_id = process_class_member_call(
+                &arg_types,
+                ir_program,
+                mir_program,
+                class_member_id,
+                ir_expr_ty,
+                function_queue,
+            );
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }
         IrExpr::Do(items) => {
@@ -698,7 +891,7 @@ fn process_expr(
                     )
                 })
                 .collect();
-            let queue_item = FunctionQueueItem::new(*func_id, call_unifier);
+            let queue_item = FunctionQueueItem::Normal(*func_id, call_unifier);
             let mir_function_id = function_queue.insert(queue_item, mir_program);
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }
@@ -737,7 +930,7 @@ fn process_expr(
 fn process_function(
     ir_function_id: &IrFunctionId,
     mir_function_id: MirFunctionId,
-    ir_program: &IrProgram,
+    ir_program: &mut IrProgram,
     mir_program: &mut MirProgram,
     unifier: &Unifier,
     function_queue: &mut FunctionQueue,
@@ -746,10 +939,11 @@ fn process_function(
     let mut function_type = ir_program.get_function_type(ir_function_id).clone();
     function_type.apply(unifier);
     let mir_function_type = process_type(&function_type, typedef_store, ir_program, mir_program);
-    let function = ir_program.functions.get(ir_function_id);
+    let function = ir_program.functions.get(ir_function_id).clone();
     match &function.info {
         FunctionInfo::NamedFunction(info) => {
             let mir_function_info = if let Some(body) = info.body {
+                preprocess_ir(body, ir_program);
                 let mir_expr_id = process_expr(
                     &body,
                     ir_program,
@@ -772,6 +966,7 @@ fn process_function(
                 .add_item(mir_function_id, mir_function);
         }
         FunctionInfo::Lambda(info) => {
+            preprocess_ir(info.body, ir_program);
             let mir_body = process_expr(
                 &info.body,
                 ir_program,
@@ -805,16 +1000,24 @@ fn process_function(
     }
 }
 
+fn preprocess_ir(body: IrExprId, ir_program: &mut IrProgram) {
+    let mut rewriter = FormatRewriter::new(ir_program);
+    walk_expr(&body, &mut rewriter);
+}
+
 pub struct Backend {}
 
 impl Backend {
-    pub fn compile(ir_program: &IrProgram) -> Result<MirProgram, ()> {
+    pub fn compile(ir_program: &mut IrProgram) -> Result<MirProgram, ()> {
         let unifier = ir_program.get_unifier();
         let mut mir_program = MirProgram::new();
         let mut function_queue = FunctionQueue::new();
         let mut typedef_store = TypeDefStore::new();
         let main_id = ir_program.get_main().expect("Main not found");
-        function_queue.insert(FunctionQueueItem::new(main_id, unifier), &mut mir_program);
+        function_queue.insert(
+            FunctionQueueItem::Normal(main_id, unifier),
+            &mut mir_program,
+        );
         function_queue.process_items(ir_program, &mut mir_program, &mut typedef_store);
         for (id, function) in mir_program.functions.items.iter() {
             println!(

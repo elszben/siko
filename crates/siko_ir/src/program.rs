@@ -135,14 +135,19 @@ impl Program {
     }
 
     pub fn get_show_type(&self) -> Type {
+        let class_id = self.get_show_class_id();
+        let mut var = self.type_var_generator.clone();
+        let index = var.get_new_index();
+        Type::Var(index, vec![class_id])
+    }
+
+    pub fn get_show_class_id(&self) -> ClassId {
         let class_id = self
             .class_names
             .get("Show")
             .expect("Show not found")
             .clone();
-        let mut var = self.type_var_generator.clone();
-        let index = var.get_new_index();
-        Type::Var(index, vec![class_id])
+        class_id
     }
 
     pub fn get_adt_by_name(&self, module: &str, name: &str) -> &Adt {
