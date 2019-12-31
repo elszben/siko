@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod class;
 pub mod data;
 pub mod data_type_info;
