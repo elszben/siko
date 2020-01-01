@@ -4,7 +4,8 @@ use crate::common::FunctionTypeInfo;
 use crate::error::Error;
 use crate::error::TypecheckError;
 use crate::expression_checker::ExpressionChecker;
-use crate::instance_resolver::InstanceResolver;
+use crate::instance_resolver::check_conflicts;
+use crate::instance_resolver::check_instance_dependencies;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::type_store_initializer::TypeStoreInitializer;
@@ -40,9 +41,8 @@ impl Typechecker {
 
     fn process_derived_instances(
         &self,
-        instance_resolver: &mut InstanceResolver,
         errors: &mut Vec<TypecheckError>,
-        program: &Program,
+        program: &mut Program,
         type_info_provider: &mut TypeInfoProvider,
     ) {
         loop {
@@ -55,7 +55,7 @@ impl Typechecker {
                     let mut unifiers = Vec::new();
                     for variant_type in &adt_type_info.variant_types {
                         for item_type in &variant_type.item_types {
-                            if instance_resolver.check_instance(
+                            if program.instance_resolver.check_instance(
                                 derive_info.class_id,
                                 &item_type.0,
                                 item_type.1,
@@ -73,7 +73,8 @@ impl Typechecker {
                         }
                     }
                     for (unifier, location_id) in unifiers {
-                        let mut instance = instance_resolver
+                        let mut instance = program
+                            .instance_resolver
                             .get_auto_derived_instance(derive_info.instance_index)
                             .clone();
                         if instance.ty.apply(&unifier) {
@@ -91,7 +92,8 @@ impl Typechecker {
                                 }
                             }
                             instance_changed = true;
-                            instance_resolver
+                            program
+                                .instance_resolver
                                 .update_auto_derived_instance(derive_info.instance_index, instance);
                         }
                     }
@@ -105,7 +107,7 @@ impl Typechecker {
                     //println!("Processing derived_class {} for {}", class.name, record.name);
                     let mut unifiers = Vec::new();
                     for field_type in &record_type_info.field_types {
-                        if instance_resolver.check_instance(
+                        if program.instance_resolver.check_instance(
                             derive_info.class_id,
                             &field_type.0,
                             field_type.1,
@@ -122,7 +124,8 @@ impl Typechecker {
                         }
                     }
                     for (unifier, location_id) in unifiers {
-                        let mut instance = instance_resolver
+                        let mut instance = program
+                            .instance_resolver
                             .get_auto_derived_instance(derive_info.instance_index)
                             .clone();
                         if instance.ty.apply(&unifier) {
@@ -140,7 +143,8 @@ impl Typechecker {
                                 }
                             }
                             instance_changed = true;
-                            instance_resolver
+                            program
+                                .instance_resolver
                                 .update_auto_derived_instance(derive_info.instance_index, instance);
                         }
                     }
@@ -159,8 +163,7 @@ impl Typechecker {
 
     fn process_data_types(
         &self,
-        instance_resolver: &mut InstanceResolver,
-        program: &Program,
+        program: &mut Program,
         type_info_provider: &mut TypeInfoProvider,
         errors: &mut Vec<TypecheckError>,
     ) {
@@ -204,7 +207,7 @@ impl Typechecker {
                             errors.push(err);
                         }
                         let instance_ty = Type::Named(adt.name.clone(), *typedef_id, args.clone());
-                        let instance_index = instance_resolver.add_auto_derived(
+                        let instance_index = program.instance_resolver.add_auto_derived(
                             derived_class.class_id,
                             instance_ty,
                             derived_class.location_id,
@@ -258,7 +261,7 @@ impl Typechecker {
                         }
                         let instance_ty =
                             Type::Named(record.name.clone(), *typedef_id, args.clone());
-                        let instance_index = instance_resolver.add_auto_derived(
+                        let instance_index = program.instance_resolver.add_auto_derived(
                             derived_class.class_id,
                             instance_ty,
                             derived_class.location_id,
@@ -307,9 +310,8 @@ impl Typechecker {
 
     fn process_classes_and_user_defined_instances(
         &self,
-        program: &Program,
+        program: &mut Program,
         type_var_generator: &mut TypeVarGenerator,
-        instance_resolver: &mut InstanceResolver,
         class_types: &mut BTreeMap<ClassId, Type>,
         errors: &mut Vec<TypecheckError>,
     ) {
@@ -336,7 +338,7 @@ impl Typechecker {
                 process_type_signature(instance.type_signature, program, type_var_generator);
             let instance_ty = instance_ty.remove_fixed_types();
 
-            instance_resolver.add_user_defined(
+            program.instance_resolver.add_user_defined(
                 instance.class_id,
                 instance_ty,
                 *instance_id,
@@ -622,17 +624,11 @@ impl Typechecker {
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
         program: &'a mut Program,
-        instance_resolver: &'a mut InstanceResolver,
     ) {
         let function_type_info = type_info_provider.function_type_info_store.get(function_id);
         let body = function_type_info.body.expect("body not found");
-        let mut class_constraint_checker = ClassConstraintChecker::new(
-            program,
-            type_store,
-            errors,
-            type_info_provider,
-            instance_resolver,
-        );
+        let mut class_constraint_checker =
+            ClassConstraintChecker::new(program, type_store, errors, type_info_provider);
         walk_expr(&body, &mut class_constraint_checker);
     }
 
@@ -642,7 +638,6 @@ impl Typechecker {
         errors: &'a mut Vec<TypecheckError>,
         type_store: &'a mut TypeStore,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a mut InstanceResolver,
         program: &'a mut Program,
     ) {
         for function in &group.items {
@@ -676,14 +671,7 @@ impl Typechecker {
         }
 
         for function in &group.items {
-            self.check_class_constraints(
-                function,
-                errors,
-                type_store,
-                type_info_provider,
-                program,
-                instance_resolver,
-            );
+            self.check_class_constraints(function, errors, type_store, type_info_provider, program);
         }
     }
 
@@ -721,46 +709,31 @@ impl Typechecker {
         let mut type_var_generator = program.type_var_generator.clone();
         let mut type_info_provider = TypeInfoProvider::new(type_var_generator.clone());
         let mut class_types = BTreeMap::new();
-        let mut instance_resolver = InstanceResolver::new(
-            program.instance_resolution_cache.clone(),
-            type_var_generator.clone(),
-        );
 
         self.process_classes_and_user_defined_instances(
             program,
             &mut type_var_generator,
-            &mut instance_resolver,
             &mut class_types,
             &mut errors,
         );
 
         self.process_class_members(program, &mut type_info_provider, &class_types);
 
-        self.process_data_types(
-            &mut instance_resolver,
-            program,
-            &mut type_info_provider,
-            &mut errors,
-        );
+        self.process_data_types(program, &mut type_info_provider, &mut errors);
 
-        instance_resolver.check_conflicts(&mut errors, program);
+        check_conflicts(&mut errors, program);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
 
-        self.process_derived_instances(
-            &mut instance_resolver,
-            &mut errors,
-            program,
-            &mut type_info_provider,
-        );
+        self.process_derived_instances(&mut errors, program, &mut type_info_provider);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
 
-        instance_resolver.check_instance_dependencies(program, &mut errors);
+        check_instance_dependencies(program, &mut errors);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
@@ -794,7 +767,6 @@ impl Typechecker {
                 &mut errors,
                 &mut type_store,
                 &mut type_info_provider,
-                &mut instance_resolver,
                 program,
             );
             //type_store.dump(program);

@@ -1,6 +1,5 @@
 use crate::common::FunctionTypeInfo;
 use crate::error::TypecheckError;
-use crate::instance_resolver::InstanceResolver;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::util::create_general_function_type_info;
@@ -15,27 +14,24 @@ use siko_ir::walker::Visitor;
 use siko_location_info::location_id::LocationId;
 
 pub struct ClassConstraintChecker<'a> {
-    program: &'a Program,
+    program: &'a mut Program,
     type_store: &'a mut TypeStore,
     errors: &'a mut Vec<TypecheckError>,
     type_info_provider: &'a mut TypeInfoProvider,
-    instance_resolver: &'a mut InstanceResolver,
 }
 
 impl<'a> ClassConstraintChecker<'a> {
     pub fn new(
-        program: &'a Program,
+        program: &'a mut Program,
         type_store: &'a mut TypeStore,
         errors: &'a mut Vec<TypecheckError>,
         type_info_provider: &'a mut TypeInfoProvider,
-        instance_resolver: &'a mut InstanceResolver,
     ) -> ClassConstraintChecker<'a> {
         ClassConstraintChecker {
             program: program,
             type_store: type_store,
             errors: errors,
             type_info_provider: type_info_provider,
-            instance_resolver: instance_resolver,
         }
     }
 
@@ -53,7 +49,7 @@ impl<'a> ClassConstraintChecker<'a> {
         let constraints = unifier.get_constraints();
         for constraint in &constraints {
             let mut unifiers = Vec::new();
-            if !self.instance_resolver.check_instance(
+            if !self.program.instance_resolver.check_instance(
                 constraint.class_id,
                 &constraint.ty,
                 location,

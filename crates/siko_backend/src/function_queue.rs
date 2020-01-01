@@ -7,14 +7,13 @@ use siko_ir::class::ClassMemberId;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type as IrType;
-use siko_ir::unifier::Unifier;
 use siko_mir::function::FunctionId as MirFunctionId;
 use siko_mir::program::Program as MirProgram;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FunctionQueueItem {
-    Normal(IrFunctionId, Unifier),
+    Normal(IrFunctionId, Vec<IrType>, IrType),
     AutoDerive(IrType, ClassId, ClassMemberId),
 }
 
@@ -56,13 +55,14 @@ impl FunctionQueue {
         while !self.pending.is_empty() {
             if let Some((item, mir_function_id)) = self.pending.pop() {
                 match item {
-                    FunctionQueueItem::Normal(function_id, unifier) => {
+                    FunctionQueueItem::Normal(function_id, arg_types, result_ty) => {
                         process_function(
                             &function_id,
                             mir_function_id,
                             ir_program,
                             mir_program,
-                            &unifier,
+                            arg_types,
+                            result_ty,
                             self,
                             typedef_store,
                         );
@@ -75,8 +75,6 @@ impl FunctionQueue {
                                     class_id,
                                     &ir_type,
                                     ir_program,
-                                    mir_program,
-                                    self,
                                     DerivedClass::Show,
                                     class_member_id,
                                 );
@@ -86,8 +84,6 @@ impl FunctionQueue {
                                     class_id,
                                     &ir_type,
                                     ir_program,
-                                    mir_program,
-                                    self,
                                     DerivedClass::PartialEq,
                                     class_member_id,
                                 );
@@ -97,8 +93,6 @@ impl FunctionQueue {
                                     class_id,
                                     &ir_type,
                                     ir_program,
-                                    mir_program,
-                                    self,
                                     DerivedClass::PartialOrd,
                                     class_member_id,
                                 );
@@ -108,8 +102,6 @@ impl FunctionQueue {
                                     class_id,
                                     &ir_type,
                                     ir_program,
-                                    mir_program,
-                                    self,
                                     DerivedClass::Ord,
                                     class_member_id,
                                 );

@@ -4,7 +4,6 @@ use crate::function_queue::FunctionQueueItem;
 use crate::pattern_processor::process_pattern;
 use crate::type_processor::process_type;
 use crate::typedef_store::TypeDefStore;
-use crate::util::get_call_unifier;
 use siko_ir::expr::Expr as IrExpr;
 use siko_ir::expr::ExprId as IrExprId;
 use siko_ir::program::Program as IrProgram;
@@ -295,7 +294,6 @@ pub fn process_expr(
             MirExpr::RecordUpdate(mir_receiver_expr_id, mir_updates)
         }
         IrExpr::StaticFunctionCall(func_id, args) => {
-            let function_type = ir_program.get_function_type(func_id).remove_fixed_types();
             let mut arg_types: Vec<_> = args
                 .iter()
                 .map(|arg| ir_program.get_expr_type(arg).clone())
@@ -303,8 +301,6 @@ pub fn process_expr(
             for arg_type in &mut arg_types {
                 arg_type.apply(unifier);
             }
-            let call_unifier =
-                get_call_unifier(&arg_types, &function_type, &ir_expr_ty, ir_program);
             let mir_args: Vec<_> = args
                 .iter()
                 .map(|arg| {
@@ -318,7 +314,7 @@ pub fn process_expr(
                     )
                 })
                 .collect();
-            let queue_item = FunctionQueueItem::Normal(*func_id, call_unifier);
+            let queue_item = FunctionQueueItem::Normal(*func_id, arg_types, ir_expr_ty.clone());
             let mir_function_id = function_queue.insert(queue_item, mir_program);
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }

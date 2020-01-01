@@ -16,7 +16,7 @@ use crate::function::Function;
 use crate::function::FunctionId;
 use crate::function::FunctionInfo;
 use crate::function_dep_processor::FunctionDependencyProcessor;
-use crate::instance_resolution_cache::InstanceResolutionCache;
+use crate::instance_resolver::InstanceResolver;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::type_signature::TypeSignature;
@@ -38,14 +38,15 @@ use siko_constants::OPTION_MODULE_NAME;
 use siko_constants::OPTION_TYPE_NAME;
 use siko_constants::ORDERING_MODULE_NAME;
 use siko_constants::ORDERING_TYPE_NAME;
+use siko_constants::PARTIALEQ_CLASS_NAME;
+use siko_constants::PARTIALEQ_OP_NAME;
+use siko_constants::SHOW_CLASS_NAME;
 use siko_constants::STRING_MODULE_NAME;
 use siko_constants::STRING_TYPE_NAME;
 use siko_location_info::item::ItemInfo;
 use siko_util::dependency_processor::DependencyGroup;
 use siko_util::ItemContainer;
-use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::rc::Rc;
 
 pub struct Program {
     pub type_signatures: ItemContainer<TypeSignatureId, ItemInfo<TypeSignature>>,
@@ -56,7 +57,6 @@ pub struct Program {
     pub classes: ItemContainer<ClassId, Class>,
     pub class_members: ItemContainer<ClassMemberId, ClassMember>,
     pub instances: ItemContainer<InstanceId, Instance>,
-    pub instance_resolution_cache: Rc<RefCell<InstanceResolutionCache>>,
     pub expr_types: BTreeMap<ExprId, Type>,
     pub pattern_types: BTreeMap<PatternId, Type>,
     pub function_types: BTreeMap<FunctionId, Type>,
@@ -67,6 +67,7 @@ pub struct Program {
     pub function_dependency_groups: Vec<DependencyGroup<FunctionId>>,
     pub adt_type_info_map: BTreeMap<TypeDefId, AdtTypeInfo>,
     pub record_type_info_map: BTreeMap<TypeDefId, RecordTypeInfo>,
+    pub instance_resolver: InstanceResolver,
 }
 
 impl Program {
@@ -80,17 +81,17 @@ impl Program {
             classes: ItemContainer::new(),
             class_members: ItemContainer::new(),
             instances: ItemContainer::new(),
-            instance_resolution_cache: Rc::new(RefCell::new(InstanceResolutionCache::new())),
             expr_types: BTreeMap::new(),
             pattern_types: BTreeMap::new(),
             function_types: BTreeMap::new(),
             class_names: BTreeMap::new(),
             class_member_types: BTreeMap::new(),
             named_types: BTreeMap::new(),
-            type_var_generator: type_var_generator,
+            type_var_generator: type_var_generator.clone(),
             function_dependency_groups: Vec::new(),
             adt_type_info_map: BTreeMap::new(),
             record_type_info_map: BTreeMap::new(),
+            instance_resolver: InstanceResolver::new(type_var_generator),
         }
     }
 
@@ -144,10 +145,32 @@ impl Program {
     pub fn get_show_class_id(&self) -> ClassId {
         let class_id = self
             .class_names
-            .get("Show")
+            .get(SHOW_CLASS_NAME)
             .expect("Show not found")
             .clone();
         class_id
+    }
+
+    pub fn get_partialeq_class_id(&self) -> ClassId {
+        let class_id = self
+            .class_names
+            .get(PARTIALEQ_CLASS_NAME)
+            .expect("PartialEq not found")
+            .clone();
+        class_id
+    }
+
+    pub fn get_partialeq_op_id(&self) -> ClassMemberId {
+        let class_id = self
+            .class_names
+            .get(PARTIALEQ_CLASS_NAME)
+            .expect("PartialEq not found");
+        let class = self.classes.get(class_id);
+        class
+            .members
+            .get(PARTIALEQ_OP_NAME)
+            .expect("PartialEq op not found")
+            .clone()
     }
 
     pub fn get_adt_by_name(&self, module: &str, name: &str) -> &Adt {

@@ -5,7 +5,7 @@ pub mod data_type_info;
 pub mod expr;
 pub mod function;
 pub mod function_dep_processor;
-pub mod instance_resolution_cache;
+pub mod instance_resolver;
 pub mod pattern;
 pub mod program;
 pub mod substitution;

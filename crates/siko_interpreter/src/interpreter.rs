@@ -29,7 +29,7 @@ use siko_ir::expr::ExprId;
 use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionKind;
-use siko_ir::instance_resolution_cache::ResolutionResult;
+use siko_ir::instance_resolver::ResolutionResult;
 use siko_ir::pattern::Pattern;
 use siko_ir::pattern::PatternId;
 use siko_ir::program::Program;
@@ -440,10 +440,13 @@ impl Interpreter {
         );
         let function_type = call_unifier.apply(&class_member_type);
         let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
-        let cache = self.program.instance_resolution_cache.borrow();
         let class = self.program.classes.get(&member.class_id);
         assert!(class_arg.is_concrete_type());
-        match cache.get(member.class_id, class_arg) {
+        match self
+            .program
+            .instance_resolver
+            .get(member.class_id, class_arg)
+        {
             ResolutionResult::AutoDerived => {
                 let kind = match (class.module.as_ref(), class.name.as_ref()) {
                     ("Std.Ops", "Show") => Some(CallableKind::Builtin(BuiltinCallable::Show)),
@@ -487,7 +490,7 @@ impl Interpreter {
                 }
             }
             ResolutionResult::UserDefined(instance_id) => {
-                let instance = self.program.instances.get(instance_id);
+                let instance = self.program.instances.get(&instance_id);
                 let member_function_id =
                     if let Some(instance_member) = instance.members.get(&member.name) {
                         instance_member.function_id

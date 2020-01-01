@@ -63,6 +63,14 @@ pub const LIST_TYPE_NAME: &str = "List";
 pub const ITERATOR_MODULE_NAME: &str = "Iterator";
 pub const TRUE_NAME: &str = "True";
 pub const FALSE_NAME: &str = "False";
+pub const SOME_NAME: &str = "Some";
+pub const NONE_NAME: &str = "None";
+pub const EQUAL_NAME: &str = "Equal";
+pub const LESS_NAME: &str = "Less";
+pub const GREATER_NAME: &str = "Greater";
+pub const SHOW_CLASS_NAME: &str = "Show";
+pub const PARTIALEQ_CLASS_NAME: &str = "PartialEq";
+pub const PARTIALEQ_OP_NAME: &str = "opEq";
 
 pub fn get_qualified_list_type_name() -> String {
     format!("{}.{}", LIST_MODULE_NAME, LIST_TYPE_NAME)

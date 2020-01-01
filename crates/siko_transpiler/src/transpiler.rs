@@ -47,7 +47,7 @@ pub struct Transpiler {}
 
 impl Transpiler {
     pub fn process(program: &Program, target_file: &str) -> Result<()> {
-        let filename = format!("{}.rs", target_file);
+        let filename = format!("{}", target_file);
         println!("Transpiling to {}", filename);
         let mut output_file = File::create(filename)?;
         let mut modules = BTreeMap::new();
