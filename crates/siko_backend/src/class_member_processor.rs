@@ -78,8 +78,26 @@ pub fn generate_auto_derived_instance_member(
                                 class_member_id,
                             )
                         }
-                        DerivedClass::PartialOrd => unimplemented!(),
-                        DerivedClass::Ord => unimplemented!(),
+                        DerivedClass::PartialOrd => {
+                            let mut builder = Builder::new(ir_program);
+                            builder.generate_partialord_instance_member_for_adt(
+                                location,
+                                function_id,
+                                &adt,
+                                adt_type_info,
+                                class_member_id,
+                            )
+                        }
+                        DerivedClass::Ord => {
+                            let mut builder = Builder::new(ir_program);
+                            builder.generate_ord_instance_member_for_adt(
+                                location,
+                                function_id,
+                                &adt,
+                                adt_type_info,
+                                class_member_id,
+                            )
+                        }
                     };
                     let info = NamedFunctionInfo {
                         body: Some(body),
@@ -147,7 +165,16 @@ pub fn generate_auto_derived_instance_member(
                                 class_member_id,
                             )
                         }
-                        DerivedClass::Ord => unimplemented!(),
+                        DerivedClass::Ord => {
+                            let mut builder = Builder::new(ir_program);
+                            builder.generate_ord_instance_member_for_record(
+                                location,
+                                function_id,
+                                &record,
+                                record_type_info,
+                                class_member_id,
+                            )
+                        }
                     };
                     let info = NamedFunctionInfo {
                         body: Some(body),

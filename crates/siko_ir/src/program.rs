@@ -38,6 +38,8 @@ use siko_constants::OPTION_MODULE_NAME;
 use siko_constants::OPTION_TYPE_NAME;
 use siko_constants::ORDERING_MODULE_NAME;
 use siko_constants::ORDERING_TYPE_NAME;
+use siko_constants::ORD_CLASS_NAME;
+use siko_constants::ORD_OP_NAME;
 use siko_constants::PARTIALEQ_CLASS_NAME;
 use siko_constants::PARTIALEQ_OP_NAME;
 use siko_constants::SHOW_CLASS_NAME;
@@ -170,6 +172,16 @@ impl Program {
             .members
             .get(PARTIALEQ_OP_NAME)
             .expect("PartialEq op not found")
+            .clone()
+    }
+
+    pub fn get_ord_op_id(&self) -> ClassMemberId {
+        let class_id = self.class_names.get(ORD_CLASS_NAME).expect("Ord not found");
+        let class = self.classes.get(class_id);
+        class
+            .members
+            .get(ORD_OP_NAME)
+            .expect("Ord op not found")
             .clone()
     }
 

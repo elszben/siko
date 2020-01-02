@@ -30,6 +30,86 @@ use siko_location_info::location_id::LocationId;
 use siko_util::Counter;
 use std::cmp::Ordering;
 
+type ComparatorFn = fn(
+    builder: &mut Builder,
+    class_member_id: ClassMemberId,
+    location: LocationId,
+    true_branch: ExprId,
+    value0: ExprId,
+    value1: ExprId,
+) -> ExprId;
+
+fn do_partialord_compare(
+    builder: &mut Builder,
+    class_member_id: ClassMemberId,
+    location: LocationId,
+    true_branch: ExprId,
+    value0: ExprId,
+    value1: ExprId,
+) -> ExprId {
+    let optional_ordering_ty = builder
+        .program
+        .get_option_type(builder.program.get_ordering_type());
+    let partialeq_op_id = builder.program.get_partialeq_op_id();
+    let bool_ty = builder.program.get_bool_type();
+    let call_expr = Expr::ClassFunctionCall(class_member_id, vec![value0, value1]);
+    let call_expr_id = builder.add_expr(call_expr, location, optional_ordering_ty.clone());
+    let (bind, value_expr_id) =
+        builder.add_bind_pattern(call_expr_id, &optional_ordering_ty, location);
+    let optional_equal_expr_id = builder.create_optional_ordering(Some(Ordering::Equal), location);
+    let partialeq_call_expr =
+        Expr::ClassFunctionCall(partialeq_op_id, vec![value_expr_id, optional_equal_expr_id]);
+    let partialeq_expr_id = builder.add_expr(partialeq_call_expr, location, bool_ty.clone());
+    let if_expr = Expr::If(partialeq_expr_id, true_branch, value_expr_id);
+    let if_expr_id = builder.add_expr(if_expr, location, optional_ordering_ty.clone());
+    let inner_do_items = vec![bind, if_expr_id];
+    return builder.add_expr(
+        Expr::Do(inner_do_items),
+        location,
+        optional_ordering_ty.clone(),
+    );
+}
+
+fn do_ord_compare(
+    builder: &mut Builder,
+    class_member_id: ClassMemberId,
+    location: LocationId,
+    true_branch: ExprId,
+    value0: ExprId,
+    value1: ExprId,
+) -> ExprId {
+    let ordering_ty = builder.program.get_ordering_type();
+    let partialeq_op_id = builder.program.get_partialeq_op_id();
+    let bool_ty = builder.program.get_bool_type();
+    let call_expr = Expr::ClassFunctionCall(class_member_id, vec![value0, value1]);
+    let call_expr_id = builder.add_expr(call_expr, location, ordering_ty.clone());
+    let (bind, value_expr_id) = builder.add_bind_pattern(call_expr_id, &ordering_ty, location);
+    let equal_expr_id = builder.create_ordering(Ordering::Equal, location);
+    let partialeq_call_expr =
+        Expr::ClassFunctionCall(partialeq_op_id, vec![value_expr_id, equal_expr_id]);
+    let partialeq_expr_id = builder.add_expr(partialeq_call_expr, location, bool_ty.clone());
+    let if_expr = Expr::If(partialeq_expr_id, true_branch, value_expr_id);
+    let if_expr_id = builder.add_expr(if_expr, location, ordering_ty.clone());
+    let inner_do_items = vec![bind, if_expr_id];
+    return builder.add_expr(Expr::Do(inner_do_items), location, ordering_ty.clone());
+}
+
+fn do_partialeq_compare(
+    builder: &mut Builder,
+    class_member_id: ClassMemberId,
+    location: LocationId,
+    true_branch: ExprId,
+    value0: ExprId,
+    value1: ExprId,
+) -> ExprId {
+    let bool_ty = builder.program.get_bool_type();
+    let call_expr = Expr::ClassFunctionCall(class_member_id, vec![value0, value1]);
+    let call_expr_id = builder.add_expr(call_expr, location, bool_ty.clone());
+    let false_branch = builder.create_bool(false, location);
+    let if_expr = Expr::If(call_expr_id, true_branch, false_branch);
+    return builder.add_expr(if_expr, location, bool_ty.clone());
+}
+
 pub struct Builder<'a> {
     program: &'a mut Program,
     temp_var_counter: Counter,
@@ -67,18 +147,7 @@ impl<'a> Builder<'a> {
         let optional_ordering_ty = self.program.get_option_type(ordering_ty.clone());
         match value {
             Some(v) => {
-                let name = match v {
-                    Ordering::Equal => EQUAL_NAME,
-                    Ordering::Less => LESS_NAME,
-                    Ordering::Greater => GREATER_NAME,
-                };
-                let ctor = self.program.get_constructor_by_name(
-                    ORDERING_MODULE_NAME,
-                    ORDERING_TYPE_NAME,
-                    name,
-                );
-                let expr = Expr::StaticFunctionCall(ctor, vec![]);
-                let ordering_expr_id = self.add_expr(expr, location, ordering_ty);
+                let ordering_expr_id = self.create_ordering(v, location);
                 let ctor = self.program.get_constructor_by_name(
                     OPTION_MODULE_NAME,
                     OPTION_TYPE_NAME,
@@ -97,6 +166,20 @@ impl<'a> Builder<'a> {
                 self.add_expr(expr, location, optional_ordering_ty)
             }
         }
+    }
+
+    pub fn create_ordering(&mut self, value: Ordering, location: LocationId) -> ExprId {
+        let ordering_ty = self.program.get_ordering_type();
+        let name = match value {
+            Ordering::Equal => EQUAL_NAME,
+            Ordering::Less => LESS_NAME,
+            Ordering::Greater => GREATER_NAME,
+        };
+        let ctor =
+            self.program
+                .get_constructor_by_name(ORDERING_MODULE_NAME, ORDERING_TYPE_NAME, name);
+        let expr = Expr::StaticFunctionCall(ctor, vec![]);
+        self.add_expr(expr, location, ordering_ty)
     }
 
     pub fn add_arg_ref(
@@ -230,7 +313,8 @@ impl<'a> Builder<'a> {
             }
             let pattern = Pattern::Variant(adt.id, index, item_patterns);
             let pattern_id = self.add_pattern(pattern, location, adt_type_info.adt_type.clone());
-            let item_fmt_str_args: Vec<_> = std::iter::repeat("{{}}").take(values.len()).collect();
+            let item_fmt_str_args: Vec<_> =
+                std::iter::repeat("({{}})").take(values.len()).collect();
             let fmt_str = format!("{} {} ", adt.name, item_fmt_str_args.join(", "));
             let fmt_expr = Expr::Formatter(fmt_str, values);
             let fmt_expr_id = self.add_expr(fmt_expr, location, string_ty.clone());
@@ -258,6 +342,131 @@ impl<'a> Builder<'a> {
         class_member_id: ClassMemberId,
     ) -> (ExprId, Type) {
         let bool_ty = self.program.get_bool_type();
+        return self.generate_two_args_instance_member_for_record(
+            location,
+            function_id,
+            record,
+            record_type_info,
+            class_member_id,
+            &bool_ty,
+            do_partialeq_compare,
+        );
+    }
+
+    pub fn generate_partialeq_instance_member_for_adt(
+        &mut self,
+        location: LocationId,
+        function_id: FunctionId,
+        adt: &Adt,
+        adt_type_info: AdtTypeInfo,
+        class_member_id: ClassMemberId,
+    ) -> (ExprId, Type) {
+        let bool_ty = self.program.get_bool_type();
+        return self.generate_two_args_instance_member_for_adt(
+            location,
+            function_id,
+            adt,
+            adt_type_info,
+            class_member_id,
+            &bool_ty,
+            do_partialeq_compare,
+        );
+    }
+
+    pub fn generate_partialord_instance_member_for_record(
+        &mut self,
+        location: LocationId,
+        function_id: FunctionId,
+        record: &Record,
+        record_type_info: RecordTypeInfo,
+        class_member_id: ClassMemberId,
+    ) -> (ExprId, Type) {
+        let optional_ordering_ty = self
+            .program
+            .get_option_type(self.program.get_ordering_type());
+        self.generate_two_args_instance_member_for_record(
+            location,
+            function_id,
+            record,
+            record_type_info,
+            class_member_id,
+            &optional_ordering_ty,
+            do_partialord_compare,
+        )
+    }
+
+    pub fn generate_partialord_instance_member_for_adt(
+        &mut self,
+        location: LocationId,
+        function_id: FunctionId,
+        adt: &Adt,
+        adt_type_info: AdtTypeInfo,
+        class_member_id: ClassMemberId,
+    ) -> (ExprId, Type) {
+        let optional_ordering_ty = self
+            .program
+            .get_option_type(self.program.get_ordering_type());
+        return self.generate_two_args_instance_member_for_adt(
+            location,
+            function_id,
+            adt,
+            adt_type_info,
+            class_member_id,
+            &optional_ordering_ty,
+            do_partialord_compare,
+        );
+    }
+
+    pub fn generate_ord_instance_member_for_record(
+        &mut self,
+        location: LocationId,
+        function_id: FunctionId,
+        record: &Record,
+        record_type_info: RecordTypeInfo,
+        class_member_id: ClassMemberId,
+    ) -> (ExprId, Type) {
+        let ordering_ty = self.program.get_ordering_type();
+        self.generate_two_args_instance_member_for_record(
+            location,
+            function_id,
+            record,
+            record_type_info,
+            class_member_id,
+            &ordering_ty,
+            do_ord_compare,
+        )
+    }
+
+    pub fn generate_ord_instance_member_for_adt(
+        &mut self,
+        location: LocationId,
+        function_id: FunctionId,
+        adt: &Adt,
+        adt_type_info: AdtTypeInfo,
+        class_member_id: ClassMemberId,
+    ) -> (ExprId, Type) {
+        let ordering_ty = self.program.get_ordering_type();
+        return self.generate_two_args_instance_member_for_adt(
+            location,
+            function_id,
+            adt,
+            adt_type_info,
+            class_member_id,
+            &ordering_ty,
+            do_ord_compare,
+        );
+    }
+
+    pub fn generate_two_args_instance_member_for_record(
+        &mut self,
+        location: LocationId,
+        function_id: FunctionId,
+        record: &Record,
+        record_type_info: RecordTypeInfo,
+        class_member_id: ClassMemberId,
+        return_ty: &Type,
+        cmp_fn: ComparatorFn,
+    ) -> (ExprId, Type) {
         let arg_ref_expr_id_0 = self.add_arg_ref(
             0,
             function_id,
@@ -274,19 +483,22 @@ impl<'a> Builder<'a> {
             self.add_record_pattern(arg_ref_expr_id_0, record, &record_type_info, location);
         let (bind_expr_id_1, values_1) =
             self.add_record_pattern(arg_ref_expr_id_1, record, &record_type_info, location);
-        let mut true_branch = self.create_bool(true, location);
+        let mut true_branch = self.create_optional_ordering(Some(Ordering::Equal), location);
         for (value_0, value_1) in values_0.iter().zip(values_1.iter()) {
-            let call_expr = Expr::ClassFunctionCall(class_member_id, vec![*value_0, *value_1]);
-            let call_expr_id = self.add_expr(call_expr, location, bool_ty.clone());
-            let false_branch = self.create_bool(false, location);
-            let if_expr = Expr::If(call_expr_id, true_branch, false_branch);
-            true_branch = self.add_expr(if_expr, location, bool_ty.clone());
+            true_branch = cmp_fn(
+                self,
+                class_member_id,
+                location,
+                true_branch,
+                *value_0,
+                *value_1,
+            );
         }
         let items = vec![bind_expr_id_0, bind_expr_id_1, true_branch];
-        let body = self.add_expr(Expr::Do(items), location, bool_ty.clone());
+        let body = self.add_expr(Expr::Do(items), location, return_ty.clone());
         let function_type = Type::Function(
             Box::new(record_type_info.record_type.clone()),
-            Box::new(bool_ty),
+            Box::new(return_ty.clone()),
         );
         let function_type = Type::Function(
             Box::new(record_type_info.record_type.clone()),
@@ -295,15 +507,16 @@ impl<'a> Builder<'a> {
         (body, function_type)
     }
 
-    pub fn generate_partialeq_instance_member_for_adt(
+    pub fn generate_two_args_instance_member_for_adt(
         &mut self,
         location: LocationId,
         function_id: FunctionId,
         adt: &Adt,
         adt_type_info: AdtTypeInfo,
         class_member_id: ClassMemberId,
+        return_ty: &Type,
+        cmp_fn: ComparatorFn,
     ) -> (ExprId, Type) {
-        let bool_ty = self.program.get_bool_type();
         let arg_ref_expr_id_0 =
             self.add_arg_ref(0, function_id, location, adt_type_info.adt_type.clone());
         let arg_ref_expr_id_1 =
@@ -350,14 +563,17 @@ impl<'a> Builder<'a> {
 
                 let tuple_pattern = Pattern::Tuple(vec![pattern0_id, pattern1_id]);
                 let tuple_pattern_id = self.add_pattern(tuple_pattern, location, tuple_ty.clone());
-                let mut true_branch = self.create_bool(true, location);
+                let mut true_branch =
+                    self.create_optional_ordering(Some(Ordering::Equal), location);
                 for (value_0, value_1) in values0.iter().zip(values1.iter()) {
-                    let call_expr =
-                        Expr::ClassFunctionCall(class_member_id, vec![*value_0, *value_1]);
-                    let call_expr_id = self.add_expr(call_expr, location, bool_ty.clone());
-                    let false_branch = self.create_bool(false, location);
-                    let if_expr = Expr::If(call_expr_id, true_branch, false_branch);
-                    true_branch = self.add_expr(if_expr, location, bool_ty.clone());
+                    true_branch = cmp_fn(
+                        self,
+                        class_member_id,
+                        location,
+                        true_branch,
+                        *value_0,
+                        *value_1,
+                    );
                 }
                 let case = Case {
                     pattern_id: tuple_pattern_id,
@@ -367,75 +583,13 @@ impl<'a> Builder<'a> {
             }
         }
         let case_expr = Expr::CaseOf(tuple_expr_id, cases, Vec::new());
-        let body = self.add_expr(case_expr, location, bool_ty.clone());
-        let function_type =
-            Type::Function(Box::new(adt_type_info.adt_type.clone()), Box::new(bool_ty));
+        let body = self.add_expr(case_expr, location, return_ty.clone());
         let function_type = Type::Function(
             Box::new(adt_type_info.adt_type.clone()),
-            Box::new(function_type),
-        );
-        (body, function_type)
-    }
-
-    pub fn generate_partialord_instance_member_for_record(
-        &mut self,
-        location: LocationId,
-        function_id: FunctionId,
-        record: &Record,
-        record_type_info: RecordTypeInfo,
-        class_member_id: ClassMemberId,
-    ) -> (ExprId, Type) {
-        let optional_ordering_ty = self
-            .program
-            .get_option_type(self.program.get_ordering_type());
-        let partialeq_op_id = self.program.get_partialeq_op_id();
-        let bool_ty = self.program.get_bool_type();
-        let arg_ref_expr_id_0 = self.add_arg_ref(
-            0,
-            function_id,
-            location,
-            record_type_info.record_type.clone(),
-        );
-        let arg_ref_expr_id_1 = self.add_arg_ref(
-            1,
-            function_id,
-            location,
-            record_type_info.record_type.clone(),
-        );
-        let (bind_expr_id_0, values_0) =
-            self.add_record_pattern(arg_ref_expr_id_0, record, &record_type_info, location);
-        let (bind_expr_id_1, values_1) =
-            self.add_record_pattern(arg_ref_expr_id_1, record, &record_type_info, location);
-        let mut true_branch = self.create_optional_ordering(Some(Ordering::Equal), location);
-        for (value_0, value_1) in values_0.iter().zip(values_1.iter()) {
-            let call_expr = Expr::ClassFunctionCall(class_member_id, vec![*value_0, *value_1]);
-            let call_expr_id = self.add_expr(call_expr, location, optional_ordering_ty.clone());
-            let (bind, value_expr_id) =
-                self.add_bind_pattern(call_expr_id, &optional_ordering_ty, location);
-            let optional_equal_expr_id =
-                self.create_optional_ordering(Some(Ordering::Equal), location);
-            let partialeq_call_expr = Expr::ClassFunctionCall(
-                partialeq_op_id,
-                vec![value_expr_id, optional_equal_expr_id],
-            );
-            let partialeq_expr_id = self.add_expr(partialeq_call_expr, location, bool_ty.clone());
-            let if_expr = Expr::If(partialeq_expr_id, true_branch, value_expr_id);
-            let if_expr_id = self.add_expr(if_expr, location, optional_ordering_ty.clone());
-            let inner_do_items = vec![bind, if_expr_id];
-            true_branch = self.add_expr(
-                Expr::Do(inner_do_items),
-                location,
-                optional_ordering_ty.clone(),
-            );
-        }
-        let items = vec![bind_expr_id_0, bind_expr_id_1, true_branch];
-        let body = self.add_expr(Expr::Do(items), location, optional_ordering_ty.clone());
-        let function_type = Type::Function(
-            Box::new(record_type_info.record_type.clone()),
-            Box::new(optional_ordering_ty),
+            Box::new(return_ty.clone()),
         );
         let function_type = Type::Function(
-            Box::new(record_type_info.record_type.clone()),
+            Box::new(adt_type_info.adt_type.clone()),
             Box::new(function_type),
         );
         (body, function_type)

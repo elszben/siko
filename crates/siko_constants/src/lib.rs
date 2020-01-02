@@ -71,6 +71,8 @@ pub const GREATER_NAME: &str = "Greater";
 pub const SHOW_CLASS_NAME: &str = "Show";
 pub const PARTIALEQ_CLASS_NAME: &str = "PartialEq";
 pub const PARTIALEQ_OP_NAME: &str = "opEq";
+pub const ORD_CLASS_NAME: &str = "Ord";
+pub const ORD_OP_NAME: &str = "cmp";
 
 pub fn get_qualified_list_type_name() -> String {
     format!("{}.{}", LIST_MODULE_NAME, LIST_TYPE_NAME)

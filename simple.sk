@@ -1,7 +1,8 @@
 module Main where
 
-data Foo = { name :: String } deriving (Show)
-data Boo = { name :: Foo } deriving (Show)
+import Std.Util
 
-main = 
-    println "boo {}" % (Boo (Foo "alma"))
+data Person = { name :: String } deriving PartialEq, PartialOrd
+
+main  = do
+    assert !(Person { name = "Lily" } > Person { name = "Lily" })
