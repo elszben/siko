@@ -18,3 +18,4 @@ main = do
         a <- staticFunc
         a (fmap (\x -> x) (Boo 5))
         boo show
+        ()

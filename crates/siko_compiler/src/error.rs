@@ -1,4 +1,6 @@
 use colored::*;
+use siko_constants::MAIN_FUNCTION;
+use siko_constants::MAP_MODULE_NAME;
 use siko_location_info::error_context::ErrorContext;
 use siko_location_info::file_manager::FileManager;
 use siko_location_info::filepath::FilePath;
@@ -695,6 +697,18 @@ impl Error {
                                 "{} class {} is not auto derivable",
                                 error.red(),
                                 class.yellow()
+                            );
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::IncorrectTypeForMain(ty, id) => {
+                            eprintln!(
+                                "{} {} in module {} has type {} instead of {}",
+                                error.red(),
+                                MAIN_FUNCTION.yellow(),
+                                MAP_MODULE_NAME.yellow(),
+                                ty.yellow(),
+                                "()".yellow(),
                             );
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);

@@ -11,9 +11,13 @@ pub fn get_call_unifier(
     expected_result_ty: &IrType,
     ir_program: &IrProgram,
 ) -> Unifier {
+    /*
     for arg in arg_types {
+        println!("arg {}", arg.get_resolved_type_string(ir_program));
         assert!(arg.is_concrete_type());
     }
+    println!("{}", func_ty.get_resolved_type_string(ir_program));
+    */
     let mut call_unifier = ir_program.get_unifier();
     let mut func_ty = func_ty.clone();
     for arg in arg_types {
@@ -24,7 +28,13 @@ pub fn get_call_unifier(
         func_ty.apply(&call_unifier);
         func_ty = func_ty.get_result_type(1);
     }
-    //println!("{} {}", expected_result_ty, func_ty);
+    /*
+    println!(
+        "{} {}",
+        expected_result_ty.get_resolved_type_string(ir_program),
+        func_ty.get_resolved_type_string(ir_program)
+    );
+    */
     let r = call_unifier.unify(&func_ty, expected_result_ty);
     assert!(r.is_ok());
     call_unifier

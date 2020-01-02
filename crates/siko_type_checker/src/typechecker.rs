@@ -550,8 +550,27 @@ impl Typechecker {
         }
     }
 
-    fn check_main(&self, program: &Program, errors: &mut Vec<TypecheckError>) {
-        if program.get_main().is_none() {
+    fn check_main(
+        &self,
+        program: &Program,
+        errors: &mut Vec<TypecheckError>,
+        type_info_provider: &TypeInfoProvider,
+    ) {
+        if let Some(main_id) = program.get_main() {
+            let f = program.functions.get(&main_id);
+            let main_type_info = type_info_provider.function_type_info_store.get(&main_id);
+            if main_type_info.function_type != Type::Tuple(vec![]) {
+                let main_type = main_type_info
+                    .function_type
+                    .get_resolved_type_string(program);
+                if let FunctionInfo::NamedFunction(info) = &f.info {
+                    let err = TypecheckError::IncorrectTypeForMain(main_type, info.location_id);
+                    errors.push(err);
+                } else {
+                    unreachable!();
+                }
+            }
+        } else {
             errors.push(TypecheckError::MainNotFound);
         }
     }
@@ -754,8 +773,6 @@ impl Typechecker {
 
         let ordered_dep_groups = program.function_dependency_groups.clone();
 
-        self.check_main(program, &mut errors);
-
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
         }
@@ -772,6 +789,12 @@ impl Typechecker {
             //type_store.dump(program);
             type_store.save_expr_and_pattern_types(program);
         }
+
+        if !errors.is_empty() {
+            return Err(Error::typecheck_err(errors));
+        }
+
+        self.check_main(program, &mut errors, &type_info_provider);
 
         if !errors.is_empty() {
             return Err(Error::typecheck_err(errors));
