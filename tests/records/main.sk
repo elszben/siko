@@ -4,6 +4,7 @@ import Std.Util
 
 data Person2 = { title :: String, age :: Int }
 data Person = { name :: String, age :: Int }
+data Empty = { }
 
 createPerson name = Person { name = name, age = 5 }
 

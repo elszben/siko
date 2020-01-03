@@ -893,36 +893,51 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::KeywordData)?;
         let name = self.type_identifier("type")?;
         let args = self.parse_args()?;
-        self.expect(TokenKind::Equal)?;
-        if self.current(TokenKind::LCurly) {
-            self.expect(TokenKind::LCurly)?;
-            let record = self.parse_record(name, args, start_index)?;
-            Ok(Data::Record(record))
-        } else if self.current(TokenKind::KeywordExtern) {
-            self.expect(TokenKind::KeywordExtern)?;
-            let end_index = self.get_index();
-            let location_id = self.get_location_id(start_index, end_index);
-            let record = Record {
-                name: name,
-                id: self.program.records.get_id(),
-                type_args: args,
-                fields: Vec::new(),
-                location_id: location_id,
-                external: true,
-                derived_classes: Vec::new(),
-            };
-            Ok(Data::Record(record))
-        } else {
-            let mut variants = Vec::new();
-            loop {
-                let variant = self.parse_variant()?;
-                variants.push(variant);
-                if self.current(TokenKind::Pipe) {
-                    self.expect(TokenKind::Pipe)?;
-                } else {
-                    break;
+        if self.current(TokenKind::Equal) {
+            self.expect(TokenKind::Equal)?;
+            if self.current(TokenKind::LCurly) {
+                self.expect(TokenKind::LCurly)?;
+                let record = self.parse_record(name, args, start_index)?;
+                Ok(Data::Record(record))
+            } else if self.current(TokenKind::KeywordExtern) {
+                self.expect(TokenKind::KeywordExtern)?;
+                let end_index = self.get_index();
+                let location_id = self.get_location_id(start_index, end_index);
+                let record = Record {
+                    name: name,
+                    id: self.program.records.get_id(),
+                    type_args: args,
+                    fields: Vec::new(),
+                    location_id: location_id,
+                    external: true,
+                    derived_classes: Vec::new(),
+                };
+                Ok(Data::Record(record))
+            } else {
+                let mut variants = Vec::new();
+                loop {
+                    let variant = self.parse_variant()?;
+                    variants.push(variant);
+                    if self.current(TokenKind::Pipe) {
+                        self.expect(TokenKind::Pipe)?;
+                    } else {
+                        break;
+                    }
                 }
+                let end_index = self.get_index();
+                let location_id = self.get_location_id(start_index, end_index);
+                let derived_classes = self.parse_deriving()?;
+                let adt = Adt {
+                    name: name,
+                    id: self.program.adts.get_id(),
+                    type_args: args,
+                    variants: variants,
+                    location_id: location_id,
+                    derived_classes: derived_classes,
+                };
+                Ok(Data::Adt(adt))
             }
+        } else {
             let end_index = self.get_index();
             let location_id = self.get_location_id(start_index, end_index);
             let derived_classes = self.parse_deriving()?;
@@ -930,7 +945,7 @@ impl<'a> Parser<'a> {
                 name: name,
                 id: self.program.adts.get_id(),
                 type_args: args,
-                variants: variants,
+                variants: Vec::new(),
                 location_id: location_id,
                 derived_classes: derived_classes,
             };
