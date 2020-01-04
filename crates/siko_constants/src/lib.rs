@@ -70,9 +70,13 @@ pub const LESS_NAME: &str = "Less";
 pub const GREATER_NAME: &str = "Greater";
 pub const SHOW_CLASS_NAME: &str = "Show";
 pub const PARTIALEQ_CLASS_NAME: &str = "PartialEq";
+pub const EQ_CLASS_NAME: &str = "Eq";
+pub const PARTIALORD_CLASS_NAME: &str = "PartialOrd";
 pub const PARTIALEQ_OP_NAME: &str = "opEq";
 pub const ORD_CLASS_NAME: &str = "Ord";
 pub const ORD_OP_NAME: &str = "cmp";
+pub const STD_OPS_MODULE_NAME: &str = "Std.Ops";
+pub const STD_UTIL_BASIC_MODULE_NAME: &str = "Std.Util.Basic";
 
 pub fn get_qualified_list_type_name() -> String {
     format!("{}.{}", LIST_MODULE_NAME, LIST_TYPE_NAME)
@@ -89,8 +93,18 @@ pub fn get_implicit_module_list() -> Vec<&'static str> {
         RESULT_MODULE_NAME,
         LIST_MODULE_NAME,
         ITERATOR_MODULE_NAME,
-        "Std.Util.Basic",
-        "Std.Ops",
+        STD_UTIL_BASIC_MODULE_NAME,
+        STD_OPS_MODULE_NAME,
     ];
     implicit_modules
+}
+
+pub fn get_auto_derivable_classes() -> Vec<&'static str> {
+    vec![
+        PARTIALEQ_CLASS_NAME,
+        EQ_CLASS_NAME,
+        PARTIALORD_CLASS_NAME,
+        ORD_CLASS_NAME,
+        SHOW_CLASS_NAME,
+    ]
 }

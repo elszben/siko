@@ -124,7 +124,6 @@ fn walk_pattern(pattern_id: &PatternId, visitor: &mut dyn Visitor) {
         }
         Pattern::Wildcard => {}
         Pattern::IntegerLiteral(_) => {}
-        Pattern::FloatLiteral(_) => {}
         Pattern::StringLiteral(_) => {}
         Pattern::Typed(id, _) => {
             walk_pattern(id, visitor);

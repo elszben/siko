@@ -3,6 +3,7 @@ pub mod common;
 pub mod error;
 pub mod expression_checker;
 pub mod instance_resolver;
+pub mod pattern_checker;
 pub mod type_info_provider;
 pub mod type_store;
 pub mod type_store_initializer;

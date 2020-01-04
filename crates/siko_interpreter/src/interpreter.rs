@@ -230,13 +230,6 @@ impl Interpreter {
                 };
                 return r;
             }
-            Pattern::FloatLiteral(p_v) => {
-                let r = match &value.core {
-                    ValueCore::Float(v) => p_v == v,
-                    _ => false,
-                };
-                return r;
-            }
             Pattern::StringLiteral(p_v) => {
                 let r = match &value.core {
                     ValueCore::String(v) => p_v == v,

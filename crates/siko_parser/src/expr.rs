@@ -167,17 +167,6 @@ fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternI
                 unreachable!()
             }
         }
-        TokenKind::FloatLiteral => {
-            let start_index = parser.get_index();
-            let literal = parser.advance()?;
-            if let Token::FloatLiteral(f) = literal.token {
-                let pattern = Pattern::FloatLiteral(f);
-                let id = parser.add_pattern(pattern, start_index);
-                id
-            } else {
-                unreachable!()
-            }
-        }
         TokenKind::StringLiteral => {
             let start_index = parser.get_index();
             let literal = parser.advance()?;

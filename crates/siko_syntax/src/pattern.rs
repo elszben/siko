@@ -35,7 +35,6 @@ pub enum Pattern {
     Guarded(PatternId, ExprId),
     Wildcard,
     IntegerLiteral(i64),
-    FloatLiteral(f64),
     StringLiteral(String),
     Typed(PatternId, TypeSignatureId),
     Record(String, Vec<RecordFieldPattern>),

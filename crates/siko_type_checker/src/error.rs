@@ -18,6 +18,8 @@ pub enum TypecheckError {
     CyclicClassDependencies(LocationId, String),
     MissingInstance(String, LocationId),
     ClassNotAutoDerivable(String, LocationId),
+    UnreachablePattern(LocationId),
+    NonExhaustivePattern(LocationId),
 }
 
 #[derive(Debug)]

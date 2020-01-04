@@ -6,6 +6,7 @@ use crate::error::TypecheckError;
 use crate::expression_checker::ExpressionChecker;
 use crate::instance_resolver::check_conflicts;
 use crate::instance_resolver::check_instance_dependencies;
+use crate::pattern_checker::PatternChecker;
 use crate::type_info_provider::TypeInfoProvider;
 use crate::type_store::TypeStore;
 use crate::type_store_initializer::TypeStoreInitializer;
@@ -636,6 +637,19 @@ impl Typechecker {
         walk_expr(&body, &mut undef_var_checker);
     }
 
+    fn check_patterns<'a>(
+        &self,
+        function_id: &FunctionId,
+        errors: &'a mut Vec<TypecheckError>,
+        type_info_provider: &'a mut TypeInfoProvider,
+        program: &'a mut Program,
+    ) {
+        let function_type_info = type_info_provider.function_type_info_store.get(function_id);
+        let mut pattern_checker = PatternChecker::new(program, errors);
+        let body = function_type_info.body.expect("body not found");
+        walk_expr(&body, &mut pattern_checker);
+    }
+
     fn check_class_constraints<'a>(
         &self,
         function_id: &FunctionId,
@@ -683,6 +697,14 @@ impl Typechecker {
 
         for function in &group.items {
             self.check_undefined_vars(function, errors, type_store, type_info_provider, program);
+        }
+
+        if !errors.is_empty() {
+            return;
+        }
+
+        for function in &group.items {
+            self.check_patterns(function, errors, type_info_provider, program);
         }
 
         if !errors.is_empty() {

@@ -242,10 +242,6 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .get_new_type_var();
                 self.type_store.initialize_pattern(pattern_id, ty);
             }
-            Pattern::FloatLiteral(_) => {
-                self.type_store
-                    .initialize_pattern(pattern_id, self.program.get_float_type());
-            }
             Pattern::Guarded(_, _) => {
                 let ty = self
                     .type_info_provider

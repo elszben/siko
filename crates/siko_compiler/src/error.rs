@@ -713,6 +713,16 @@ impl Error {
                             let location_set = location_info.get_item_location(id);
                             print_location_set(file_manager, location_set);
                         }
+                        TypecheckError::UnreachablePattern(id) => {
+                            eprintln!("{} unreachable pattern", error.red(),);
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
+                        TypecheckError::NonExhaustivePattern(id) => {
+                            eprintln!("{} non exhaustive pattern", error.red(),);
+                            let location_set = location_info.get_item_location(id);
+                            print_location_set(file_manager, location_set);
+                        }
                     }
                 }
             }

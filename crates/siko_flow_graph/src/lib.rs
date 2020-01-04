@@ -54,7 +54,6 @@ fn process_pattern(
         }
         Pattern::IntegerLiteral(_) => block_id,
         Pattern::StringLiteral(_) => block_id,
-        Pattern::FloatLiteral(_) => block_id,
         Pattern::Typed(item, _) => {
             return process_pattern(*item, program, block_id, cfg, dfg, environment);
         }

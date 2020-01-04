@@ -25,7 +25,6 @@ pub fn process_pattern(
     let pattern = &item_info.item;
     let mir_pattern = match pattern {
         IrPattern::Binding(name) => MirPattern::Binding(name.clone()),
-        IrPattern::FloatLiteral(v) => MirPattern::FloatLiteral(v.clone()),
         IrPattern::Guarded(sub, guard_expr) => {
             let mir_sub = process_pattern(
                 sub,

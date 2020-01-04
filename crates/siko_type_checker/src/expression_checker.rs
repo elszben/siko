@@ -329,7 +329,6 @@ impl<'a> Visitor for ExpressionChecker<'a> {
         //println!("C {} {:?}", pattern_id, pattern);
         match pattern {
             Pattern::Binding(_) => {}
-            Pattern::FloatLiteral(_) => {}
             Pattern::Guarded(inner, guard_expr_id) => {
                 self.match_patterns(*inner, pattern_id);
                 let bool_ty = self.program.get_bool_type();
