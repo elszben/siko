@@ -1,0 +1,10 @@
+module Main where
+
+data Boo = Boo
+
+class Bar a
+
+foo a :: (Bar a) => a -> ()
+foo a = ()
+
+main = foo Boo

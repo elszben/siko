@@ -1,5 +1,0 @@
-module Main where
-
-import Std.Util
-
-main = assert (True != False)

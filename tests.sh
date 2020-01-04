@@ -4,9 +4,5 @@ set -e
 
 ./build.sh
 
-TESTS=$(find tests -mindepth 1 -maxdepth 1)
-
-for TEST in $TESTS; do
-    echo "Running $TEST"
-    ./siko $TEST $@
-done
+cd siko_tester
+cargo run -- ../siko ../std ../comp ../tests/success/ ../tests/fail/
