@@ -1,4 +1,5 @@
 use crate::type_processor::process_type;
+use siko_constants::MIR_INTERNAL_MODULE_NAME;
 use siko_ir::data::TypeDef as IrTypeDef;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type as IrType;
@@ -34,19 +35,19 @@ impl TypeDefStore {
             newly_added = true;
             mir_program.typedefs.get_id()
         });
-        let name = format!("tuple#{}", mir_typedef_id.id);
+        let name = format!("Tuple{}", mir_typedef_id.id);
         if newly_added {
             let mut fields = Vec::new();
             for (index, field_ty) in field_types.into_iter().enumerate() {
                 let mir_field = MirRecordField {
-                    name: format!("field#{}", index),
+                    name: format!("field_{}", index),
                     ty: field_ty,
                 };
                 fields.push(mir_field);
             }
             let mir_record = MirRecord {
                 id: mir_typedef_id,
-                module: format!("<generated>"),
+                module: format!("{}", MIR_INTERNAL_MODULE_NAME),
                 name: name.clone(),
                 fields: fields,
                 external: false,
@@ -101,7 +102,7 @@ impl TypeDefStore {
                             let mir_adt = MirAdt {
                                 id: mir_typedef_id,
                                 module: ir_adt.module.clone(),
-                                name: ir_adt.name.clone(),
+                                name: format!("{}_{}", ir_adt.name, mir_typedef_id.id),
                                 variants: variants,
                             };
                             let mir_typedef = MirTypeDef::Adt(mir_adt);
@@ -133,7 +134,7 @@ impl TypeDefStore {
                             let mir_record = MirRecord {
                                 id: mir_typedef_id,
                                 module: ir_record.module.clone(),
-                                name: ir_record.name.clone(),
+                                name: format!("{}_{}", ir_record.name, mir_typedef_id.id),
                                 fields: fields,
                                 external: ir_record.external,
                             };

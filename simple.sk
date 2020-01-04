@@ -1,8 +1,9 @@
 module Main where
 
-import Std.Util
-
-data Person = { name :: String } deriving PartialEq, PartialOrd
+foo a b = a + b
 
 main  = do
-    assert !(Person { name = "Lily" } > Person { name = "Lily" })
+        a <- foo 5 
+        b <- (a, 5)
+        (b.0) 2 5
+        ()

@@ -20,7 +20,7 @@ pub fn process_type(
         }
         IrType::Named(name, _, _) => {
             let mir_typedef_id = typedef_store.add_type(ir_type.clone(), ir_program, mir_program);
-            MirType::Named(format!("{}/{}", name, mir_typedef_id.id), mir_typedef_id)
+            MirType::Named(format!("{}_{}", name, mir_typedef_id.id), mir_typedef_id)
         }
         IrType::Tuple(items) => {
             let items: Vec<_> = items

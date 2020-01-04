@@ -40,7 +40,7 @@ impl BuiltinOperator {
     }
 }
 
-pub const MAIN_MODULE: &str = "Main";
+pub const MAIN_MODULE_NAME: &str = "Main";
 pub const MAIN_FUNCTION: &str = "main";
 pub const BOOL_MODULE_NAME: &str = "Bool";
 pub const BOOL_TYPE_NAME: &str = "Bool";
@@ -77,6 +77,8 @@ pub const ORD_CLASS_NAME: &str = "Ord";
 pub const ORD_OP_NAME: &str = "cmp";
 pub const STD_OPS_MODULE_NAME: &str = "Std.Ops";
 pub const STD_UTIL_BASIC_MODULE_NAME: &str = "Std.Util.Basic";
+pub const MIR_INTERNAL_MODULE_NAME: &str = "__siko__";
+pub const MIR_FUNCTION_TRAIT_NAME: &str = "Function";
 
 pub fn get_qualified_list_type_name() -> String {
     format!("{}.{}", LIST_MODULE_NAME, LIST_TYPE_NAME)

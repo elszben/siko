@@ -695,6 +695,10 @@ impl Typechecker {
             );
         }
 
+        if !errors.is_empty() {
+            return;
+        }
+
         for function in &group.items {
             self.check_undefined_vars(function, errors, type_store, type_info_provider, program);
         }

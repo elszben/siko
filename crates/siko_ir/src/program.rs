@@ -33,7 +33,7 @@ use siko_constants::INT_TYPE_NAME;
 use siko_constants::LIST_MODULE_NAME;
 use siko_constants::LIST_TYPE_NAME;
 use siko_constants::MAIN_FUNCTION;
-use siko_constants::MAIN_MODULE;
+use siko_constants::MAIN_MODULE_NAME;
 use siko_constants::OPTION_MODULE_NAME;
 use siko_constants::OPTION_TYPE_NAME;
 use siko_constants::ORDERING_MODULE_NAME;
@@ -231,7 +231,7 @@ impl Program {
         for (id, function) in &self.functions.items {
             match &function.info {
                 FunctionInfo::NamedFunction(info) => {
-                    if info.module == MAIN_MODULE && info.name == MAIN_FUNCTION {
+                    if info.module == MAIN_MODULE_NAME && info.name == MAIN_FUNCTION {
                         return Some(*id);
                     }
                 }
