@@ -1,3 +1,4 @@
+use crate::function_queue::CallContext;
 use crate::function_queue::FunctionQueue;
 use crate::function_queue::FunctionQueueItem;
 use crate::util::get_call_unifier;
@@ -6,6 +7,7 @@ use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::data::TypeDef as IrTypeDef;
 use siko_ir::function::Function as IrFunction;
+use siko_ir::function::FunctionId;
 use siko_ir::function::FunctionInfo;
 use siko_ir::function::NamedFunctionInfo;
 use siko_ir::function::NamedFunctionKind;
@@ -29,7 +31,7 @@ pub fn generate_auto_derived_instance_member(
     ir_program: &mut IrProgram,
     derived_class: DerivedClass,
     class_member_id: ClassMemberId,
-) {
+) -> FunctionId {
     let arg_count = match derived_class {
         DerivedClass::Show => 1,
         DerivedClass::PartialEq => 2,
@@ -105,7 +107,7 @@ pub fn generate_auto_derived_instance_member(
                         location_id: location,
                         type_signature: None,
                         module: adt.module.clone(),
-                        name: format!("{:?}_{}", derived_class, function_id.id),
+                        name: format!("{:?}", derived_class),
                     };
                     let function_info = FunctionInfo::NamedFunction(info);
                     let function = IrFunction {
@@ -116,6 +118,7 @@ pub fn generate_auto_derived_instance_member(
                     };
                     ir_program.function_types.insert(function_id, function_type);
                     ir_program.functions.add_item(function_id, function);
+                    function_id
                 }
                 IrTypeDef::Record(record) => {
                     let record_type_info = ir_program
@@ -182,7 +185,7 @@ pub fn generate_auto_derived_instance_member(
                         location_id: location,
                         type_signature: None,
                         module: record.module.clone(),
-                        name: format!("{:?}_{}", derived_class, function_id.id),
+                        name: format!("{:?}", derived_class),
                     };
                     let function_info = FunctionInfo::NamedFunction(info);
                     let function = IrFunction {
@@ -193,6 +196,7 @@ pub fn generate_auto_derived_instance_member(
                     };
                     ir_program.function_types.insert(function_id, function_type);
                     ir_program.functions.add_item(function_id, function);
+                    function_id
                 }
             }
         }
@@ -224,14 +228,14 @@ pub fn process_class_member_call(
     );
     let class_arg = call_unifier.apply(&class_arg_ty.remove_fixed_types());
     assert!(class_arg.is_concrete_type());
+    let context = CallContext::new(arg_types.clone(), expr_ty);
     match ir_program
         .instance_resolver
         .get(member.class_id, class_arg.clone())
     {
         ResolutionResult::AutoDerived => {
             if let Some(default_impl) = member.default_implementation {
-                let queue_item =
-                    FunctionQueueItem::Normal(default_impl, arg_types.clone(), expr_ty);
+                let queue_item = FunctionQueueItem::Normal(default_impl, context);
                 let mir_function_id = function_queue.insert(queue_item, mir_program);
                 mir_function_id
             } else {
@@ -239,6 +243,7 @@ pub fn process_class_member_call(
                     class_arg.clone(),
                     member.class_id,
                     *class_member_id,
+                    context,
                 );
                 let mir_function_id = function_queue.insert(queue_item, mir_program);
                 mir_function_id
@@ -254,8 +259,7 @@ pub fn process_class_member_call(
                         .default_implementation
                         .expect("Default implementation not found")
                 };
-            let queue_item =
-                FunctionQueueItem::Normal(member_function_id, arg_types.clone(), expr_ty);
+            let queue_item = FunctionQueueItem::Normal(member_function_id, context);
             let mir_function_id = function_queue.insert(queue_item, mir_program);
             mir_function_id
         }

@@ -2,32 +2,33 @@ use crate::data::TypeDefId;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Type {
-    Named(String, TypeDefId),
+    Named(TypeDefId),
     Function(Box<Type>, Box<Type>),
 }
 
 impl Type {
-    pub fn as_string(&self) -> String {
-        return self.as_string_internal(false);
+    pub fn get_args(&self, args: &mut Vec<Type>) {
+        match self {
+            Type::Named(..) => {}
+            Type::Function(from, to) => {
+                args.push(*from.clone());
+                to.get_args(args);
+            }
+        }
     }
 
-    fn as_string_internal(&self, need_parens: bool) -> String {
+    pub fn get_result_type(&self, arg_count: usize) -> Type {
         match self {
-            Type::Function(from, to) => {
-                let from_str = from.as_string_internal(true);
-                let to_str = to.as_string_internal(true);
-                let func_type_str = format!("{} -> {}", from_str, to_str);
-                if need_parens {
-                    format!("({})", func_type_str)
+            Type::Named(..) => self.clone(),
+            Type::Function(_, to) => {
+                if arg_count == 1 {
+                    *to.clone()
                 } else {
-                    func_type_str
-                }
-            }
-            Type::Named(name, _) => {
-                if need_parens {
-                    format!("({})", name,)
-                } else {
-                    format!("{}", name)
+                    if arg_count == 0 {
+                        self.clone()
+                    } else {
+                        to.get_result_type(arg_count - 1)
+                    }
                 }
             }
         }

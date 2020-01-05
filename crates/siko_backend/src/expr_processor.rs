@@ -1,4 +1,5 @@
 use crate::class_member_processor::process_class_member_call;
+use crate::function_queue::CallContext;
 use crate::function_queue::FunctionQueue;
 use crate::function_queue::FunctionQueueItem;
 use crate::pattern_processor::process_pattern;
@@ -12,6 +13,7 @@ use siko_mir::expr::Case as MirCase;
 use siko_mir::expr::Expr as MirExpr;
 use siko_mir::expr::ExprId as MirExprId;
 use siko_mir::program::Program as MirProgram;
+use siko_mir::types::Type as MirType;
 
 pub fn process_expr(
     ir_expr_id: &IrExprId,
@@ -264,7 +266,11 @@ pub fn process_expr(
                     (field_expr, field.index)
                 })
                 .collect();
-            MirExpr::RecordInitialization(mir_fields)
+            if let MirType::Named(id) = mir_expr_ty {
+                MirExpr::RecordInitialization(id, mir_fields)
+            } else {
+                unreachable!()
+            }
         }
         IrExpr::RecordUpdate(receiver_expr_id, updates) => {
             let mir_receiver_expr_id = process_expr(
@@ -314,7 +320,8 @@ pub fn process_expr(
                     )
                 })
                 .collect();
-            let queue_item = FunctionQueueItem::Normal(*func_id, arg_types, ir_expr_ty.clone());
+            let context = CallContext::new(arg_types, ir_expr_ty.clone());
+            let queue_item = FunctionQueueItem::Normal(*func_id, context);
             let mir_function_id = function_queue.insert(queue_item, mir_program);
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }
@@ -333,7 +340,16 @@ pub fn process_expr(
                     )
                 })
                 .collect();
-            MirExpr::Tuple(mir_items)
+            let fields: Vec<_> = mir_items
+                .into_iter()
+                .enumerate()
+                .map(|(index, item)| (item, index))
+                .collect();
+            if let MirType::Named(id) = mir_expr_ty {
+                MirExpr::RecordInitialization(id, fields)
+            } else {
+                unreachable!()
+            }
         }
         IrExpr::TupleFieldAccess(index, receiver_expr_id) => {
             let mir_receiver_expr_id = process_expr(

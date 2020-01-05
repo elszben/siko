@@ -22,7 +22,7 @@ impl From<usize> for FunctionId {
 
 pub enum FunctionInfo {
     Normal(ExprId),
-    Extern,
+    Extern(String),
     VariantConstructor(TypeDefId, usize),
 }
 
@@ -30,5 +30,6 @@ pub struct Function {
     pub name: String,
     pub module: String,
     pub function_type: Type,
+    pub arg_count: usize,
     pub info: FunctionInfo,
 }

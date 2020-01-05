@@ -22,7 +22,6 @@ impl From<usize> for PatternId {
 #[derive(Debug, Clone)]
 pub enum Pattern {
     Binding(String),
-    Tuple(Vec<PatternId>),
     Record(TypeDefId, Vec<PatternId>),
     Variant(TypeDefId, usize, Vec<PatternId>),
     Guarded(PatternId, ExprId),

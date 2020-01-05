@@ -44,12 +44,13 @@ pub fn process_function(
                 );
                 MirFunctionInfo::Normal(mir_expr_id)
             } else {
-                MirFunctionInfo::Extern
+                MirFunctionInfo::Extern(info.name.clone())
             };
             let mir_function = MirFunction {
-                name: info.name.clone(),
+                name: format!("{}_{}", info.name, mir_function_id.id),
                 module: info.module.clone(),
                 info: mir_function_info,
+                arg_count: function.arg_count,
                 function_type: mir_function_type,
             };
             mir_program
@@ -73,8 +74,9 @@ pub fn process_function(
             let mir_function = MirFunction {
                 name: lambda_name,
                 module: info.module.clone(),
-                info: MirFunctionInfo::Normal(mir_body),
                 function_type: mir_function_type,
+                arg_count: function.arg_count,
+                info: MirFunctionInfo::Normal(mir_body),
             };
             mir_program
                 .functions
@@ -89,8 +91,9 @@ pub fn process_function(
             let mir_function = MirFunction {
                 name: format!("{}_{}_ctor{}", adt.name, variant.name, info.index),
                 module: module,
-                info: MirFunctionInfo::VariantConstructor(mir_typedef_id, info.index),
                 function_type: mir_function_type,
+                arg_count: function.arg_count,
+                info: MirFunctionInfo::VariantConstructor(mir_typedef_id, info.index),
             };
             mir_program
                 .functions

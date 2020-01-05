@@ -18,18 +18,17 @@ pub fn process_type(
             let to = process_type(to, typedef_store, ir_program, mir_program);
             MirType::Function(Box::new(from), Box::new(to))
         }
-        IrType::Named(name, _, _) => {
+        IrType::Named(_, _, _) => {
             let mir_typedef_id = typedef_store.add_type(ir_type.clone(), ir_program, mir_program);
-            MirType::Named(format!("{}_{}", name, mir_typedef_id.id), mir_typedef_id)
+            MirType::Named(mir_typedef_id)
         }
         IrType::Tuple(items) => {
             let items: Vec<_> = items
                 .iter()
                 .map(|item| process_type(item, typedef_store, ir_program, mir_program))
                 .collect();
-            let (name, mir_typedef_id) =
-                typedef_store.add_tuple(ir_type.clone(), items, mir_program);
-            MirType::Named(name, mir_typedef_id)
+            let (_, mir_typedef_id) = typedef_store.add_tuple(ir_type.clone(), items, mir_program);
+            MirType::Named(mir_typedef_id)
         }
     }
 }

@@ -1,9 +1,15 @@
 module Main where
 
-foo a b = a + b
+foo a = a
+
+data Foo = Foo Int deriving (Show)
 
 main  = do
-        a <- foo 5 
-        b <- (a, 5)
-        (b.0) 2 5
+        foo (4 + 4)
+        println "alma"
+        println 4
+        println "{}" % Foo 1
+        println (Foo 1)
+        println "{}" % True
+        println "{}" % -1.0
         ()

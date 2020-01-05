@@ -12,9 +12,24 @@ use siko_mir::program::Program as MirProgram;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CallContext {
+    pub arg_types: Vec<IrType>,
+    pub result_ty: IrType,
+}
+
+impl CallContext {
+    pub fn new(arg_types: Vec<IrType>, result_ty: IrType) -> CallContext {
+        CallContext {
+            arg_types: arg_types,
+            result_ty: result_ty,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FunctionQueueItem {
-    Normal(IrFunctionId, Vec<IrType>, IrType),
-    AutoDerive(IrType, ClassId, ClassMemberId),
+    Normal(IrFunctionId, CallContext),
+    AutoDerive(IrType, ClassId, ClassMemberId, CallContext),
 }
 
 pub struct FunctionQueue {
@@ -55,62 +70,62 @@ impl FunctionQueue {
         while !self.pending.is_empty() {
             if let Some((item, mir_function_id)) = self.pending.pop() {
                 match item {
-                    FunctionQueueItem::Normal(function_id, arg_types, result_ty) => {
+                    FunctionQueueItem::Normal(function_id, call_context) => {
                         process_function(
                             &function_id,
                             mir_function_id,
                             ir_program,
                             mir_program,
-                            arg_types,
-                            result_ty,
+                            call_context.arg_types,
+                            call_context.result_ty,
                             self,
                             typedef_store,
                         );
                     }
-                    FunctionQueueItem::AutoDerive(ir_type, class_id, class_member_id) => {
+                    FunctionQueueItem::AutoDerive(
+                        ir_type,
+                        class_id,
+                        class_member_id,
+                        call_context,
+                    ) => {
                         let class = ir_program.classes.get(&class_id);
-                        match (class.module.as_ref(), class.name.as_ref()) {
-                            ("Std.Ops", "Show") => {
-                                generate_auto_derived_instance_member(
-                                    class_id,
-                                    &ir_type,
-                                    ir_program,
-                                    DerivedClass::Show,
-                                    class_member_id,
-                                );
-                            }
-                            ("Std.Ops", "PartialEq") => {
-                                generate_auto_derived_instance_member(
-                                    class_id,
-                                    &ir_type,
-                                    ir_program,
-                                    DerivedClass::PartialEq,
-                                    class_member_id,
-                                );
-                            }
-                            ("Std.Ops", "PartialOrd") => {
-                                generate_auto_derived_instance_member(
-                                    class_id,
-                                    &ir_type,
-                                    ir_program,
-                                    DerivedClass::PartialOrd,
-                                    class_member_id,
-                                );
-                            }
-                            ("Std.Ops", "Ord") => {
-                                generate_auto_derived_instance_member(
-                                    class_id,
-                                    &ir_type,
-                                    ir_program,
-                                    DerivedClass::Ord,
-                                    class_member_id,
-                                );
-                            }
+                        let function_id = match (class.module.as_ref(), class.name.as_ref()) {
+                            ("Std.Ops", "Show") => generate_auto_derived_instance_member(
+                                class_id,
+                                &ir_type,
+                                ir_program,
+                                DerivedClass::Show,
+                                class_member_id,
+                            ),
+                            ("Std.Ops", "PartialEq") => generate_auto_derived_instance_member(
+                                class_id,
+                                &ir_type,
+                                ir_program,
+                                DerivedClass::PartialEq,
+                                class_member_id,
+                            ),
+                            ("Std.Ops", "PartialOrd") => generate_auto_derived_instance_member(
+                                class_id,
+                                &ir_type,
+                                ir_program,
+                                DerivedClass::PartialOrd,
+                                class_member_id,
+                            ),
+                            ("Std.Ops", "Ord") => generate_auto_derived_instance_member(
+                                class_id,
+                                &ir_type,
+                                ir_program,
+                                DerivedClass::Ord,
+                                class_member_id,
+                            ),
                             _ => panic!(
                                 "Auto derive of {}/{} is not implemented",
                                 class.module, class.name
                             ),
-                        }
+                        };
+                        let queue_item = FunctionQueueItem::Normal(function_id, call_context);
+                        self.pending.push((queue_item.clone(), mir_function_id));
+                        self.processed.insert(queue_item, mir_function_id);
                     }
                 }
             }

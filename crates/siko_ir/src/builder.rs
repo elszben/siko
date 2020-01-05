@@ -124,7 +124,7 @@ impl<'a> Builder<'a> {
     }
 
     pub fn get_temp_var(&mut self) -> String {
-        format!("$_irbuild_{}", self.temp_var_counter.next())
+        format!("tmp{}", self.temp_var_counter.next())
     }
 
     pub fn create_bool(&mut self, value: bool, location: LocationId) -> ExprId {
@@ -275,7 +275,7 @@ impl<'a> Builder<'a> {
         );
         let (bind_expr_id, values) =
             self.add_record_pattern(arg_ref_expr_id, record, &record_type_info, location);
-        let field_fmt_str_args: Vec<_> = std::iter::repeat("{{}}").take(values.len()).collect();
+        let field_fmt_str_args: Vec<_> = std::iter::repeat("{}}").take(values.len()).collect();
         let fmt_str = format!("{} {{ {} }}", record.name, field_fmt_str_args.join(", "));
         let fmt_expr = Expr::Formatter(fmt_str, values);
         let fmt_expr_id = self.add_expr(fmt_expr, location, string_ty.clone());
@@ -313,9 +313,16 @@ impl<'a> Builder<'a> {
             }
             let pattern = Pattern::Variant(adt.id, index, item_patterns);
             let pattern_id = self.add_pattern(pattern, location, adt_type_info.adt_type.clone());
-            let item_fmt_str_args: Vec<_> =
-                std::iter::repeat("({{}})").take(values.len()).collect();
-            let fmt_str = format!("{} {} ", adt.name, item_fmt_str_args.join(", "));
+            let item_fmt_str_args: Vec<_> = std::iter::repeat("({})").take(values.len()).collect();
+            let fmt_str = if values.is_empty() {
+                format!("{}", adt.variants[index].name)
+            } else {
+                format!(
+                    "{} {} ",
+                    adt.variants[index].name,
+                    item_fmt_str_args.join(", ")
+                )
+            };
             let fmt_expr = Expr::Formatter(fmt_str, values);
             let fmt_expr_id = self.add_expr(fmt_expr, location, string_ty.clone());
             let case = Case {

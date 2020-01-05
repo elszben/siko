@@ -1,3 +1,4 @@
+use crate::data::TypeDefId;
 use crate::function::FunctionId;
 use crate::pattern::PatternId;
 use std::fmt;
@@ -19,11 +20,13 @@ impl From<usize> for ExprId {
     }
 }
 
+#[derive(Debug)]
 pub struct Case {
     pub pattern_id: PatternId,
     pub body: ExprId,
 }
 
+#[derive(Debug)]
 pub enum Expr {
     ArgRef(usize),
     Bind(PatternId, ExprId),
@@ -37,9 +40,8 @@ pub enum Expr {
     If(ExprId, ExprId, ExprId),
     IntegerLiteral(i64),
     List(Vec<ExprId>),
-    RecordInitialization(Vec<(ExprId, usize)>),
+    RecordInitialization(TypeDefId, Vec<(ExprId, usize)>),
     RecordUpdate(ExprId, Vec<(ExprId, usize)>),
     StaticFunctionCall(FunctionId, Vec<ExprId>),
     StringLiteral(String),
-    Tuple(Vec<ExprId>),
 }

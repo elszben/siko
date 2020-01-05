@@ -64,6 +64,7 @@ pub fn process_pattern(
         }
         IrPattern::StringLiteral(v) => MirPattern::StringLiteral(v.clone()),
         IrPattern::Tuple(items) => {
+            let mir_typedef_id = typedef_store.add_type(ir_pattern_ty, ir_program, mir_program);
             let mir_items: Vec<_> = items
                 .iter()
                 .map(|item| {
@@ -77,7 +78,7 @@ pub fn process_pattern(
                     )
                 })
                 .collect();
-            MirPattern::Tuple(mir_items)
+            MirPattern::Record(mir_typedef_id, mir_items)
         }
         IrPattern::Typed(sub, _) => {
             return process_pattern(

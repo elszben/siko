@@ -131,10 +131,15 @@ impl TypeDefStore {
                                 };
                                 fields.push(mir_field);
                             }
+                            let name = if ir_record.external {
+                                format!("{}", ir_record.name)
+                            } else {
+                                format!("{}_{}", ir_record.name, mir_typedef_id.id)
+                            };
                             let mir_record = MirRecord {
                                 id: mir_typedef_id,
                                 module: ir_record.module.clone(),
-                                name: format!("{}_{}", ir_record.name, mir_typedef_id.id),
+                                name: name,
                                 fields: fields,
                                 external: ir_record.external,
                             };

@@ -59,4 +59,14 @@ impl Program {
         self.pattern_types.insert(pattern_id, ty);
         pattern_id
     }
+
+    pub fn get_expr_type(&self, expr_id: &ExprId) -> &Type {
+        self.expr_types.get(expr_id).expect("Expr type not found")
+    }
+
+    pub fn get_pattern_type(&self, pattern_id: &PatternId) -> &Type {
+        self.pattern_types
+            .get(pattern_id)
+            .expect("Pattern type not found")
+    }
 }
