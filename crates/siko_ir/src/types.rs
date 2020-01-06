@@ -305,6 +305,13 @@ impl Type {
         }
     }
 
+    pub fn get_typedef_id(&self) -> TypeDefId {
+        match self {
+            Type::Named(_, id, _) => *id,
+            _ => unreachable!(),
+        }
+    }
+
     pub fn collect_type_args(&self, args: &mut Vec<usize>, program: &Program) {
         let mut resolver_context = ResolverContext::new(program);
         let mut collector = Collector::new();

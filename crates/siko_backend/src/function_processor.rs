@@ -99,6 +99,21 @@ pub fn process_function(
                 .functions
                 .add_item(mir_function_id, mir_function);
         }
-        _ => {}
+        FunctionInfo::RecordConstructor(info) => {
+            let record = ir_program.typedefs.get(&info.type_id).get_record();
+            let module = record.module.clone();
+            let result_ty = function_type.get_result_type(function.arg_count);
+            let mir_typedef_id = typedef_store.add_type(result_ty, ir_program, mir_program);
+            let mir_function = MirFunction {
+                name: format!("{}_ctor", record.name),
+                module: module,
+                function_type: mir_function_type,
+                arg_count: function.arg_count,
+                info: MirFunctionInfo::RecordConstructor(mir_typedef_id),
+            };
+            mir_program
+                .functions
+                .add_item(mir_function_id, mir_function);
+        }
     }
 }

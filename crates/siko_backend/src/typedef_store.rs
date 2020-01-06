@@ -4,8 +4,10 @@ use siko_ir::data::TypeDef as IrTypeDef;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type as IrType;
 use siko_mir::data::Adt as MirAdt;
+use siko_mir::data::ExternalDataKind;
 use siko_mir::data::Record as MirRecord;
 use siko_mir::data::RecordField as MirRecordField;
+use siko_mir::data::RecordKind as MirRecordKind;
 use siko_mir::data::TypeDef as MirTypeDef;
 use siko_mir::data::TypeDefId as MirTypeDefId;
 use siko_mir::data::Variant as MirVariant;
@@ -50,7 +52,7 @@ impl TypeDefStore {
                 module: format!("{}", MIR_INTERNAL_MODULE_NAME),
                 name: name.clone(),
                 fields: fields,
-                external: false,
+                kind: MirRecordKind::Normal,
             };
             let mir_typedef = MirTypeDef::Record(mir_record);
             mir_program.typedefs.add_item(mir_typedef_id, mir_typedef);
@@ -71,7 +73,7 @@ impl TypeDefStore {
         });
         if newly_added {
             match &ty {
-                IrType::Named(_, ir_typedef_id, _) => {
+                IrType::Named(_, ir_typedef_id, args) => {
                     let ir_typdef = ir_program.typedefs.get(ir_typedef_id);
                     match ir_typdef {
                         IrTypeDef::Adt(_) => {
@@ -131,17 +133,40 @@ impl TypeDefStore {
                                 };
                                 fields.push(mir_field);
                             }
-                            let name = if ir_record.external {
-                                format!("{}", ir_record.name)
+                            let (name, kind) = if ir_record.external {
+                                let name = if args.is_empty() {
+                                    format!("{}", ir_record.name)
+                                } else {
+                                    format!("{}_{}", ir_record.name, mir_typedef_id.id)
+                                };
+                                let args: Vec<_> = args
+                                    .iter()
+                                    .map(|arg| process_type(arg, self, ir_program, mir_program))
+                                    .collect();
+                                let data_kind =
+                                    match (ir_record.module.as_ref(), ir_record.name.as_ref()) {
+                                        ("Int", "Int") => ExternalDataKind::Int,
+                                        ("Float", "Float") => ExternalDataKind::Float,
+                                        ("String", "String") => ExternalDataKind::String,
+                                        ("Map", "Map") => ExternalDataKind::Map,
+                                        ("List", "List") => ExternalDataKind::List,
+                                        ("Iterator", "Iterator") => ExternalDataKind::Iterator,
+                                        _ => panic!(
+                                            "{}/{} not implemented data kind",
+                                            ir_record.module, ir_record.name
+                                        ),
+                                    };
+                                (name, MirRecordKind::External(data_kind, args))
                             } else {
-                                format!("{}_{}", ir_record.name, mir_typedef_id.id)
+                                let name = format!("{}_{}", ir_record.name, mir_typedef_id.id);
+                                (name, MirRecordKind::Normal)
                             };
                             let mir_record = MirRecord {
                                 id: mir_typedef_id,
                                 module: ir_record.module.clone(),
                                 name: name,
                                 fields: fields,
-                                external: ir_record.external,
+                                kind: kind,
                             };
                             let mir_typedef = MirTypeDef::Record(mir_record);
                             mir_program.typedefs.add_item(mir_typedef_id, mir_typedef);

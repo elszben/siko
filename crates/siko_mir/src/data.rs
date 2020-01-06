@@ -8,12 +8,28 @@ pub struct RecordField {
 }
 
 #[derive(Debug, Clone)]
+pub enum ExternalDataKind {
+    Int,
+    String,
+    Float,
+    List,
+    Map,
+    Iterator,
+}
+
+#[derive(Debug, Clone)]
+pub enum RecordKind {
+    Normal,
+    External(ExternalDataKind, Vec<Type>),
+}
+
+#[derive(Debug, Clone)]
 pub struct Record {
     pub name: String,
     pub module: String,
     pub id: TypeDefId,
     pub fields: Vec<RecordField>,
-    pub external: bool,
+    pub kind: RecordKind,
 }
 
 #[derive(Debug, Clone)]

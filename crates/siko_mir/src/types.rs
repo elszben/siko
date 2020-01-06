@@ -33,4 +33,11 @@ impl Type {
             }
         }
     }
+
+    pub fn get_typedef_id(&self) -> TypeDefId {
+        match self {
+            Type::Named(id) => *id,
+            Type::Function(_, _) => unreachable!(),
+        }
+    }
 }

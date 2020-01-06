@@ -3,6 +3,9 @@ module Main where
 foo a = a
 
 data Foo = Foo Int deriving (Show)
+data Boo = { alma :: String }
+
+blah = [3.4, 3.4]
 
 main  = do
         foo (4 + 4)
@@ -12,4 +15,9 @@ main  = do
         println (Foo 1)
         println "{}" % True
         println "{}" % -1.0
+        [4, 5]
+        [4.9, 5.9]
+        blah
+        Boo { alma = "korte" }
+        Boo "alma"
         ()

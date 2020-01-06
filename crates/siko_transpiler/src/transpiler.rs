@@ -1,5 +1,7 @@
 use siko_constants::MIR_FUNCTION_TRAIT_NAME;
 use siko_constants::MIR_INTERNAL_MODULE_NAME;
+use siko_mir::data::ExternalDataKind;
+use siko_mir::data::RecordKind;
 use siko_mir::data::TypeDef;
 use siko_mir::data::TypeDefId;
 use siko_mir::expr::Expr;
@@ -108,42 +110,45 @@ fn write_typedef(
             write!(output_file, "{}}}\n", indent)?;
         }
         TypeDef::Record(record) => {
-            if record.external {
-                match (record.module.as_ref(), record.name.as_ref()) {
-                    ("Int", "Int") => {
+            if let RecordKind::External(data_kind, args) = &record.kind {
+                match data_kind {
+                    ExternalDataKind::Int => {
                         write!(output_file, "{}pub struct Int {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: i64,\n", indent,)?;
                         indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
-                    ("String", "String") => {
+                    ExternalDataKind::String => {
                         write!(output_file, "{}pub struct String {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: std::string::String,\n", indent,)?;
                         indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
-                    ("Float", "Float") => {
+                    ExternalDataKind::Float => {
                         write!(output_file, "{}pub struct Float {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: f64,\n", indent,)?;
                         indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
-                    ("Map", "Map") => {
-                        write!(output_file, "{}pub struct Map {{\n", indent)?;
+                    ExternalDataKind::Map => {
+                        write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                         write!(output_file, "{}}}\n", indent)?;
                     }
-                    ("Iterator", "Iterator") => {
-                        write!(output_file, "{}pub struct Iterator {{\n", indent)?;
+                    ExternalDataKind::Iterator => {
+                        write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                         write!(output_file, "{}}}\n", indent)?;
                     }
-                    ("List", "List") => {
-                        write!(output_file, "{}pub struct List {{\n", indent)?;
+                    ExternalDataKind::List => {
+                        let elem_ty = ir_type_to_rust_type(&args[0], program);
+                        write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
+                        indent.inc();
+                        write!(output_file, "{}pub value: Vec<{}>,\n", indent, elem_ty)?;
+                        indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
-                    _ => panic!("{}/{} not implemented", record.module, record.name),
                 }
             } else {
                 write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
@@ -352,6 +357,26 @@ fn write_expr(
             write!(output_file, " else {{ ")?;
             write_expr(*false_branch, output_file, program, indent)?;
             write!(output_file, " }} ")?;
+        }
+        Expr::FieldAccess(index, receiver) => {
+            let ty = program.get_expr_type(receiver);
+            let id = ty.get_typedef_id();
+            let record = program.typedefs.get(&id).get_record();
+            let field = &record.fields[*index];
+            write_expr(*receiver, output_file, program, indent)?;
+            write!(output_file, ".{}", field.name)?;
+        }
+        Expr::List(items) => {
+            let ty = program.get_expr_type(&expr_id);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(output_file, "{} {{ value: vec![", ty)?;
+            for (index, item) in items.iter().enumerate() {
+                write_expr(*item, output_file, program, indent)?;
+                if index != items.len() - 1 {
+                    write!(output_file, ", ")?;
+                }
+            }
+            write!(output_file, "] }}")?;
         }
         _ => println!("{:?}", expr),
     }
@@ -574,6 +599,18 @@ fn write_function(
                 }
                 write!(output_file, "({})", args.join(", "))?;
             }
+            indent.dec();
+        }
+        FunctionInfo::RecordConstructor(id) => {
+            let record = program.typedefs.get(id).get_record();
+            indent.inc();
+            write!(output_file, "{}{}", indent, result_ty)?;
+            let mut args = Vec::new();
+            for (index, field) in record.fields.iter().enumerate() {
+                let arg_str = format!("{}: {}", field.name, arg_name(index));
+                args.push(arg_str);
+            }
+            write!(output_file, "{{ {} }}", args.join(", "))?;
             indent.dec();
         }
     }

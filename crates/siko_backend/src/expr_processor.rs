@@ -13,7 +13,6 @@ use siko_mir::expr::Case as MirCase;
 use siko_mir::expr::Expr as MirExpr;
 use siko_mir::expr::ExprId as MirExprId;
 use siko_mir::program::Program as MirProgram;
-use siko_mir::types::Type as MirType;
 
 pub fn process_expr(
     ir_expr_id: &IrExprId,
@@ -266,11 +265,8 @@ pub fn process_expr(
                     (field_expr, field.index)
                 })
                 .collect();
-            if let MirType::Named(id) = mir_expr_ty {
-                MirExpr::RecordInitialization(id, mir_fields)
-            } else {
-                unreachable!()
-            }
+            let mir_id = mir_expr_ty.get_typedef_id();
+            MirExpr::RecordInitialization(mir_id, mir_fields)
         }
         IrExpr::RecordUpdate(receiver_expr_id, updates) => {
             let mir_receiver_expr_id = process_expr(
@@ -345,11 +341,8 @@ pub fn process_expr(
                 .enumerate()
                 .map(|(index, item)| (item, index))
                 .collect();
-            if let MirType::Named(id) = mir_expr_ty {
-                MirExpr::RecordInitialization(id, fields)
-            } else {
-                unreachable!()
-            }
+            let id = mir_expr_ty.get_typedef_id();
+            MirExpr::RecordInitialization(id, fields)
         }
         IrExpr::TupleFieldAccess(index, receiver_expr_id) => {
             let mir_receiver_expr_id = process_expr(

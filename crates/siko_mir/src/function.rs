@@ -24,6 +24,7 @@ pub enum FunctionInfo {
     Normal(ExprId),
     Extern(String),
     VariantConstructor(TypeDefId, usize),
+    RecordConstructor(TypeDefId),
 }
 
 pub struct Function {
