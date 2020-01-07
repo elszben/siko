@@ -88,8 +88,13 @@ pub fn process_function(
             let module = adt.module.clone();
             let result_ty = function_type.get_result_type(function.arg_count);
             let mir_typedef_id = typedef_store.add_type(result_ty, ir_program, mir_program);
+            let name = if adt.type_args.is_empty() {
+                format!("{}_{}_ctor{}", adt.name, variant.name, info.index)
+            } else {
+                format!("{}_{}_ctor{}_{}", adt.name, variant.name, info.index, mir_typedef_id.id)
+            };
             let mir_function = MirFunction {
-                name: format!("{}_{}_ctor{}", adt.name, variant.name, info.index),
+                name: name,
                 module: module,
                 function_type: mir_function_type,
                 arg_count: function.arg_count,
@@ -105,7 +110,7 @@ pub fn process_function(
             let result_ty = function_type.get_result_type(function.arg_count);
             let mir_typedef_id = typedef_store.add_type(result_ty, ir_program, mir_program);
             let mir_function = MirFunction {
-                name: format!("{}_ctor", record.name),
+                name: format!("{}_ctor{}", record.name, mir_typedef_id.id),
                 module: module,
                 function_type: mir_function_type,
                 arg_count: function.arg_count,

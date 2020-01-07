@@ -28,6 +28,7 @@ use siko_ir::program::Program;
 use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_ir::types::BaseType;
 use siko_ir::types::Type;
+use siko_ir::types::ResolverContext;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::walk_expr;
 use siko_util::dependency_processor::DependencyGroup;
@@ -381,10 +382,7 @@ impl Typechecker {
             match &function.info {
                 FunctionInfo::RecordConstructor(i) => {
                     let record = program.typedefs.get(&i.type_id).get_record();
-                    let record_type_info = type_info_provider
-                        .record_type_info_map
-                        .get(&i.type_id)
-                        .expect("record type info not found");
+                    let mut record_type_info = type_info_provider.get_record_type_info(&i.type_id);
                     let mut func_args = Vec::new();
 
                     let (func_type, result_type) = create_general_function_type(
@@ -402,13 +400,16 @@ impl Typechecker {
                         body: None,
                     };
 
-                    for (index, field_type) in record_type_info.field_types.iter().enumerate() {
+                    let count = record_type_info.field_types.len();
+                    for index in 0..count {
+                        let field_type = &record_type_info.field_types[index];
                         let mut unifier = Unifier::new(type_var_generator.clone());
                         let arg_type = &func_args[index];
                         unifier
                             .unify(&field_type.0, arg_type)
                             .expect("Unify failed");
                         func_type_info.apply(&unifier);
+                        record_type_info.apply(&unifier);
                     }
 
                     let mut unifier = Unifier::new(type_var_generator.clone());
@@ -417,18 +418,14 @@ impl Typechecker {
                         .expect("Unify failed");
 
                     func_type_info.apply(&unifier);
+
                     type_info_provider
                         .function_type_info_store
                         .add(*id, func_type_info);
                 }
                 FunctionInfo::VariantConstructor(i) => {
                     let adt = program.typedefs.get(&i.type_id).get_adt();
-                    let mut adt_type_info = type_info_provider
-                        .adt_type_info_map
-                        .get(&i.type_id)
-                        .expect("Adt type info not found")
-                        .clone();
-
+                    let mut adt_type_info = type_info_provider.get_adt_type_info(&i.type_id);
                     let mut variant_type_info = adt_type_info.variant_types[i.index].clone();
 
                     let mut func_args = Vec::new();

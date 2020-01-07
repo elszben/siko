@@ -39,6 +39,11 @@ type ComparatorFn = fn(
     value1: ExprId,
 ) -> ExprId;
 
+type ResultGeneratorFn = fn(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId;
+
 fn do_partialord_compare(
     builder: &mut Builder,
     class_member_id: ClassMemberId,
@@ -108,6 +113,62 @@ fn do_partialeq_compare(
     let false_branch = builder.create_bool(false, location);
     let if_expr = Expr::If(call_expr_id, true_branch, false_branch);
     return builder.add_expr(if_expr, location, bool_ty.clone());
+}
+
+fn create_false(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_bool(false, location);
+}
+
+fn create_true(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_bool(true, location);
+}
+
+fn create_eq(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_ordering(Ordering::Equal, location);
+}
+
+fn create_less(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_ordering(Ordering::Less, location);
+}
+
+fn create_greater(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_ordering(Ordering::Greater, location);
+}
+
+fn create_some_eq(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_optional_ordering(Some(Ordering::Equal), location);
+}
+
+fn create_some_less(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_optional_ordering(Some(Ordering::Less), location);
+}
+
+fn create_some_greater(
+    builder: &mut Builder,
+    location: LocationId,
+) -> ExprId {
+    return builder.create_optional_ordering(Some(Ordering::Greater), location);
 }
 
 pub struct Builder<'a> {
@@ -201,12 +262,13 @@ impl<'a> Builder<'a> {
         record: &Record,
         record_type_info: &RecordTypeInfo,
         location: LocationId,
+        record_index: usize,
     ) -> (ExprId, Vec<ExprId>) {
         let mut field_patterns = Vec::new();
         let mut values = Vec::new();
         for (index, (field_type, _)) in record_type_info.field_types.iter().enumerate() {
             let field = &record.fields[index];
-            let field_pattern = Pattern::Binding(field.name.clone());
+            let field_pattern = Pattern::Binding(format!("{}{}", field.name, record_index));
             let field_pattern_id = self.add_pattern(field_pattern, location, field_type.clone());
             field_patterns.push(field_pattern_id);
             let expr_value_expr = Expr::ExprValue(source_expr, field_pattern_id);
@@ -274,7 +336,7 @@ impl<'a> Builder<'a> {
             record_type_info.record_type.clone(),
         );
         let (bind_expr_id, values) =
-            self.add_record_pattern(arg_ref_expr_id, record, &record_type_info, location);
+            self.add_record_pattern(arg_ref_expr_id, record, &record_type_info, location, 0);
         let field_fmt_str_args: Vec<_> = std::iter::repeat("{}}").take(values.len()).collect();
         let fmt_str = format!("{} {{ {} }}", record.name, field_fmt_str_args.join(", "));
         let fmt_expr = Expr::Formatter(fmt_str, values);
@@ -320,7 +382,7 @@ impl<'a> Builder<'a> {
                 format!(
                     "{} {} ",
                     adt.variants[index].name,
-                    item_fmt_str_args.join(", ")
+                    item_fmt_str_args.join(" ")
                 )
             };
             let fmt_expr = Expr::Formatter(fmt_str, values);
@@ -357,6 +419,7 @@ impl<'a> Builder<'a> {
             class_member_id,
             &bool_ty,
             do_partialeq_compare,
+            create_true
         );
     }
 
@@ -377,6 +440,9 @@ impl<'a> Builder<'a> {
             class_member_id,
             &bool_ty,
             do_partialeq_compare,
+            create_true,
+            create_false,
+            create_false,
         );
     }
 
@@ -399,6 +465,7 @@ impl<'a> Builder<'a> {
             class_member_id,
             &optional_ordering_ty,
             do_partialord_compare,
+            create_some_eq
         )
     }
 
@@ -421,6 +488,9 @@ impl<'a> Builder<'a> {
             class_member_id,
             &optional_ordering_ty,
             do_partialord_compare,
+            create_some_eq,
+            create_some_less,
+            create_some_greater
         );
     }
 
@@ -441,6 +511,7 @@ impl<'a> Builder<'a> {
             class_member_id,
             &ordering_ty,
             do_ord_compare,
+            create_eq
         )
     }
 
@@ -461,6 +532,9 @@ impl<'a> Builder<'a> {
             class_member_id,
             &ordering_ty,
             do_ord_compare,
+            create_eq,
+            create_less,
+            create_greater
         );
     }
 
@@ -473,6 +547,7 @@ impl<'a> Builder<'a> {
         class_member_id: ClassMemberId,
         return_ty: &Type,
         cmp_fn: ComparatorFn,
+        eq_fn: ResultGeneratorFn,
     ) -> (ExprId, Type) {
         let arg_ref_expr_id_0 = self.add_arg_ref(
             0,
@@ -487,11 +562,11 @@ impl<'a> Builder<'a> {
             record_type_info.record_type.clone(),
         );
         let (bind_expr_id_0, values_0) =
-            self.add_record_pattern(arg_ref_expr_id_0, record, &record_type_info, location);
+            self.add_record_pattern(arg_ref_expr_id_0, record, &record_type_info, location, 0);
         let (bind_expr_id_1, values_1) =
-            self.add_record_pattern(arg_ref_expr_id_1, record, &record_type_info, location);
-        let mut true_branch = self.create_optional_ordering(Some(Ordering::Equal), location);
-        for (value_0, value_1) in values_0.iter().zip(values_1.iter()) {
+            self.add_record_pattern(arg_ref_expr_id_1, record, &record_type_info, location, 1);
+        let mut true_branch = eq_fn(self, location);
+        for (value_0, value_1) in values_0.iter().rev().zip(values_1.iter().rev()) {
             true_branch = cmp_fn(
                 self,
                 class_member_id,
@@ -523,6 +598,9 @@ impl<'a> Builder<'a> {
         class_member_id: ClassMemberId,
         return_ty: &Type,
         cmp_fn: ComparatorFn,
+        eq_fn: ResultGeneratorFn,
+        less_fn: ResultGeneratorFn,
+        greater_fn: ResultGeneratorFn,
     ) -> (ExprId, Type) {
         let arg_ref_expr_id_0 =
             self.add_arg_ref(0, function_id, location, adt_type_info.adt_type.clone());
@@ -567,24 +645,32 @@ impl<'a> Builder<'a> {
                 let pattern1 = Pattern::Variant(adt.id, index1, item_patterns1);
                 let pattern1_id =
                     self.add_pattern(pattern1, location, adt_type_info.adt_type.clone());
-
                 let tuple_pattern = Pattern::Tuple(vec![pattern0_id, pattern1_id]);
                 let tuple_pattern_id = self.add_pattern(tuple_pattern, location, tuple_ty.clone());
-                let mut true_branch =
-                    self.create_optional_ordering(Some(Ordering::Equal), location);
-                for (value_0, value_1) in values0.iter().zip(values1.iter()) {
-                    true_branch = cmp_fn(
-                        self,
-                        class_member_id,
-                        location,
-                        true_branch,
-                        *value_0,
-                        *value_1,
-                    );
-                }
+                let case_branch = if index0 == index1 {
+                    let mut true_branch =
+                        eq_fn(self, location);
+                    for (value_0, value_1) in values0.iter().zip(values1.iter()) {
+                        true_branch = cmp_fn(
+                            self,
+                            class_member_id,
+                            location,
+                            true_branch,
+                            *value_0,
+                            *value_1,
+                        );
+                    }
+                    true_branch
+                } else {
+                    if index0 < index1 {
+                        less_fn(self, location)
+                    } else {
+                        greater_fn(self, location)
+                    }
+                };
                 let case = Case {
                     pattern_id: tuple_pattern_id,
-                    body: true_branch,
+                    body: case_branch,
                 };
                 cases.push(case);
             }

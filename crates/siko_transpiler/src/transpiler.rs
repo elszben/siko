@@ -272,6 +272,23 @@ fn write_expr(
             }
             write!(output_file, "}}")?;
         }
+        Expr::RecordUpdate(receiver, items) => {
+            let ty = program.get_expr_type(&expr_id);
+            let id = ty.get_typedef_id();
+            let record = program.typedefs.get(&id).get_record();
+            write!(output_file, "{{ let mut value = ")?;
+            indent.inc();
+            write_expr(*receiver, output_file, program, indent)?;
+            write!(output_file, ";\n")?;
+            for (item, index) in items {
+                let field = &record.fields[*index];
+                write!(output_file, "{}value.{} = ", indent, field.name)?;
+                write_expr(*item, output_file, program, indent)?;
+                write!(output_file, ";\n")?;
+            }
+            write!(output_file, "{}value }}", indent)?;
+            indent.dec();
+        }
         Expr::Bind(pattern, rhs) => {
             write!(output_file, "let ")?;
             write_pattern(*pattern, output_file, program, indent)?;
@@ -487,6 +504,9 @@ fn write_function(
                         "{}let value = format!(\"{{}}{{}}\", arg0.value, arg1.value);\n",
                         indent
                     )?;
+                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
+                }
+                ("String", "cmp") => {
                     write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
                 }
                 ("Float", "show") => {
