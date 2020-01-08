@@ -1,0 +1,5 @@
+ERROR: non exhaustive pattern
+-- ../tests/fail/non_exhaustive_pattern_int/main.sk:6
+|     case a of
+|         5 -> ()
+|         1 -> ()

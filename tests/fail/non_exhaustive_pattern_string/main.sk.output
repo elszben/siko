@@ -1,4 +1,4 @@
 ERROR: non exhaustive pattern
--- ../tests/fail/non_exhaustive_pattern_string.sk:6
+-- ../tests/fail/non_exhaustive_pattern_string/main.sk:6
 |     case a of
 |         "foo" -> ()

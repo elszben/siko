@@ -2,8 +2,22 @@ module Main where
 
 foo a = a
 
-data Foo = Foo Int deriving (Show)
-data Boo = { alma :: String }
+data Foo = Foo Int | Bar String Int deriving (PartialOrd, Ord, Eq, PartialEq, Show)
+data Boo a = { alma :: String, korte :: a } deriving (PartialOrd, Ord, Eq, PartialEq, Show)
+
+meh a = do
+        boo1 <- Boo { alma = "korte", korte = a }
+        boo2 <- Boo "alma" a
+        b <- 5 == 5
+        b <- 5 <= 5
+        b <- "a" <= "b"
+        b <- opEq boo1 boo2
+        b <- boo1 <= boo2
+        b <- cmp boo1 boo2
+        b <- Foo 5 <= Bar "a" 4
+        b <- cmp (Foo 5) (Bar "a" 4)
+        show boo2
+        Some "a"
 
 blah = [3.4, 3.4]
 
@@ -18,6 +32,18 @@ main  = do
         [4, 5]
         [4.9, 5.9]
         blah
-        Boo { alma = "korte" }
-        Boo "alma"
+        boo1 <- Boo { alma = "korte", korte = 5 }
+        boo2 <- Boo "alma" 4
+        //boo <- boo1 { korte = 3, alma = "{}" % 5 }
+        b <- 5 == 5
+        b <- 5 <= 5
+        b <- "a" <= "b"
+        b <- opEq boo1 boo2
+        b <- boo1 <= boo2
+        b <- cmp boo1 boo2
+        b <- Foo 5 <= Bar "a" 4
+        b <- cmp (Foo 5) (Bar "a" 4)
+        Some "a"
+        meh 5
+        meh "a"
         ()
