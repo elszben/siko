@@ -39,10 +39,7 @@ type ComparatorFn = fn(
     value1: ExprId,
 ) -> ExprId;
 
-type ResultGeneratorFn = fn(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId;
+type ResultGeneratorFn = fn(builder: &mut Builder, location: LocationId) -> ExprId;
 
 fn do_partialord_compare(
     builder: &mut Builder,
@@ -115,59 +112,35 @@ fn do_partialeq_compare(
     return builder.add_expr(if_expr, location, bool_ty.clone());
 }
 
-fn create_false(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_false(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_bool(false, location);
 }
 
-fn create_true(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_true(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_bool(true, location);
 }
 
-fn create_eq(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_eq(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_ordering(Ordering::Equal, location);
 }
 
-fn create_less(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_less(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_ordering(Ordering::Less, location);
 }
 
-fn create_greater(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_greater(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_ordering(Ordering::Greater, location);
 }
 
-fn create_some_eq(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_some_eq(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_optional_ordering(Some(Ordering::Equal), location);
 }
 
-fn create_some_less(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_some_less(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_optional_ordering(Some(Ordering::Less), location);
 }
 
-fn create_some_greater(
-    builder: &mut Builder,
-    location: LocationId,
-) -> ExprId {
+fn create_some_greater(builder: &mut Builder, location: LocationId) -> ExprId {
     return builder.create_optional_ordering(Some(Ordering::Greater), location);
 }
 
@@ -419,7 +392,7 @@ impl<'a> Builder<'a> {
             class_member_id,
             &bool_ty,
             do_partialeq_compare,
-            create_true
+            create_true,
         );
     }
 
@@ -465,7 +438,7 @@ impl<'a> Builder<'a> {
             class_member_id,
             &optional_ordering_ty,
             do_partialord_compare,
-            create_some_eq
+            create_some_eq,
         )
     }
 
@@ -490,7 +463,7 @@ impl<'a> Builder<'a> {
             do_partialord_compare,
             create_some_eq,
             create_some_less,
-            create_some_greater
+            create_some_greater,
         );
     }
 
@@ -511,7 +484,7 @@ impl<'a> Builder<'a> {
             class_member_id,
             &ordering_ty,
             do_ord_compare,
-            create_eq
+            create_eq,
         )
     }
 
@@ -534,7 +507,7 @@ impl<'a> Builder<'a> {
             do_ord_compare,
             create_eq,
             create_less,
-            create_greater
+            create_greater,
         );
     }
 
@@ -648,8 +621,7 @@ impl<'a> Builder<'a> {
                 let tuple_pattern = Pattern::Tuple(vec![pattern0_id, pattern1_id]);
                 let tuple_pattern_id = self.add_pattern(tuple_pattern, location, tuple_ty.clone());
                 let case_branch = if index0 == index1 {
-                    let mut true_branch =
-                        eq_fn(self, location);
+                    let mut true_branch = eq_fn(self, location);
                     for (value_0, value_1) in values0.iter().zip(values1.iter()) {
                         true_branch = cmp_fn(
                             self,

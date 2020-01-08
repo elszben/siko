@@ -3,7 +3,6 @@ use crate::data::TypeDefId;
 use crate::function::FunctionId;
 use crate::pattern::BindGroup;
 use crate::pattern::PatternId;
-use crate::program::Program;
 use siko_util::format_list;
 use std::fmt;
 
@@ -116,37 +115,6 @@ pub enum Expr {
     CaseOf(ExprId, Vec<Case>, Vec<BindGroup>),
     RecordInitialization(TypeDefId, Vec<RecordFieldValueExpr>),
     RecordUpdate(ExprId, Vec<RecordUpdateInfo>),
-}
-
-impl Expr {
-    pub fn as_plain_text(&self, program: &Program) -> String {
-        match self {
-            Expr::StaticFunctionCall(id, args) => {
-                format!("StaticFunctionCall({})", program.functions.get(id).info)
-            }
-            Expr::DynamicFunctionCall(id_expr, args) => format!("DynamicFunctionCall"),
-            Expr::ClassFunctionCall(class_member_id, args) => format!(
-                "ClassFunctionCall({})",
-                program.class_members.get(class_member_id).name
-            ),
-            Expr::If(cond, true_branch, false_branch) => format!("If"),
-            Expr::Tuple(items) => format!("Tuple"),
-            Expr::List(items) => format!("List"),
-            Expr::IntegerLiteral(v) => format!("Integer"),
-            Expr::FloatLiteral(v) => format!("Float"),
-            Expr::StringLiteral(v) => format!("String"),
-            Expr::Do(items) => format!("Do"),
-            Expr::Bind(pattern_id, expr) => format!("Bind"),
-            Expr::ArgRef(v) => format!("ArgRef"),
-            Expr::ExprValue(id, index) => format!("ExprValue"),
-            Expr::FieldAccess(accesses, expr) => format!("FieldAccess"),
-            Expr::TupleFieldAccess(index, expr) => format!("TupleFieldAccess"),
-            Expr::Formatter(fmt, items) => format!("Formatter"),
-            Expr::CaseOf(body, cases, _) => format!("CaseOf"),
-            Expr::RecordInitialization(type_id, items) => format!("RecordInitialization",),
-            Expr::RecordUpdate(expr_id, items) => format!("RecordUpdate"),
-        }
-    }
 }
 
 impl fmt::Display for Expr {

@@ -12,8 +12,6 @@ use siko_parser::parser::Parser;
 use siko_syntax::program::Program;
 use siko_transpiler::transpiler::Transpiler;
 use siko_type_checker::typechecker::Typechecker;
-use siko_util::ElapsedTimeMeasure;
-use siko_util::ElapsedTimeMeasureCollector;
 
 pub enum CompilerInput {
     File {
@@ -70,53 +68,32 @@ impl Compiler {
 
     pub fn compile(&mut self, inputs: Vec<CompilerInput>) -> Result<(), Error> {
         let mut program = Program::new();
-
-        {
-            let _m = ElapsedTimeMeasure::new("FileReader");
-            for input in inputs.iter() {
-                match input {
-                    CompilerInput::File { name } => {
-                        self.file_manager.read(FilePath::new(name.to_string()))?;
-                    }
-                    CompilerInput::Memory { name, content } => {
-                        self.file_manager
-                            .add_from_memory(FilePath::new(name.to_string()), content.clone());
-                    }
+        for input in inputs.iter() {
+            match input {
+                CompilerInput::File { name } => {
+                    self.file_manager.read(FilePath::new(name.to_string()))?;
+                }
+                CompilerInput::Memory { name, content } => {
+                    self.file_manager
+                        .add_from_memory(FilePath::new(name.to_string()), content.clone());
                 }
             }
         }
-
-        {
-            let _m = ElapsedTimeMeasure::new("Parser");
-            for (file_path, content) in self.file_manager.files.iter() {
-                parse(
-                    content,
-                    file_path.clone(),
-                    &mut program,
-                    &mut self.location_info,
-                )?;
-            }
+        for (file_path, content) in self.file_manager.files.iter() {
+            parse(
+                content,
+                file_path.clone(),
+                &mut program,
+                &mut self.location_info,
+            )?;
         }
 
-        let mut ir_program = {
-            let _m = ElapsedTimeMeasure::new("NameResolver");
-            let mut resolver = Resolver::new();
+        let mut resolver = Resolver::new();
+        let mut ir_program = resolver.resolve(&program)?;
 
-            resolver.resolve(&program)?
-        };
+        let typechecker = Typechecker::new();
 
-        {
-            let _m = ElapsedTimeMeasure::new("Typechecker");
-            let typechecker = Typechecker::new();
-
-            typechecker.check(&mut ir_program)?;
-        }
-
-        ElapsedTimeMeasureCollector::print_instance_resolver_time();
-
-        if self.config.visualize {
-            siko_flow_graph::process_functions(&ir_program);
-        }
+        typechecker.check(&mut ir_program)?;
 
         if let Some(compile_target) = &self.config.compile {
             let mir_program = Backend::compile(&mut ir_program);

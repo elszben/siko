@@ -91,7 +91,10 @@ pub fn process_function(
             let name = if adt.type_args.is_empty() {
                 format!("{}_{}_ctor{}", adt.name, variant.name, info.index)
             } else {
-                format!("{}_{}_ctor{}_{}", adt.name, variant.name, info.index, mir_typedef_id.id)
+                format!(
+                    "{}_{}_ctor{}_{}",
+                    adt.name, variant.name, info.index, mir_typedef_id.id
+                )
             };
             let mir_function = MirFunction {
                 name: name,

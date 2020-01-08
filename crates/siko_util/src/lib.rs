@@ -3,9 +3,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::rc::Rc;
-use std::thread_local;
-use std::time::Duration;
-use std::time::Instant;
+
 pub mod dependency_processor;
 pub mod dot;
 
@@ -99,63 +97,4 @@ impl<Key: Ord, Item: Ord> Collector<Key, Item> {
         let entry = self.items.entry(key).or_insert_with(|| BTreeSet::new());
         entry.insert(item);
     }
-}
-
-pub struct ElapsedTimeMeasure {
-    name: String,
-    start: Instant,
-}
-
-impl ElapsedTimeMeasure {
-    pub fn new(name: &str) -> ElapsedTimeMeasure {
-        ElapsedTimeMeasure {
-            name: name.to_string(),
-            start: Instant::now(),
-        }
-    }
-}
-
-impl Drop for ElapsedTimeMeasure {
-    fn drop(&mut self) {
-        let end = Instant::now();
-        let d = end - self.start;
-        //println!("{}: {}.{}", self.name, d.as_secs(), d.subsec_millis());
-    }
-}
-
-pub struct ElapsedTimeMeasureCollector {
-    instance_resolver_time: Duration,
-}
-
-impl ElapsedTimeMeasureCollector {
-    pub fn new() -> ElapsedTimeMeasureCollector {
-        ElapsedTimeMeasureCollector {
-            instance_resolver_time: Duration::new(0, 0),
-        }
-    }
-
-    pub fn add_instance_resolver_time(duration: Duration) {
-        MEASUREMENT_COLLECTOR.with(|m| {
-            let mut m = m.borrow_mut();
-            m.instance_resolver_time += duration;
-        });
-    }
-
-    pub fn print_instance_resolver_time() {
-        MEASUREMENT_COLLECTOR.with(|m| {
-            let m = m.borrow();
-            /*
-            println!(
-                "InstanceResolver: {}.{}",
-                m.instance_resolver_time.as_secs(),
-                m.instance_resolver_time.subsec_millis()
-            );
-            */
-        });
-    }
-}
-
-thread_local! {
-    static MEASUREMENT_COLLECTOR: RefCell<ElapsedTimeMeasureCollector> =
-                                  RefCell::new(ElapsedTimeMeasureCollector::new());
 }

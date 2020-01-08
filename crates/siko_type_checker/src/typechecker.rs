@@ -28,7 +28,6 @@ use siko_ir::program::Program;
 use siko_ir::type_var_generator::TypeVarGenerator;
 use siko_ir::types::BaseType;
 use siko_ir::types::Type;
-use siko_ir::types::ResolverContext;
 use siko_ir::unifier::Unifier;
 use siko_ir::walker::walk_expr;
 use siko_util::dependency_processor::DependencyGroup;
