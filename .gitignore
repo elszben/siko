@@ -3,4 +3,5 @@
 dots
 stresstest/*.sk
 comp
+rust_comp
 siko_tester/target

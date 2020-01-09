@@ -475,7 +475,7 @@ fn parse_unary(parser: &mut Parser, is_arg: bool) -> Result<ExprId, ParseError> 
         let id = parser.add_expr(expr, start_index);
         Ok(id)
     } else {
-        return parse_arg(parser);
+        return parse_field_access(parser);
     }
 }
 
@@ -552,12 +552,12 @@ fn parse_muldiv(parser: &mut Parser) -> Result<ExprId, ParseError> {
 }
 
 fn parse_pipe_forward(parser: &mut Parser) -> Result<ExprId, ParseError> {
-    return parse_binary_op(parser, &[BuiltinOperator::PipeForward], parse_composition);
+    return parse_binary_op(parser, &[BuiltinOperator::PipeForward], parse_primary);
 }
 
-fn parse_composition(parser: &mut Parser) -> Result<ExprId, ParseError> {
+fn parse_field_access(parser: &mut Parser) -> Result<ExprId, ParseError> {
     let start_index = parser.get_index();
-    let mut left = parse_primary(parser)?;
+    let mut left = parse_arg(parser)?;
     loop {
         if let Some(dot_token) = parser.peek() {
             if dot_token.token.kind() == TokenKind::Dot {
