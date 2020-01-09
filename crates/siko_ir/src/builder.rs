@@ -310,8 +310,12 @@ impl<'a> Builder<'a> {
         );
         let (bind_expr_id, values) =
             self.add_record_pattern(arg_ref_expr_id, record, &record_type_info, location, 0);
-        let field_fmt_str_args: Vec<_> = std::iter::repeat("{}}").take(values.len()).collect();
-        let fmt_str = format!("{} {{ {} }}", record.name, field_fmt_str_args.join(", "));
+        let field_fmt_str_args: Vec<_> = std::iter::repeat("{}").take(values.len()).collect();
+        let fmt_str = format!(
+            "{} {{{{ {} }}}}",
+            record.name,
+            field_fmt_str_args.join(", ")
+        );
         let fmt_expr = Expr::Formatter(fmt_str, values);
         let fmt_expr_id = self.add_expr(fmt_expr, location, string_ty.clone());
         let items = vec![bind_expr_id, fmt_expr_id];

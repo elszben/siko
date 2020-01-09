@@ -6,6 +6,7 @@ use siko_mir::data::TypeDef;
 use siko_mir::data::TypeDefId;
 use siko_mir::expr::Expr;
 use siko_mir::expr::ExprId;
+use siko_mir::function::Function;
 use siko_mir::function::FunctionId;
 use siko_mir::function::FunctionInfo;
 use siko_mir::pattern::Pattern;
@@ -91,6 +92,7 @@ fn write_typedef(
     let typedef = program.typedefs.get(&typedef_id);
     match typedef {
         TypeDef::Adt(adt) => {
+            write!(output_file, "{}#[derive(Clone)]\n", indent)?;
             write!(output_file, "{}pub enum {} {{\n", indent, adt.name)?;
             indent.inc();
             for variant in &adt.variants {
@@ -113,6 +115,7 @@ fn write_typedef(
             if let RecordKind::External(data_kind, args) = &record.kind {
                 match data_kind {
                     ExternalDataKind::Int => {
+                        write!(output_file, "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n", indent)?;
                         write!(output_file, "{}pub struct Int {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: i64,\n", indent,)?;
@@ -120,6 +123,7 @@ fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::String => {
+                        write!(output_file, "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n", indent)?;
                         write!(output_file, "{}pub struct String {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: std::string::String,\n", indent,)?;
@@ -127,6 +131,7 @@ fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Float => {
+                        write!(output_file, "{}#[derive(Clone, PartialEq, PartialOrd)]\n", indent)?;
                         write!(output_file, "{}pub struct Float {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: f64,\n", indent,)?;
@@ -134,15 +139,18 @@ fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Map => {
+                        write!(output_file, "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n", indent)?;
                         write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Iterator => {
+                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                         write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::List => {
                         let elem_ty = ir_type_to_rust_type(&args[0], program);
+                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                         write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                         indent.inc();
                         write!(output_file, "{}pub value: Vec<{}>,\n", indent, elem_ty)?;
@@ -151,6 +159,7 @@ fn write_typedef(
                     }
                 }
             } else {
+                write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                 write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                 indent.inc();
                 for field in &record.fields {
@@ -219,17 +228,28 @@ fn write_pattern(
         }
         Pattern::Guarded(pattern, expr) => {
             write_pattern(*pattern, output_file, program, indent)?;
-            write!(output_file, " if ")?;
+            write!(output_file, " if {{ match ")?;
             write_expr(*expr, output_file, program, indent)?;
+            let ty = program.get_expr_type(expr);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(
+                output_file,
+                "  {{ {}::True => true, {}::False => false }} }}",
+                ty, ty
+            )?;
         }
         Pattern::Wildcard => {
             write!(output_file, "_")?;
         }
         Pattern::IntegerLiteral(i) => {
-            write!(output_file, "{}", i)?;
+            let ty = program.get_pattern_type(&pattern_id);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(output_file, "{} {{ value: {} }}", ty, i)?;
         }
         Pattern::StringLiteral(s) => {
-            write!(output_file, "{}", s)?;
+            let ty = program.get_pattern_type(&pattern_id);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(output_file, "{} {{ value: {} }}", ty, s)?;
         }
     }
     Ok(())
@@ -313,6 +333,7 @@ fn write_expr(
             write!(output_file, "{} (", name)?;
             for (index, arg) in args.iter().enumerate() {
                 write_expr(*arg, output_file, program, indent)?;
+                write!(output_file, ".clone()")?;
                 if index != args.len() - 1 {
                     write!(output_file, ", ")?;
                 }
@@ -327,7 +348,7 @@ fn write_expr(
         Expr::StringLiteral(s) => {
             let ty = program.get_expr_type(&expr_id);
             let ty = ir_type_to_rust_type(ty, program);
-            write!(output_file, "{} {{ value: format!(\"{}\") }}", ty, s)?;
+            write!(output_file, "{} {{ value: \"{}\".to_string() }}", ty, s)?;
         }
         Expr::FloatLiteral(f) => {
             let ty = program.get_expr_type(&expr_id);
@@ -351,9 +372,9 @@ fn write_expr(
             write!(output_file, ")}}")?;
         }
         Expr::CaseOf(body, cases) => {
-            write!(output_file, "match ")?;
+            write!(output_file, "match (")?;
             write_expr(*body, output_file, program, indent)?;
-            write!(output_file, " {{\n")?;
+            write!(output_file, ") {{\n")?;
             indent.inc();
             for case in cases {
                 write!(output_file, "{}", indent)?;
@@ -366,8 +387,11 @@ fn write_expr(
             write!(output_file, "{}}}", indent)?;
         }
         Expr::If(cond, true_branch, false_branch) => {
-            write!(output_file, "if ")?;
+            let ty = program.get_expr_type(cond);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(output_file, "if {{ match (")?;
             write_expr(*cond, output_file, program, indent)?;
+            write!(output_file, ") {{ {}::True => true, {}::False => false, }} }} ", ty, ty)?;
             write!(output_file, " {{ ")?;
             write_expr(*true_branch, output_file, program, indent)?;
             write!(output_file, " }} ")?;
@@ -400,6 +424,401 @@ fn write_expr(
     Ok(())
 }
 
+fn generate_partial_cmp_builtin_body(
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    result_ty: &Type,
+    result_ty_str: &str,
+) -> Result<()> {
+    let id = result_ty.get_typedef_id();
+    let adt_opt = program.typedefs.get(&id).get_adt();
+    let mut ord_ty = None;
+    for (index, v) in adt_opt.variants.iter().enumerate() {
+        if v.name == "Some" {
+            ord_ty = Some(v.items[0].clone());
+        }
+    }
+    let ord_ty = ord_ty.expect("Ord ty not found");
+    let ord_ty_str = ir_type_to_rust_type(&ord_ty, program);
+    write!(output_file, "{}match arg0.partial_cmp(&arg1) {{\n", indent)?;
+    indent.inc();
+    write!(
+        output_file,
+        "{} Some(std::cmp::Ordering::Less) => {{ {}::Some({}::Less) }}\n",
+        indent, result_ty_str, ord_ty_str
+    )?;
+    write!(
+        output_file,
+        "{} Some(std::cmp::Ordering::Equal) => {{ {}::Some({}::Equal) }}\n",
+        indent, result_ty_str, ord_ty_str
+    )?;
+    write!(
+        output_file,
+        "{} Some(std::cmp::Ordering::Greater) => {{ {}::Some({}::Greater) }}\n",
+        indent, result_ty_str, ord_ty_str
+    )?;
+    write!(
+        output_file,
+        "{} None => {{ {}::None }}\n",
+        indent, result_ty_str
+    )?;
+    indent.dec();
+    write!(output_file, "{}}}", indent)?;
+
+    Ok(())
+}
+
+fn generate_cmp_builtin_body(
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(output_file, "{}match arg0.cmp(&arg1) {{\n", indent)?;
+    indent.inc();
+    write!(
+        output_file,
+        "{} std::cmp::Ordering::Less => {{ {}::Less }}\n",
+        indent, result_ty_str
+    )?;
+    write!(
+        output_file,
+        "{} std::cmp::Ordering::Equal => {{ {}::Equal }}\n",
+        indent, result_ty_str
+    )?;
+    write!(
+        output_file,
+        "{} std::cmp::Ordering::Greater => {{ {}::Greater }}\n",
+        indent, result_ty_str
+    )?;
+    indent.dec();
+    write!(output_file, "{}}}", indent)?;
+
+    Ok(())
+}
+
+fn generate_show_builtin_body(
+    output_file: &mut dyn Write,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(
+        output_file,
+        "{}let value = format!(\"{{}}\", arg0.value);\n",
+        indent
+    )?;
+    write!(
+        output_file,
+        "{}{} {{ value : value }}",
+        indent, result_ty_str
+    )?;
+    Ok(())
+}
+
+fn generate_opeq_builtin_body(
+    output_file: &mut dyn Write,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(
+        output_file,
+        "{}let value = arg0.value == arg1.value;\n",
+        indent
+    )?;
+    write!(
+        output_file,
+        "{} match value {{ true => {}::True, false => {}::False, }}",
+        indent, result_ty_str, result_ty_str
+    )?;
+    Ok(())
+}
+
+fn generate_opdiv_builtin_body(
+    output_file: &mut dyn Write,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(
+        output_file,
+        "{}let value = arg0.value / arg1.value;\n",
+        indent
+    )?;
+    write!(
+        output_file,
+        "{}{} {{ value : value }}",
+        indent, result_ty_str
+    )?;
+    Ok(())
+}
+
+fn generate_opmul_builtin_body(
+    output_file: &mut dyn Write,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(
+        output_file,
+        "{}let value = arg0.value * arg1.value;\n",
+        indent
+    )?;
+    write!(
+        output_file,
+        "{}{} {{ value : value }}",
+        indent, result_ty_str
+    )?;
+    Ok(())
+}
+
+fn generate_opsub_builtin_body(
+    output_file: &mut dyn Write,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(
+        output_file,
+        "{}let value = arg0.value - arg1.value;\n",
+        indent
+    )?;
+    write!(
+        output_file,
+        "{}{} {{ value : value }}",
+        indent, result_ty_str
+    )?;
+    Ok(())
+}
+
+fn generate_opadd_builtin_body(
+    output_file: &mut dyn Write,
+    indent: &mut Indent,
+    result_ty_str: &str,
+) -> Result<()> {
+    write!(
+        output_file,
+        "{}let value = arg0.value + arg1.value;\n",
+        indent
+    )?;
+    write!(
+        output_file,
+        "{}{} {{ value : value }}",
+        indent, result_ty_str
+    )?;
+    Ok(())
+}
+
+fn generate_num_builtins(
+    module: &str,
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    original_name: &str,
+    result_ty: &Type,
+    result_ty_str: &str,
+) -> Result<()> {
+    indent.inc();
+    match original_name {
+        "opAdd" => {
+            generate_opadd_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "opSub" => {
+            generate_opsub_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "opMul" => {
+            generate_opmul_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "opDiv" => {
+            generate_opdiv_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "opEq" => {
+            generate_opeq_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "show" => {
+            generate_show_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "partialCmp" => {
+            generate_partial_cmp_builtin_body(
+                output_file,
+                program,
+                indent,
+                result_ty,
+                result_ty_str,
+            )?;
+        }
+        "cmp" => {
+            generate_cmp_builtin_body(output_file, program, indent, result_ty_str)?;
+        }
+        _ => panic!("{}/{} not implemented", module, original_name),
+    }
+    indent.dec();
+    Ok(())
+}
+
+fn generate_string_builtins(
+    module: &str,
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    original_name: &str,
+    result_ty: &Type,
+    result_ty_str: &str,
+) -> Result<()> {
+    indent.inc();
+    match original_name {
+        "opAdd" => {
+            write!(
+                output_file,
+                "{}let value = format!(\"{{}}{{}}\", arg0.value, arg1.value);\n",
+                indent
+            )?;
+            write!(
+                output_file,
+                "{}{} {{ value : value }}",
+                indent, result_ty_str
+            )?;
+        }
+        "opEq" => {
+            generate_opeq_builtin_body(output_file, indent, result_ty_str)?;
+        }
+        "partialCmp" => {
+            generate_partial_cmp_builtin_body(
+                output_file,
+                program,
+                indent,
+                result_ty,
+                result_ty_str,
+            )?;
+        }
+        "cmp" => {
+            generate_cmp_builtin_body(output_file, program, indent, result_ty_str)?;
+        }
+        _ => panic!("{}/{} not implemented", module, original_name),
+    }
+    indent.dec();
+    Ok(())
+}
+
+fn generate_map_builtins(
+    function: &Function,
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    original_name: &str,
+) -> Result<()> {
+    indent.inc();
+    indent.dec();
+    Ok(())
+}
+
+fn generate_list_builtins(
+    function: &Function,
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    original_name: &str,
+) -> Result<()> {
+    indent.inc();
+    indent.dec();
+    Ok(())
+}
+
+fn generate_builtin(
+    function: &Function,
+    output_file: &mut dyn Write,
+    program: &Program,
+    indent: &mut Indent,
+    original_name: &str,
+    result_ty: &Type,
+    result_ty_str: &str,
+    arg_types: Vec<String>,
+) -> Result<()> {
+    match function.module.as_ref() {
+        "Int" => {
+            return generate_num_builtins(
+                function.module.as_ref(),
+                output_file,
+                program,
+                indent,
+                original_name,
+                result_ty,
+                result_ty_str,
+            );
+        }
+        "String" => {
+            return generate_string_builtins(
+                function.module.as_ref(),
+                output_file,
+                program,
+                indent,
+                original_name,
+                result_ty,
+                result_ty_str,
+            );
+        }
+        "Float" => {
+            return generate_num_builtins(
+                function.module.as_ref(),
+                output_file,
+                program,
+                indent,
+                original_name,
+                result_ty,
+                result_ty_str,
+            );
+        }
+        "Map" => {
+            return generate_map_builtins(function, output_file, program, indent, original_name);
+        }
+        "List" => {
+            return generate_list_builtins(function, output_file, program, indent, original_name);
+        }
+        _ => {
+            indent.inc();
+            match (function.module.as_ref(), original_name) {
+                ("Std.Ops", "opAnd") => {
+                    write!(
+                        output_file,
+                        "{} match (arg0, arg1) {{ ({}::True, {}::True) => {}::True, ({}::True, {}::False) => {}::False, ({}::False, {}::True) => {}::False, ({}::False, {}::False) => {}::False, }}",
+                        indent, result_ty_str, result_ty_str, result_ty_str,
+                                 result_ty_str, result_ty_str, result_ty_str, 
+                                 result_ty_str, result_ty_str, result_ty_str,
+                                  result_ty_str, result_ty_str, result_ty_str
+                    )?;
+                }
+                ("Std.Ops", "opOr") => {
+                    write!(
+                        output_file,
+                        "{} match (arg0, arg1) {{ ({}::True, {}::True) => {}::True, ({}::True, {}::False) => {}::True, ({}::False, {}::True) => {}::True, ({}::False, {}::False) => {}::False, }}",
+                        indent, result_ty_str, result_ty_str, result_ty_str,
+                                 result_ty_str, result_ty_str, result_ty_str, 
+                                 result_ty_str, result_ty_str, result_ty_str,
+                                  result_ty_str, result_ty_str, result_ty_str
+                    )?;
+                }
+                ("Std.Util.Basic", "println") => {
+                    write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
+                }
+                ("Std.Util", "assert") => {
+                    write!(
+                        output_file, 
+                        "{} match arg0 {{ {}::True => {{}}, {}::False => {{ panic!(\"Assertion failed\"); }} }}",
+                        indent, arg_types[0], arg_types[0]
+                    )?;
+                    write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
+                }
+                ("Iterator", "map") => {
+                    write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
+                }
+                ("Iterator", "filter") => {
+                    write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
+                }
+                _ => panic!("{}/{} not implemented", function.module, function.name),
+            }
+        }
+    }
+    indent.dec();
+    Ok(())
+}
+
 fn write_function(
     function_id: FunctionId,
     output_file: &mut dyn Write,
@@ -410,14 +829,16 @@ fn write_function(
     let mut fn_args = Vec::new();
     function.function_type.get_args(&mut fn_args);
     let mut args: Vec<String> = Vec::new();
+    let mut arg_types: Vec<String> = Vec::new();
     for i in 0..function.arg_count {
         let arg_ty = ir_type_to_rust_type(&fn_args[i], program);
         let arg_str = format!("{}: {}", arg_name(i), arg_ty);
+        arg_types.push(arg_ty);
         args.push(arg_str);
     }
     let args: String = args.join(", ");
-    let result_ty = function.function_type.get_result_type(function.arg_count);
-    let result_ty = ir_type_to_rust_type(&result_ty, program);
+    let result_type = function.function_type.get_result_type(function.arg_count);
+    let result_ty = ir_type_to_rust_type(&result_type, program);
     write!(
         output_file,
         "{}pub fn {}({}) -> {} {{\n",
@@ -431,180 +852,16 @@ fn write_function(
             indent.dec();
         }
         FunctionInfo::Extern(original_name) => {
-            indent.inc();
-            match (function.module.as_ref(), original_name.as_ref()) {
-                ("Int", "opAdd") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value + arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "opSub") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value - arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "opMul") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value * arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "opDiv") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value / arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "opEq") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value == arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("String", "opEq") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value == arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "show") => {
-                    write!(
-                        output_file,
-                        "{}let value = format!(\"{{}}\", arg0.value);\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "partialCmp") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Int", "cmp") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("String", "partialCmp") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("String", "opAdd") => {
-                    write!(
-                        output_file,
-                        "{}let value = format!(\"{{}}{{}}\", arg0.value, arg1.value);\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("String", "cmp") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "show") => {
-                    write!(
-                        output_file,
-                        "{}let value = format!(\"{{}}\", arg0.value);\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "partialCmp") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "opAdd") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value + arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "opSub") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value - arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "opMul") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value * arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "opDiv") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value / arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Float", "opEq") => {
-                    write!(
-                        output_file,
-                        "{}let value = arg0.value == arg1.value;\n",
-                        indent
-                    )?;
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Std.Ops", "opAnd") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Std.Ops", "opOr") => {
-                    write!(output_file, "{}{} {{ value : value }}", indent, result_ty)?;
-                }
-                ("Std.Util.Basic", "println") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Std.Util", "assert") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Map", "empty") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Map", "insert") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Map", "remove") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Map", "get") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Iterator", "map") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("Iterator", "filter") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("List", "toList") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("List", "iter") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("List", "opEq") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                ("List", "show") => {
-                    write!(output_file, "{}{} {{ }}", indent, result_ty)?;
-                }
-                _ => panic!("{}/{} not implemented", function.module, function.name),
-            }
-            indent.dec();
+            generate_builtin(
+                function,
+                output_file,
+                program,
+                indent,
+                original_name.as_ref(),
+                &result_type,
+                result_ty.as_ref(),
+                arg_types,
+            )?;
         }
         FunctionInfo::VariantConstructor(id, index) => {
             let adt = program.typedefs.get(id).get_adt();
@@ -710,7 +967,6 @@ pub struct Transpiler {}
 impl Transpiler {
     pub fn process(program: &Program, target_file: &str) -> Result<()> {
         let filename = format!("{}", target_file);
-        println!("Transpiling to {}", filename);
         let mut output_file = File::create(filename)?;
         write!(output_file, "#![allow(non_snake_case)]\n")?;
         write!(output_file, "#![allow(non_camel_case_types)]\n")?;

@@ -1,10 +1,10 @@
+use std::collections::BTreeSet;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use walkdir::WalkDir;
-use std::collections::BTreeSet;
 
 fn process_dir(arg: String, inputs: &mut Vec<(PathBuf, String)>) -> bool {
     let path = Path::new(&arg);
@@ -22,7 +22,13 @@ fn process_dir(arg: String, inputs: &mut Vec<(PathBuf, String)>) -> bool {
                         let parent_dir = entry.path().parent().expect("Parent dir not found");
                         let testcase_name = parent_dir.file_name().expect("TC name not found");
                         let source_path = PathBuf::from(parent_dir);
-                        inputs.push((source_path, testcase_name.to_str().expect("Name print failed").to_string()));
+                        inputs.push((
+                            source_path,
+                            testcase_name
+                                .to_str()
+                                .expect("Name print failed")
+                                .to_string(),
+                        ));
                     }
                 }
             }
@@ -33,19 +39,20 @@ fn process_dir(arg: String, inputs: &mut Vec<(PathBuf, String)>) -> bool {
 
 fn print_usage() {
     println!("Usage:");
-    println!("SikoTester SIKOC SIKO_STD COMP_DIR SUCCESS_DIRFAIL_DIR");
+    println!("SikoTester SIKOC SIKO_STD COMP_DIR RUST_COMP_DIR SUCCESS_DIRFAIL_DIR");
 }
 
 fn process_args(args: Vec<String>) -> bool {
-    if args.len() != 5 {
+    if args.len() != 6 {
         print_usage();
         return false;
     }
     let sikoc = args[0].clone();
     let siko_std = args[1].clone();
     let comp_dir = args[2].clone();
-    let success_dir = args[3].clone();
-    let fail_dir = args[4].clone();
+    let rust_comp_dir = args[3].clone();
+    let success_dir = args[4].clone();
+    let fail_dir = args[5].clone();
     let mut success_files = Vec::new();
     process_dir(success_dir, &mut success_files);
     let mut fail_files = Vec::new();
@@ -68,11 +75,13 @@ fn process_args(args: Vec<String>) -> bool {
             failed_tcs.insert(tc_name.clone());
         }
         //println!("Compiling {}", s.display());
+        let rs_output_file = format!("{}/{}.rs", comp_dir, tc_name);
+        let rustc_output_file = format!("{}/{}", rust_comp_dir.clone(), tc_name);
         let status = Command::new(sikoc.clone())
             .arg("-s")
             .arg(siko_std.clone())
             .arg("-c")
-            .arg(format!("{}/{}.rs", comp_dir, tc_name))
+            .arg(rs_output_file.clone())
             .arg(s.clone())
             .status()
             .expect("failed to execute process");
@@ -81,6 +90,15 @@ fn process_args(args: Vec<String>) -> bool {
         } else {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+        }
+        let output = Command::new("rustc")
+            .arg(rs_output_file)
+            .arg("-o")
+            .arg(rustc_output_file)
+            .output()
+            .expect("failed to execute process");
+        if !output.status.success() {
+            println!("Rust failed to compile");
         }
     }
     for (f, tc_name) in fail_files {
@@ -107,9 +125,7 @@ fn process_args(args: Vec<String>) -> bool {
             println!("- {}", tc);
         }
         false
-    }
-    else
-    {
+    } else {
         true
     }
 }
