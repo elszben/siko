@@ -115,7 +115,11 @@ fn write_typedef(
             if let RecordKind::External(data_kind, args) = &record.kind {
                 match data_kind {
                     ExternalDataKind::Int => {
-                        write!(output_file, "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n", indent)?;
+                        write!(
+                            output_file,
+                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n",
+                            indent
+                        )?;
                         write!(output_file, "{}pub struct Int {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: i64,\n", indent,)?;
@@ -123,7 +127,11 @@ fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::String => {
-                        write!(output_file, "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n", indent)?;
+                        write!(
+                            output_file,
+                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n",
+                            indent
+                        )?;
                         write!(output_file, "{}pub struct String {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: std::string::String,\n", indent,)?;
@@ -131,7 +139,11 @@ fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Float => {
-                        write!(output_file, "{}#[derive(Clone, PartialEq, PartialOrd)]\n", indent)?;
+                        write!(
+                            output_file,
+                            "{}#[derive(Clone, PartialEq, PartialOrd)]\n",
+                            indent
+                        )?;
                         write!(output_file, "{}pub struct Float {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: f64,\n", indent,)?;
@@ -139,7 +151,11 @@ fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Map => {
-                        write!(output_file, "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n", indent)?;
+                        write!(
+                            output_file,
+                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n",
+                            indent
+                        )?;
                         write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                         write!(output_file, "{}}}\n", indent)?;
                     }
@@ -260,7 +276,8 @@ fn write_expr(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
-) -> Result<()> {
+) -> Result<bool> {
+    let mut is_statement = false;
     let expr = &program.exprs.get(&expr_id).item;
     match expr {
         Expr::ArgRef(i) => {
@@ -272,9 +289,16 @@ fn write_expr(
             indent.inc();
             for (index, item) in items.iter().enumerate() {
                 write!(output_file, "{}", indent)?;
-                write_expr(*item, output_file, program, indent)?;
-                if index != items.len() - 1 {
-                    write!(output_file, ";\n")?;
+                let is_statement = write_expr(*item, output_file, program, indent)?;
+                if is_statement {
+                    if index == items.len() - 1 {
+                        let ty = program.get_expr_type(&expr_id);
+                        write!(output_file, "{} {{ }} ", ir_type_to_rust_type(ty, program))?;
+                    }
+                } else {
+                    if index != items.len() - 1 {
+                        write!(output_file, ";\n")?;
+                    }
                 }
             }
             indent.dec();
@@ -314,6 +338,8 @@ fn write_expr(
             write_pattern(*pattern, output_file, program, indent)?;
             write!(output_file, " = ")?;
             write_expr(*rhs, output_file, program, indent)?;
+            write!(output_file, ";")?;
+            is_statement = true;
         }
         Expr::ExprValue(_, pattern_id) => {
             let pattern = &program.patterns.get(pattern_id).item;
@@ -391,7 +417,11 @@ fn write_expr(
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "if {{ match (")?;
             write_expr(*cond, output_file, program, indent)?;
-            write!(output_file, ") {{ {}::True => true, {}::False => false, }} }} ", ty, ty)?;
+            write!(
+                output_file,
+                ") {{ {}::True => true, {}::False => false, }} }} ",
+                ty, ty
+            )?;
             write!(output_file, " {{ ")?;
             write_expr(*true_branch, output_file, program, indent)?;
             write!(output_file, " }} ")?;
@@ -421,7 +451,7 @@ fn write_expr(
         }
         _ => println!("{:?}", expr),
     }
-    Ok(())
+    Ok(is_statement)
 }
 
 fn generate_partial_cmp_builtin_body(
@@ -777,31 +807,56 @@ fn generate_builtin(
                 ("Std.Ops", "opAnd") => {
                     write!(
                         output_file,
-                        "{} match (arg0, arg1) {{ ({}::True, {}::True) => {}::True, ({}::True, {}::False) => {}::False, ({}::False, {}::True) => {}::False, ({}::False, {}::False) => {}::False, }}",
+                        "{} match (arg0, arg1) {{ ({}::True, {}::True) => {}::True,",
                         indent, result_ty_str, result_ty_str, result_ty_str,
-                                 result_ty_str, result_ty_str, result_ty_str, 
-                                 result_ty_str, result_ty_str, result_ty_str,
-                                  result_ty_str, result_ty_str, result_ty_str
+                    )?;
+                    write!(
+                        output_file,
+                        "({}::True, {}::False) => {}::False,",
+                        result_ty_str, result_ty_str, result_ty_str,
+                    )?;
+                    write!(
+                        output_file,
+                        "({}::False, {}::True) => {}::False,",
+                        result_ty_str, result_ty_str, result_ty_str,
+                    )?;
+                    write!(
+                        output_file,
+                        "({}::False, {}::False) => {}::False, }}",
+                        result_ty_str, result_ty_str, result_ty_str,
                     )?;
                 }
                 ("Std.Ops", "opOr") => {
                     write!(
                         output_file,
-                        "{} match (arg0, arg1) {{ ({}::True, {}::True) => {}::True, ({}::True, {}::False) => {}::True, ({}::False, {}::True) => {}::True, ({}::False, {}::False) => {}::False, }}",
+                        "{} match (arg0, arg1) {{ ({}::True, {}::True) => {}::True,",
                         indent, result_ty_str, result_ty_str, result_ty_str,
-                                 result_ty_str, result_ty_str, result_ty_str, 
-                                 result_ty_str, result_ty_str, result_ty_str,
-                                  result_ty_str, result_ty_str, result_ty_str
+                    )?;
+                    write!(
+                        output_file,
+                        "({}::True, {}::False) => {}::True,",
+                        result_ty_str, result_ty_str, result_ty_str,
+                    )?;
+                    write!(
+                        output_file,
+                        "({}::False, {}::True) => {}::True,",
+                        result_ty_str, result_ty_str, result_ty_str,
+                    )?;
+                    write!(
+                        output_file,
+                        "({}::False, {}::False) => {}::False, }}",
+                        result_ty_str, result_ty_str, result_ty_str,
                     )?;
                 }
                 ("Std.Util.Basic", "println") => {
                     write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
                 }
                 ("Std.Util", "assert") => {
+                    let panic = "{{ panic!(\"Assertion failed\"); }}";
                     write!(
-                        output_file, 
-                        "{} match arg0 {{ {}::True => {{}}, {}::False => {{ panic!(\"Assertion failed\"); }} }}",
-                        indent, arg_types[0], arg_types[0]
+                        output_file,
+                        "{} match arg0 {{ {}::True => {{}}, {}::False => {} }}",
+                        indent, arg_types[0], arg_types[0], panic
                     )?;
                     write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
                 }

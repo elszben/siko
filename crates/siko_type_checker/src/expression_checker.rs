@@ -41,7 +41,7 @@ impl<'a> ExpressionChecker<'a> {
         }
     }
 
-    fn unify(&mut self, ty1: &Type, ty2: &Type, location: LocationId) {
+    fn unify(&mut self, ty1: &Type, ty2: &Type, location: LocationId) -> Unifier {
         let mut unifier = Unifier::new(self.type_info_provider.type_var_generator.clone());
         if !unifier.unify(ty1, ty2).is_ok() {
             let ty_str1 = ty1.get_resolved_type_string(self.program);
@@ -55,12 +55,13 @@ impl<'a> ExpressionChecker<'a> {
                 info.apply(&unifier);
             }
         }
+        unifier
     }
 
-    pub fn match_expr_with(&mut self, expr_id: ExprId, ty: &Type) {
+    pub fn match_expr_with(&mut self, expr_id: ExprId, ty: &Type) -> Unifier {
         let expr_ty = self.type_store.get_expr_type(&expr_id).clone();
         let location = self.program.exprs.get(&expr_id).location_id;
-        self.unify(ty, &expr_ty, location);
+        self.unify(ty, &expr_ty, location)
     }
 
     fn match_pattern_with(&mut self, pattern_id: PatternId, ty: &Type) {
@@ -234,11 +235,11 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             }
             Expr::StringLiteral(_) => {}
             Expr::RecordInitialization(_, values) => {
-                let record_type_info = self
-                    .type_store
-                    .get_record_type_info_for_expr(&expr_id)
-                    .clone();
                 for value in values {
+                    let record_type_info = self
+                        .type_store
+                        .get_record_type_info_for_expr(&expr_id)
+                        .clone();
                     let field_type = &record_type_info.field_types[value.index];
                     self.match_expr_with(value.expr_id, &field_type.0);
                 }
@@ -276,13 +277,16 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 }
                 match matching_update {
                     Some(update) => {
-                        let record_type_info = self
+                        let mut record_type_info = self
                             .type_info_provider
                             .get_record_type_info(&update.record_id);
-                        self.match_expr_with(*receiver_expr_id, &record_type_info.record_type);
+                        let unifier =
+                            self.match_expr_with(*receiver_expr_id, &record_type_info.record_type);
+                        record_type_info.apply(&unifier);
                         for field_update in &update.items {
                             let field = &record_type_info.field_types[field_update.index];
-                            self.match_expr_with(field_update.expr_id, &field.0);
+                            let unifier = self.match_expr_with(field_update.expr_id, &field.0);
+                            record_type_info.apply(&unifier);
                         }
                         self.match_expr_with(expr_id, &record_type_info.record_type);
                     }
