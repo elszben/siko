@@ -7,5 +7,13 @@ actor FooActor Foo where
     BazProtocol -> Prelude.baz
     FooProtocol -> foo
 
-main = do
-    (True != False) |> show |> println
+foo a b :: (a <- b) => a -> b -> ()
+foo a b = send a b
+
+foo2 a :: (a <- BazProtocol) => a -> BazProtocol -> ()
+foo2 a b = send a b
+
+foo3 a :: (a <- Msg of a) => a -> Msg of a -> ()
+foo3 a b = send a b
+
+main = ()
