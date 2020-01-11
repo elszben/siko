@@ -294,6 +294,8 @@ fn write_expr(
                     if index == items.len() - 1 {
                         let ty = program.get_expr_type(&expr_id);
                         write!(output_file, "{} {{ }} ", ir_type_to_rust_type(ty, program))?;
+                    } else {
+                        write!(output_file, "\n")?;
                     }
                 } else {
                     if index != items.len() - 1 {
@@ -745,8 +747,27 @@ fn generate_list_builtins(
     program: &Program,
     indent: &mut Indent,
     original_name: &str,
+    result_ty_str: &str,
 ) -> Result<()> {
     indent.inc();
+    match original_name {
+        "show" => {
+            write!(
+                output_file,
+                "{}let subs: Vec<_> = arg0.value.iter().map(|item| format!(\"{{}}\", item)).collect();\n",
+                indent
+            )?;
+            write!(
+                output_file,
+                "{}{} {{ value : format!(\"[{{}}]\", subs.join(\", \")) }}",
+                indent, result_ty_str
+            )?;
+        }
+        "toList" => {}
+        "iter" => {}
+        "opEq" => {}
+        _ => panic!("List/{} not implemented", original_name),
+    }
     indent.dec();
     Ok(())
 }
@@ -799,7 +820,14 @@ fn generate_builtin(
             return generate_map_builtins(function, output_file, program, indent, original_name);
         }
         "List" => {
-            return generate_list_builtins(function, output_file, program, indent, original_name);
+            return generate_list_builtins(
+                function,
+                output_file,
+                program,
+                indent,
+                original_name,
+                result_ty_str,
+            );
         }
         _ => {
             indent.inc();
@@ -849,6 +877,11 @@ fn generate_builtin(
                     )?;
                 }
                 ("Std.Util.Basic", "println") => {
+                    write!(output_file, "{}println!(\"{{}}\", arg0);\n", indent)?;
+                    write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
+                }
+                ("Std.Util.Basic", "print") => {
+                    write!(output_file, "{}print!(\"{{}}\", arg0);\n", indent)?;
                     write!(output_file, "{}{} {{ }}", indent, result_ty_str)?;
                 }
                 ("Std.Util", "assert") => {
@@ -894,59 +927,87 @@ fn write_function(
     let args: String = args.join(", ");
     let result_type = function.function_type.get_result_type(function.arg_count);
     let result_ty = ir_type_to_rust_type(&result_type, program);
-    write!(
-        output_file,
-        "{}pub fn {}({}) -> {} {{\n",
-        indent, function.name, args, result_ty
-    )?;
-    match &function.info {
-        FunctionInfo::Normal(body) => {
-            indent.inc();
-            write!(output_file, "{}", indent)?;
-            write_expr(*body, output_file, program, indent)?;
-            indent.dec();
-        }
-        FunctionInfo::Extern(original_name) => {
-            generate_builtin(
-                function,
+    if let FunctionInfo::ExternClassImpl(class_name, ty, body) = &function.info {
+        if class_name == "Show" {
+            let impl_ty = ir_type_to_rust_type(&ty, program);
+            write!(
                 output_file,
-                program,
-                indent,
-                original_name.as_ref(),
-                &result_type,
-                result_ty.as_ref(),
-                arg_types,
+                "{}impl std::fmt::Display for {} {{\n",
+                indent, impl_ty,
             )?;
-        }
-        FunctionInfo::VariantConstructor(id, index) => {
-            let adt = program.typedefs.get(id).get_adt();
-            let variant = &adt.variants[*index];
             indent.inc();
-            write!(output_file, "{}{}::{}", indent, result_ty, variant.name)?;
-            if function.arg_count > 0 {
+            write!(
+                output_file,
+                "{}fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{\n",
+                indent
+            )?;
+            indent.inc();
+            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let value = ", indent)?;
+            write_expr(*body, output_file, program, indent)?;
+            write!(output_file, ";\n")?;
+            write!(output_file, "{}write!(f, \"{{}}\", value.value)\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+        }
+    } else {
+        write!(
+            output_file,
+            "{}pub fn {}({}) -> {} {{\n",
+            indent, function.name, args, result_ty
+        )?;
+        match &function.info {
+            FunctionInfo::Normal(body) => {
+                indent.inc();
+                write!(output_file, "{}", indent)?;
+                write_expr(*body, output_file, program, indent)?;
+                indent.dec();
+            }
+            FunctionInfo::Extern(original_name) => {
+                generate_builtin(
+                    function,
+                    output_file,
+                    program,
+                    indent,
+                    original_name.as_ref(),
+                    &result_type,
+                    result_ty.as_ref(),
+                    arg_types,
+                )?;
+            }
+            FunctionInfo::VariantConstructor(id, index) => {
+                let adt = program.typedefs.get(id).get_adt();
+                let variant = &adt.variants[*index];
+                indent.inc();
+                write!(output_file, "{}{}::{}", indent, result_ty, variant.name)?;
+                if function.arg_count > 0 {
+                    let mut args = Vec::new();
+                    for i in 0..function.arg_count {
+                        let arg_str = format!("{}", arg_name(i));
+                        args.push(arg_str);
+                    }
+                    write!(output_file, "({})", args.join(", "))?;
+                }
+                indent.dec();
+            }
+            FunctionInfo::RecordConstructor(id) => {
+                let record = program.typedefs.get(id).get_record();
+                indent.inc();
+                write!(output_file, "{}{}", indent, result_ty)?;
                 let mut args = Vec::new();
-                for i in 0..function.arg_count {
-                    let arg_str = format!("{}", arg_name(i));
+                for (index, field) in record.fields.iter().enumerate() {
+                    let arg_str = format!("{}: {}", field.name, arg_name(index));
                     args.push(arg_str);
                 }
-                write!(output_file, "({})", args.join(", "))?;
+                write!(output_file, "{{ {} }}", args.join(", "))?;
+                indent.dec();
             }
-            indent.dec();
+            FunctionInfo::ExternClassImpl(..) => unreachable!(),
         }
-        FunctionInfo::RecordConstructor(id) => {
-            let record = program.typedefs.get(id).get_record();
-            indent.inc();
-            write!(output_file, "{}{}", indent, result_ty)?;
-            let mut args = Vec::new();
-            for (index, field) in record.fields.iter().enumerate() {
-                let arg_str = format!("{}: {}", field.name, arg_name(index));
-                args.push(arg_str);
-            }
-            write!(output_file, "{{ {} }}", args.join(", "))?;
-            indent.dec();
-        }
+        write!(output_file, "\n{}}}\n", indent,)?;
     }
-    write!(output_file, "\n{}}}\n", indent,)?;
     Ok(())
 }
 

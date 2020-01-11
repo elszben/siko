@@ -25,6 +25,7 @@ pub enum FunctionInfo {
     Extern(String),
     VariantConstructor(TypeDefId, usize),
     RecordConstructor(TypeDefId),
+    ExternClassImpl(String, Type, ExprId),
 }
 
 pub struct Function {

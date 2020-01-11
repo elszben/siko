@@ -1,49 +1,12 @@
 module Main where
 
-foo a = a
-
-data Foo = Foo Int | Bar String Int deriving (PartialOrd, Ord, Eq, PartialEq, Show)
-data Boo a = { alma :: String, korte :: a } deriving (PartialOrd, Ord, Eq, PartialEq, Show)
-
-meh a = do
-        boo1 <- Boo { alma = "korte", korte = a }
-        boo2 <- Boo "alma" a
-        b <- 5 == 5
-        b <- 5 <= 5
-        b <- "a" <= "b"
-        b <- opEq boo1 boo2
-        b <- boo1 <= boo2
-        b <- cmp boo1 boo2
-        b <- Foo 5 <= Bar "a" 4
-        b <- cmp (Foo 5) (Bar "a" 4)
-        show boo2
-        Some "a"
-
-blah = [3.4, 3.4]
+data Boo a = { korte :: a } deriving (Show)
 
 main  = do
-        foo (4 + 4)
-        println "alma"
-        println 4
-        println "{}" % Foo 1
-        println (Foo 1)
-        println "{}" % True
-        println "{}" % -1.0
-        [4, 5]
-        [4.9, 5.9]
-        blah
-        boo1 <- Boo { alma = "korte", korte = 5 }
-        boo2 <- Boo "alma" 4
-        //boo <- boo1 { korte = 3, alma = "{}" % 5 }
-        b <- 5 == 5
-        b <- 5 <= 5
-        b <- "a" <= "b"
-        b <- opEq boo1 boo2
-        b <- boo1 <= boo2
-        b <- cmp boo1 boo2
-        b <- Foo 5 <= Bar "a" 4
-        b <- cmp (Foo 5) (Bar "a" 4)
-        Some "a"
-        meh 5
-        meh "a"
+        boo1 <- Boo { korte = 5 }
+        boo2 <- Boo { korte = 5 }
+        boo3 <- Boo { korte = boo1 }
+        boo4 <- Boo { korte = boo2 }
+        a <- [boo3, boo4]
+        print (show a)
         ()

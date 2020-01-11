@@ -281,4 +281,11 @@ impl Program {
         let expr = &mut self.exprs.get_mut(&expr_id).item;
         *expr = Expr::ArgRef(arg_ref);
     }
+
+    pub fn get_show_member_id(&self) -> ClassMemberId {
+        let class_id = self.get_show_class_id();
+        let class = self.classes.get(&class_id);
+        let show_id = class.members.get("show").expect("show not found").clone();
+        show_id
+    }
 }

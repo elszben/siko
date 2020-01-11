@@ -14,9 +14,7 @@ pub struct FormatRewriter<'a> {
 
 impl<'a> FormatRewriter<'a> {
     pub fn new(program: &'a mut Program) -> FormatRewriter<'a> {
-        let class_id = program.get_show_class_id();
-        let class = program.classes.get(&class_id);
-        let show_id = class.members.get("show").expect("show not found").clone();
+        let show_id = program.get_show_member_id();
         FormatRewriter {
             program: program,
             show_id: show_id,

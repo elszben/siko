@@ -2,6 +2,7 @@ use crate::class::ClassMemberId;
 use crate::data::TypeDefId;
 use crate::expr::ExprId;
 use crate::type_signature::TypeSignatureId;
+use crate::types::Type;
 use siko_location_info::location_id::LocationId;
 use std::fmt;
 
@@ -27,6 +28,7 @@ pub enum NamedFunctionKind {
     Free,
     DefaultClassMember(ClassMemberId),
     InstanceMember(Option<String>),
+    ExternClassImpl(String, Type),
 }
 
 #[derive(Debug, Clone)]

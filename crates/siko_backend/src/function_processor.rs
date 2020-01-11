@@ -1,11 +1,15 @@
 use crate::expr_processor::process_expr;
+use crate::function_queue::CallContext;
 use crate::function_queue::FunctionQueue;
+use crate::function_queue::FunctionQueueItem;
 use crate::type_processor::process_type;
 use crate::typedef_store::TypeDefStore;
 use crate::util::get_call_unifier;
 use crate::util::preprocess_ir;
+use siko_ir::builder::Builder;
 use siko_ir::function::FunctionId as IrFunctionId;
 use siko_ir::function::FunctionInfo;
+use siko_ir::function::NamedFunctionKind;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type;
 use siko_mir::function::Function as MirFunction;
@@ -42,8 +46,28 @@ pub fn process_function(
                     function_queue,
                     typedef_store,
                 );
-                MirFunctionInfo::Normal(mir_expr_id)
+                if let NamedFunctionKind::ExternClassImpl(class_name, ty) = &info.kind {
+                    let mir_ty = process_type(ty, typedef_store, ir_program, mir_program);
+                    MirFunctionInfo::ExternClassImpl(class_name.clone(), mir_ty, mir_expr_id)
+                } else {
+                    MirFunctionInfo::Normal(mir_expr_id)
+                }
             } else {
+                let constraints = call_unifier.get_constraints();
+                for constraint in &constraints {
+                    let mut builder = Builder::new(ir_program);
+                    let func_id = builder.generate_extern_class_impl(
+                        info.location_id,
+                        format!("ExternClassImpl{}", constraint.class_id),
+                        info.module.clone(),
+                        1,
+                        constraint.ty.clone(),
+                    );
+                    let string_ty = ir_program.get_string_type();
+                    let context = CallContext::new(vec![constraint.ty.clone()], string_ty);
+                    let queue_item = FunctionQueueItem::Normal(func_id, context);
+                    function_queue.insert(queue_item, mir_program);
+                }
                 MirFunctionInfo::Extern(info.name.clone())
             };
             let mir_function = MirFunction {

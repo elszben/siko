@@ -7,7 +7,11 @@ use crate::expr::Case;
 use crate::expr::Expr;
 use crate::expr::ExprId;
 use crate::expr::FunctionArgumentRef;
+use crate::function::Function;
 use crate::function::FunctionId;
+use crate::function::FunctionInfo;
+use crate::function::NamedFunctionInfo;
+use crate::function::NamedFunctionKind;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::program::Program;
@@ -662,5 +666,48 @@ impl<'a> Builder<'a> {
             Box::new(function_type),
         );
         (body, function_type)
+    }
+
+    pub fn generate_extern_class_impl(
+        &mut self,
+        location: LocationId,
+        name: String,
+        module: String,
+        arg_count: usize,
+        ty: Type,
+    ) -> FunctionId {
+        let function_id = self.program.functions.get_id();
+        let string_ty = self.program.get_string_type();
+        let class_id = self.program.get_show_class_id();
+        let class = self.program.classes.get(&class_id);
+        let class_name = class.name.clone();
+        let class_member_id = self.program.get_show_member_id();
+        let arg_ref_expr_id = self.add_arg_ref(0, function_id, location, ty.clone());
+        let body = self.add_expr(
+            Expr::ClassFunctionCall(class_member_id, vec![arg_ref_expr_id]),
+            location,
+            string_ty.clone(),
+        );
+        let function_type = Type::Function(Box::new(ty.clone()), Box::new(string_ty.clone()));
+        let info = NamedFunctionInfo {
+            body: Some(body),
+            kind: NamedFunctionKind::ExternClassImpl(class_name, ty.clone()),
+            location_id: location,
+            type_signature: None,
+            module: module.clone(),
+            name: format!("{:?}", name),
+        };
+        let function_info = FunctionInfo::NamedFunction(info);
+        let function = Function {
+            id: function_id,
+            arg_count: arg_count,
+            arg_locations: vec![location],
+            info: function_info,
+        };
+        self.program
+            .function_types
+            .insert(function_id, function_type);
+        self.program.functions.add_item(function_id, function);
+        function_id
     }
 }
