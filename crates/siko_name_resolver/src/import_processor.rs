@@ -142,6 +142,9 @@ pub fn process_imports(
         let ast_module = program.modules.get(&module.id);
         for import_id in &ast_module.imports {
             let import = program.imports.get(import_id);
+            if import.module_path == *module_name {
+                continue;
+            }
             if modules.get(&import.module_path).is_none() {
                 let err = ResolverError::ImportedModuleNotFound(
                     import.module_path.clone(),
@@ -170,6 +173,9 @@ pub fn process_imports(
 
         for import_id in &ast_module.imports {
             let import = program.imports.get(import_id);
+            if import.module_path == *module_name {
+                continue;
+            }
             let source_module = match modules.get(&import.module_path.clone()) {
                 Some(source_module) => source_module,
                 None => {
