@@ -2,7 +2,7 @@ module Siko.Syntax.Class where
 
 import Siko.Syntax.Location
 import Siko.Syntax.Function
-import Siko.Syntax.TypeSignature
+import Siko.Syntax.TypeSignature (TypeSignature)
 
 data Constraint = {
                     class_name :: String,

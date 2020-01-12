@@ -1,0 +1,40 @@
+module Siko.Syntax.Data where
+
+import Siko.Syntax.Location
+import Siko.Syntax.TypeSignature (TypeSignature)
+
+data DataDefinition = AdtDef AbstractDataType | RecordDef Record
+
+data DerivedClass = {
+                      name :: String,
+                      location :: LocationId,
+                    }
+
+data AbstractDataType = {
+                          name :: String,
+                          type_arguments :: [(String, LocationId)],
+                          variants :: [Variant],
+                          location :: LocationId,
+                          derived_classes :: [DerivedClass],
+                        }
+
+data Variant = {
+                 name :: String,
+                 type_signature :: TypeSignature,
+                 location :: LocationId,
+               }
+
+data Record = {
+                name :: String,
+                type_arguments :: [(String, LocationId)],
+                fields :: [RecordField],
+                location :: LocationId,
+                external :: Bool,
+                derived_classes :: [DerivedClass],
+               }
+
+data RecordField = {
+                     name :: String,
+                     type_signature :: TypeSignature,
+                     location :: LocationId,
+                   }

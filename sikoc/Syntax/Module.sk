@@ -1,19 +1,57 @@
 module Siko.Syntax where
 
 import Siko.Syntax.Class
+import Siko.Syntax.Location
 import Siko.Syntax.Function
-import Siko.Syntax.TypeSignature
+import Siko.Syntax.TypeSignature (TypeSignature)
+import Siko.Syntax.Data
 
-data Export
-data Import
+data ImportList = {
+                    items :: [Specification],
+                    alternative_name :: Option String
+                  }
+
+data HiddenItem = {
+                    name :: String,
+                    location :: LocationId,
+                  }
+
+data ImportKind = Hiding [HiddenItem] | List ImportList
+
+data Import = {
+                module_path :: String,
+                kind :: ImportKind,
+                location :: LocationId,
+              }
+
+data GroupMember = Specific String | All
+
+data GroupMemberInfo = {
+                         member :: GroupMember,
+                         location :: LocationId,
+                       }
+
+data ItemGroup = {
+                   name :: String,
+                   members :: GroupMemberInfo,
+                 }
+
+data Item = Named String | Group ItemGroup
+
+data ItemInfo = {
+                  item :: Item,
+                  location :: LocationId,
+                }
+
+data Specification = Implicit | Explicit [ItemInfo]
 
 data Module = { 
                 name :: String,
                 functions :: [Function],
-                typedefinitions :: [TypeDefinition],
+                data_definitions :: [DataDefinition],
                 function_signatures :: [FunctionSignature],
                 imports :: [Import],
                 classes :: [Class],
                 instances :: [Instance],
-                exports :: [Export],
+                exports :: [Specification],
               }
