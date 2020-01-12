@@ -162,6 +162,15 @@ impl Program {
         class_id
     }
 
+    pub fn get_ord_class_id(&self) -> ClassId {
+        let class_id = self
+            .class_names
+            .get(ORD_CLASS_NAME)
+            .expect("Ord not found")
+            .clone();
+        class_id
+    }
+
     pub fn get_partialeq_op_id(&self) -> ClassMemberId {
         let class_id = self
             .class_names
@@ -287,5 +296,12 @@ impl Program {
         let class = self.classes.get(&class_id);
         let show_id = class.members.get("show").expect("show not found").clone();
         show_id
+    }
+
+    pub fn get_cmp_member_id(&self) -> ClassMemberId {
+        let class_id = self.get_ord_class_id();
+        let class = self.classes.get(&class_id);
+        let cmp_id = class.members.get("cmp").expect("cmp not found").clone();
+        cmp_id
     }
 }

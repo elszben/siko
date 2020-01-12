@@ -675,23 +675,32 @@ impl<'a> Builder<'a> {
         module: String,
         arg_count: usize,
         ty: Type,
+        return_ty: Type,
+        class_member_id: ClassMemberId,
     ) -> FunctionId {
+        let class_member = self.program.class_members.get(&class_member_id);
+        let class_member_name = class_member.name.clone();
         let function_id = self.program.functions.get_id();
-        let string_ty = self.program.get_string_type();
-        let class_id = self.program.get_show_class_id();
-        let class = self.program.classes.get(&class_id);
-        let class_name = class.name.clone();
-        let class_member_id = self.program.get_show_member_id();
-        let arg_ref_expr_id = self.add_arg_ref(0, function_id, location, ty.clone());
+        let mut arg_refs = Vec::new();
+        let mut arg_locations = Vec::new();
+        for arg_ref_index in 0..arg_count {
+            let arg_ref_expr_id =
+                self.add_arg_ref(arg_ref_index, function_id, location, ty.clone());
+            arg_refs.push(arg_ref_expr_id);
+            arg_locations.push(location);
+        }
         let body = self.add_expr(
-            Expr::ClassFunctionCall(class_member_id, vec![arg_ref_expr_id]),
+            Expr::ClassFunctionCall(class_member_id, arg_refs),
             location,
-            string_ty.clone(),
+            return_ty.clone(),
         );
-        let function_type = Type::Function(Box::new(ty.clone()), Box::new(string_ty.clone()));
+        let mut function_type = Type::Function(Box::new(ty.clone()), Box::new(return_ty.clone()));
+        for _ in 0..arg_count - 1 {
+            function_type = Type::Function(Box::new(ty.clone()), Box::new(function_type));
+        }
         let info = NamedFunctionInfo {
             body: Some(body),
-            kind: NamedFunctionKind::ExternClassImpl(class_name, ty.clone()),
+            kind: NamedFunctionKind::ExternClassImpl(class_member_name, ty.clone()),
             location_id: location,
             type_signature: None,
             module: module.clone(),
@@ -701,7 +710,7 @@ impl<'a> Builder<'a> {
         let function = Function {
             id: function_id,
             arg_count: arg_count,
-            arg_locations: vec![location],
+            arg_locations: arg_locations,
             info: function_info,
         };
         self.program

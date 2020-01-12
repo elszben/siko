@@ -2,6 +2,7 @@ use crate::class_member_processor::generate_auto_derived_instance_member;
 use crate::class_member_processor::DerivedClass;
 use crate::function_processor::process_function;
 use crate::typedef_store::TypeDefStore;
+use siko_ir::builder::Builder;
 use siko_ir::class::ClassId;
 use siko_ir::class::ClassMemberId;
 use siko_ir::function::FunctionId as IrFunctionId;
@@ -30,6 +31,7 @@ impl CallContext {
 pub enum FunctionQueueItem {
     Normal(IrFunctionId, CallContext),
     AutoDerive(IrType, ClassId, ClassMemberId, CallContext),
+    ExternalCallImpl(ClassId, IrType, String),
 }
 
 pub struct FunctionQueue {
@@ -126,6 +128,49 @@ impl FunctionQueue {
                         let queue_item = FunctionQueueItem::Normal(function_id, call_context);
                         self.pending.push((queue_item.clone(), mir_function_id));
                         self.processed.insert(queue_item, mir_function_id);
+                    }
+                    FunctionQueueItem::ExternalCallImpl(class_id, ir_type, module) => {
+                        let class = ir_program.classes.get(&class_id);
+                        let location_id = class.location_id;
+                        if class_id == ir_program.get_show_class_id() {
+                            let string_ty = ir_program.get_string_type();
+                            let class_member_id = ir_program.get_show_member_id();
+                            let mut builder = Builder::new(ir_program);
+                            let func_id = builder.generate_extern_class_impl(
+                                location_id,
+                                format!("ExternClassImpl{}", class_id),
+                                module.clone(),
+                                1,
+                                ir_type.clone(),
+                                string_ty,
+                                class_member_id,
+                            );
+                            let string_ty = ir_program.get_string_type();
+                            let context = CallContext::new(vec![ir_type.clone()], string_ty);
+                            let queue_item = FunctionQueueItem::Normal(func_id, context);
+                            self.insert(queue_item, mir_program);
+                        } else if class_id == ir_program.get_ord_class_id() {
+                            let ordering_ty = ir_program.get_ordering_type();
+                            let class_member_id = ir_program.get_cmp_member_id();
+                            let mut builder = Builder::new(ir_program);
+                            let func_id = builder.generate_extern_class_impl(
+                                location_id,
+                                format!("ExternClassImpl{}", class_id),
+                                module.clone(),
+                                2,
+                                ir_type.clone(),
+                                ordering_ty.clone(),
+                                class_member_id,
+                            );
+                            let context = CallContext::new(
+                                vec![ir_type.clone(), ir_type.clone()],
+                                ordering_ty,
+                            );
+                            let queue_item = FunctionQueueItem::Normal(func_id, context);
+                            self.insert(queue_item, mir_program);
+                        } else {
+                            println!("Unimplemented extern class call {}", class_id);
+                        }
                     }
                 }
             }

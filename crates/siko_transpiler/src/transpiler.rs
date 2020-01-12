@@ -129,7 +129,7 @@ fn write_typedef(
                     ExternalDataKind::String => {
                         write!(
                             output_file,
-                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n",
+                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd)]\n",
                             indent
                         )?;
                         write!(output_file, "{}pub struct String {{\n", indent)?;
@@ -157,6 +157,15 @@ fn write_typedef(
                             indent
                         )?;
                         write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
+                        indent.inc();
+                        let key_ty = ir_type_to_rust_type(&args[0], program);
+                        let value_ty = ir_type_to_rust_type(&args[1], program);
+                        write!(
+                            output_file,
+                            "{}pub value: std::collections::BTreeMap<{}, {}>,\n",
+                            indent, key_ty, value_ty
+                        )?;
+                        indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Iterator => {
@@ -735,8 +744,87 @@ fn generate_map_builtins(
     program: &Program,
     indent: &mut Indent,
     original_name: &str,
+    result_ty: &Type,
+    result_ty_str: &str,
 ) -> Result<()> {
     indent.inc();
+    match original_name {
+        "empty" => {
+            write!(
+                output_file,
+                "{}let value = std::collections::BTreeMap::new();\n",
+                indent
+            )?;
+            write!(
+                output_file,
+                "{}{} {{ value : value }}",
+                indent, result_ty_str
+            )?;
+        }
+        "insert" => {
+            let result_id = result_ty.get_typedef_id();
+            let tuple_record = program.typedefs.get(&result_id).get_record();
+            let option_ty = ir_type_to_rust_type(&tuple_record.fields[1].ty, program);
+            write!(output_file, "{}let mut arg0 = arg0;\n", indent)?;
+            write!(
+                output_file,
+                "{}let value = match arg0.value.insert(arg1, arg2) {{\n",
+                indent
+            )?;
+            indent.inc();
+            write!(
+                output_file,
+                "{} Some(v) => {}::Some(v),\n",
+                indent, option_ty
+            )?;
+            write!(output_file, "{} None => {}::None,\n", indent, option_ty)?;
+            indent.dec();
+            write!(output_file, "{}}};\n", indent)?;
+            write!(
+                output_file,
+                "{}{} {{ field_0 : arg0, field_1: value }}",
+                indent, result_ty_str
+            )?;
+        }
+        "remove" => {
+            let result_id = result_ty.get_typedef_id();
+            let tuple_record = program.typedefs.get(&result_id).get_record();
+            let option_ty = ir_type_to_rust_type(&tuple_record.fields[1].ty, program);
+            write!(output_file, "{}let mut arg0 = arg0;\n", indent)?;
+            write!(
+                output_file,
+                "{}let value = match arg0.value.remove(&arg1) {{\n",
+                indent
+            )?;
+            indent.inc();
+            write!(
+                output_file,
+                "{} Some(v) => {}::Some(v),\n",
+                indent, option_ty
+            )?;
+            write!(output_file, "{} None => {}::None,\n", indent, option_ty)?;
+            indent.dec();
+            write!(output_file, "{}}};\n", indent)?;
+            write!(
+                output_file,
+                "{}{} {{ field_0 : arg0, field_1: value }}",
+                indent, result_ty_str
+            )?;
+        }
+        "get" => {
+            write!(output_file, "{}match arg0.value.get(&arg1) {{\n", indent)?;
+            indent.inc();
+            write!(
+                output_file,
+                "{} Some(v) => {}::Some(v.clone()),\n",
+                indent, result_ty_str
+            )?;
+            write!(output_file, "{} None => {}::None,\n", indent, result_ty_str)?;
+            indent.dec();
+            write!(output_file, "{}}}", indent)?;
+        }
+        _ => panic!("Map/{} not implemented", original_name),
+    }
     indent.dec();
     Ok(())
 }
@@ -817,7 +905,15 @@ fn generate_builtin(
             );
         }
         "Map" => {
-            return generate_map_builtins(function, output_file, program, indent, original_name);
+            return generate_map_builtins(
+                function,
+                output_file,
+                program,
+                indent,
+                original_name,
+                result_ty,
+                result_ty_str,
+            );
         }
         "List" => {
             return generate_list_builtins(
@@ -928,7 +1024,7 @@ fn write_function(
     let result_type = function.function_type.get_result_type(function.arg_count);
     let result_ty = ir_type_to_rust_type(&result_type, program);
     if let FunctionInfo::ExternClassImpl(class_name, ty, body) = &function.info {
-        if class_name == "Show" {
+        if class_name == "show" {
             let impl_ty = ir_type_to_rust_type(&ty, program);
             write!(
                 output_file,
@@ -947,6 +1043,47 @@ fn write_function(
             write_expr(*body, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}write!(f, \"{{}}\", value.value)\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+        } else if class_name == "cmp" {
+            let impl_ty = ir_type_to_rust_type(&ty, program);
+            write!(
+                output_file,
+                "{}impl std::cmp::Ord for {} {{\n",
+                indent, impl_ty,
+            )?;
+            indent.inc();
+            write!(
+                output_file,
+                "{}fn cmp(&self, arg1: &{}) -> std::cmp::Ordering {{\n",
+                indent, impl_ty
+            )?;
+            indent.inc();
+            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let value = ", indent)?;
+            write_expr(*body, output_file, program, indent)?;
+            write!(output_file, ";\n")?;
+            write!(output_file, "{}match value {{\n", indent)?;
+            indent.inc();
+            write!(
+                output_file,
+                "{} {}::Less => std::cmp::Ordering::Less,\n",
+                indent, result_ty
+            )?;
+            write!(
+                output_file,
+                "{} {}::Equal => std::cmp::Ordering::Equal,\n",
+                indent, result_ty
+            )?;
+            write!(
+                output_file,
+                "{} {}::Greater => std::cmp::Ordering::Greater,\n",
+                indent, result_ty
+            )?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
             indent.dec();
             write!(output_file, "{}}}\n", indent)?;
             indent.dec();
