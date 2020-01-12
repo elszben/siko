@@ -1,0 +1,23 @@
+module Siko.Syntax.Function where
+
+import Siko.Syntax.Location
+import Siko.Syntax.TypeSignature
+import Siko.Syntax.Class
+import Siko.Syntax.Expr
+
+data FunctionSignature = { 
+                           name :: String,
+                           type_arguments :: [(String, LocationId)],
+                           constraints :: [Constraint],
+                           full_type_signature :: TypeSignature,
+                           type_signature :: TypeSignature,
+                           location :: LocationId,
+                         }
+
+data Function = { 
+                  name :: String,
+                  arguments :: [(String, LocationId)],
+                  body :: Option Expr,
+                  location :: LocationId,
+                }
+

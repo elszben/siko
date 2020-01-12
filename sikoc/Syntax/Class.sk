@@ -1,0 +1,31 @@
+module Siko.Syntax.Class where
+
+import Siko.Syntax.Location
+import Siko.Syntax.Function
+import Siko.Syntax.TypeSignature
+
+data Constraint = {
+                    class_name :: String,
+                    argument :: String,
+                    location :: LocationId,
+                  }
+
+data Class = {
+                name :: String,
+                argument :: TypeSignature,
+                constraints :: [Constraint],
+                member_functions :: [Function],
+                member_function_type_signatures :: [FunctionSignature],
+                location :: LocationId,
+             }
+
+data Instance = {
+                  name :: Option String,
+                  class_name :: String,
+                  type_signature :: TypeSignature,
+                  constraints :: [Constraint],
+                  member_functions :: [Function],
+                  member_function_type_signatures :: [FunctionSignature],
+                  location :: LocationId
+                }
+

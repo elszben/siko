@@ -1,0 +1,35 @@
+module Siko.Syntax.Expr where
+
+import Siko.Syntax.Location
+import Siko.Syntax.Pattern
+import Siko.Syntax.Operator
+
+data Case = {
+              pattern :: Pattern,
+              body :: Expr,
+            }
+
+data RecordConstructionItem = {
+                                field_name :: String,
+                                body :: Expr,
+                                location :: LocationId,
+                              }
+
+data Expr = Lambda [(String, LocationId)] Expr
+        | FunctionCall Expr [Expr]
+        | Builtin BuiltinOperator
+        | If Expr Expr Expr
+        | Tuple [Expr]
+        | List [Expr]
+        | Path String
+        | IntegerLiteral Int
+        | FloatLiteral Float
+        | StringLiteral String
+        | Do [Expr]
+        | Bind Pattern Expr
+        | FieldAccess String Expr
+        | TupleFieldAccess Int Expr
+        | Formatter String [Expr]
+        | CaseOf Expr [Case]
+        | RecordInitialization String [RecordConstructionItem]
+        | RecordUpdate String [RecordConstructionItem]

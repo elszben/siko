@@ -1,0 +1,5 @@
+module Siko.Syntax.TypeSignature where
+
+data TypeSignature
+data TypeDefinition
+

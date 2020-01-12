@@ -1,0 +1,15 @@
+module Siko.Syntax.Location where
+
+data FileId = FileId Int
+data LocationId = LocationId Int
+
+data Span = {
+              start :: Int,
+              end :: Int
+            }
+
+data Location = {
+                  file_id :: FileId,
+                  span :: Span,
+                }
+

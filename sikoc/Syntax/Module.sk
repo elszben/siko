@@ -1,0 +1,19 @@
+module Siko.Syntax where
+
+import Siko.Syntax.Class
+import Siko.Syntax.Function
+import Siko.Syntax.TypeSignature
+
+data Export
+data Import
+
+data Module = { 
+                name :: String,
+                functions :: [Function],
+                typedefinitions :: [TypeDefinition],
+                function_signatures :: [FunctionSignature],
+                imports :: [Import],
+                classes :: [Class],
+                instances :: [Instance],
+                exports :: [Export],
+              }

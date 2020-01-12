@@ -1,0 +1,5 @@
+module Siko.Syntax.Pattern where
+
+import Siko.Syntax.Location
+
+data Pattern
