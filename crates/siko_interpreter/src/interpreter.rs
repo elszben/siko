@@ -108,6 +108,7 @@ impl Interpreter {
                         }
                     };
                     if needed_arg_count > callable.values.len() {
+                        callable_func_ty = callable_func_ty.get_result_type(callable.values.len());
                         return Value::new(ValueCore::Callable(callable), callable_func_ty);
                     } else {
                         let rest = callable.values.split_off(needed_arg_count);
@@ -533,9 +534,20 @@ impl Interpreter {
                     .collect();
                 for arg in &arg_values {
                     assert!(arg.ty.is_concrete_type());
+                    //println!("ARG {}", arg.ty.get_resolved_type_string(&self.program));
                 }
+                /*
+                let f = self.program.functions.get(function_id);
+                println!("Calling {}", f.info);
+                */
                 let call_unifier = self.get_call_unifier(&arg_values, &func_ty, &expr_ty);
                 let function_type = call_unifier.apply(&func_ty);
+                /*
+                println!(
+                    "Function type {}",
+                    function_type.get_resolved_type_string(&self.program)
+                );
+                */
                 let callable = Value::new(
                     ValueCore::Callable(Callable {
                         kind: CallableKind::FunctionId(*function_id),
