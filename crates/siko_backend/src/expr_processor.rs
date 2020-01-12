@@ -75,8 +75,8 @@ pub fn process_expr(
             let cases: Vec<_> = cases
                 .iter()
                 .map(|case| {
-                    let mir_case_body = process_expr(
-                        &case.body,
+                    let mir_case_pattern = process_pattern(
+                        &case.pattern_id,
                         ir_program,
                         mir_program,
                         unifier,
@@ -85,8 +85,8 @@ pub fn process_expr(
                         expr_id_map,
                         pattern_id_map,
                     );
-                    let mir_case_pattern = process_pattern(
-                        &case.pattern_id,
+                    let mir_case_body = process_expr(
+                        &case.body,
                         ir_program,
                         mir_program,
                         unifier,
