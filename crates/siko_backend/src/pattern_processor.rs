@@ -2,13 +2,16 @@ use crate::expr_processor::process_expr;
 use crate::function_queue::FunctionQueue;
 use crate::type_processor::process_type;
 use crate::typedef_store::TypeDefStore;
+use siko_ir::expr::ExprId as IrExprId;
 use siko_ir::pattern::Pattern as IrPattern;
 use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::unifier::Unifier;
+use siko_mir::expr::ExprId as MirExprId;
 use siko_mir::pattern::Pattern as MirPattern;
 use siko_mir::pattern::PatternId as MirPatternId;
 use siko_mir::program::Program as MirProgram;
+use std::collections::BTreeMap;
 
 pub fn process_pattern(
     ir_pattern_id: &IrPatternId,
@@ -17,6 +20,8 @@ pub fn process_pattern(
     unifier: &Unifier,
     function_queue: &mut FunctionQueue,
     typedef_store: &mut TypeDefStore,
+    expr_id_map: &mut BTreeMap<IrExprId, MirExprId>,
+    pattern_id_map: &mut BTreeMap<IrPatternId, MirPatternId>,
 ) -> MirPatternId {
     let item_info = &ir_program.patterns.get(ir_pattern_id);
     let mut ir_pattern_ty = ir_program.get_pattern_type(ir_pattern_id).clone();
@@ -33,6 +38,8 @@ pub fn process_pattern(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             let mir_guard_expr = process_expr(
                 guard_expr,
@@ -41,6 +48,8 @@ pub fn process_pattern(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             MirPattern::Guarded(mir_sub, mir_guard_expr)
         }
@@ -57,6 +66,8 @@ pub fn process_pattern(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -75,6 +86,8 @@ pub fn process_pattern(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -88,6 +101,8 @@ pub fn process_pattern(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
         }
         IrPattern::Variant(_, index, items) => {
@@ -102,6 +117,8 @@ pub fn process_pattern(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -109,5 +126,8 @@ pub fn process_pattern(
         }
         IrPattern::Wildcard => MirPattern::Wildcard,
     };
-    return mir_program.add_pattern(mir_pattern, item_info.location_id, mir_pattern_ty);
+    let mir_pattern_id =
+        mir_program.add_pattern(mir_pattern, item_info.location_id, mir_pattern_ty);
+    pattern_id_map.insert(*ir_pattern_id, mir_pattern_id);
+    mir_pattern_id
 }

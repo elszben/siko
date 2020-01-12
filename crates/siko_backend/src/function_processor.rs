@@ -15,6 +15,7 @@ use siko_mir::function::Function as MirFunction;
 use siko_mir::function::FunctionId as MirFunctionId;
 use siko_mir::function::FunctionInfo as MirFunctionInfo;
 use siko_mir::program::Program as MirProgram;
+use std::collections::BTreeMap;
 
 pub fn process_function(
     ir_function_id: &IrFunctionId,
@@ -33,10 +34,13 @@ pub fn process_function(
     function_type.apply(&call_unifier);
     let mir_function_type = process_type(&function_type, typedef_store, ir_program, mir_program);
     let function = ir_program.functions.get(ir_function_id).clone();
+    //println!("Processing {}", function.info);
     match &function.info {
         FunctionInfo::NamedFunction(info) => {
             let mir_function_info = if let Some(body) = info.body {
                 preprocess_ir(body, ir_program);
+                let mut expr_id_map = BTreeMap::new();
+                let mut pattern_id_map = BTreeMap::new();
                 let mir_expr_id = process_expr(
                     &body,
                     ir_program,
@@ -44,6 +48,8 @@ pub fn process_function(
                     &call_unifier,
                     function_queue,
                     typedef_store,
+                    &mut expr_id_map,
+                    &mut pattern_id_map,
                 );
                 if let NamedFunctionKind::ExternClassImpl(class_name, ty) = &info.kind {
                     let mir_ty = process_type(ty, typedef_store, ir_program, mir_program);
@@ -84,6 +90,8 @@ pub fn process_function(
         }
         FunctionInfo::Lambda(info) => {
             preprocess_ir(info.body, ir_program);
+            let mut expr_id_map = BTreeMap::new();
+            let mut pattern_id_map = BTreeMap::new();
             let mir_body = process_expr(
                 &info.body,
                 ir_program,
@@ -91,6 +99,8 @@ pub fn process_function(
                 &call_unifier,
                 function_queue,
                 typedef_store,
+                &mut expr_id_map,
+                &mut pattern_id_map,
             );
             let lambda_name = format!("{}", info);
             let lambda_name = lambda_name.replace("/", "_");

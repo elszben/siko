@@ -7,12 +7,15 @@ use crate::type_processor::process_type;
 use crate::typedef_store::TypeDefStore;
 use siko_ir::expr::Expr as IrExpr;
 use siko_ir::expr::ExprId as IrExprId;
+use siko_ir::pattern::PatternId as IrPatternId;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::unifier::Unifier;
 use siko_mir::expr::Case as MirCase;
 use siko_mir::expr::Expr as MirExpr;
 use siko_mir::expr::ExprId as MirExprId;
+use siko_mir::pattern::PatternId as MirPatternId;
 use siko_mir::program::Program as MirProgram;
+use std::collections::BTreeMap;
 
 pub fn process_expr(
     ir_expr_id: &IrExprId,
@@ -21,9 +24,12 @@ pub fn process_expr(
     unifier: &Unifier,
     function_queue: &mut FunctionQueue,
     typedef_store: &mut TypeDefStore,
+    expr_id_map: &mut BTreeMap<IrExprId, MirExprId>,
+    pattern_id_map: &mut BTreeMap<IrPatternId, MirPatternId>,
 ) -> MirExprId {
     let item_info = &ir_program.exprs.get(ir_expr_id);
     let expr = &item_info.item;
+    //println!("{} Expr {}", ir_expr_id, expr);
     let mut ir_expr_ty = ir_program.get_expr_type(&ir_expr_id).clone();
     ir_expr_ty.apply(unifier);
     let mir_expr_ty = process_type(&ir_expr_ty, typedef_store, ir_program, mir_program);
@@ -40,6 +46,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             let mir_rhs = process_expr(
                 rhs,
@@ -48,6 +56,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             MirExpr::Bind(mir_pattern_id, mir_rhs)
         }
@@ -59,6 +69,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             let cases: Vec<_> = cases
                 .iter()
@@ -70,6 +82,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     );
                     let mir_case_pattern = process_pattern(
                         &case.pattern_id,
@@ -78,6 +92,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     );
                     MirCase {
                         body: mir_case_body,
@@ -98,6 +114,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -129,6 +147,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -142,6 +162,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             let mir_args: Vec<_> = args
                 .iter()
@@ -153,28 +175,18 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
             MirExpr::DynamicFunctionCall(mir_func_expr_id, mir_args)
         }
         IrExpr::ExprValue(expr_id, pattern_id) => {
-            let mir_expr_id = process_expr(
-                expr_id,
-                ir_program,
-                mir_program,
-                unifier,
-                function_queue,
-                typedef_store,
-            );
-            let mir_pattern_id = process_pattern(
-                pattern_id,
-                ir_program,
-                mir_program,
-                unifier,
-                function_queue,
-                typedef_store,
-            );
+            let mir_expr_id = *expr_id_map.get(expr_id).expect("mir_expr_id not found");
+            let mir_pattern_id = *pattern_id_map
+                .get(pattern_id)
+                .expect("mir_pattern_id not found");
             MirExpr::ExprValue(mir_expr_id, mir_pattern_id)
         }
         IrExpr::FieldAccess(infos, receiver_expr_id) => {
@@ -186,6 +198,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             MirExpr::FieldAccess(infos[0].index, mir_receiver_expr_id)
         }
@@ -201,6 +215,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -214,6 +230,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             let mir_true_branch = process_expr(
                 true_branch,
@@ -222,6 +240,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             let mir_false_branch = process_expr(
                 false_branch,
@@ -230,6 +250,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             MirExpr::If(mir_cond, mir_true_branch, mir_false_branch)
         }
@@ -245,6 +267,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -261,6 +285,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     );
                     (field_expr, field.index)
                 })
@@ -276,6 +302,8 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             assert_eq!(updates.len(), 1);
             let mir_updates = updates[0]
@@ -289,6 +317,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     );
                     (field_expr, item.index)
                 })
@@ -313,12 +343,18 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
             let context = CallContext::new(arg_types, ir_expr_ty.clone());
             let queue_item = FunctionQueueItem::Normal(*func_id, context);
             let mir_function_id = function_queue.insert(queue_item, mir_program);
+            let func = ir_program.functions.get(func_id);
+            if func.arg_count != args.len() {
+                println!("Hmm {}", func.info);
+            }
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }
         IrExpr::StringLiteral(value) => MirExpr::StringLiteral(value.clone()),
@@ -333,6 +369,8 @@ pub fn process_expr(
                         unifier,
                         function_queue,
                         typedef_store,
+                        expr_id_map,
+                        pattern_id_map,
                     )
                 })
                 .collect();
@@ -352,9 +390,13 @@ pub fn process_expr(
                 unifier,
                 function_queue,
                 typedef_store,
+                expr_id_map,
+                pattern_id_map,
             );
             MirExpr::FieldAccess(*index, mir_receiver_expr_id)
         }
     };
-    return mir_program.add_expr(mir_expr, item_info.location_id, mir_expr_ty);
+    let mir_expr_id = mir_program.add_expr(mir_expr, item_info.location_id, mir_expr_ty);
+    expr_id_map.insert(*ir_expr_id, mir_expr_id);
+    mir_expr_id
 }
