@@ -1,0 +1,26 @@
+module Siko.Syntax where
+
+data Module = { name :: String,
+                functions :: [Function],
+                typedefinitions :: [TypeDefinition],
+                function_signatures :: [FunctionSignature],
+                imports :: [Import],
+                classes :: [Class]
+                instances :: [Instance],
+                exports :: [Export],
+              }
+
+data FunctionSignature = { name :: String,
+                           type_arguments :: [(String, Location)],
+                           constraints :: [Constraint],
+                           full_type_signature :: TypeSignature,
+                           type_signature :: TypeSignature,
+                           location :: Location
+                         }
+
+data Function = { name :: String,
+                  arguments :: [(String, Location)],
+                  body :: FunctionBody,
+                  location :: Location
+                }
+
