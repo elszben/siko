@@ -1,4 +1,4 @@
-module Siko.Syntax where
+module Siko.Syntax.Module where
 
 import Siko.Syntax.Class
 import Siko.Syntax.Location

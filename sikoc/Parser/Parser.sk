@@ -1,0 +1,6 @@
+module Siko.Parser where
+
+import Siko.Syntax.Program
+
+parse :: String -> Program
+parse a = Program []
