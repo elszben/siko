@@ -472,7 +472,7 @@ impl<'a> Parser<'a> {
                 }
                 Token::LBracket => {
                     self.expect(TokenKind::LBracket)?;
-                    let arg = self.parse_function_type(parsing_variant, allow_wildcard)?;
+                    let arg = self.parse_function_type(false, allow_wildcard)?;
                     self.expect(TokenKind::RBracket)?;
                     let ty = TypeSignature::Named(get_qualified_list_type_name(), vec![arg]);
                     let id = self.add_type_signature(ty, start_index);
@@ -504,6 +504,15 @@ impl<'a> Parser<'a> {
                             TokenKind::LParen => {
                                 let arg = self.parse_tuple_type(allow_wildcard)?;
                                 args.push(arg);
+                            }
+                            TokenKind::LBracket => {
+                                self.expect(TokenKind::LBracket)?;
+                                let arg = self.parse_function_type(false, allow_wildcard)?;
+                                self.expect(TokenKind::RBracket)?;
+                                let ty =
+                                    TypeSignature::Named(get_qualified_list_type_name(), vec![arg]);
+                                let id = self.add_type_signature(ty, start_index);
+                                args.push(id);
                             }
                             _ => {
                                 break;
