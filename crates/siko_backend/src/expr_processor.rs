@@ -352,10 +352,6 @@ pub fn process_expr(
             let context = CallContext::new(arg_types, ir_expr_ty.clone());
             let queue_item = FunctionQueueItem::Normal(*func_id, context);
             let mir_function_id = function_queue.insert(queue_item, mir_program);
-            let func = ir_program.functions.get(func_id);
-            if func.arg_count != args.len() {
-                println!("Hmm {}", func.info);
-            }
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }
         IrExpr::StringLiteral(value) => MirExpr::StringLiteral(value.clone()),

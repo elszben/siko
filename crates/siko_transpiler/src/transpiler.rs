@@ -51,35 +51,23 @@ fn get_module_name(name: &str) -> String {
 }
 
 fn ir_type_to_rust_type(ty: &Type, program: &Program) -> String {
-    fn ir_type_to_rust_type_inner(ty: &Type, program: &Program) -> String {
-        match ty {
-            Type::Function(from, to) => {
-                let from = ir_type_to_rust_type_inner(from, program);
-                let to = ir_type_to_rust_type_inner(to, program);
-                format!(
-                    "::crate::{}::{}<{}, {}>",
-                    MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME, from, to
-                )
-            }
-            Type::Named(id) => {
-                let typedef = program.typedefs.get(id);
-                let (module_name, name) = match typedef {
-                    TypeDef::Adt(adt) => (get_module_name(&adt.module), adt.name.clone()),
-                    TypeDef::Record(record) => {
-                        (get_module_name(&record.module), record.name.clone())
-                    }
-                };
-                format!("crate::{}::{}", module_name, name)
-            }
-        }
-    }
-
     match ty {
-        Type::Function(..) => {
-            let s = ir_type_to_rust_type_inner(ty, program);
-            format!("Box<{}>", s)
+        Type::Function(from, to) => {
+            let from = ir_type_to_rust_type(from, program);
+            let to = ir_type_to_rust_type(to, program);
+            format!(
+                "Box<dyn ::crate::{}::{}<{}, {}>>",
+                MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME, from, to
+            )
         }
-        Type::Named(..) => ir_type_to_rust_type_inner(ty, program),
+        Type::Named(id) => {
+            let typedef = program.typedefs.get(id);
+            let (module_name, name) = match typedef {
+                TypeDef::Adt(adt) => (get_module_name(&adt.module), adt.name.clone()),
+                TypeDef::Record(record) => (get_module_name(&record.module), record.name.clone()),
+            };
+            format!("crate::{}::{}", module_name, name)
+        }
     }
 }
 
@@ -362,20 +350,32 @@ fn write_expr(
         }
         Expr::StaticFunctionCall(id, args) => {
             let function = program.functions.get(id);
-            let name = format!(
-                "crate::{}::{}",
-                get_module_name(&function.module),
-                function.name
-            );
-            write!(output_file, "{} (", name)?;
-            for (index, arg) in args.iter().enumerate() {
-                write_expr(*arg, output_file, program, indent)?;
-                write!(output_file, ".clone()")?;
-                if index != args.len() - 1 {
-                    write!(output_file, ", ")?;
+            if function.arg_count != args.len() {
+                write!(output_file, "Box::new(ClosureData{}{{", expr_id.id)?;
+                for (index, arg) in args.iter().enumerate() {
+                    write!(output_file, "arg{} : ", index)?;
+                    write_expr(*arg, output_file, program, indent)?;
+                    if index != args.len() - 1 {
+                        write!(output_file, ", ")?;
+                    }
                 }
+                write!(output_file, "}})")?;
+            } else {
+                let name = format!(
+                    "crate::{}::{}",
+                    get_module_name(&function.module),
+                    function.name
+                );
+                write!(output_file, "{} (", name)?;
+                for (index, arg) in args.iter().enumerate() {
+                    write_expr(*arg, output_file, program, indent)?;
+                    write!(output_file, ".clone()")?;
+                    if index != args.len() - 1 {
+                        write!(output_file, ", ")?;
+                    }
+                }
+                write!(output_file, ")")?;
             }
-            write!(output_file, ")")?;
         }
         Expr::IntegerLiteral(i) => {
             let ty = program.get_expr_type(&expr_id);
@@ -465,7 +465,19 @@ fn write_expr(
             }
             write!(output_file, "] }}")?;
         }
-        _ => println!("{:?}", expr),
+        Expr::DynamicFunctionCall(receiver, args) => {
+            indent.inc();
+            write!(output_file, "{{{}let mut dyn_fn = ", indent)?;
+            write_expr(*receiver, output_file, program, indent)?;
+            write!(output_file, ";\n")?;
+            for arg in args {
+                write!(output_file, "{}dyn_fn = dyn_fn.call(", indent)?;
+                write_expr(*arg, output_file, program, indent)?;
+                write!(output_file, ");\n")?;
+            }
+            write!(output_file, "{}dyn_fn }}", indent)?;
+            indent.dec();
+        }
     }
     Ok(is_statement)
 }
@@ -1157,14 +1169,17 @@ struct Module {
     name: String,
     functions: Vec<FunctionId>,
     typedefs: Vec<TypeDefId>,
+    internal: bool,
 }
 
 impl Module {
     fn new(name: String) -> Module {
+        let internal = name == MIR_INTERNAL_MODULE_NAME;
         Module {
             name: name,
             functions: Vec::new(),
             typedefs: Vec::new(),
+            internal: internal,
         }
     }
 
@@ -1181,6 +1196,13 @@ impl Module {
         }
         for function_id in &self.functions {
             write_function(*function_id, output_file, program, indent)?;
+        }
+        if self.internal {
+            write!(output_file, "{}trait Function<A, B> {{\n", indent)?;
+            indent.inc();
+            write!(output_file, "{}fn call(&self, a: A) -> B;\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
         }
         indent.dec();
         write!(output_file, "}}\n\n",)?;
@@ -1231,6 +1253,7 @@ impl Transpiler {
         write!(output_file, "#![allow(unused_variables)]\n")?;
         write!(output_file, "#![allow(dead_code)]\n\n")?;
         let mut rust_program = RustProgram::new();
+        rust_program.get_module(MIR_INTERNAL_MODULE_NAME.to_string());
         for (id, function) in program.functions.items.iter() {
             let module = rust_program.get_module(function.module.clone());
             module.functions.push(*id);
