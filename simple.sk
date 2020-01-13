@@ -1,12 +1,5 @@
 module Main where
 
-data Boo a = { korte :: a } deriving (Show)
-
 main  = do
-        boo1 <- Boo { korte = 5 }
-        boo2 <- Boo { korte = 5 }
-        boo3 <- Boo { korte = boo1 }
-        boo4 <- Boo { korte = boo2 }
-        a <- [boo3, boo4]
-        print (show a)
-        ()
+        a <- 'a'
+

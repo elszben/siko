@@ -143,6 +143,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
             Expr::ClassFunctionCall(_, args) => {
                 self.check_function_call(expr_id, args);
             }
+            Expr::CharLiteral(_) => {}
             Expr::DynamicFunctionCall(func_expr_id, args) => {
                 self.type_store
                     .remove_fixed_types_from_expr_type(&func_expr_id);

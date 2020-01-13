@@ -44,6 +44,7 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
         Expr::IntegerLiteral(_) => {}
         Expr::FloatLiteral(_) => {}
         Expr::StringLiteral(_) => {}
+        Expr::CharLiteral(_) => {}
         Expr::Do(items) => {
             for item in items {
                 walk_expr(item, visitor);

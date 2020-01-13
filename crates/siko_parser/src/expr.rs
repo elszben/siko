@@ -368,6 +368,12 @@ fn parse_arg(parser: &mut Parser) -> Result<ExprId, ParseError> {
             let id = parser.add_expr(expr, start_index);
             id
         }
+        Token::CharLiteral(c) => {
+            parser.advance()?;
+            let expr = Expr::CharLiteral(c);
+            let id = parser.add_expr(expr, start_index);
+            id
+        }
         Token::StringLiteral(s) => {
             parser.advance()?;
             if parser.current(TokenKind::Formatter) {

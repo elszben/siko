@@ -69,6 +69,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                     .get_new_type_var();
                 self.type_store.initialize_expr(expr_id, ty);
             }
+            Expr::CharLiteral(_) => {
+                self.type_store
+                    .initialize_expr(expr_id, self.program.get_char_type());
+            }
             Expr::ClassFunctionCall(class_member_id, args) => {
                 let class_member_type = self
                     .type_info_provider

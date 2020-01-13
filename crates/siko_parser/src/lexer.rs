@@ -254,6 +254,75 @@ impl Lexer {
         Ok(())
     }
 
+    fn collect_char_literal(&mut self) -> Result<(), LexerError> {
+        let start = self.line_offset;
+        let mut prev_backslash = false;
+        let mut literal = String::new();
+        let mut inside = true;
+        self.advance()?;
+        while !self.is_done() {
+            let c = self.peek()?;
+            if c == '\\' {
+                if prev_backslash {
+                    prev_backslash = false;
+                    literal.push(c);
+                    self.advance()?;
+                } else {
+                    prev_backslash = true;
+                    self.advance()?;
+                }
+            } else {
+                if prev_backslash {
+                    prev_backslash = false;
+                    let special = match c {
+                        '\'' => '\'',
+                        _ => {
+                            return Err(LexerError::General(
+                                format!("Invalid escape sequence \\{}", c),
+                                self.file_path.clone(),
+                                Location::new(self.line_index, Span::single(self.line_offset)),
+                            ));
+                        }
+                    };
+                    literal.push(special);
+                    self.advance()?;
+                } else {
+                    if c == '\'' {
+                        inside = false;
+                        self.advance()?;
+                        break;
+                    }
+                    if c == '\n' {
+                        break;
+                    }
+                    literal.push(c);
+                    self.advance()?;
+                }
+            }
+        }
+        if inside {
+            return Err(LexerError::General(
+                format!("Unexpected end of char literal",),
+                self.file_path.clone(),
+                Location::new(self.line_index, Span::new(start, self.line_offset)),
+            ));
+        }
+        let span = Span {
+            start: start,
+            end: self.line_offset,
+        };
+        if literal.len() != 1 {
+            return Err(LexerError::General(
+            format!("Invalid char literal"),
+              self.file_path.clone(),
+              Location::new(self.line_index, span),
+           ));
+        }
+        let first = literal.chars().next().unwrap();
+        self.add_token(Token::CharLiteral(first), span);
+        Ok(())
+    }
+
     fn process_line_comment(&mut self) -> Result<(), LexerError> {
         while !self.is_done() {
             let c = self.peek()?;
@@ -338,6 +407,8 @@ impl Lexer {
                 self.collect_operator()?;
             } else if c == '"' {
                 self.collect_string_literal()?;
+            } else if c == '\'' {
+                self.collect_char_literal()?;
             } else {
                 let span = Span::single(self.line_offset);
                 let t = match c {

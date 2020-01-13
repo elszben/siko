@@ -28,6 +28,8 @@ use siko_constants::BOOL_MODULE_NAME;
 use siko_constants::BOOL_TYPE_NAME;
 use siko_constants::FLOAT_MODULE_NAME;
 use siko_constants::FLOAT_TYPE_NAME;
+use siko_constants::CHAR_MODULE_NAME;
+use siko_constants::CHAR_TYPE_NAME;
 use siko_constants::INT_MODULE_NAME;
 use siko_constants::INT_TYPE_NAME;
 use siko_constants::LIST_MODULE_NAME;
@@ -120,6 +122,11 @@ impl Program {
     pub fn get_float_type(&self) -> Type {
         let id = self.get_named_type(FLOAT_MODULE_NAME, FLOAT_TYPE_NAME);
         Type::Named(FLOAT_TYPE_NAME.to_string(), id, Vec::new())
+    }
+
+    pub fn get_char_type(&self) -> Type {
+        let id = self.get_named_type(CHAR_MODULE_NAME, CHAR_TYPE_NAME);
+        Type::Named(CHAR_TYPE_NAME.to_string(), id, Vec::new())
     }
 
     pub fn get_int_type(&self) -> Type {

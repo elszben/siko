@@ -136,6 +136,7 @@ pub fn process_expr(
             );
             MirExpr::StaticFunctionCall(mir_function_id, mir_args)
         }
+        IrExpr::CharLiteral(value) => MirExpr::CharLiteral(*value),
         IrExpr::Do(items) => {
             let mir_items: Vec<_> = items
                 .iter()

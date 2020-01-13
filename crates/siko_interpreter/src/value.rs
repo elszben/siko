@@ -78,6 +78,7 @@ pub enum ValueCore {
     Int(i64),
     Float(f64),
     String(String),
+    Char(char),
     Tuple(Vec<Value>),
     Callable(Callable),
     Variant(TypeDefId, usize, Vec<Value>),
@@ -220,6 +221,7 @@ impl fmt::Display for ValueCore {
             ValueCore::Int(v) => write!(f, "{}", v),
             ValueCore::Float(v) => write!(f, "{}", v),
             ValueCore::String(v) => write!(f, "{}", v),
+            ValueCore::Char(v) => write!(f, "{}", v),
             ValueCore::Tuple(vs) => {
                 let ss: Vec<_> = vs.iter().map(|v| format!("{}", v.core)).collect();
                 write!(f, "({})", ss.join(", "))

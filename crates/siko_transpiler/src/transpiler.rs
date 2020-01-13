@@ -392,6 +392,11 @@ fn write_expr(
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "{} {{ value: {:.5} }}", ty, f)?;
         }
+        Expr::CharLiteral(c) => {
+            let ty = program.get_expr_type(&expr_id);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(output_file, "{} {{ value: '{}' }}", ty, c)?;
+        }
         Expr::Formatter(fmt, args) => {
             let ty = program.get_expr_type(&expr_id);
             let ty = ir_type_to_rust_type(ty, program);

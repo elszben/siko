@@ -31,6 +31,7 @@ pub enum Expr {
     ArgRef(usize),
     Bind(PatternId, ExprId),
     CaseOf(ExprId, Vec<Case>),
+    CharLiteral(char),
     Do(Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
     ExprValue(ExprId, PatternId),

@@ -520,6 +520,7 @@ impl Interpreter {
             Expr::IntegerLiteral(v) => Value::new(ValueCore::Int(*v), expr_ty),
             Expr::StringLiteral(v) => Value::new(ValueCore::String(v.clone()), expr_ty),
             Expr::FloatLiteral(v) => Value::new(ValueCore::Float(*v), expr_ty),
+            Expr::CharLiteral(v) => Value::new(ValueCore::Char(*v), expr_ty),
             Expr::ArgRef(arg_ref) => {
                 return environment.get_arg(arg_ref);
             }

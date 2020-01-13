@@ -709,6 +709,10 @@ pub fn process_expr(
             let ir_expr = IrExpr::FloatLiteral(v.clone());
             return add_expr(ir_expr, id, ir_program, program);
         }
+        Expr::CharLiteral(v) => {
+            let ir_expr = IrExpr::CharLiteral(v.clone());
+            return add_expr(ir_expr, id, ir_program, program);
+        }
         Expr::StringLiteral(v) => {
             let ir_expr = IrExpr::StringLiteral(v.clone());
             return add_expr(ir_expr, id, ir_program, program);
