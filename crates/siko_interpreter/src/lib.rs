@@ -1,3 +1,4 @@
+pub mod char;
 pub mod environment;
 pub mod extern_function;
 pub mod float;
@@ -12,4 +13,3 @@ pub mod std_util_basic;
 pub mod string;
 pub mod util;
 pub mod value;
-pub mod char;

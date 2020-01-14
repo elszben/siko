@@ -1,8 +1,8 @@
+use crate::char;
 use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
 use crate::float;
 use crate::int;
-use crate::char;
 use crate::iterator;
 use crate::list;
 use crate::map;

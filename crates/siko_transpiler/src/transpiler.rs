@@ -19,6 +19,17 @@ use std::fs::File;
 use std::io::Result;
 use std::io::Write;
 
+pub enum DynTrait {
+    RealCall(String, String, String),
+    ArgSave(String, String, String),
+}
+
+struct ClosureDataDef {
+    name: String,
+    fields: Vec<(String, String)>,
+    traits: Vec<DynTrait>,
+}
+
 struct Indent {
     indent: usize,
 }
@@ -56,7 +67,7 @@ fn ir_type_to_rust_type(ty: &Type, program: &Program) -> String {
             let from = ir_type_to_rust_type(from, program);
             let to = ir_type_to_rust_type(to, program);
             format!(
-                "Box<dyn ::crate::{}::{}<{}, {}>>",
+                "Box<dyn crate::{}::{}<{}, {}>>",
                 MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME, from, to
             )
         }
@@ -212,6 +223,7 @@ fn write_pattern(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
+    closure_data_defs: &mut Vec<ClosureDataDef>,
 ) -> Result<()> {
     let pattern = &program.patterns.get(&pattern_id).item;
     match pattern {
@@ -225,7 +237,7 @@ fn write_pattern(
             for (index, item) in items.iter().enumerate() {
                 let field = &record.fields[index];
                 write!(output_file, "{}: ", field.name)?;
-                write_pattern(*item, output_file, program, indent)?;
+                write_pattern(*item, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ", ")?;
             }
             write!(output_file, "}}")?;
@@ -243,7 +255,7 @@ fn write_pattern(
             if !items.is_empty() {
                 write!(output_file, "(")?;
                 for (index, item) in items.iter().enumerate() {
-                    write_pattern(*item, output_file, program, indent)?;
+                    write_pattern(*item, output_file, program, indent, closure_data_defs)?;
                     if index != items.len() - 1 {
                         write!(output_file, ", ")?;
                     }
@@ -252,9 +264,9 @@ fn write_pattern(
             }
         }
         Pattern::Guarded(pattern, expr) => {
-            write_pattern(*pattern, output_file, program, indent)?;
+            write_pattern(*pattern, output_file, program, indent, closure_data_defs)?;
             write!(output_file, " if {{ match ")?;
-            write_expr(*expr, output_file, program, indent)?;
+            write_expr(*expr, output_file, program, indent, closure_data_defs)?;
             let ty = program.get_expr_type(expr);
             let ty = ir_type_to_rust_type(ty, program);
             write!(
@@ -290,6 +302,7 @@ fn write_expr(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
+    closure_data_defs: &mut Vec<ClosureDataDef>,
 ) -> Result<bool> {
     let mut is_statement = false;
     let expr = &program.exprs.get(&expr_id).item;
@@ -303,7 +316,8 @@ fn write_expr(
             indent.inc();
             for (index, item) in items.iter().enumerate() {
                 write!(output_file, "{}", indent)?;
-                let is_statement = write_expr(*item, output_file, program, indent)?;
+                let is_statement =
+                    write_expr(*item, output_file, program, indent, closure_data_defs)?;
                 if is_statement {
                     if index == items.len() - 1 {
                         let ty = program.get_expr_type(&expr_id);
@@ -327,7 +341,7 @@ fn write_expr(
             for (item, index) in items {
                 let field = &record.fields[*index];
                 write!(output_file, "{}: ", field.name)?;
-                write_expr(*item, output_file, program, indent)?;
+                write_expr(*item, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ", ")?;
             }
             write!(output_file, "}}")?;
@@ -338,12 +352,12 @@ fn write_expr(
             let record = program.typedefs.get(&id).get_record();
             write!(output_file, "{{ let mut value = ")?;
             indent.inc();
-            write_expr(*receiver, output_file, program, indent)?;
+            write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             for (item, index) in items {
                 let field = &record.fields[*index];
                 write!(output_file, "{}value.{} = ", indent, field.name)?;
-                write_expr(*item, output_file, program, indent)?;
+                write_expr(*item, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ";\n")?;
             }
             write!(output_file, "{}value }}", indent)?;
@@ -351,9 +365,9 @@ fn write_expr(
         }
         Expr::Bind(pattern, rhs) => {
             write!(output_file, "let ")?;
-            write_pattern(*pattern, output_file, program, indent)?;
+            write_pattern(*pattern, output_file, program, indent, closure_data_defs)?;
             write!(output_file, " = ")?;
-            write_expr(*rhs, output_file, program, indent)?;
+            write_expr(*rhs, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";")?;
             is_statement = true;
         }
@@ -368,15 +382,89 @@ fn write_expr(
         Expr::StaticFunctionCall(id, args) => {
             let function = program.functions.get(id);
             if function.arg_count != args.len() {
-                write!(output_file, "Box::new(ClosureData{}{{", expr_id.id)?;
-                for (index, arg) in args.iter().enumerate() {
-                    write!(output_file, "arg{} : ", index)?;
-                    write_expr(*arg, output_file, program, indent)?;
-                    if index != args.len() - 1 {
+                let mut arg_types = Vec::new();
+                function.function_type.get_args(&mut arg_types);
+                let mut result_type = function.function_type.clone();
+                let mut fields = Vec::new();
+                let mut traits = Vec::new();
+                for index in 0..function.arg_count {
+                    let mut arg_types = Vec::new();
+                    result_type.get_args(&mut arg_types);
+                    result_type = result_type.get_result_type(1);
+                    let arg_type = &arg_types[0];
+                    if index >= args.len() {
+                        let arg_type_str = ir_type_to_rust_type(arg_type, program);
+                        let result_type_str = ir_type_to_rust_type(&result_type, program);
+                        if index == function.arg_count - 1 {
+                            let mut real_call_args = Vec::new();
+                            for i in 0..function.arg_count - 1 {
+                                if i < args.len() {
+                                    let arg = format!("self.arg{}.clone()", i);
+                                    real_call_args.push(arg);
+                                } else {
+                                    let arg = format!(
+                                        "self.arg{}.as_ref().expect(\"Missing arg\").clone()",
+                                        i
+                                    );
+                                    real_call_args.push(arg);
+                                }
+                            }
+                            real_call_args.push(format!("arg0"));
+                            let fn_name = format!(
+                                "crate::{}::{}",
+                                get_module_name(&function.module),
+                                function.name
+                            );
+                            let call_str = format!("{}({})", fn_name, real_call_args.join(", "));
+                            traits.push(DynTrait::RealCall(
+                                arg_type_str,
+                                result_type_str,
+                                call_str,
+                            ));
+                        } else {
+                            traits.push(DynTrait::ArgSave(
+                                arg_type_str,
+                                result_type_str,
+                                format!("arg{}", index),
+                            ));
+                        }
+                    }
+                    if index < function.arg_count - 1 {
+                        let field_name = format!("arg{}", index);
+                        let field_type = if index >= args.len() {
+                            format!("Option<{}>", ir_type_to_rust_type(arg_type, program))
+                        } else {
+                            ir_type_to_rust_type(arg_type, program)
+                        };
+                        fields.push((field_name, field_type));
+                    }
+                }
+                let name = format!("ClosureData{}", expr_id.id);
+                write!(
+                    output_file,
+                    "Box::new(crate::{}::{}{{",
+                    get_module_name(MIR_INTERNAL_MODULE_NAME),
+                    name
+                )?;
+                for (index, field) in fields.iter().enumerate() {
+                    write!(output_file, "{} : ", field.0)?;
+                    if index < args.len() {
+                        let arg = &args[index];
+                        write_expr(*arg, output_file, program, indent, closure_data_defs)?;
+                    } else {
+                        write!(output_file, "None")?;
+                    }
+                    if index != fields.len() - 1 {
                         write!(output_file, ", ")?;
                     }
                 }
                 write!(output_file, "}})")?;
+                let closure_data_def = ClosureDataDef {
+                    name: name,
+                    fields: fields,
+                    traits: traits,
+                };
+                closure_data_defs.push(closure_data_def);
             } else {
                 let name = format!(
                     "crate::{}::{}",
@@ -385,7 +473,7 @@ fn write_expr(
                 );
                 write!(output_file, "{} (", name)?;
                 for (index, arg) in args.iter().enumerate() {
-                    write_expr(*arg, output_file, program, indent)?;
+                    write_expr(*arg, output_file, program, indent, closure_data_defs)?;
                     write!(output_file, ".clone()")?;
                     if index != args.len() - 1 {
                         write!(output_file, ", ")?;
@@ -422,7 +510,7 @@ fn write_expr(
                 write!(output_file, ",")?;
             }
             for (index, arg) in args.iter().enumerate() {
-                write_expr(*arg, output_file, program, indent)?;
+                write_expr(*arg, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ".value")?;
                 if index != args.len() - 1 {
                     write!(output_file, ",")?;
@@ -432,14 +520,20 @@ fn write_expr(
         }
         Expr::CaseOf(body, cases) => {
             write!(output_file, "match (")?;
-            write_expr(*body, output_file, program, indent)?;
+            write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ") {{\n")?;
             indent.inc();
             for case in cases {
                 write!(output_file, "{}", indent)?;
-                write_pattern(case.pattern_id, output_file, program, indent)?;
+                write_pattern(
+                    case.pattern_id,
+                    output_file,
+                    program,
+                    indent,
+                    closure_data_defs,
+                )?;
                 write!(output_file, " => {{")?;
-                write_expr(case.body, output_file, program, indent)?;
+                write_expr(case.body, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, "}}\n")?;
             }
             indent.dec();
@@ -449,17 +543,29 @@ fn write_expr(
             let ty = program.get_expr_type(cond);
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "if {{ match (")?;
-            write_expr(*cond, output_file, program, indent)?;
+            write_expr(*cond, output_file, program, indent, closure_data_defs)?;
             write!(
                 output_file,
                 ") {{ {}::True => true, {}::False => false, }} }} ",
                 ty, ty
             )?;
             write!(output_file, " {{ ")?;
-            write_expr(*true_branch, output_file, program, indent)?;
+            write_expr(
+                *true_branch,
+                output_file,
+                program,
+                indent,
+                closure_data_defs,
+            )?;
             write!(output_file, " }} ")?;
             write!(output_file, " else {{ ")?;
-            write_expr(*false_branch, output_file, program, indent)?;
+            write_expr(
+                *false_branch,
+                output_file,
+                program,
+                indent,
+                closure_data_defs,
+            )?;
             write!(output_file, " }} ")?;
         }
         Expr::FieldAccess(index, receiver) => {
@@ -467,7 +573,7 @@ fn write_expr(
             let id = ty.get_typedef_id();
             let record = program.typedefs.get(&id).get_record();
             let field = &record.fields[*index];
-            write_expr(*receiver, output_file, program, indent)?;
+            write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ".{}", field.name)?;
         }
         Expr::List(items) => {
@@ -475,7 +581,7 @@ fn write_expr(
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "{} {{ value: vec![", ty)?;
             for (index, item) in items.iter().enumerate() {
-                write_expr(*item, output_file, program, indent)?;
+                write_expr(*item, output_file, program, indent, closure_data_defs)?;
                 if index != items.len() - 1 {
                     write!(output_file, ", ")?;
                 }
@@ -485,11 +591,11 @@ fn write_expr(
         Expr::DynamicFunctionCall(receiver, args) => {
             indent.inc();
             write!(output_file, "{{{}let mut dyn_fn = ", indent)?;
-            write_expr(*receiver, output_file, program, indent)?;
+            write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             for arg in args {
                 write!(output_file, "{}dyn_fn = dyn_fn.call(", indent)?;
-                write_expr(*arg, output_file, program, indent)?;
+                write_expr(*arg, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ");\n")?;
             }
             write!(output_file, "{}dyn_fn }}", indent)?;
@@ -509,7 +615,7 @@ fn generate_partial_cmp_builtin_body(
     let id = result_ty.get_typedef_id();
     let adt_opt = program.typedefs.get(&id).get_adt();
     let mut ord_ty = None;
-    for (index, v) in adt_opt.variants.iter().enumerate() {
+    for v in &adt_opt.variants {
         if v.name == "Some" {
             ord_ty = Some(v.items[0].clone());
         }
@@ -1042,6 +1148,7 @@ fn write_function(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
+    closure_data_defs: &mut Vec<ClosureDataDef>,
 ) -> Result<()> {
     let function = program.functions.get(&function_id);
     let mut fn_args = Vec::new();
@@ -1074,7 +1181,7 @@ fn write_function(
             indent.inc();
             write!(output_file, "{}let arg0 = self;\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
-            write_expr(*body, output_file, program, indent)?;
+            write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}write!(f, \"{{}}\", value.value)\n", indent)?;
             indent.dec();
@@ -1097,7 +1204,7 @@ fn write_function(
             indent.inc();
             write!(output_file, "{}let arg0 = self;\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
-            write_expr(*body, output_file, program, indent)?;
+            write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}match value {{\n", indent)?;
             indent.inc();
@@ -1133,7 +1240,7 @@ fn write_function(
             FunctionInfo::Normal(body) => {
                 indent.inc();
                 write!(output_file, "{}", indent)?;
-                write_expr(*body, output_file, program, indent)?;
+                write_expr(*body, output_file, program, indent, closure_data_defs)?;
                 indent.dec();
             }
             FunctionInfo::Extern(original_name) => {
@@ -1205,17 +1312,84 @@ impl Module {
         output_file: &mut dyn Write,
         program: &Program,
         indent: &mut Indent,
+        closure_data_defs: &mut Vec<ClosureDataDef>,
     ) -> Result<()> {
         write!(output_file, "mod {} {{\n", get_module_name(&self.name))?;
         indent.inc();
         for typedef_id in &self.typedefs {
             write_typedef(*typedef_id, output_file, program, indent)?;
         }
+        if self.internal {
+            for closure_data_def in closure_data_defs.iter() {
+                write!(output_file, "{}#[derive(Clone)]\n", indent,)?;
+                write!(
+                    output_file,
+                    "{}pub struct {} {{\n",
+                    indent, closure_data_def.name
+                )?;
+                indent.inc();
+                for (name, ty) in &closure_data_def.fields {
+                    write!(output_file, "{}{} : {},\n", indent, name, ty)?;
+                }
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
+                for dyn_trait in &closure_data_def.traits {
+                    match dyn_trait {
+                        DynTrait::ArgSave(from, to, arg) => {
+                            write!(
+                                output_file,
+                                "{}impl Function<{}, {}> for {} {{\n",
+                                indent, from, to, closure_data_def.name
+                            )?;
+                            indent.inc();
+                            write!(
+                                output_file,
+                                "{}fn call(&self, arg0: {}) -> {} {{\n",
+                                indent, from, to
+                            )?;
+                            indent.inc();
+                            write!(output_file, "{}let mut clone = self.clone();\n", indent)?;
+                            write!(output_file, "{}clone.{} = Some(arg0);\n", indent, arg)?;
+                            write!(output_file, "{}Box::new(clone)\n", indent)?;
+                            indent.dec();
+                            write!(output_file, "{}}}\n", indent)?;
+                            indent.dec();
+                            write!(output_file, "{}}}\n", indent)?;
+                        }
+                        DynTrait::RealCall(from, to, call_str) => {
+                            write!(
+                                output_file,
+                                "{}impl Function<{}, {}> for {} {{\n",
+                                indent, from, to, closure_data_def.name
+                            )?;
+                            indent.inc();
+                            write!(
+                                output_file,
+                                "{}fn call(&self, arg0: {}) -> {} {{\n",
+                                indent, from, to
+                            )?;
+                            indent.inc();
+                            write!(output_file, "{}{}\n", indent, call_str)?;
+                            indent.dec();
+                            write!(output_file, "{}}}\n", indent)?;
+                            indent.dec();
+                            write!(output_file, "{}}}\n", indent)?;
+                        }
+                    }
+                }
+            }
+        }
         for function_id in &self.functions {
-            write_function(*function_id, output_file, program, indent)?;
+            write_function(
+                *function_id,
+                output_file,
+                program,
+                indent,
+                closure_data_defs,
+            )?;
         }
         if self.internal {
-            write!(output_file, "{}trait Function<A, B> {{\n", indent)?;
+            write!(output_file, "{}pub trait Function<A, B> {{\n", indent)?;
             indent.inc();
             write!(output_file, "{}fn call(&self, a: A) -> B;\n", indent)?;
             indent.dec();
@@ -1248,8 +1422,16 @@ impl RustProgram {
 
     fn write(&self, output_file: &mut dyn Write, program: &Program) -> Result<()> {
         let mut indent = Indent::new();
+        let mut closure_data_defs = Vec::new();
         for (_, module) in &self.modules {
-            module.write(output_file, program, &mut indent)?;
+            if !module.internal {
+                module.write(output_file, program, &mut indent, &mut closure_data_defs)?;
+            }
+        }
+        for (_, module) in &self.modules {
+            if module.internal {
+                module.write(output_file, program, &mut indent, &mut closure_data_defs)?;
+            }
         }
         write!(output_file, "fn main() {{\n")?;
         indent.inc();

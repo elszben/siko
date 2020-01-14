@@ -313,10 +313,10 @@ impl Lexer {
         };
         if literal.len() != 1 {
             return Err(LexerError::General(
-            format!("Invalid char literal"),
-              self.file_path.clone(),
-              Location::new(self.line_index, span),
-           ));
+                format!("Invalid char literal"),
+                self.file_path.clone(),
+                Location::new(self.line_index, span),
+            ));
         }
         let first = literal.chars().next().unwrap();
         self.add_token(Token::CharLiteral(first), span);
