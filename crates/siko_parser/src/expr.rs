@@ -167,6 +167,17 @@ fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternI
                 unreachable!()
             }
         }
+        TokenKind::CharLiteral => {
+            let start_index = parser.get_index();
+            let literal = parser.advance()?;
+            if let Token::CharLiteral(c) = literal.token {
+                let pattern = Pattern::CharLiteral(c);
+                let id = parser.add_pattern(pattern, start_index);
+                id
+            } else {
+                unreachable!()
+            }
+        }
         TokenKind::StringLiteral => {
             let start_index = parser.get_index();
             let literal = parser.advance()?;
@@ -430,6 +441,7 @@ fn parse_primary(parser: &mut Parser) -> Result<ExprId, ParseError> {
             | TokenKind::IntegerLiteral
             | TokenKind::FloatLiteral
             | TokenKind::StringLiteral
+            | TokenKind::CharLiteral
             | TokenKind::LParen
             | TokenKind::KeywordIf
             | TokenKind::KeywordDo

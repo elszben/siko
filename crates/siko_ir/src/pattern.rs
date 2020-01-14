@@ -30,6 +30,7 @@ pub enum Pattern {
     Wildcard,
     IntegerLiteral(i64),
     StringLiteral(String),
+    CharLiteral(char),
     Typed(PatternId, TypeSignatureId),
 }
 

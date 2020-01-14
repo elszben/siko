@@ -148,6 +148,7 @@ impl TypeDefStore {
                                         ("Int", "Int") => ExternalDataKind::Int,
                                         ("Float", "Float") => ExternalDataKind::Float,
                                         ("String", "String") => ExternalDataKind::String,
+                                        ("Char", "Char") => ExternalDataKind::Char,
                                         ("Map", "Map") => ExternalDataKind::Map,
                                         ("List", "List") => ExternalDataKind::List,
                                         ("Iterator", "Iterator") => ExternalDataKind::Iterator,

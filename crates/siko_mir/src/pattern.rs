@@ -27,5 +27,6 @@ pub enum Pattern {
     Guarded(PatternId, ExprId),
     Wildcard,
     IntegerLiteral(i64),
+    CharLiteral(char),
     StringLiteral(String),
 }

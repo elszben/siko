@@ -16,6 +16,7 @@ enum ChoiceKind {
     Variant(TypeDefId, usize),
     String(String),
     Int(i64),
+    Char(char),
 }
 
 #[derive(Clone)]
@@ -74,6 +75,9 @@ impl CaseInfo {
                     constant_pattern_found = true;
                 }
                 ChoiceKind::Int(_) => {
+                    constant_pattern_found = true;
+                }
+                ChoiceKind::Char(_) => {
                     constant_pattern_found = true;
                 }
             }
@@ -184,6 +188,14 @@ impl CaseInfo {
                 return self.add_choice(
                     parent,
                     ChoiceKind::Int(i.clone()),
+                    choice_added,
+                    item_info.location_id,
+                );
+            }
+            Pattern::CharLiteral(i) => {
+                return self.add_choice(
+                    parent,
+                    ChoiceKind::Char(i.clone()),
                     choice_added,
                     item_info.location_id,
                 );

@@ -36,6 +36,7 @@ pub enum Pattern {
     Wildcard,
     IntegerLiteral(i64),
     StringLiteral(String),
+    CharLiteral(char),
     Typed(PatternId, TypeSignatureId),
     Record(String, Vec<RecordFieldPattern>),
     Or(Vec<PatternId>),

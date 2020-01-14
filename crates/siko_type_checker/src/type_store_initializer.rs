@@ -257,6 +257,10 @@ impl<'a> Visitor for TypeStoreInitializer<'a> {
                 self.type_store
                     .initialize_pattern(pattern_id, self.program.get_int_type());
             }
+            Pattern::CharLiteral(_) => {
+                self.type_store
+                    .initialize_pattern(pattern_id, self.program.get_char_type());
+            }
             Pattern::Record(typedef_id, fields) => {
                 let record_type_info = self.type_info_provider.get_record_type_info(typedef_id);
                 if record_type_info.field_types.len() != fields.len() {

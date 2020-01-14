@@ -54,6 +54,7 @@ pub fn process_pattern(
             MirPattern::Guarded(mir_sub, mir_guard_expr)
         }
         IrPattern::IntegerLiteral(v) => MirPattern::IntegerLiteral(v.clone()),
+        IrPattern::CharLiteral(v) => MirPattern::CharLiteral(v.clone()),
         IrPattern::Record(_, items) => {
             let mir_typedef_id = typedef_store.add_type(ir_pattern_ty, ir_program, mir_program);
             let mir_items: Vec<_> = items

@@ -2,6 +2,7 @@ use crate::environment::Environment;
 use crate::extern_function::ExternFunction;
 use crate::float;
 use crate::int;
+use crate::char;
 use crate::iterator;
 use crate::list;
 use crate::map;
@@ -227,6 +228,13 @@ impl Interpreter {
             Pattern::IntegerLiteral(p_v) => {
                 let r = match &value.core {
                     ValueCore::Int(v) => p_v == v,
+                    _ => false,
+                };
+                return r;
+            }
+            Pattern::CharLiteral(p_v) => {
+                let r = match &value.core {
+                    ValueCore::Char(v) => p_v == v,
                     _ => false,
                 };
                 return r;
@@ -996,6 +1004,7 @@ impl Interpreter {
     pub fn run(program: Program, error_context: ErrorContext) -> Value {
         let mut interpreter = Interpreter::new(program, error_context);
         int::register_extern_functions(&mut interpreter);
+        char::register_extern_functions(&mut interpreter);
         float::register_extern_functions(&mut interpreter);
         string::register_extern_functions(&mut interpreter);
         map::register_extern_functions(&mut interpreter);

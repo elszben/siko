@@ -309,6 +309,15 @@ fn process_pattern(
                 IrPattern::IntegerLiteral(*v)
             }
         }
+        Pattern::CharLiteral(v) => {
+            if irrefutable {
+                let err = ResolverError::NotIrrefutablePattern(location_id);
+                errors.push(err);
+                IrPattern::Wildcard
+            } else {
+                IrPattern::CharLiteral(*v)
+            }
+        }
         Pattern::StringLiteral(v) => {
             if irrefutable {
                 let err = ResolverError::NotIrrefutablePattern(location_id);

@@ -12,3 +12,4 @@ pub mod std_util_basic;
 pub mod string;
 pub mod util;
 pub mod value;
+pub mod char;

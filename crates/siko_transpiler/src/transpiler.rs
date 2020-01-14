@@ -138,6 +138,18 @@ fn write_typedef(
                         indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
+                    ExternalDataKind::Char => {
+                        write!(
+                            output_file,
+                            "{}#[derive(Clone, PartialEq, PartialOrd)]\n",
+                            indent
+                        )?;
+                        write!(output_file, "{}pub struct Char {{\n", indent)?;
+                        indent.inc();
+                        write!(output_file, "{}pub value: char,\n", indent,)?;
+                        indent.dec();
+                        write!(output_file, "{}}}\n", indent)?;
+                    }
                     ExternalDataKind::Map => {
                         write!(
                             output_file,
@@ -258,6 +270,11 @@ fn write_pattern(
             let ty = program.get_pattern_type(&pattern_id);
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "{} {{ value: {} }}", ty, i)?;
+        }
+        Pattern::CharLiteral(i) => {
+            let ty = program.get_pattern_type(&pattern_id);
+            let ty = ir_type_to_rust_type(ty, program);
+            write!(output_file, "{} {{ value: '{}' }}", ty, i)?;
         }
         Pattern::StringLiteral(s) => {
             let ty = program.get_pattern_type(&pattern_id);

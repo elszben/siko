@@ -350,6 +350,7 @@ impl<'a> Visitor for ExpressionChecker<'a> {
                 }
             }
             Pattern::StringLiteral(_) => {}
+            Pattern::CharLiteral(_) => {}
             Pattern::Tuple(items) => {
                 let ty = self.type_store.get_pattern_type(&pattern_id).clone();
                 if let Type::Tuple(item_types) = ty {

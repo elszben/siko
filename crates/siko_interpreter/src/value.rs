@@ -111,6 +111,13 @@ impl ValueCore {
         }
     }
 
+    pub fn as_char(&self) -> char {
+        match self {
+            ValueCore::Char(c) => c.clone(),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn as_bool(&self) -> bool {
         match self {
             ValueCore::Variant(_, 0, _) => true,
