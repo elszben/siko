@@ -95,6 +95,7 @@ fn process_args(args: Vec<String>) -> bool {
             .arg(rs_output_file)
             .arg("-o")
             .arg(rustc_output_file)
+            .arg("--edition=2018")
             .output()
             .expect("failed to execute process");
         if !output.status.success() {

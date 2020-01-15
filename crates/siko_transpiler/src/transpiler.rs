@@ -590,11 +590,15 @@ fn write_expr(
         }
         Expr::DynamicFunctionCall(receiver, args) => {
             indent.inc();
-            write!(output_file, "{{{}let mut dyn_fn = ", indent)?;
+            write!(output_file, "{{{}let dyn_fn = ", indent)?;
             write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             for arg in args {
-                write!(output_file, "{}dyn_fn = dyn_fn.call(", indent)?;
+                write!(
+                    output_file,
+                    "{}let dyn_fn = crate::{}::{}::call(&*dyn_fn, ",
+                    indent, MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME
+                )?;
                 write_expr(*arg, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ");\n")?;
             }
@@ -1329,7 +1333,7 @@ impl Module {
                 )?;
                 indent.inc();
                 for (name, ty) in &closure_data_def.fields {
-                    write!(output_file, "{}{} : {},\n", indent, name, ty)?;
+                    write!(output_file, "{} pub {}: {},\n", indent, name, ty)?;
                 }
                 indent.dec();
                 write!(output_file, "{}}}\n", indent)?;
@@ -1338,8 +1342,8 @@ impl Module {
                         DynTrait::ArgSave(from, to, arg) => {
                             write!(
                                 output_file,
-                                "{}impl Function<{}, {}> for {} {{\n",
-                                indent, from, to, closure_data_def.name
+                                "{}impl {}<{}, {}> for {} {{\n",
+                                indent, MIR_FUNCTION_TRAIT_NAME, from, to, closure_data_def.name
                             )?;
                             indent.inc();
                             write!(
@@ -1359,8 +1363,8 @@ impl Module {
                         DynTrait::RealCall(from, to, call_str) => {
                             write!(
                                 output_file,
-                                "{}impl Function<{}, {}> for {} {{\n",
-                                indent, from, to, closure_data_def.name
+                                "{}impl {}<{}, {}> for {} {{\n",
+                                indent, MIR_FUNCTION_TRAIT_NAME, from, to, closure_data_def.name
                             )?;
                             indent.inc();
                             write!(
@@ -1389,7 +1393,11 @@ impl Module {
             )?;
         }
         if self.internal {
-            write!(output_file, "{}pub trait Function<A, B> {{\n", indent)?;
+            write!(
+                output_file,
+                "{}pub trait {}<A, B> {{\n",
+                indent, MIR_FUNCTION_TRAIT_NAME
+            )?;
             indent.inc();
             write!(output_file, "{}fn call(&self, a: A) -> B;\n", indent)?;
             indent.dec();

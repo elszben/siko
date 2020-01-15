@@ -9,5 +9,4 @@ main = do
         a <- foo 5.6
         a <- a 4
         a <- a False
-        assert (a == "a")
-
+        print a
