@@ -195,7 +195,6 @@ fn write_typedef(
                     }
                 }
             } else {
-                write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                 write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
                 indent.inc();
                 for field in &record.fields {
@@ -206,6 +205,37 @@ fn write_typedef(
                         indent, field.name, field_type
                     )?;
                 }
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
+                write!(output_file, "{}impl Clone for {} {{\n", indent, record.name)?;
+                indent.inc();
+                write!(
+                    output_file,
+                    "{}fn clone(&self) -> {} {{\n",
+                    indent, record.name
+                )?;
+                indent.inc();
+                write!(output_file, "{}{} {{\n", indent, record.name)?;
+                indent.inc();
+                for field in &record.fields {
+                    if let Type::Function(..) = field.ty {
+                        write!(
+                            output_file,
+                            "{}{}: self.{}.box_clone(),\n",
+                            indent, field.name, field.name
+                        )?;
+                    } else {
+                        write!(
+                            output_file,
+                            "{}{}: self.{}.clone(),\n",
+                            indent, field.name, field.name
+                        )?;
+                    }
+                }
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
                 indent.dec();
                 write!(output_file, "{}}}\n", indent)?;
             }
@@ -1358,6 +1388,17 @@ impl Module {
                             indent.dec();
                             write!(output_file, "{}}}\n", indent)?;
                             indent.dec();
+                            indent.inc();
+                            write!(
+                                output_file,
+                                "{}fn box_clone(&self) -> Box<dyn {}<{},{}>> {{\n",
+                                indent, MIR_FUNCTION_TRAIT_NAME, from, to
+                            )?;
+                            indent.inc();
+                            write!(output_file, "{}Box::new(self.clone())\n", indent)?;
+                            indent.dec();
+                            write!(output_file, "{}}}\n", indent)?;
+                            indent.dec();
                             write!(output_file, "{}}}\n", indent)?;
                         }
                         DynTrait::RealCall(from, to, call_str) => {
@@ -1374,6 +1415,17 @@ impl Module {
                             )?;
                             indent.inc();
                             write!(output_file, "{}{}\n", indent, call_str)?;
+                            indent.dec();
+                            write!(output_file, "{}}}\n", indent)?;
+                            indent.dec();
+                            indent.inc();
+                            write!(
+                                output_file,
+                                "{}fn box_clone(&self) -> Box<dyn {}<{},{}>> {{\n",
+                                indent, MIR_FUNCTION_TRAIT_NAME, from, to
+                            )?;
+                            indent.inc();
+                            write!(output_file, "{}Box::new(self.clone())\n", indent)?;
                             indent.dec();
                             write!(output_file, "{}}}\n", indent)?;
                             indent.dec();
@@ -1400,6 +1452,11 @@ impl Module {
             )?;
             indent.inc();
             write!(output_file, "{}fn call(&self, a: A) -> B;\n", indent)?;
+            write!(
+                output_file,
+                "{}fn box_clone(&self) -> Box<dyn Function<A,B>>;\n",
+                indent
+            )?;
             indent.dec();
             write!(output_file, "{}}}\n", indent)?;
         }
