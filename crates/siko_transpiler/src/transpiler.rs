@@ -26,7 +26,7 @@ pub enum DynTrait {
 
 struct ClosureDataDef {
     name: String,
-    fields: Vec<(String, String)>,
+    fields: Vec<(String, String, Type)>,
     traits: Vec<DynTrait>,
 }
 
@@ -411,7 +411,7 @@ fn write_expr(
         }
         Expr::StaticFunctionCall(id, args) => {
             let function = program.functions.get(id);
-            if function.arg_count != args.len() {
+            if function.arg_count > args.len() {
                 let mut arg_types = Vec::new();
                 function.function_type.get_args(&mut arg_types);
                 let mut result_type = function.function_type.clone();
@@ -429,7 +429,7 @@ fn write_expr(
                             let mut real_call_args = Vec::new();
                             for i in 0..function.arg_count - 1 {
                                 if i < args.len() {
-                                    let arg = format!("self.arg{}.clone()", i);
+                                    let arg = format!("self.get_arg{}()", i);
                                     real_call_args.push(arg);
                                 } else {
                                     let arg = format!(
@@ -466,7 +466,7 @@ fn write_expr(
                         } else {
                             ir_type_to_rust_type(arg_type, program)
                         };
-                        fields.push((field_name, field_type));
+                        fields.push((field_name, field_type, arg_type.clone()));
                     }
                 }
                 let name = format!("ClosureData{}", expr_id.id);
@@ -495,7 +495,33 @@ fn write_expr(
                     traits: traits,
                 };
                 closure_data_defs.push(closure_data_def);
+            } else if function.arg_count < args.len() {
+                let name = format!(
+                    "crate::{}::{}",
+                    get_module_name(&function.module),
+                    function.name
+                );
+                write!(output_file, "{{{}let dyn_fn = ", indent)?;
+                write!(output_file, "{} (", name)?;
+                for index in 0..function.arg_count {
+                    let arg = &args[index];
+                    write_expr(*arg, output_file, program, indent, closure_data_defs)?;
+                    write!(output_file, ".clone()")?;
+                    if index != args.len() - 1 {
+                        write!(output_file, ", ")?;
+                    }
+                }
+                write!(output_file, ");\n")?;
+                for index in function.arg_count..args.len() {
+                    write!(output_file, "{}let dyn_fn = dyn_fn.call(", indent)?;
+                    let arg = &args[index];
+                    write_expr(*arg, output_file, program, indent, closure_data_defs)?;
+                    write!(output_file, ");\n",)?;
+                }
+                write!(output_file, "{}dyn_fn\n", indent)?;
+                write!(output_file, "{}}}", indent)?;
             } else {
+                assert_eq!(function.arg_count, args.len());
                 let name = format!(
                     "crate::{}::{}",
                     get_module_name(&function.module),
@@ -620,7 +646,7 @@ fn write_expr(
         }
         Expr::DynamicFunctionCall(receiver, args) => {
             indent.inc();
-            write!(output_file, "{{{}let dyn_fn = ", indent)?;
+            write!(output_file, "{{\n{}let dyn_fn = ", indent)?;
             write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             for arg in args {
@@ -632,8 +658,9 @@ fn write_expr(
                 write_expr(*arg, output_file, program, indent, closure_data_defs)?;
                 write!(output_file, ");\n")?;
             }
-            write!(output_file, "{}dyn_fn }}", indent)?;
+            write!(output_file, "{}dyn_fn\n", indent)?;
             indent.dec();
+            write!(output_file, "{}}}", indent)?;
         }
     }
     Ok(is_statement)
@@ -1355,18 +1382,73 @@ impl Module {
         }
         if self.internal {
             for closure_data_def in closure_data_defs.iter() {
-                write!(output_file, "{}#[derive(Clone)]\n", indent,)?;
+                write!(
+                    output_file,
+                    "{}impl Clone for {} {{\n",
+                    indent, closure_data_def.name
+                )?;
+                indent.inc();
+                write!(
+                    output_file,
+                    "{}fn clone(&self) -> {} {{\n",
+                    indent, closure_data_def.name
+                )?;
+                indent.inc();
+                write!(output_file, "{}{} {{\n", indent, closure_data_def.name)?;
+                indent.inc();
+                for field in &closure_data_def.fields {
+                    if let Type::Function(..) = field.2 {
+                        write!(
+                            output_file,
+                            "{}{}: self.{}.box_clone(),\n",
+                            indent, field.0, field.0
+                        )?;
+                    } else {
+                        write!(
+                            output_file,
+                            "{}{}: self.{}.clone(),\n",
+                            indent, field.0, field.0
+                        )?;
+                    }
+                }
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
                 write!(
                     output_file,
                     "{}pub struct {} {{\n",
                     indent, closure_data_def.name
                 )?;
                 indent.inc();
-                for (name, ty) in &closure_data_def.fields {
+                for (name, ty, _) in &closure_data_def.fields {
                     write!(output_file, "{} pub {}: {},\n", indent, name, ty)?;
                 }
                 indent.dec();
                 write!(output_file, "{}}}\n", indent)?;
+
+                write!(output_file, "{}impl {} {{\n", indent, closure_data_def.name)?;
+                indent.inc();
+                for (name, ty_str, ty) in &closure_data_def.fields {
+                    write!(
+                        output_file,
+                        "{} pub fn get_{}(&self) -> {} {{\n",
+                        indent, name, ty_str
+                    )?;
+                    indent.inc();
+                    if let Type::Function(..) = ty {
+                        write!(output_file, "{}self.{}.box_clone()\n", indent, name)?;
+                    } else {
+                        write!(output_file, "{}self.{}.clone()\n", indent, name)?;
+                    }
+                    indent.dec();
+                    write!(output_file, "{}}}\n", indent)?;
+                }
+                indent.dec();
+                write!(output_file, "{}}}\n", indent)?;
+
                 for dyn_trait in &closure_data_def.traits {
                     match dyn_trait {
                         DynTrait::ArgSave(from, to, arg) => {
