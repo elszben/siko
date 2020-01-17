@@ -1,1 +1,10 @@
+pub mod builtins;
+pub mod closure;
+pub mod expr;
+pub mod function;
+pub mod module;
+pub mod pattern;
 pub mod transpiler;
+pub mod typedef;
+pub mod types;
+pub mod util;
