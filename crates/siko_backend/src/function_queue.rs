@@ -169,7 +169,12 @@ impl FunctionQueue {
                             let queue_item = FunctionQueueItem::Normal(func_id, context);
                             self.insert(queue_item, mir_program);
                         } else {
-                            println!("Unimplemented extern class call {}", class_id);
+                            println!(
+                                "Unimplemented extern class call {} {} {}",
+                                class_id,
+                                class.name,
+                                ir_type.get_resolved_type_string(ir_program)
+                            );
                         }
                     }
                 }

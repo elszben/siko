@@ -1,12 +1,6 @@
 module Main where
 
-import Std.Util
-
-foo :: Float -> Int -> Bool -> String
-foo a b c = "a"
-
-main = do
-        a <- foo 5.6
-        a <- a 4
-        a <- a False
-        print a
+main  = do
+    a <- [3] == [4]
+    
+    

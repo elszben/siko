@@ -68,6 +68,14 @@ pub fn process_function(
                             TypeDef::Record(record) => record.module.clone(),
                         }
                     };
+                    /*
+                    println!(
+                        "{} {} {}",
+                        function.info,
+                        constraint.class_id,
+                        constraint.ty.get_resolved_type_string(ir_program)
+                    );
+                    */
                     let queue_item = FunctionQueueItem::ExternalCallImpl(
                         constraint.class_id,
                         constraint.ty.clone(),

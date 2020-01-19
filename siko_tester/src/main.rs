@@ -68,11 +68,10 @@ fn process_args(args: Vec<String>) -> bool {
             .arg(s.clone())
             .status()
             .expect("failed to execute process");
-        if status.success() {
-            success_count += 1;
-        } else {
+        if !status.success() {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+            continue;
         }
         //println!("Compiling {}", s.display());
         let rs_output_file = format!("{}/{}.rs", comp_dir, tc_name);
@@ -85,21 +84,32 @@ fn process_args(args: Vec<String>) -> bool {
             .arg(s.clone())
             .status()
             .expect("failed to execute process");
+        if !status.success() {
+            fail_count += 1;
+            failed_tcs.insert(tc_name.clone());
+            continue;
+        }
+        let output = Command::new("rustc")
+            .arg(rs_output_file)
+            .arg("-o")
+            .arg(rustc_output_file.clone())
+            .arg("--edition=2018")
+            .output()
+            .expect("failed to execute process");
+        if !output.status.success() {
+            fail_count += 1;
+            failed_tcs.insert(tc_name.clone());
+            continue;
+        }
+        let status = Command::new(rustc_output_file)
+            .status()
+            .expect("failed to execute process");
         if status.success() {
             success_count += 1;
         } else {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
-        }
-        let output = Command::new("rustc")
-            .arg(rs_output_file)
-            .arg("-o")
-            .arg(rustc_output_file)
-            .arg("--edition=2018")
-            .output()
-            .expect("failed to execute process");
-        if !output.status.success() {
-            println!("Rust failed to compile");
+            continue;
         }
     }
     for (f, tc_name) in fail_files {
@@ -120,8 +130,8 @@ fn process_args(args: Vec<String>) -> bool {
         }
     }
 
+    println!("Total: {}/{}", success_count + fail_count, fail_count);
     if !failed_tcs.is_empty() {
-        println!("{} TCs failed.", failed_tcs.len());
         for tc in failed_tcs {
             println!("- {}", tc);
         }

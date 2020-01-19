@@ -98,3 +98,14 @@ impl<Key: Ord, Item: Ord> Collector<Key, Item> {
         entry.insert(item);
     }
 }
+
+pub fn to_first_uppercase(mut input: String) -> String {
+    if input.is_empty() {
+        input
+    } else {
+        let first = input.remove(0);
+        let first = first.to_ascii_uppercase();
+        input.insert(0, first);
+        input
+    }
+}

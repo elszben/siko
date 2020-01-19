@@ -314,7 +314,10 @@ impl<'a> Builder<'a> {
         );
         let (bind_expr_id, values) =
             self.add_record_pattern(arg_ref_expr_id, record, &record_type_info, location, 0);
-        let field_fmt_str_args: Vec<_> = std::iter::repeat("{}").take(values.len()).collect();
+        let mut field_fmt_str_args = Vec::new();
+        for field in &record.fields {
+            field_fmt_str_args.push(format!("{}: {{}}", field.name));
+        }
         let fmt_str = format!(
             "{} {{{{ {} }}}}",
             record.name,
@@ -361,7 +364,7 @@ impl<'a> Builder<'a> {
                 format!("{}", adt.variants[index].name)
             } else {
                 format!(
-                    "{} {} ",
+                    "{} {}",
                     adt.variants[index].name,
                     item_fmt_str_args.join(" ")
                 )

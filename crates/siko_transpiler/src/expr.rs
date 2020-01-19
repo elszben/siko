@@ -120,8 +120,8 @@ pub fn write_expr(
                                     real_call_args.push(arg);
                                 } else {
                                     let arg = format!(
-                                        "self.arg{}.as_ref().expect(\"Missing arg\").clone()",
-                                        i
+                                        "self.{}.as_ref().expect(\"Missing arg\").clone()",
+                                        arg_name(i)
                                     );
                                     real_call_args.push(arg);
                                 }
@@ -142,12 +142,12 @@ pub fn write_expr(
                             traits.push(DynTrait::ArgSave(
                                 arg_type_str,
                                 result_type_str,
-                                format!("arg{}", index),
+                                arg_name(index),
                             ));
                         }
                     }
                     if index < function.arg_count - 1 {
-                        let field_name = format!("arg{}", index);
+                        let field_name = arg_name(index);
                         let field_type = if index >= args.len() {
                             format!("Option<{}>", ir_type_to_rust_type(arg_type, program))
                         } else {
@@ -343,7 +343,7 @@ pub fn write_expr(
                     indent, MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME
                 )?;
                 write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                write!(output_file, ");\n")?;
+                write!(output_file, ".clone());\n")?;
             }
             write!(output_file, "{}dyn_fn\n", indent)?;
             indent.dec();

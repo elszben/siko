@@ -107,8 +107,51 @@ pub fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Iterator => {
-                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
+                        let elem_ty = ir_type_to_rust_type(&args[0], program);
+                        write!(
+                            output_file,
+                            "{}pub trait Trait_{} {{\n",
+                            indent, record.name
+                        )?;
+                        indent.inc();
+                        write!(
+                            output_file,
+                            "{}fn next(&mut self) -> Option<{}>;\n",
+                            indent, elem_ty
+                        )?;
+                        write!(
+                            output_file,
+                            "{}fn box_clone(&self) -> Box<dyn Trait_{}>;\n",
+                            indent, record.name
+                        )?;
+                        indent.dec();
+                        write!(output_file, "{}}}\n", indent)?;
                         write!(output_file, "{}pub struct {} {{\n", indent, record.name)?;
+                        indent.inc();
+                        write!(
+                            output_file,
+                            "{}pub value: Box<dyn Trait_{}>,\n",
+                            indent, record.name
+                        )?;
+                        indent.dec();
+                        write!(output_file, "{}}}\n", indent)?;
+
+                        write!(output_file, "{}impl Clone for {} {{\n", indent, record.name)?;
+                        indent.inc();
+                        write!(
+                            output_file,
+                            "{}fn clone(&self) -> {} {{\n",
+                            indent, record.name
+                        )?;
+                        indent.inc();
+                        write!(output_file, "{}{} {{\n", indent, record.name)?;
+                        indent.inc();
+                        write!(output_file, "{}value: self.value.box_clone(),\n", indent,)?;
+                        indent.dec();
+                        write!(output_file, "{}}}\n", indent)?;
+                        indent.dec();
+                        write!(output_file, "{}}}\n", indent)?;
+                        indent.dec();
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::List => {
