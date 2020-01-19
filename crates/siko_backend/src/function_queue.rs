@@ -168,6 +168,54 @@ impl FunctionQueue {
                             );
                             let queue_item = FunctionQueueItem::Normal(func_id, context);
                             self.insert(queue_item, mir_program);
+                        } else if class_id == ir_program.get_partialeq_class_id() {
+                            let bool_ty = ir_program.get_bool_type();
+                            let class_member_id = ir_program.get_opeq_member_id();
+                            let mut builder = Builder::new(ir_program);
+                            let func_id = builder.generate_extern_class_impl(
+                                location_id,
+                                format!("ExternClassImpl{}", class_id),
+                                module.clone(),
+                                2,
+                                ir_type.clone(),
+                                bool_ty.clone(),
+                                class_member_id,
+                            );
+                            let context =
+                                CallContext::new(vec![ir_type.clone(), ir_type.clone()], bool_ty);
+                            let queue_item = FunctionQueueItem::Normal(func_id, context);
+                            self.insert(queue_item, mir_program);
+                        } else if class_id == ir_program.get_partialord_class_id() {
+                            let optional_ordering_ty =
+                                ir_program.get_option_type(ir_program.get_ordering_type());
+                            let class_member_id = ir_program.get_partialcmp_member_id();
+                            let mut builder = Builder::new(ir_program);
+                            let func_id = builder.generate_extern_class_impl(
+                                location_id,
+                                format!("ExternClassImpl{}", class_id),
+                                module.clone(),
+                                2,
+                                ir_type.clone(),
+                                optional_ordering_ty.clone(),
+                                class_member_id,
+                            );
+                            let context = CallContext::new(
+                                vec![ir_type.clone(), ir_type.clone()],
+                                optional_ordering_ty,
+                            );
+                            let queue_item = FunctionQueueItem::Normal(func_id, context);
+                            self.insert(queue_item, mir_program);
+                        } else if class_id == ir_program.get_eq_class_id() {
+                            let mut builder = Builder::new(ir_program);
+                            let func_id = builder.generate_extern_eq_impl(
+                                location_id,
+                                format!("ExternClassImpl{}", class_id),
+                                module.clone(),
+                                ir_type.clone(),
+                            );
+                            let context = CallContext::new(vec![], IrType::Tuple(Vec::new()));
+                            let queue_item = FunctionQueueItem::Normal(func_id, context);
+                            self.insert(queue_item, mir_program);
                         } else {
                             println!(
                                 "Unimplemented extern class call {} {} {}",

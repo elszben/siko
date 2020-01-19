@@ -1,4 +1,5 @@
 use crate::types::ir_type_to_rust_type;
+use crate::util::get_ord_type_from_optional_ord;
 use crate::util::Indent;
 use siko_mir::function::Function;
 use siko_mir::program::Program;
@@ -14,17 +15,12 @@ fn generate_partial_cmp_builtin_body(
     result_ty: &Type,
     result_ty_str: &str,
 ) -> Result<()> {
-    let id = result_ty.get_typedef_id();
-    let adt_opt = program.typedefs.get(&id).get_adt();
-    let mut ord_ty = None;
-    for v in &adt_opt.variants {
-        if v.name == "Some" {
-            ord_ty = Some(v.items[0].clone());
-        }
-    }
-    let ord_ty = ord_ty.expect("Ord ty not found");
-    let ord_ty_str = ir_type_to_rust_type(&ord_ty, program);
-    write!(output_file, "{}match arg0.partial_cmp(&arg1) {{\n", indent)?;
+    let ord_ty_str = get_ord_type_from_optional_ord(result_ty, program);
+    write!(
+        output_file,
+        "{}match arg0.value.partial_cmp(&arg1.value) {{\n",
+        indent
+    )?;
     indent.inc();
     write!(
         output_file,

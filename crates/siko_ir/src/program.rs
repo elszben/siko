@@ -28,6 +28,7 @@ use siko_constants::BOOL_MODULE_NAME;
 use siko_constants::BOOL_TYPE_NAME;
 use siko_constants::CHAR_MODULE_NAME;
 use siko_constants::CHAR_TYPE_NAME;
+use siko_constants::EQ_CLASS_NAME;
 use siko_constants::FLOAT_MODULE_NAME;
 use siko_constants::FLOAT_TYPE_NAME;
 use siko_constants::INT_MODULE_NAME;
@@ -44,6 +45,7 @@ use siko_constants::ORD_CLASS_NAME;
 use siko_constants::ORD_OP_NAME;
 use siko_constants::PARTIALEQ_CLASS_NAME;
 use siko_constants::PARTIALEQ_OP_NAME;
+use siko_constants::PARTIALORD_CLASS_NAME;
 use siko_constants::SHOW_CLASS_NAME;
 use siko_constants::STRING_MODULE_NAME;
 use siko_constants::STRING_TYPE_NAME;
@@ -165,6 +167,24 @@ impl Program {
             .class_names
             .get(PARTIALEQ_CLASS_NAME)
             .expect("PartialEq not found")
+            .clone();
+        class_id
+    }
+
+    pub fn get_partialord_class_id(&self) -> ClassId {
+        let class_id = self
+            .class_names
+            .get(PARTIALORD_CLASS_NAME)
+            .expect("PartialOrd not found")
+            .clone();
+        class_id
+    }
+
+    pub fn get_eq_class_id(&self) -> ClassId {
+        let class_id = self
+            .class_names
+            .get(EQ_CLASS_NAME)
+            .expect("Eq not found")
             .clone();
         class_id
     }
@@ -303,6 +323,24 @@ impl Program {
         let class = self.classes.get(&class_id);
         let show_id = class.members.get("show").expect("show not found").clone();
         show_id
+    }
+
+    pub fn get_opeq_member_id(&self) -> ClassMemberId {
+        let class_id = self.get_partialeq_class_id();
+        let class = self.classes.get(&class_id);
+        let cmp_id = class.members.get("opEq").expect("opEq not found").clone();
+        cmp_id
+    }
+
+    pub fn get_partialcmp_member_id(&self) -> ClassMemberId {
+        let class_id = self.get_partialord_class_id();
+        let class = self.classes.get(&class_id);
+        let cmp_id = class
+            .members
+            .get("partialCmp")
+            .expect("partialCmp not found")
+            .clone();
+        cmp_id
     }
 
     pub fn get_cmp_member_id(&self) -> ClassMemberId {

@@ -41,11 +41,7 @@ pub fn write_typedef(
             if let RecordKind::External(data_kind, args) = &record.kind {
                 match data_kind {
                     ExternalDataKind::Int => {
-                        write!(
-                            output_file,
-                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]\n",
-                            indent
-                        )?;
+                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                         write!(output_file, "{}pub struct Int {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: i64,\n", indent,)?;
@@ -53,11 +49,7 @@ pub fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::String => {
-                        write!(
-                            output_file,
-                            "{}#[derive(Clone, PartialEq, Eq, PartialOrd)]\n",
-                            indent
-                        )?;
+                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                         write!(output_file, "{}pub struct String {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: std::string::String,\n", indent,)?;
@@ -65,11 +57,7 @@ pub fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Float => {
-                        write!(
-                            output_file,
-                            "{}#[derive(Clone, PartialEq, PartialOrd)]\n",
-                            indent
-                        )?;
+                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                         write!(output_file, "{}pub struct Float {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: f64,\n", indent,)?;
@@ -77,11 +65,7 @@ pub fn write_typedef(
                         write!(output_file, "{}}}\n", indent)?;
                     }
                     ExternalDataKind::Char => {
-                        write!(
-                            output_file,
-                            "{}#[derive(Clone, PartialEq, PartialOrd)]\n",
-                            indent
-                        )?;
+                        write!(output_file, "{}#[derive(Clone)]\n", indent)?;
                         write!(output_file, "{}pub struct Char {{\n", indent)?;
                         indent.inc();
                         write!(output_file, "{}pub value: char,\n", indent,)?;

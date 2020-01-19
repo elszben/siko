@@ -19,6 +19,7 @@ use crate::types::Type;
 use siko_constants::BOOL_MODULE_NAME;
 use siko_constants::BOOL_TYPE_NAME;
 use siko_constants::EQUAL_NAME;
+use siko_constants::EQ_CLASS_NAME;
 use siko_constants::FALSE_NAME;
 use siko_constants::GREATER_NAME;
 use siko_constants::LESS_NAME;
@@ -719,6 +720,38 @@ impl<'a> Builder<'a> {
         self.program
             .function_types
             .insert(function_id, function_type);
+        self.program.functions.add_item(function_id, function);
+        function_id
+    }
+
+    pub fn generate_extern_eq_impl(
+        &mut self,
+        location: LocationId,
+        name: String,
+        module: String,
+        ty: Type,
+    ) -> FunctionId {
+        let function_id = self.program.functions.get_id();
+        let arg_locations = Vec::new();
+        let body = self.add_expr(Expr::Tuple(Vec::new()), location, Type::Tuple(Vec::new()));
+        let info = NamedFunctionInfo {
+            body: Some(body),
+            kind: NamedFunctionKind::ExternClassImpl(EQ_CLASS_NAME.to_string(), ty.clone()),
+            location_id: location,
+            type_signature: None,
+            module: module.clone(),
+            name: format!("{:?}", name),
+        };
+        let function_info = FunctionInfo::NamedFunction(info);
+        let function = Function {
+            id: function_id,
+            arg_count: 0,
+            arg_locations: arg_locations,
+            info: function_info,
+        };
+        self.program
+            .function_types
+            .insert(function_id, Type::Tuple(Vec::new()));
         self.program.functions.add_item(function_id, function);
         function_id
     }

@@ -61,7 +61,7 @@ fn process_args(args: Vec<String>) -> bool {
     let mut fail_count = 0;
     let mut failed_tcs = BTreeSet::new();
     for (s, tc_name) in success_files {
-        println!("TC-S: {}", tc_name);
+        print!("TC-S: {} ", tc_name);
         let status = Command::new(sikoc.clone())
             .arg("-s")
             .arg(siko_std.clone())
@@ -71,7 +71,10 @@ fn process_args(args: Vec<String>) -> bool {
         if !status.success() {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+            println!("Fail");
             continue;
+        } else {
+            print!("OK");
         }
         //println!("Compiling {}", s.display());
         let rs_output_file = format!("{}/{}.rs", comp_dir, tc_name);
@@ -87,7 +90,10 @@ fn process_args(args: Vec<String>) -> bool {
         if !status.success() {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+            println!("/Fail");
             continue;
+        } else {
+            print!("/OK");
         }
         let output = Command::new("rustc")
             .arg(rs_output_file)
@@ -99,6 +105,7 @@ fn process_args(args: Vec<String>) -> bool {
         if !output.status.success() {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+            println!("/Fail");
             continue;
         }
         let status = Command::new(rustc_output_file)
@@ -106,14 +113,16 @@ fn process_args(args: Vec<String>) -> bool {
             .expect("failed to execute process");
         if status.success() {
             success_count += 1;
+            println!("/OK");
         } else {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+            println!("/Fail");
             continue;
         }
     }
     for (f, tc_name) in fail_files {
-        println!("TC-F: {}", tc_name);
+        print!("TC-F: {} ", tc_name);
         let output = Command::new(sikoc.clone())
             .arg("-s")
             .arg(siko_std.clone())
@@ -124,9 +133,11 @@ fn process_args(args: Vec<String>) -> bool {
         fs::write(output_filename, output.stderr).expect("output file write failed");
         if !output.status.success() {
             success_count += 1;
+            println!("OK");
         } else {
             fail_count += 1;
             failed_tcs.insert(tc_name.clone());
+            println!("Fail")
         }
     }
 

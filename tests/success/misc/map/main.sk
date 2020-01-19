@@ -18,3 +18,5 @@ main = do
     get_stuff1 m "alma"
     (m, _) <- remove m "alma"
     get_stuff2 m "alma"
+    int_m <- empty
+    (int_m, _) <- insert int_m 4 4

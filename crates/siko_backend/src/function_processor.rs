@@ -76,6 +76,46 @@ pub fn process_function(
                         constraint.ty.get_resolved_type_string(ir_program)
                     );
                     */
+                    if constraint.class_id == ir_program.get_ord_class_id() {
+                        let queue_item = FunctionQueueItem::ExternalCallImpl(
+                            ir_program.get_partialeq_class_id(),
+                            constraint.ty.clone(),
+                            module_name.clone(),
+                        );
+                        function_queue.insert(queue_item, mir_program);
+                        let queue_item = FunctionQueueItem::ExternalCallImpl(
+                            ir_program.get_partialord_class_id(),
+                            constraint.ty.clone(),
+                            module_name.clone(),
+                        );
+                        function_queue.insert(queue_item, mir_program);
+                        let queue_item = FunctionQueueItem::ExternalCallImpl(
+                            ir_program.get_eq_class_id(),
+                            constraint.ty.clone(),
+                            module_name.clone(),
+                        );
+                        function_queue.insert(queue_item, mir_program);
+                        let queue_item = FunctionQueueItem::ExternalCallImpl(
+                            ir_program.get_ord_class_id(),
+                            constraint.ty.clone(),
+                            module_name.clone(),
+                        );
+                        function_queue.insert(queue_item, mir_program);
+                    }
+                    if constraint.class_id == ir_program.get_eq_class_id() {
+                        let queue_item = FunctionQueueItem::ExternalCallImpl(
+                            ir_program.get_partialeq_class_id(),
+                            constraint.ty.clone(),
+                            module_name.clone(),
+                        );
+                        function_queue.insert(queue_item, mir_program);
+                        let queue_item = FunctionQueueItem::ExternalCallImpl(
+                            ir_program.get_eq_class_id(),
+                            constraint.ty.clone(),
+                            module_name.clone(),
+                        );
+                        function_queue.insert(queue_item, mir_program);
+                    }
                     let queue_item = FunctionQueueItem::ExternalCallImpl(
                         constraint.class_id,
                         constraint.ty.clone(),

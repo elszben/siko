@@ -3,7 +3,9 @@ use crate::closure::ClosureDataDef;
 use crate::expr::write_expr;
 use crate::types::ir_type_to_rust_type;
 use crate::util::arg_name;
+use crate::util::get_ord_type_from_optional_ord;
 use crate::util::Indent;
+use siko_constants::EQ_CLASS_NAME;
 use siko_mir::function::FunctionId;
 use siko_mir::function::FunctionInfo;
 use siko_mir::program::Program;
@@ -96,6 +98,86 @@ pub fn write_function(
             write!(output_file, "{}}}\n", indent)?;
             indent.dec();
             write!(output_file, "{}}}\n", indent)?;
+        } else if class_name == "opEq" {
+            let impl_ty = ir_type_to_rust_type(&ty, program);
+            write!(
+                output_file,
+                "{}impl std::cmp::PartialEq for {} {{\n",
+                indent, impl_ty,
+            )?;
+            indent.inc();
+            write!(
+                output_file,
+                "{}fn eq(&self, arg1: &{}) -> bool {{\n",
+                indent, impl_ty
+            )?;
+            indent.inc();
+            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let value = ", indent)?;
+            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write!(output_file, ";\n")?;
+            write!(output_file, "{}match value {{\n", indent)?;
+            indent.inc();
+            write!(output_file, "{} {}::True => true,\n", indent, result_ty)?;
+            write!(output_file, "{} {}::False => false,\n", indent, result_ty)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+        } else if class_name == "partialCmp" {
+            let impl_ty = ir_type_to_rust_type(&ty, program);
+            let ord_ty_str = get_ord_type_from_optional_ord(&result_type, program);
+            write!(
+                output_file,
+                "{}impl std::cmp::PartialOrd for {} {{\n",
+                indent, impl_ty,
+            )?;
+            indent.inc();
+            write!(
+                output_file,
+                "{}fn partial_cmp(&self, arg1: &{}) -> Option<std::cmp::Ordering> {{\n",
+                indent, impl_ty
+            )?;
+            indent.inc();
+            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let value = ", indent)?;
+            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write!(output_file, ";\n")?;
+            write!(output_file, "{}match value {{\n", indent)?;
+            indent.inc();
+            write!(
+                output_file,
+                "{} {}::Some({}::Greater) => Some(std::cmp::Ordering::Greater),\n",
+                indent, result_ty, ord_ty_str
+            )?;
+            write!(
+                output_file,
+                "{} {}::Some({}::Equal) => Some(std::cmp::Ordering::Equal),\n",
+                indent, result_ty, ord_ty_str
+            )?;
+            write!(
+                output_file,
+                "{} {}::Some({}::Less) => Some(std::cmp::Ordering::Less),\n",
+                indent, result_ty, ord_ty_str
+            )?;
+            write!(output_file, "{} {}::None => None,\n", indent, result_ty)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+            indent.dec();
+            write!(output_file, "{}}}\n", indent)?;
+        } else if class_name == EQ_CLASS_NAME {
+            let impl_ty = ir_type_to_rust_type(&ty, program);
+            write!(
+                output_file,
+                "{}impl std::cmp::Eq for {} {{ }}\n",
+                indent, impl_ty,
+            )?;
+        } else {
+            panic!("Unimplemented extern class impl {}", class_name);
         }
     } else {
         write!(
