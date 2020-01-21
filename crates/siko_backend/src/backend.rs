@@ -1,6 +1,7 @@
 use crate::function_queue::CallContext;
 use crate::function_queue::FunctionQueue;
 use crate::function_queue::FunctionQueueItem;
+use crate::passes::run_passes;
 use crate::typedef_store::TypeDefStore;
 use siko_ir::program::Program as IrProgram;
 use siko_ir::types::Type;
@@ -20,6 +21,7 @@ impl Backend {
             &mut mir_program,
         );
         function_queue.process_items(ir_program, &mut mir_program, &mut typedef_store);
+        run_passes(&mut mir_program);
         Ok(mir_program)
     }
 }

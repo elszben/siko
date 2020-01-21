@@ -663,7 +663,7 @@ pub fn generate_builtin(
                     indent.inc();
                     write!(output_file, "{}{} {{\n", indent, struct_name)?;
                     indent.inc();
-                    write!(output_file, "{}arg0: self.arg0.box_clone(),\n", indent,)?;
+                    write!(output_file, "{}arg0: self.arg0.clone(),\n", indent,)?;
                     write!(output_file, "{}arg1: self.arg1.clone(),\n", indent,)?;
                     indent.dec();
                     write!(output_file, "{}}}\n", indent)?;

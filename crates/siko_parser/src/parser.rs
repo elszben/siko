@@ -644,7 +644,6 @@ impl<'a> Parser<'a> {
                             return Err(err);
                         }
                     }
-
                     FunctionBody::Extern
                 } else {
                     let body_expr_id = self.parse_expr()?;

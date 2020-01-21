@@ -5,7 +5,6 @@ use siko_mir::data::RecordKind;
 use siko_mir::data::TypeDef;
 use siko_mir::data::TypeDefId;
 use siko_mir::program::Program;
-use siko_mir::types::Type;
 use std::io::Result;
 use std::io::Write;
 
@@ -172,19 +171,11 @@ pub fn write_typedef(
                 write!(output_file, "{}{} {{\n", indent, record.name)?;
                 indent.inc();
                 for field in &record.fields {
-                    if let Type::Function(..) = field.ty {
-                        write!(
-                            output_file,
-                            "{}{}: self.{}.box_clone(),\n",
-                            indent, field.name, field.name
-                        )?;
-                    } else {
-                        write!(
-                            output_file,
-                            "{}{}: self.{}.clone(),\n",
-                            indent, field.name, field.name
-                        )?;
-                    }
+                    write!(
+                        output_file,
+                        "{}{}: self.{}.clone(),\n",
+                        indent, field.name, field.name
+                    )?;
                 }
                 indent.dec();
                 write!(output_file, "{}}}\n", indent)?;

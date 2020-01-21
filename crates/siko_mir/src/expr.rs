@@ -20,18 +20,19 @@ impl From<usize> for ExprId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Case {
     pub pattern_id: PatternId,
     pub body: ExprId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     ArgRef(usize),
     Bind(PatternId, ExprId),
     CaseOf(ExprId, Vec<Case>),
     CharLiteral(char),
+    Clone(ExprId),
     Do(Vec<ExprId>),
     DynamicFunctionCall(ExprId, Vec<ExprId>),
     ExprValue(ExprId, PatternId),

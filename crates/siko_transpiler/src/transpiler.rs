@@ -57,7 +57,7 @@ impl Transpiler {
         write!(output_file, "#![allow(non_snake_case)]\n")?;
         write!(output_file, "#![allow(non_camel_case_types)]\n")?;
         write!(output_file, "#![allow(unused_variables)]\n")?;
-        write!(output_file, "#![allow(dead_code)]\n\n")?;
+        write!(output_file, "#![allow(dead_code)]\n")?;
         write!(output_file, "#![allow(unused_parens)]\n\n")?;
         let mut rust_program = RustProgram::new();
         rust_program.get_module(MIR_INTERNAL_MODULE_NAME.to_string());

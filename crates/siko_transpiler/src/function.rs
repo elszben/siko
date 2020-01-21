@@ -48,7 +48,7 @@ pub fn write_function(
                 indent
             )?;
             indent.inc();
-            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
             write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
@@ -71,7 +71,8 @@ pub fn write_function(
                 indent, impl_ty
             )?;
             indent.inc();
-            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
+            write!(output_file, "{}let arg1 = arg1.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
             write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
@@ -112,7 +113,8 @@ pub fn write_function(
                 indent, impl_ty
             )?;
             indent.inc();
-            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
+            write!(output_file, "{}let arg1 = arg1.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
             write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
@@ -141,7 +143,8 @@ pub fn write_function(
                 indent, impl_ty
             )?;
             indent.inc();
-            write!(output_file, "{}let arg0 = self;\n", indent)?;
+            write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
+            write!(output_file, "{}let arg1 = arg1.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
             write_expr(*body, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;

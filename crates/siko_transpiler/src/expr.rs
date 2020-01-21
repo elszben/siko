@@ -5,7 +5,6 @@ use crate::types::ir_type_to_rust_type;
 use crate::util::arg_name;
 use crate::util::get_module_name;
 use crate::util::Indent;
-use siko_constants::MIR_FUNCTION_TRAIT_NAME;
 use siko_constants::MIR_INTERNAL_MODULE_NAME;
 use siko_mir::expr::Expr;
 use siko_mir::expr::ExprId;
@@ -102,12 +101,16 @@ pub fn write_expr(
                 let mut arg_types = Vec::new();
                 function.function_type.get_args(&mut arg_types);
                 let mut result_type = function.function_type.clone();
+                let mut closure_type = result_type.clone();
                 let mut fields = Vec::new();
                 let mut traits = Vec::new();
                 for index in 0..function.arg_count {
                     let mut arg_types = Vec::new();
                     result_type.get_args(&mut arg_types);
                     result_type = result_type.get_result_type(1);
+                    if index == args.len() - 1 {
+                        closure_type = result_type.clone();
+                    }
                     let arg_type = &arg_types[0];
                     if index >= args.len() {
                         let arg_type_str = ir_type_to_rust_type(arg_type, program);
@@ -153,16 +156,24 @@ pub fn write_expr(
                         } else {
                             ir_type_to_rust_type(arg_type, program)
                         };
-                        fields.push((field_name, field_type, arg_type.clone()));
+                        fields.push((field_name, field_type));
                     }
                 }
-                let name = format!("ClosureData{}", expr_id.id);
-                write!(
-                    output_file,
-                    "Box::new(crate::{}::{}{{",
-                    get_module_name(MIR_INTERNAL_MODULE_NAME),
+                let name = if let Some(closure) = program.closures.get(&closure_type) {
+                    let name = format!("ClosureData{}", expr_id.id);
+                    write!(
+                        output_file,
+                        "crate::{}::{} {{ value: Box::new(crate::{}::{}{{",
+                        get_module_name(MIR_INTERNAL_MODULE_NAME),
+                        closure.name,
+                        get_module_name(MIR_INTERNAL_MODULE_NAME),
+                        name
+                    )?;
                     name
-                )?;
+                } else {
+                    let ss = ir_type_to_rust_type(&result_type, program);
+                    panic!("No closure for type {}", ss);
+                };
                 for (index, field) in fields.iter().enumerate() {
                     write!(output_file, "{} : ", field.0)?;
                     if index < args.len() {
@@ -175,7 +186,7 @@ pub fn write_expr(
                         write!(output_file, ", ")?;
                     }
                 }
-                write!(output_file, "}})")?;
+                write!(output_file, "}})}}")?;
                 let closure_data_def = ClosureDataDef {
                     name: name,
                     fields: fields,
@@ -217,7 +228,6 @@ pub fn write_expr(
                 write!(output_file, "{} (", name)?;
                 for (index, arg) in args.iter().enumerate() {
                     write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                    write!(output_file, ".clone()")?;
                     if index != args.len() - 1 {
                         write!(output_file, ", ")?;
                     }
@@ -337,17 +347,17 @@ pub fn write_expr(
             write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
             write!(output_file, ";\n")?;
             for arg in args {
-                write!(
-                    output_file,
-                    "{}let dyn_fn = crate::{}::{}::call(&*dyn_fn, ",
-                    indent, MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME
-                )?;
+                write!(output_file, "{}let dyn_fn = dyn_fn.call(", indent)?;
                 write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                write!(output_file, ".clone());\n")?;
+                write!(output_file, ");\n")?;
             }
             write!(output_file, "{}dyn_fn\n", indent)?;
             indent.dec();
             write!(output_file, "{}}}", indent)?;
+        }
+        Expr::Clone(rhs) => {
+            write_expr(*rhs, output_file, program, indent, closure_data_defs)?;
+            write!(output_file, ".clone()")?;
         }
     }
     Ok(is_statement)

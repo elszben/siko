@@ -41,3 +41,10 @@ impl Type {
         }
     }
 }
+
+pub struct Closure {
+    pub name: String,
+    pub ty: Type,
+    pub from_ty: Type,
+    pub to_ty: Type,
+}

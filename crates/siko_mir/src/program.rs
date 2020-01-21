@@ -6,6 +6,7 @@ use crate::function::Function;
 use crate::function::FunctionId;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
+use crate::types::Closure;
 use crate::types::Type;
 use siko_location_info::item::ItemInfo;
 use siko_location_info::location_id::LocationId;
@@ -19,6 +20,7 @@ pub struct Program {
     pub pattern_types: BTreeMap<PatternId, Type>,
     pub functions: ItemContainer<FunctionId, Function>,
     pub typedefs: ItemContainer<TypeDefId, TypeDef>,
+    pub closures: BTreeMap<Type, Closure>,
 }
 
 impl Program {
@@ -30,6 +32,7 @@ impl Program {
             pattern_types: BTreeMap::new(),
             functions: ItemContainer::new(),
             typedefs: ItemContainer::new(),
+            closures: BTreeMap::new(),
         }
     }
 
@@ -68,5 +71,9 @@ impl Program {
         self.pattern_types
             .get(pattern_id)
             .expect("Pattern type not found")
+    }
+
+    pub fn update_expr(&mut self, expr_id: ExprId, expr: Expr) {
+        self.exprs.get_mut(&expr_id).item = expr;
     }
 }
