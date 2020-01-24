@@ -1,3 +1,4 @@
+use crate::backend_passes::convert_args_to_closures::convert_args_to_closures;
 use crate::backend_passes::insert_clone::insert_clone_pass;
 use crate::backend_passes::process_static_calls::process_static_calls_pass;
 use siko_mir::function::FunctionInfo;
@@ -16,4 +17,6 @@ pub fn run_passes(program: &mut Program) {
     for body in &bodies {
         insert_clone_pass(body, program);
     }
+
+    convert_args_to_closures(program);
 }

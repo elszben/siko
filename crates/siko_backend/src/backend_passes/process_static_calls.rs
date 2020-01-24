@@ -1,5 +1,7 @@
+use crate::type_processor::process_stored_type;
 use siko_mir::expr::Expr;
 use siko_mir::expr::ExprId;
+use siko_mir::function::Function;
 use siko_mir::pattern::Pattern;
 use siko_mir::pattern::PatternId;
 use siko_mir::program::Program;
@@ -21,7 +23,7 @@ impl<'a> Visitor for ProcessStaticCalls<'a> {
         let location = self.program.exprs.get(&expr_id).location_id;
         match expr {
             Expr::StaticFunctionCall(id, args) => {
-                let function = self.program.functions.get(id).clone();
+                let function: Function = self.program.functions.get(id).clone();
                 let mut arg_types = Vec::new();
                 function.function_type.get_args(&mut arg_types);
                 if function.arg_count > args.len() {
@@ -30,6 +32,7 @@ impl<'a> Visitor for ProcessStaticCalls<'a> {
                     for index in 0..function.arg_count {
                         if index < function.arg_count - 1 {
                             let field_type = arg_types[index].clone();
+                            let field_type = process_stored_type(field_type, self.program);
                             let field = PartialFunctionCallField {
                                 ty: field_type,
                                 deferred: index >= args.len(),
@@ -39,6 +42,7 @@ impl<'a> Visitor for ProcessStaticCalls<'a> {
                         if index >= args.len() {
                             let result_ty = function.function_type.get_result_type(index);
                             let (from, to) = result_ty.get_from_to();
+                            let to = process_stored_type(to, self.program);
                             let dyn_trait = if index == function.arg_count - 1 {
                                 DynamicCallTrait::RealCall { from: from, to: to }
                             } else {
@@ -52,11 +56,15 @@ impl<'a> Visitor for ProcessStaticCalls<'a> {
                         }
                     }
                     let partial_function_call_id = self.program.partial_function_calls.get_id();
+                    let closure_type = self
+                        .program
+                        .add_closure_type(&function.function_type.get_result_type(args.len()));
                     let partial_function_call = PartialFunctionCall {
                         id: partial_function_call_id,
                         function: *id,
                         fields: fields,
                         traits: traits,
+                        closure_type: closure_type,
                     };
                     self.program
                         .partial_function_calls

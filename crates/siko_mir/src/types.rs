@@ -8,6 +8,7 @@ use std::fmt;
 pub enum Type {
     Named(TypeDefId),
     Function(Box<Type>, Box<Type>),
+    Closure(Box<Type>),
 }
 
 impl Type {
@@ -18,6 +19,15 @@ impl Type {
                 args.push(*from.clone());
                 to.get_args(args);
             }
+            Type::Closure(ty) => ty.get_args(args),
+        }
+    }
+
+    pub fn is_function(&self) -> bool {
+        match self {
+            Type::Named(..) => false,
+            Type::Function(..) => true,
+            Type::Closure(..) => false,
         }
     }
 
@@ -35,6 +45,13 @@ impl Type {
                     }
                 }
             }
+            Type::Closure(ty) => {
+                if arg_count == 0 {
+                    self.clone()
+                } else {
+                    ty.get_result_type(arg_count)
+                }
+            }
         }
     }
 
@@ -42,6 +59,7 @@ impl Type {
         match self {
             Type::Named(id) => *id,
             Type::Function(_, _) => unreachable!(),
+            Type::Closure(ty) => ty.get_typedef_id(),
         }
     }
 
@@ -49,6 +67,7 @@ impl Type {
         match self {
             Type::Function(from, to) => (*from.clone(), *to.clone()),
             Type::Named(_) => unreachable!(),
+            Type::Closure(ty) => ty.get_from_to(),
         }
     }
 
@@ -66,6 +85,10 @@ impl Type {
                     TypeDef::Record(record) => format!("{}.{}", &record.module, record.name),
                 }
             }
+            Type::Closure(ty) => {
+                let closure = program.get_closure_type(ty);
+                closure.get_name()
+            }
         }
     }
 }
@@ -75,6 +98,12 @@ pub struct Closure {
     pub ty: Type,
     pub from_ty: Type,
     pub to_ty: Type,
+}
+
+impl Closure {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 pub enum DynamicCallTrait {
@@ -116,6 +145,7 @@ pub struct PartialFunctionCall {
     pub fields: Vec<PartialFunctionCallField>,
     pub traits: Vec<DynamicCallTrait>,
     pub function: FunctionId,
+    pub closure_type: Type,
 }
 
 impl PartialFunctionCall {

@@ -1,3 +1,4 @@
+use crate::type_processor::process_stored_type;
 use crate::type_processor::process_type;
 use siko_constants::MIR_INTERNAL_MODULE_NAME;
 use siko_ir::data::TypeDef as IrTypeDef;
@@ -41,6 +42,7 @@ impl TypeDefStore {
         if newly_added {
             let mut fields = Vec::new();
             for (index, field_ty) in field_types.into_iter().enumerate() {
+                let field_ty = process_stored_type(field_ty, mir_program);
                 let mir_field = MirRecordField {
                     name: format!("field_{}", index),
                     ty: field_ty,
@@ -93,6 +95,7 @@ impl TypeDefStore {
                                 for (item_ty, _) in &variant.item_types {
                                     let mir_item_ty =
                                         process_type(item_ty, self, ir_program, mir_program);
+                                    let mir_item_ty = process_stored_type(mir_item_ty, mir_program);
                                     mir_item_types.push(mir_item_ty);
                                 }
                                 let mir_variant = MirVariant {
@@ -127,6 +130,7 @@ impl TypeDefStore {
                             {
                                 let mir_field_ty =
                                     process_type(field_ty, self, ir_program, mir_program);
+                                let mir_field_ty = process_stored_type(mir_field_ty, mir_program);
                                 let mir_field = MirRecordField {
                                     name: ir_record.fields[index].name.clone(),
                                     ty: mir_field_ty,

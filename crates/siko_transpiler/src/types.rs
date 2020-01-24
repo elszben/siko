@@ -7,9 +7,13 @@ use siko_mir::types::Type;
 
 pub fn ir_type_to_rust_type(ty: &Type, program: &Program) -> String {
     match ty {
-        Type::Function(..) => {
-            let closure = program.closures.get(ty).expect("Closure type not found");
-            format!("crate::{}::{}", MIR_INTERNAL_MODULE_NAME, closure.name)
+        Type::Function(from, to) => {
+            let from = ir_type_to_rust_type(from, program);
+            let to = ir_type_to_rust_type(to, program);
+            format!(
+                "Box<dyn crate::{}::{}<{}, {}>>",
+                MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME, from, to
+            )
         }
         Type::Named(id) => {
             let typedef = program.typedefs.get(id);
@@ -19,19 +23,13 @@ pub fn ir_type_to_rust_type(ty: &Type, program: &Program) -> String {
             };
             format!("crate::{}::{}", module_name, name)
         }
-    }
-}
-
-pub fn ir_fn_type_to_rust_fn_type(ty: &Type, program: &Program) -> String {
-    match ty {
-        Type::Function(from, to) => {
-            let from = ir_type_to_rust_type(from, program);
-            let to = ir_type_to_rust_type(to, program);
+        Type::Closure(ty) => {
+            let closure = program.get_closure_type(ty);
             format!(
-                "Box<dyn crate::{}::{}<{}, {}>>",
-                MIR_INTERNAL_MODULE_NAME, MIR_FUNCTION_TRAIT_NAME, from, to
+                "crate::{}::{}",
+                MIR_INTERNAL_MODULE_NAME,
+                closure.get_name()
             )
         }
-        _ => ir_type_to_rust_type(ty, program),
     }
 }

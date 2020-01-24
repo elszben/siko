@@ -20,6 +20,7 @@ impl From<usize> for FunctionId {
     }
 }
 
+#[derive(Clone)]
 pub enum FunctionInfo {
     Normal(ExprId),
     Extern(String),
@@ -28,6 +29,7 @@ pub enum FunctionInfo {
     ExternClassImpl(String, Type, ExprId),
 }
 
+#[derive(Clone)]
 pub struct Function {
     pub name: String,
     pub module: String,

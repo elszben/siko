@@ -93,11 +93,7 @@ pub fn write_expr(
         }
         Expr::PartialFunctionCall(id, args) => {
             let partial_function_call = program.partial_function_calls.get(id);
-            let function = program.functions.get(&partial_function_call.function);
-            let closure = program
-                .closures
-                .get(&function.function_type.get_result_type(args.len()))
-                .expect("Closure type not found");
+            let closure = program.get_closure_type(&partial_function_call.closure_type);
             let name = partial_function_call.get_name();
             write!(
                 output_file,

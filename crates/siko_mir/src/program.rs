@@ -77,6 +77,43 @@ impl Program {
             .expect("Pattern type not found")
     }
 
+    pub fn add_closure_type(&mut self, ty: &Type) -> Type {
+        if let Type::Function(from, to) = ty {
+            let from = if from.is_function() {
+                self.add_closure_type(from)
+            } else {
+                *from.clone()
+            };
+            let to = if to.is_function() {
+                self.add_closure_type(to)
+            } else {
+                *to.clone()
+            };
+            let ty = Type::Function(Box::new(from.clone()), Box::new(to.clone()));
+            let index = self.closures.len();
+            self.closures.entry(ty.clone()).or_insert_with(|| Closure {
+                name: format!("Closure{}", index),
+                ty: ty.clone(),
+                from_ty: from,
+                to_ty: to,
+            });
+            Type::Closure(Box::new(ty.clone()))
+        } else {
+            panic!("{} is not a closure", ty.to_string(self))
+        }
+    }
+
+    pub fn get_closure_type(&self, ty: &Type) -> &Closure {
+        match ty {
+            Type::Function(..) => match self.closures.get(ty) {
+                Some(c) => c,
+                None => panic!("Closure type {} not found", ty.to_string(self)),
+            },
+            Type::Closure(ty) => self.get_closure_type(ty),
+            _ => panic!("Closure type {} not found", ty.to_string(self)),
+        }
+    }
+
     pub fn update_expr(&mut self, expr_id: ExprId, expr: Expr) {
         self.exprs.get_mut(&expr_id).item = expr;
     }

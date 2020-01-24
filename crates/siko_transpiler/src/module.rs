@@ -1,6 +1,5 @@
 use crate::function::write_function;
 use crate::typedef::write_typedef;
-use crate::types::ir_fn_type_to_rust_fn_type;
 use crate::types::ir_type_to_rust_type;
 use crate::util::arg_name;
 use crate::util::get_module_name;
@@ -248,7 +247,7 @@ impl Module {
 
             for (_, closure) in &program.closures {
                 write!(output_file, "{}pub struct {} {{\n", indent, closure.name)?;
-                let fn_name = ir_fn_type_to_rust_fn_type(&closure.ty, program);
+                let fn_name = ir_type_to_rust_type(&closure.ty, program);
                 indent.inc();
                 write!(output_file, "{}pub value: {}\n", indent, fn_name,)?;
                 indent.dec();
