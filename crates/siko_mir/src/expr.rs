@@ -1,6 +1,7 @@
 use crate::data::TypeDefId;
 use crate::function::FunctionId;
 use crate::pattern::PatternId;
+use crate::types::PartialFunctionCallId;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -45,5 +46,6 @@ pub enum Expr {
     RecordInitialization(TypeDefId, Vec<(ExprId, usize)>),
     RecordUpdate(ExprId, Vec<(ExprId, usize)>),
     StaticFunctionCall(FunctionId, Vec<ExprId>),
+    PartialFunctionCall(PartialFunctionCallId, Vec<ExprId>),
     StringLiteral(String),
 }

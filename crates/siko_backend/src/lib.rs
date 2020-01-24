@@ -1,4 +1,5 @@
 pub mod backend;
+pub mod backend_passes;
 pub mod class_member_processor;
 pub mod expr_processor;
 pub mod format_rewriter;

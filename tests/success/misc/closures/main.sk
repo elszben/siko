@@ -1,0 +1,12 @@
+module Main where
+
+import Std.Util
+
+plus :: Int -> Int -> Int -> Int -> Int
+plus a b c d = a + b + c + d
+
+main = do
+    a <- plus 1
+    a <- a 123
+    a <- a 123
+    a <- a 123

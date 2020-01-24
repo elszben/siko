@@ -1,4 +1,8 @@
+use crate::data::TypeDef;
 use crate::data::TypeDefId;
+use crate::function::FunctionId;
+use crate::program::Program;
+use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Type {
@@ -40,6 +44,30 @@ impl Type {
             Type::Function(_, _) => unreachable!(),
         }
     }
+
+    pub fn get_from_to(&self) -> (Type, Type) {
+        match self {
+            Type::Function(from, to) => (*from.clone(), *to.clone()),
+            Type::Named(_) => unreachable!(),
+        }
+    }
+
+    pub fn to_string(&self, program: &Program) -> String {
+        match self {
+            Type::Function(from, to) => {
+                let from = from.to_string(program);
+                let to = to.to_string(program);
+                format!("{} -> {}", from, to)
+            }
+            Type::Named(id) => {
+                let typedef = program.typedefs.get(id);
+                match typedef {
+                    TypeDef::Adt(adt) => format!("{}.{}", adt.module, adt.name),
+                    TypeDef::Record(record) => format!("{}.{}", &record.module, record.name),
+                }
+            }
+        }
+    }
 }
 
 pub struct Closure {
@@ -47,4 +75,51 @@ pub struct Closure {
     pub ty: Type,
     pub from_ty: Type,
     pub to_ty: Type,
+}
+
+pub enum DynamicCallTrait {
+    RealCall {
+        from: Type,
+        to: Type,
+    },
+    ArgSave {
+        from: Type,
+        to: Type,
+        field_index: usize,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct PartialFunctionCallId {
+    pub id: usize,
+}
+
+impl fmt::Display for PartialFunctionCallId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "#{}", self.id)
+    }
+}
+
+impl From<usize> for PartialFunctionCallId {
+    fn from(id: usize) -> PartialFunctionCallId {
+        PartialFunctionCallId { id: id }
+    }
+}
+
+pub struct PartialFunctionCallField {
+    pub ty: Type,
+    pub deferred: bool,
+}
+
+pub struct PartialFunctionCall {
+    pub id: PartialFunctionCallId,
+    pub fields: Vec<PartialFunctionCallField>,
+    pub traits: Vec<DynamicCallTrait>,
+    pub function: FunctionId,
+}
+
+impl PartialFunctionCall {
+    pub fn get_name(&self) -> String {
+        format!("PartialFunctionCall{}", self.id.id)
+    }
 }

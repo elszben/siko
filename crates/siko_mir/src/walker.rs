@@ -22,6 +22,11 @@ pub fn walk_expr(expr_id: &ExprId, visitor: &mut dyn Visitor) {
                 walk_expr(arg, visitor);
             }
         }
+        Expr::PartialFunctionCall(_, args) => {
+            for arg in args {
+                walk_expr(arg, visitor);
+            }
+        }
         Expr::DynamicFunctionCall(func_expr, args) => {
             walk_expr(func_expr, visitor);
             for arg in args {

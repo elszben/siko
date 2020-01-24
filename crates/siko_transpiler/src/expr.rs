@@ -1,5 +1,3 @@
-use crate::closure::ClosureDataDef;
-use crate::closure::DynTrait;
 use crate::pattern::write_pattern;
 use crate::types::ir_type_to_rust_type;
 use crate::util::arg_name;
@@ -18,7 +16,6 @@ pub fn write_expr(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
-    closure_data_defs: &mut Vec<ClosureDataDef>,
 ) -> Result<bool> {
     let mut is_statement = false;
     let expr = &program.exprs.get(&expr_id).item;
@@ -32,8 +29,7 @@ pub fn write_expr(
             indent.inc();
             for (index, item) in items.iter().enumerate() {
                 write!(output_file, "{}", indent)?;
-                let is_statement =
-                    write_expr(*item, output_file, program, indent, closure_data_defs)?;
+                let is_statement = write_expr(*item, output_file, program, indent)?;
                 if is_statement {
                     if index == items.len() - 1 {
                         let ty = program.get_expr_type(&expr_id);
@@ -57,7 +53,7 @@ pub fn write_expr(
             for (item, index) in items {
                 let field = &record.fields[*index];
                 write!(output_file, "{}: ", field.name)?;
-                write_expr(*item, output_file, program, indent, closure_data_defs)?;
+                write_expr(*item, output_file, program, indent)?;
                 write!(output_file, ", ")?;
             }
             write!(output_file, "}}")?;
@@ -68,12 +64,12 @@ pub fn write_expr(
             let record = program.typedefs.get(&id).get_record();
             write!(output_file, "{{ let mut value = ")?;
             indent.inc();
-            write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
+            write_expr(*receiver, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             for (item, index) in items {
                 let field = &record.fields[*index];
                 write!(output_file, "{}value.{} = ", indent, field.name)?;
-                write_expr(*item, output_file, program, indent, closure_data_defs)?;
+                write_expr(*item, output_file, program, indent)?;
                 write!(output_file, ";\n")?;
             }
             write!(output_file, "{}value }}", indent)?;
@@ -81,9 +77,9 @@ pub fn write_expr(
         }
         Expr::Bind(pattern, rhs) => {
             write!(output_file, "let ")?;
-            write_pattern(*pattern, output_file, program, indent, closure_data_defs)?;
+            write_pattern(*pattern, output_file, program, indent)?;
             write!(output_file, " = ")?;
-            write_expr(*rhs, output_file, program, indent, closure_data_defs)?;
+            write_expr(*rhs, output_file, program, indent)?;
             write!(output_file, ";")?;
             is_statement = true;
         }
@@ -95,145 +91,52 @@ pub fn write_expr(
                 unreachable!();
             }
         }
+        Expr::PartialFunctionCall(id, args) => {
+            let partial_function_call = program.partial_function_calls.get(id);
+            let function = program.functions.get(&partial_function_call.function);
+            let closure = program
+                .closures
+                .get(&function.function_type.get_result_type(args.len()))
+                .expect("Closure type not found");
+            let name = partial_function_call.get_name();
+            write!(
+                output_file,
+                "crate::{}::{} {{ value: Box::new(crate::{}::{} {{",
+                get_module_name(MIR_INTERNAL_MODULE_NAME),
+                closure.name,
+                get_module_name(MIR_INTERNAL_MODULE_NAME),
+                name
+            )?;
+            for index in 0..partial_function_call.fields.len() {
+                write!(output_file, "{} : ", arg_name(index))?;
+                if index < args.len() {
+                    let arg = &args[index];
+                    write_expr(*arg, output_file, program, indent)?;
+                } else {
+                    write!(output_file, "None")?;
+                }
+                if index != partial_function_call.fields.len() - 1 {
+                    write!(output_file, ", ")?;
+                }
+            }
+            write!(output_file, "}})}}")?;
+        }
         Expr::StaticFunctionCall(id, args) => {
             let function = program.functions.get(id);
-            if function.arg_count > args.len() {
-                let mut arg_types = Vec::new();
-                function.function_type.get_args(&mut arg_types);
-                let mut result_type = function.function_type.clone();
-                let mut closure_type = result_type.clone();
-                let mut fields = Vec::new();
-                let mut traits = Vec::new();
-                for index in 0..function.arg_count {
-                    let mut arg_types = Vec::new();
-                    result_type.get_args(&mut arg_types);
-                    result_type = result_type.get_result_type(1);
-                    if index == args.len() - 1 {
-                        closure_type = result_type.clone();
-                    }
-                    let arg_type = &arg_types[0];
-                    if index >= args.len() {
-                        let arg_type_str = ir_type_to_rust_type(arg_type, program);
-                        let result_type_str = ir_type_to_rust_type(&result_type, program);
-                        if index == function.arg_count - 1 {
-                            let mut real_call_args = Vec::new();
-                            for i in 0..function.arg_count - 1 {
-                                if i < args.len() {
-                                    let arg = format!("self.get_arg{}()", i);
-                                    real_call_args.push(arg);
-                                } else {
-                                    let arg = format!(
-                                        "self.{}.as_ref().expect(\"Missing arg\").clone()",
-                                        arg_name(i)
-                                    );
-                                    real_call_args.push(arg);
-                                }
-                            }
-                            real_call_args.push(format!("arg0"));
-                            let fn_name = format!(
-                                "crate::{}::{}",
-                                get_module_name(&function.module),
-                                function.name
-                            );
-                            let call_str = format!("{}({})", fn_name, real_call_args.join(", "));
-                            traits.push(DynTrait::RealCall(
-                                arg_type_str,
-                                result_type_str,
-                                call_str,
-                            ));
-                        } else {
-                            traits.push(DynTrait::ArgSave(
-                                arg_type_str,
-                                result_type_str,
-                                arg_name(index),
-                            ));
-                        }
-                    }
-                    if index < function.arg_count - 1 {
-                        let field_name = arg_name(index);
-                        let field_type = if index >= args.len() {
-                            format!("Option<{}>", ir_type_to_rust_type(arg_type, program))
-                        } else {
-                            ir_type_to_rust_type(arg_type, program)
-                        };
-                        fields.push((field_name, field_type));
-                    }
+            assert_eq!(function.arg_count, args.len());
+            let name = format!(
+                "crate::{}::{}",
+                get_module_name(&function.module),
+                function.name
+            );
+            write!(output_file, "{} (", name)?;
+            for (index, arg) in args.iter().enumerate() {
+                write_expr(*arg, output_file, program, indent)?;
+                if index != args.len() - 1 {
+                    write!(output_file, ", ")?;
                 }
-                let name = if let Some(closure) = program.closures.get(&closure_type) {
-                    let name = format!("ClosureData{}", expr_id.id);
-                    write!(
-                        output_file,
-                        "crate::{}::{} {{ value: Box::new(crate::{}::{}{{",
-                        get_module_name(MIR_INTERNAL_MODULE_NAME),
-                        closure.name,
-                        get_module_name(MIR_INTERNAL_MODULE_NAME),
-                        name
-                    )?;
-                    name
-                } else {
-                    let ss = ir_type_to_rust_type(&result_type, program);
-                    panic!("No closure for type {}", ss);
-                };
-                for (index, field) in fields.iter().enumerate() {
-                    write!(output_file, "{} : ", field.0)?;
-                    if index < args.len() {
-                        let arg = &args[index];
-                        write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                    } else {
-                        write!(output_file, "None")?;
-                    }
-                    if index != fields.len() - 1 {
-                        write!(output_file, ", ")?;
-                    }
-                }
-                write!(output_file, "}})}}")?;
-                let closure_data_def = ClosureDataDef {
-                    name: name,
-                    fields: fields,
-                    traits: traits,
-                };
-                closure_data_defs.push(closure_data_def);
-            } else if function.arg_count < args.len() {
-                let name = format!(
-                    "crate::{}::{}",
-                    get_module_name(&function.module),
-                    function.name
-                );
-                write!(output_file, "{{{}let dyn_fn = ", indent)?;
-                write!(output_file, "{} (", name)?;
-                for index in 0..function.arg_count {
-                    let arg = &args[index];
-                    write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                    write!(output_file, ".clone()")?;
-                    if index != args.len() - 1 {
-                        write!(output_file, ", ")?;
-                    }
-                }
-                write!(output_file, ");\n")?;
-                for index in function.arg_count..args.len() {
-                    write!(output_file, "{}let dyn_fn = dyn_fn.call(", indent)?;
-                    let arg = &args[index];
-                    write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                    write!(output_file, ");\n",)?;
-                }
-                write!(output_file, "{}dyn_fn\n", indent)?;
-                write!(output_file, "{}}}", indent)?;
-            } else {
-                assert_eq!(function.arg_count, args.len());
-                let name = format!(
-                    "crate::{}::{}",
-                    get_module_name(&function.module),
-                    function.name
-                );
-                write!(output_file, "{} (", name)?;
-                for (index, arg) in args.iter().enumerate() {
-                    write_expr(*arg, output_file, program, indent, closure_data_defs)?;
-                    if index != args.len() - 1 {
-                        write!(output_file, ", ")?;
-                    }
-                }
-                write!(output_file, ")")?;
             }
+            write!(output_file, ")")?;
         }
         Expr::IntegerLiteral(i) => {
             let ty = program.get_expr_type(&expr_id);
@@ -263,7 +166,7 @@ pub fn write_expr(
                 write!(output_file, ",")?;
             }
             for (index, arg) in args.iter().enumerate() {
-                write_expr(*arg, output_file, program, indent, closure_data_defs)?;
+                write_expr(*arg, output_file, program, indent)?;
                 write!(output_file, ".value")?;
                 if index != args.len() - 1 {
                     write!(output_file, ",")?;
@@ -273,20 +176,14 @@ pub fn write_expr(
         }
         Expr::CaseOf(body, cases) => {
             write!(output_file, "match (")?;
-            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write_expr(*body, output_file, program, indent)?;
             write!(output_file, ") {{\n")?;
             indent.inc();
             for case in cases {
                 write!(output_file, "{}", indent)?;
-                write_pattern(
-                    case.pattern_id,
-                    output_file,
-                    program,
-                    indent,
-                    closure_data_defs,
-                )?;
+                write_pattern(case.pattern_id, output_file, program, indent)?;
                 write!(output_file, " => {{")?;
-                write_expr(case.body, output_file, program, indent, closure_data_defs)?;
+                write_expr(case.body, output_file, program, indent)?;
                 write!(output_file, "}}\n")?;
             }
             indent.dec();
@@ -296,29 +193,17 @@ pub fn write_expr(
             let ty = program.get_expr_type(cond);
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "if {{ match (")?;
-            write_expr(*cond, output_file, program, indent, closure_data_defs)?;
+            write_expr(*cond, output_file, program, indent)?;
             write!(
                 output_file,
                 ") {{ {}::True => true, {}::False => false, }} }} ",
                 ty, ty
             )?;
             write!(output_file, " {{ ")?;
-            write_expr(
-                *true_branch,
-                output_file,
-                program,
-                indent,
-                closure_data_defs,
-            )?;
+            write_expr(*true_branch, output_file, program, indent)?;
             write!(output_file, " }} ")?;
             write!(output_file, " else {{ ")?;
-            write_expr(
-                *false_branch,
-                output_file,
-                program,
-                indent,
-                closure_data_defs,
-            )?;
+            write_expr(*false_branch, output_file, program, indent)?;
             write!(output_file, " }} ")?;
         }
         Expr::FieldAccess(index, receiver) => {
@@ -326,7 +211,7 @@ pub fn write_expr(
             let id = ty.get_typedef_id();
             let record = program.typedefs.get(&id).get_record();
             let field = &record.fields[*index];
-            write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
+            write_expr(*receiver, output_file, program, indent)?;
             write!(output_file, ".{}", field.name)?;
         }
         Expr::List(items) => {
@@ -334,7 +219,7 @@ pub fn write_expr(
             let ty = ir_type_to_rust_type(ty, program);
             write!(output_file, "{} {{ value: vec![", ty)?;
             for (index, item) in items.iter().enumerate() {
-                write_expr(*item, output_file, program, indent, closure_data_defs)?;
+                write_expr(*item, output_file, program, indent)?;
                 if index != items.len() - 1 {
                     write!(output_file, ", ")?;
                 }
@@ -344,11 +229,11 @@ pub fn write_expr(
         Expr::DynamicFunctionCall(receiver, args) => {
             indent.inc();
             write!(output_file, "{{\n{}let dyn_fn = ", indent)?;
-            write_expr(*receiver, output_file, program, indent, closure_data_defs)?;
+            write_expr(*receiver, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             for arg in args {
                 write!(output_file, "{}let dyn_fn = dyn_fn.call(", indent)?;
-                write_expr(*arg, output_file, program, indent, closure_data_defs)?;
+                write_expr(*arg, output_file, program, indent)?;
                 write!(output_file, ");\n")?;
             }
             write!(output_file, "{}dyn_fn\n", indent)?;
@@ -356,7 +241,7 @@ pub fn write_expr(
             write!(output_file, "{}}}", indent)?;
         }
         Expr::Clone(rhs) => {
-            write_expr(*rhs, output_file, program, indent, closure_data_defs)?;
+            write_expr(*rhs, output_file, program, indent)?;
             write!(output_file, ".clone()")?;
         }
     }

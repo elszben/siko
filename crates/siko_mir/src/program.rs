@@ -7,6 +7,8 @@ use crate::function::FunctionId;
 use crate::pattern::Pattern;
 use crate::pattern::PatternId;
 use crate::types::Closure;
+use crate::types::PartialFunctionCall;
+use crate::types::PartialFunctionCallId;
 use crate::types::Type;
 use siko_location_info::item::ItemInfo;
 use siko_location_info::location_id::LocationId;
@@ -21,6 +23,7 @@ pub struct Program {
     pub functions: ItemContainer<FunctionId, Function>,
     pub typedefs: ItemContainer<TypeDefId, TypeDef>,
     pub closures: BTreeMap<Type, Closure>,
+    pub partial_function_calls: ItemContainer<PartialFunctionCallId, PartialFunctionCall>,
 }
 
 impl Program {
@@ -33,6 +36,7 @@ impl Program {
             functions: ItemContainer::new(),
             typedefs: ItemContainer::new(),
             closures: BTreeMap::new(),
+            partial_function_calls: ItemContainer::new(),
         }
     }
 

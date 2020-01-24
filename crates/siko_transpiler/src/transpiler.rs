@@ -29,15 +29,14 @@ impl RustProgram {
 
     fn write(&self, output_file: &mut dyn Write, program: &Program) -> Result<()> {
         let mut indent = Indent::new();
-        let mut closure_data_defs = Vec::new();
         for (_, module) in &self.modules {
             if !module.internal {
-                module.write(output_file, program, &mut indent, &mut closure_data_defs)?;
+                module.write(output_file, program, &mut indent)?;
             }
         }
         for (_, module) in &self.modules {
             if module.internal {
-                module.write(output_file, program, &mut indent, &mut closure_data_defs)?;
+                module.write(output_file, program, &mut indent)?;
             }
         }
         write!(output_file, "fn main() {{\n")?;

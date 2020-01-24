@@ -1,5 +1,4 @@
 use crate::builtins::generate_builtin;
-use crate::closure::ClosureDataDef;
 use crate::expr::write_expr;
 use crate::types::ir_type_to_rust_type;
 use crate::util::arg_name;
@@ -17,7 +16,6 @@ pub fn write_function(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
-    closure_data_defs: &mut Vec<ClosureDataDef>,
 ) -> Result<()> {
     let function = program.functions.get(&function_id);
     let mut fn_args = Vec::new();
@@ -50,7 +48,7 @@ pub fn write_function(
             indent.inc();
             write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
-            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write_expr(*body, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}write!(f, \"{{}}\", value.value)\n", indent)?;
             indent.dec();
@@ -74,7 +72,7 @@ pub fn write_function(
             write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
             write!(output_file, "{}let arg1 = arg1.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
-            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write_expr(*body, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}match value {{\n", indent)?;
             indent.inc();
@@ -116,7 +114,7 @@ pub fn write_function(
             write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
             write!(output_file, "{}let arg1 = arg1.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
-            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write_expr(*body, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}match value {{\n", indent)?;
             indent.inc();
@@ -146,7 +144,7 @@ pub fn write_function(
             write!(output_file, "{}let arg0 = self.clone();\n", indent)?;
             write!(output_file, "{}let arg1 = arg1.clone();\n", indent)?;
             write!(output_file, "{}let value = ", indent)?;
-            write_expr(*body, output_file, program, indent, closure_data_defs)?;
+            write_expr(*body, output_file, program, indent)?;
             write!(output_file, ";\n")?;
             write!(output_file, "{}match value {{\n", indent)?;
             indent.inc();
@@ -192,7 +190,7 @@ pub fn write_function(
             FunctionInfo::Normal(body) => {
                 indent.inc();
                 write!(output_file, "{}", indent)?;
-                write_expr(*body, output_file, program, indent, closure_data_defs)?;
+                write_expr(*body, output_file, program, indent)?;
                 indent.dec();
             }
             FunctionInfo::Extern(original_name) => {

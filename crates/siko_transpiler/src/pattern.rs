@@ -1,4 +1,3 @@
-use crate::closure::ClosureDataDef;
 use crate::expr::write_expr;
 use crate::types::ir_type_to_rust_type;
 use crate::util::Indent;
@@ -13,7 +12,6 @@ pub fn write_pattern(
     output_file: &mut dyn Write,
     program: &Program,
     indent: &mut Indent,
-    closure_data_defs: &mut Vec<ClosureDataDef>,
 ) -> Result<()> {
     let pattern = &program.patterns.get(&pattern_id).item;
     match pattern {
@@ -27,7 +25,7 @@ pub fn write_pattern(
             for (index, item) in items.iter().enumerate() {
                 let field = &record.fields[index];
                 write!(output_file, "{}: ", field.name)?;
-                write_pattern(*item, output_file, program, indent, closure_data_defs)?;
+                write_pattern(*item, output_file, program, indent)?;
                 write!(output_file, ", ")?;
             }
             write!(output_file, "}}")?;
@@ -45,7 +43,7 @@ pub fn write_pattern(
             if !items.is_empty() {
                 write!(output_file, "(")?;
                 for (index, item) in items.iter().enumerate() {
-                    write_pattern(*item, output_file, program, indent, closure_data_defs)?;
+                    write_pattern(*item, output_file, program, indent)?;
                     if index != items.len() - 1 {
                         write!(output_file, ", ")?;
                     }
@@ -54,9 +52,9 @@ pub fn write_pattern(
             }
         }
         Pattern::Guarded(pattern, expr) => {
-            write_pattern(*pattern, output_file, program, indent, closure_data_defs)?;
+            write_pattern(*pattern, output_file, program, indent)?;
             write!(output_file, " if {{ match ")?;
-            write_expr(*expr, output_file, program, indent, closure_data_defs)?;
+            write_expr(*expr, output_file, program, indent)?;
             let ty = program.get_expr_type(expr);
             let ty = ir_type_to_rust_type(ty, program);
             write!(
