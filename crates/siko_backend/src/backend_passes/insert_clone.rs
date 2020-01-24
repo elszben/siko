@@ -55,6 +55,9 @@ pub fn insert_clone_pass(expr_id: &ExprId, program: &mut Program) {
     walk_expr(expr_id, &mut collector);
     let refs = collector.refs;
     for (_, exprs) in refs {
+        if exprs.len() == 1 {
+            continue;
+        }
         for expr_id in exprs {
             let location = program.exprs.get(&expr_id).location_id;
             let new_ref = program.exprs.get(&expr_id).item.clone();
