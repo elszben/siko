@@ -33,10 +33,7 @@ impl<'a> Visitor for ProcessStaticCalls<'a> {
                         if index < function.arg_count - 1 {
                             let field_type = arg_types[index].clone();
                             let field_type = process_stored_type(field_type, self.program);
-                            let field = PartialFunctionCallField {
-                                ty: field_type,
-                                deferred: index >= args.len(),
-                            };
+                            let field = PartialFunctionCallField { ty: field_type };
                             fields.push(field);
                         }
                         if index >= args.len() {

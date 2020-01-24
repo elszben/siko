@@ -24,23 +24,13 @@ fn write_partial_function_call_def(
     )?;
     indent.inc();
     for (index, field) in partial_function_call.fields.iter().enumerate() {
-        if field.deferred {
-            write!(
-                output_file,
-                "{} pub {}: Option<{}>,\n",
-                indent,
-                arg_name(index),
-                ir_type_to_rust_type(&field.ty, program)
-            )?;
-        } else {
-            write!(
-                output_file,
-                "{} pub {}: {},\n",
-                indent,
-                arg_name(index),
-                ir_type_to_rust_type(&field.ty, program)
-            )?;
-        }
+        write!(
+            output_file,
+            "{} pub {}: Option<{}>,\n",
+            indent,
+            arg_name(index),
+            ir_type_to_rust_type(&field.ty, program)
+        )?;
     }
     indent.dec();
     write!(output_file, "{}}}\n", indent)?;
@@ -112,22 +102,42 @@ fn write_dyn_trait_impl_save_arg(
     indent.inc();
     write!(
         output_file,
-        "{}fn call(&self, arg0: {}) -> {} {{\n",
+        "{}fn call(&mut self, arg0: {}) -> {} {{\n",
         indent,
         ir_type_to_rust_type(from, program),
         ir_type_to_rust_type(to, program),
     )?;
     indent.inc();
-    write!(output_file, "{}let mut clone = self.clone();\n", indent)?;
     write!(
         output_file,
-        "{}clone.{} = Some(arg0);\n",
+        "{}let value = {} {{\n",
         indent,
-        arg_name(field_index)
+        partial_function_call.get_name(),
     )?;
+    indent.inc();
+    for index in 0..partial_function_call.fields.len() {
+        if index == field_index {
+            write!(
+                output_file,
+                "{}{}: Some(arg0),\n",
+                indent,
+                arg_name(field_index)
+            )?;
+        } else {
+            write!(
+                output_file,
+                "{}{}: self.{}.take(),\n",
+                indent,
+                arg_name(index),
+                arg_name(index)
+            )?;
+        }
+    }
+    indent.dec();
+    write!(output_file, "{}}};\n", indent,)?;
     write!(
         output_file,
-        "{}{} {{ value: Box::new(clone) }}\n",
+        "{}{} {{ value : Box::new(value) }}\n",
         indent,
         ir_type_to_rust_type(to, program),
     )?;
@@ -172,7 +182,7 @@ fn write_dyn_trait_impl_real_call(
     indent.inc();
     write!(
         output_file,
-        "{}fn call(&self, arg0: {}) -> {} {{\n",
+        "{}fn call(&mut self, arg0: {}) -> {} {{\n",
         indent,
         ir_type_to_rust_type(from, program),
         ir_type_to_rust_type(to, program),
@@ -184,16 +194,12 @@ fn write_dyn_trait_impl_real_call(
         "{}crate::{}::{}(",
         indent, function.module, function.name
     )?;
-    for (index, field) in partial_function_call.fields.iter().enumerate() {
-        if field.deferred {
-            write!(
-                output_file,
-                "self.{}.as_ref().expect(\"Missing arg\").clone(), ",
-                arg_name(index)
-            )?;
-        } else {
-            write!(output_file, "self.{}.clone(), ", arg_name(index))?;
-        }
+    for index in 0..partial_function_call.fields.len() {
+        write!(
+            output_file,
+            "self.{}.take().expect(\"Missing arg\"), ",
+            arg_name(index)
+        )?;
     }
     write!(output_file, "arg0)\n")?;
     indent.dec();
@@ -224,7 +230,7 @@ fn write_function_trait(output_file: &mut dyn Write, indent: &mut Indent) -> Res
         indent, MIR_FUNCTION_TRAIT_NAME
     )?;
     indent.inc();
-    write!(output_file, "{}fn call(&self, a: A) -> B;\n", indent)?;
+    write!(output_file, "{}fn call(&mut self, a: A) -> B;\n", indent)?;
     write!(
         output_file,
         "{}fn box_clone(&self) -> Box<dyn Function<A,B>>;\n",
@@ -289,7 +295,7 @@ fn write_closure_impl(
     indent.inc();
     write!(
         output_file,
-        "{}pub fn call(&self, arg0: {}) -> {} {{\n",
+        "{}pub fn call(&mut self, arg0: {}) -> {} {{\n",
         indent,
         ir_type_to_rust_type(&closure.from_ty, program),
         ir_type_to_rust_type(&closure.to_ty, program)

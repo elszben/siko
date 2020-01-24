@@ -137,7 +137,6 @@ impl From<usize> for PartialFunctionCallId {
 
 pub struct PartialFunctionCallField {
     pub ty: Type,
-    pub deferred: bool,
 }
 
 pub struct PartialFunctionCall {

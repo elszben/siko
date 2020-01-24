@@ -107,7 +107,9 @@ pub fn write_expr(
                 write!(output_file, "{} : ", arg_name(index))?;
                 if index < args.len() {
                     let arg = &args[index];
+                    write!(output_file, "Some(")?;
                     write_expr(*arg, output_file, program, indent)?;
+                    write!(output_file, ")")?;
                 } else {
                     write!(output_file, "None")?;
                 }
@@ -224,11 +226,15 @@ pub fn write_expr(
         }
         Expr::DynamicFunctionCall(receiver, args) => {
             indent.inc();
-            write!(output_file, "{{\n{}let dyn_fn = ", indent)?;
+            write!(output_file, "{{\n{}let mut dyn_fn = ", indent)?;
             write_expr(*receiver, output_file, program, indent)?;
             write!(output_file, ";\n")?;
-            for arg in args {
-                write!(output_file, "{}let dyn_fn = dyn_fn.call(", indent)?;
+            for (index, arg) in args.iter().enumerate() {
+                if index == args.len() - 1 {
+                    write!(output_file, "{}let dyn_fn = dyn_fn.call(", indent)?;
+                } else {
+                    write!(output_file, "{}let mut dyn_fn = dyn_fn.call(", indent)?;
+                }
                 write_expr(*arg, output_file, program, indent)?;
                 write!(output_file, ");\n")?;
             }
