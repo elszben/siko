@@ -1,3 +1,4 @@
+use crate::backend_passes::check_recursive_data_types::check_recursive_data_types;
 use crate::backend_passes::convert_args_to_closures::convert_args_to_closures;
 use crate::backend_passes::insert_clone::insert_clone_pass;
 use crate::backend_passes::process_static_calls::process_static_calls_pass;
@@ -5,6 +6,7 @@ use siko_mir::function::FunctionInfo;
 use siko_mir::program::Program;
 
 pub fn run_passes(program: &mut Program) {
+    check_recursive_data_types(program);
     let mut bodies = Vec::new();
     for (_, function) in program.functions.items.iter() {
         if let FunctionInfo::Normal(body) = function.info {

@@ -8,6 +8,7 @@ use siko_constants::EQ_CLASS_NAME;
 use siko_mir::function::FunctionId;
 use siko_mir::function::FunctionInfo;
 use siko_mir::program::Program;
+use siko_mir::types::Type;
 use std::io::Result;
 use std::io::Write;
 
@@ -30,7 +31,7 @@ pub fn write_function(
     }
     let args: String = args.join(", ");
     let result_type = function.function_type.get_result_type(function.arg_count);
-    let result_ty = ir_type_to_rust_type(&result_type, program);
+    let result_ty_str = ir_type_to_rust_type(&result_type, program);
     if let FunctionInfo::ExternClassImpl(class_name, ty, body) = &function.info {
         if class_name == "show" {
             let impl_ty = ir_type_to_rust_type(&ty, program);
@@ -79,17 +80,17 @@ pub fn write_function(
             write!(
                 output_file,
                 "{} {}::Less => std::cmp::Ordering::Less,\n",
-                indent, result_ty
+                indent, result_ty_str
             )?;
             write!(
                 output_file,
                 "{} {}::Equal => std::cmp::Ordering::Equal,\n",
-                indent, result_ty
+                indent, result_ty_str
             )?;
             write!(
                 output_file,
                 "{} {}::Greater => std::cmp::Ordering::Greater,\n",
-                indent, result_ty
+                indent, result_ty_str
             )?;
             indent.dec();
             write!(output_file, "{}}}\n", indent)?;
@@ -118,8 +119,12 @@ pub fn write_function(
             write!(output_file, ";\n")?;
             write!(output_file, "{}match value {{\n", indent)?;
             indent.inc();
-            write!(output_file, "{} {}::True => true,\n", indent, result_ty)?;
-            write!(output_file, "{} {}::False => false,\n", indent, result_ty)?;
+            write!(output_file, "{} {}::True => true,\n", indent, result_ty_str)?;
+            write!(
+                output_file,
+                "{} {}::False => false,\n",
+                indent, result_ty_str
+            )?;
             indent.dec();
             write!(output_file, "{}}}\n", indent)?;
             indent.dec();
@@ -151,19 +156,19 @@ pub fn write_function(
             write!(
                 output_file,
                 "{} {}::Some({}::Greater) => Some(std::cmp::Ordering::Greater),\n",
-                indent, result_ty, ord_ty_str
+                indent, result_ty_str, ord_ty_str
             )?;
             write!(
                 output_file,
                 "{} {}::Some({}::Equal) => Some(std::cmp::Ordering::Equal),\n",
-                indent, result_ty, ord_ty_str
+                indent, result_ty_str, ord_ty_str
             )?;
             write!(
                 output_file,
                 "{} {}::Some({}::Less) => Some(std::cmp::Ordering::Less),\n",
-                indent, result_ty, ord_ty_str
+                indent, result_ty_str, ord_ty_str
             )?;
-            write!(output_file, "{} {}::None => None,\n", indent, result_ty)?;
+            write!(output_file, "{} {}::None => None,\n", indent, result_ty_str)?;
             indent.dec();
             write!(output_file, "{}}}\n", indent)?;
             indent.dec();
@@ -184,7 +189,7 @@ pub fn write_function(
         write!(
             output_file,
             "{}pub fn {}({}) -> {} {{\n",
-            indent, function.name, args, result_ty
+            indent, function.name, args, result_ty_str
         )?;
         match &function.info {
             FunctionInfo::Normal(body) => {
@@ -201,7 +206,7 @@ pub fn write_function(
                     indent,
                     original_name.as_ref(),
                     &result_type,
-                    result_ty.as_ref(),
+                    result_ty_str.as_ref(),
                     arg_types,
                 )?;
             }
@@ -209,11 +214,16 @@ pub fn write_function(
                 let adt = program.typedefs.get(id).get_adt();
                 let variant = &adt.variants[*index];
                 indent.inc();
-                write!(output_file, "{}{}::{}", indent, result_ty, variant.name)?;
+                write!(output_file, "{}{}::{}", indent, result_ty_str, variant.name)?;
                 if function.arg_count > 0 {
                     let mut args = Vec::new();
                     for i in 0..function.arg_count {
-                        let arg_str = format!("{}", arg_name(i));
+                        let item_type = &variant.items[i];
+                        let arg_str = if let Type::Boxed(_) = item_type {
+                            format!("Box::new({})", arg_name(i))
+                        } else {
+                            format!("{}", arg_name(i))
+                        };
                         args.push(arg_str);
                     }
                     write!(output_file, "({})", args.join(", "))?;
@@ -223,7 +233,7 @@ pub fn write_function(
             FunctionInfo::RecordConstructor(id) => {
                 let record = program.typedefs.get(id).get_record();
                 indent.inc();
-                write!(output_file, "{}{}", indent, result_ty)?;
+                write!(output_file, "{}{}", indent, result_ty_str)?;
                 let mut args = Vec::new();
                 for (index, field) in record.fields.iter().enumerate() {
                     let arg_str = format!("{}: {}", field.name, arg_name(index));

@@ -9,6 +9,7 @@ pub enum Type {
     Named(TypeDefId),
     Function(Box<Type>, Box<Type>),
     Closure(Box<Type>),
+    Boxed(Box<Type>),
 }
 
 impl Type {
@@ -20,6 +21,7 @@ impl Type {
                 to.get_args(args);
             }
             Type::Closure(ty) => ty.get_args(args),
+            Type::Boxed(ty) => ty.get_args(args),
         }
     }
 
@@ -28,6 +30,7 @@ impl Type {
             Type::Named(..) => false,
             Type::Function(..) => true,
             Type::Closure(..) => false,
+            Type::Boxed(ty) => false,
         }
     }
 
@@ -52,6 +55,16 @@ impl Type {
                     ty.get_result_type(arg_count)
                 }
             }
+            Type::Boxed(ty) => ty.get_result_type(arg_count),
+        }
+    }
+
+    pub fn get_typedef_id_opt(&self) -> Option<TypeDefId> {
+        match self {
+            Type::Named(id) => Some(*id),
+            Type::Function(_, _) => None,
+            Type::Closure(..) => None,
+            Type::Boxed(ty) => ty.get_typedef_id_opt(),
         }
     }
 
@@ -60,6 +73,7 @@ impl Type {
             Type::Named(id) => *id,
             Type::Function(_, _) => unreachable!(),
             Type::Closure(ty) => ty.get_typedef_id(),
+            Type::Boxed(ty) => ty.get_typedef_id(),
         }
     }
 
@@ -68,6 +82,7 @@ impl Type {
             Type::Function(from, to) => (*from.clone(), *to.clone()),
             Type::Named(_) => unreachable!(),
             Type::Closure(ty) => ty.get_from_to(),
+            Type::Boxed(ty) => ty.get_from_to(),
         }
     }
 
@@ -89,6 +104,7 @@ impl Type {
                 let closure = program.get_closure_type(ty);
                 closure.get_name()
             }
+            Type::Boxed(ty) => format!("Boxed({})", ty.to_string(program)),
         }
     }
 }

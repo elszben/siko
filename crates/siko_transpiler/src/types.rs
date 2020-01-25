@@ -31,5 +31,6 @@ pub fn ir_type_to_rust_type(ty: &Type, program: &Program) -> String {
                 closure.get_name()
             )
         }
+        Type::Boxed(ty) => format!("Box<{}>", ir_type_to_rust_type(ty, program)),
     }
 }
