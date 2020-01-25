@@ -20,6 +20,23 @@ pub enum Item {
     ClassMember(ClassId, FunctionTypeId, IrClassMemberId),
 }
 
+impl Item {
+    pub fn is_type_level(&self) -> bool {
+        match self {
+            Item::Function(..) => false,
+            Item::Record(..) => true,
+            Item::Adt(..) => true,
+            Item::Variant(..) => false,
+            Item::Class(..) => true,
+            Item::ClassMember(..) => false,
+        }
+    }
+
+    pub fn is_value_level(&self) -> bool {
+        !self.is_type_level()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum DataMember {
     RecordField(RecordField),

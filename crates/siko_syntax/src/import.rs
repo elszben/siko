@@ -22,6 +22,7 @@ pub struct Import {
     pub module_path: String,
     pub kind: ImportKind,
     pub location_id: Option<LocationId>,
+    pub implicit: bool,
 }
 
 impl Import {

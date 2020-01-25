@@ -1,5 +1,6 @@
 use crate::error::ResolverError;
 use crate::import::ImportedItemInfo;
+use crate::import::Namespace;
 use crate::item::Item;
 use crate::module::Module;
 use crate::type_arg_resolver::TypeArgResolver;
@@ -25,72 +26,73 @@ fn process_named_type(
     errors: &mut Vec<ResolverError>,
 ) -> Option<IrTypeSignatureId> {
     let ir_type_signature = match module.imported_items.get(name) {
-        Some(items) => {
-            let (index, _, ambiguous) = ImportedItemInfo::check_ambiguity(items);
-            if items.len() > 1 && ambiguous {
+        Some(items) => match ImportedItemInfo::resolve_ambiguity(items, Namespace::Type) {
+            None => {
+                println!("WTF {:?}", items);
                 let error = ResolverError::AmbiguousName(name.to_string(), location_id);
                 errors.push(error);
                 return None;
             }
-            let mut named_arg_ids = Vec::new();
-            for named_arg in named_args {
-                match process_type_signature(
-                    named_arg,
-                    program,
-                    ir_program,
-                    module,
-                    type_arg_resolver,
-                    errors,
-                ) {
-                    Some(id) => {
-                        named_arg_ids.push(id);
-                    }
-                    None => {
-                        return None;
+            Some(item) => {
+                let mut named_arg_ids = Vec::new();
+                for named_arg in named_args {
+                    match process_type_signature(
+                        named_arg,
+                        program,
+                        ir_program,
+                        module,
+                        type_arg_resolver,
+                        errors,
+                    ) {
+                        Some(id) => {
+                            named_arg_ids.push(id);
+                        }
+                        None => {
+                            return None;
+                        }
                     }
                 }
-            }
-            let item = &items[index];
-            match item.item {
-                Item::Adt(_, ir_typedef_id) => {
-                    let ir_adt = ir_program.typedefs.get(&ir_typedef_id).get_adt();
-                    if ir_adt.type_args.len() != named_arg_ids.len() {
-                        let err = ResolverError::IncorrectTypeArgumentCount(
-                            name.to_string(),
-                            ir_adt.type_args.len(),
-                            named_arg_ids.len(),
-                            location_id,
-                        );
-                        errors.push(err);
-                        return None;
+                match item.item {
+                    Item::Adt(_, ir_typedef_id) => {
+                        let ir_adt = ir_program.typedefs.get(&ir_typedef_id).get_adt();
+                        if ir_adt.type_args.len() != named_arg_ids.len() {
+                            let err = ResolverError::IncorrectTypeArgumentCount(
+                                name.to_string(),
+                                ir_adt.type_args.len(),
+                                named_arg_ids.len(),
+                                location_id,
+                            );
+                            errors.push(err);
+                            return None;
+                        }
+                        IrTypeSignature::Named(ir_adt.name.clone(), ir_typedef_id, named_arg_ids)
                     }
-                    IrTypeSignature::Named(ir_adt.name.clone(), ir_typedef_id, named_arg_ids)
-                }
-                Item::Record(_, ir_typedef_id) => {
-                    let ir_record = ir_program.typedefs.get(&ir_typedef_id).get_record();
+                    Item::Record(_, ir_typedef_id) => {
+                        let ir_record = ir_program.typedefs.get(&ir_typedef_id).get_record();
 
-                    if ir_record.type_args.len() != named_arg_ids.len() {
-                        let err = ResolverError::IncorrectTypeArgumentCount(
-                            name.to_string(),
-                            ir_record.type_args.len(),
-                            named_arg_ids.len(),
-                            location_id,
-                        );
+                        if ir_record.type_args.len() != named_arg_ids.len() {
+                            let err = ResolverError::IncorrectTypeArgumentCount(
+                                name.to_string(),
+                                ir_record.type_args.len(),
+                                named_arg_ids.len(),
+                                location_id,
+                            );
+                            errors.push(err);
+                            return None;
+                        }
+                        IrTypeSignature::Named(ir_record.name.clone(), ir_typedef_id, named_arg_ids)
+                    }
+                    Item::Function(..)
+                    | Item::Variant(..)
+                    | Item::ClassMember(..)
+                    | Item::Class(..) => {
+                        let err = ResolverError::NameNotType(name.to_string(), location_id);
                         errors.push(err);
                         return None;
                     }
-                    IrTypeSignature::Named(ir_record.name.clone(), ir_typedef_id, named_arg_ids)
-                }
-                Item::Function(..)
-                | Item::Variant(..)
-                | Item::ClassMember(..)
-                | Item::Class(..) => {
-                    let err = ResolverError::NameNotType(name.to_string(), location_id);
-                    errors.push(err);
-                    return None;
                 }
             }
-        }
+        },
         None => {
             let error = ResolverError::UnknownTypeName(name.to_string(), location_id);
             errors.push(error);

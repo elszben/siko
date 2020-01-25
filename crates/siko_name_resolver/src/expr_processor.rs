@@ -2,6 +2,7 @@ use crate::environment::Environment;
 use crate::environment::NamedRef;
 use crate::error::ResolverError;
 use crate::import::ImportedItemInfo;
+use crate::import::Namespace;
 use crate::item::DataMember;
 use crate::item::Item;
 use crate::lambda_helper::LambdaHelper;
@@ -58,16 +59,15 @@ fn resolve_item_path(
         return PathResolveResult::VariableRef(ir_expr_id);
     }
     if let Some(items) = module.imported_items.get(path) {
-        let (_, index, ambiguous) = ImportedItemInfo::check_ambiguity(items);
-        if items.len() > 1 && ambiguous {
-            let err = ResolverError::AmbiguousName(path.to_string(), location_id);
-            errors.push(err);
-            let ir_expr = IrExpr::Tuple(vec![]);
-            let ir_expr_id = add_expr(ir_expr, id, ir_program, program);
-            return PathResolveResult::VariableRef(ir_expr_id);
-        } else {
-            let item = &items[index];
-            match item.item {
+        match ImportedItemInfo::resolve_ambiguity(items, Namespace::Value) {
+            None => {
+                let err = ResolverError::AmbiguousName(path.to_string(), location_id);
+                errors.push(err);
+                let ir_expr = IrExpr::Tuple(vec![]);
+                let ir_expr_id = add_expr(ir_expr, id, ir_program, program);
+                return PathResolveResult::VariableRef(ir_expr_id);
+            }
+            Some(item) => match item.item {
                 Item::Function(_, ir_function_id) => {
                     return PathResolveResult::FunctionRef(ir_function_id);
                 }
@@ -83,7 +83,7 @@ fn resolve_item_path(
                     return PathResolveResult::ClassMemberRef(ir_class_member_id);
                 }
                 _ => {}
-            }
+            },
         }
     }
     let err = ResolverError::UnknownFunction(path.to_string(), location_id);
@@ -145,14 +145,13 @@ fn resolve_pattern_type_constructor(
     irrefutable: bool,
 ) -> IrPattern {
     if let Some(items) = module.imported_items.get(name) {
-        let (_, index, ambiguous) = ImportedItemInfo::check_ambiguity(items);
-        if items.len() > 1 && ambiguous {
-            let err = ResolverError::AmbiguousName(name.to_string(), location_id);
-            errors.push(err);
-            return IrPattern::Wildcard;
-        } else {
-            let item = &items[index];
-            match item.item {
+        match ImportedItemInfo::resolve_ambiguity(items, Namespace::Value) {
+            None => {
+                let err = ResolverError::AmbiguousName(name.to_string(), location_id);
+                errors.push(err);
+                return IrPattern::Wildcard;
+            }
+            Some(item) => match item.item {
                 Item::Function(_, _) => unreachable!(),
                 Item::Record(_, ir_typedef_id) => {
                     return IrPattern::Record(ir_typedef_id, ids);
@@ -167,7 +166,7 @@ fn resolve_pattern_type_constructor(
                     }
                 }
                 _ => {}
-            }
+            },
         }
     };
     let err = ResolverError::UnknownTypeName(name.to_string(), location_id);
@@ -182,13 +181,13 @@ fn resolve_record_type(
     location_id: LocationId,
 ) -> Option<TypeDefId> {
     if let Some(items) = module.imported_items.get(name) {
-        if items.len() > 1 {
-            let err = ResolverError::AmbiguousName(name.to_string(), location_id);
-            errors.push(err);
-            return None;
-        } else {
-            let item = &items[0];
-            match item.item {
+        match ImportedItemInfo::resolve_ambiguity(items, Namespace::Type) {
+            None => {
+                let err = ResolverError::AmbiguousName(name.to_string(), location_id);
+                errors.push(err);
+                return None;
+            }
+            Some(item) => match item.item {
                 Item::Function(_, _) => unreachable!(),
                 Item::Record(_, ir_typedef_id) => {
                     return Some(ir_typedef_id);
@@ -199,7 +198,7 @@ fn resolve_record_type(
                     return None;
                 }
                 _ => {}
-            }
+            },
         }
     };
     let err = ResolverError::UnknownTypeName(name.to_string(), location_id);

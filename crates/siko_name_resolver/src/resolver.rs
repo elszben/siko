@@ -3,6 +3,8 @@ use crate::error::Error;
 use crate::error::ResolverError;
 use crate::export_processor::process_exports;
 use crate::expr_processor::process_expr;
+use crate::import::ImportedItemInfo;
+use crate::import::Namespace;
 use crate::import_processor::process_imports;
 use crate::item::DataMember;
 use crate::item::Item;
@@ -692,14 +694,13 @@ impl Resolver {
         errors: &mut Vec<ResolverError>,
     ) -> Option<IrClassId> {
         match module.imported_items.get(class_name) {
-            Some(items) => {
-                if items.len() > 1 {
+            Some(items) => match ImportedItemInfo::resolve_ambiguity(items, Namespace::Type) {
+                None => {
                     let err = ResolverError::AmbiguousName(class_name.clone(), location_id);
                     errors.push(err);
                     return None;
                 }
-                let item = &items[0];
-                match item.item {
+                Some(item) => match item.item {
                     Item::Class(_, ir_class_id) => {
                         return Some(ir_class_id);
                     }
@@ -707,8 +708,8 @@ impl Resolver {
                         let err = ResolverError::NotAClassName(class_name.clone(), location_id);
                         errors.push(err);
                     }
-                }
-            }
+                },
+            },
             None => {
                 let err = ResolverError::NotAClassName(class_name.clone(), location_id);
                 errors.push(err);

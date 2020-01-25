@@ -769,6 +769,7 @@ impl<'a> Parser<'a> {
             module_path: name,
             kind: import_kind,
             location_id: Some(location_id),
+            implicit: false,
         };
         Ok(import)
     }
@@ -1297,18 +1298,18 @@ impl<'a> Parser<'a> {
         for implicit_module in implicit_modules {
             let mut modules_without_implicit_module = Vec::new();
             for (module_id, module) in &self.program.modules.items {
-                let mut implicit_imported = false;
+                let mut explicitly_imported = false;
                 if module.name == implicit_module {
                     continue;
                 }
                 for import_id in &module.imports {
                     let import = self.program.imports.get(import_id);
                     if import.module_path == implicit_module {
-                        implicit_imported = true;
+                        explicitly_imported = true;
                         break;
                     }
                 }
-                if !implicit_imported {
+                if !explicitly_imported {
                     modules_without_implicit_module.push(*module_id);
                 }
             }
@@ -1322,6 +1323,7 @@ impl<'a> Parser<'a> {
                         alternative_name: None,
                     },
                     location_id: None,
+                    implicit: true,
                 };
                 self.program.imports.add_item(import_id, import);
                 let module = self.program.modules.get_mut(&module_id);

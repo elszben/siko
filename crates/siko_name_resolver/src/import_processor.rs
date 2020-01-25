@@ -55,6 +55,7 @@ fn import_item(
     mode: ImportMode,
     item: &Item,
     imported_items: &mut BTreeMap<String, Vec<ImportedItemInfo>>,
+    implicit: bool,
 ) {
     let names = get_names(namespace, name, mode);
     for name in &names {
@@ -64,6 +65,7 @@ fn import_item(
         iis.push(ImportedItemInfo {
             item: item.clone(),
             source_module: source_module.clone(),
+            implicit: implicit,
         })
     }
 }
@@ -83,6 +85,7 @@ fn import_local_items_and_members(
                 ImportMode::NameAndNamespace,
                 item,
                 imported_items,
+                false,
             );
         }
     }
@@ -238,6 +241,7 @@ pub fn process_imports(
                                 mode,
                                 &item,
                                 &mut imported_items,
+                                import.implicit,
                             );
                         }
                     }

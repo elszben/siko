@@ -5,32 +5,62 @@ use crate::item::Item;
 pub struct ImportedItemInfo {
     pub item: Item,
     pub source_module: String,
+    pub implicit: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Namespace {
+    Type,
+    Value,
+}
+
+fn filter_implicits(items: Vec<&ImportedItemInfo>) -> Vec<&ImportedItemInfo> {
+    let mut implicit_count = 0;
+    for item in &items {
+        if item.implicit {
+            implicit_count += 1;
+        }
+    }
+    let items: Vec<_> = if implicit_count != items.len() {
+        items
+            .iter()
+            .filter(|item| !item.implicit)
+            .cloned()
+            .collect()
+    } else {
+        items.to_vec()
+    };
+    items
 }
 
 impl ImportedItemInfo {
-    pub fn check_ambiguity(items: &[ImportedItemInfo]) -> (usize, usize, bool) {
-        if items.len() == 2 {
-            let mut adt_found = false;
-            let mut variant_found = false;
-            let mut adt_index = 0;
-            let mut variant_index = 0;
-            for (index, item) in items.iter().enumerate() {
-                if let Item::Adt(..) = item.item {
-                    adt_found = true;
-                    adt_index = index;
+    pub fn resolve_ambiguity(
+        items: &[ImportedItemInfo],
+        namespace: Namespace,
+    ) -> Option<&ImportedItemInfo> {
+        match namespace {
+            Namespace::Type => {
+                let items: Vec<_> = items
+                    .into_iter()
+                    .filter(|item| item.item.is_type_level())
+                    .collect();
+                let mut items = filter_implicits(items);
+                if items.len() > 1 {
+                    return None;
                 }
-                if let Item::Variant(..) = item.item {
-                    variant_found = true;
-                    variant_index = index;
+                return items.pop();
+            }
+            Namespace::Value => {
+                let items: Vec<_> = items
+                    .into_iter()
+                    .filter(|item| item.item.is_value_level())
+                    .collect();
+                let mut items = filter_implicits(items);
+                if items.len() > 1 {
+                    return None;
                 }
+                return items.pop();
             }
-            if adt_found && variant_found {
-                (adt_index, variant_index, false)
-            } else {
-                (0, 0, true)
-            }
-        } else {
-            (0, 0, true)
         }
     }
 }
