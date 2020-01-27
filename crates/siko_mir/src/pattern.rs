@@ -28,5 +28,6 @@ pub enum Pattern {
     Wildcard,
     IntegerLiteral(i64),
     CharLiteral(char),
+    CharRange(char, char),
     StringLiteral(String),
 }

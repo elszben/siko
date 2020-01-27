@@ -39,5 +39,6 @@ pub enum Pattern {
     CharLiteral(char),
     Typed(PatternId, TypeSignatureId),
     Record(String, Vec<RecordFieldPattern>),
+    CharRange(char, char),
     Or(Vec<PatternId>),
 }

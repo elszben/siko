@@ -424,6 +424,15 @@ fn process_pattern(
                 IrPattern::Wildcard
             }
         }
+        Pattern::CharRange(start, end) => {
+            if irrefutable {
+                let err = ResolverError::NotIrrefutablePattern(location_id);
+                errors.push(err);
+                IrPattern::Wildcard
+            } else {
+                IrPattern::CharRange(*start, *end)
+            }
+        }
     };
     let ir_pattern_info = ItemInfo {
         item: ir_pattern,

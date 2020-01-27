@@ -217,6 +217,10 @@ impl CaseInfo {
             Pattern::Typed(item, _) => {
                 return self.check_pattern(item, program, parent, choice_added);
             }
+            Pattern::CharRange(..) => {
+                // FIXME: add checks for char ranges
+                return 0;
+            }
             Pattern::Guarded(..) => {
                 // FIXME:
                 // We cannot check at compile time whether the guard will return True or not,

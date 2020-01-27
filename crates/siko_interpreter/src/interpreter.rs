@@ -239,6 +239,16 @@ impl Interpreter {
                 };
                 return r;
             }
+            Pattern::CharRange(start, end) => {
+                let r = match &value.core {
+                    ValueCore::Char(v) => {
+                        let range = std::ops::Range { start, end };
+                        range.contains(&v)
+                    }
+                    _ => false,
+                };
+                return r;
+            }
             Pattern::StringLiteral(p_v) => {
                 let r = match &value.core {
                     ValueCore::String(v) => p_v == v,

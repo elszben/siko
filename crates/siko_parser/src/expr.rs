@@ -171,9 +171,25 @@ fn parse_sub_pattern(parser: &mut Parser, inner: bool) -> Result<Option<PatternI
             let start_index = parser.get_index();
             let literal = parser.advance()?;
             if let Token::CharLiteral(c) = literal.token {
-                let pattern = Pattern::CharLiteral(c);
-                let id = parser.add_pattern(pattern, start_index);
-                id
+                if parser.current(TokenKind::DoubleDot) {
+                    parser.expect(TokenKind::DoubleDot)?;
+                    if parser.current_kind() == TokenKind::CharLiteral {
+                        let literal = parser.advance()?;
+                        if let Token::CharLiteral(c2) = literal.token {
+                            let pattern = Pattern::CharRange(c, c2);
+                            let id = parser.add_pattern(pattern, start_index);
+                            id
+                        } else {
+                            unreachable!()
+                        }
+                    } else {
+                        return report_unexpected_token(parser, format!("char literal"));
+                    }
+                } else {
+                    let pattern = Pattern::CharLiteral(c);
+                    let id = parser.add_pattern(pattern, start_index);
+                    id
+                }
             } else {
                 unreachable!()
             }

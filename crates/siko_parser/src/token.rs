@@ -184,6 +184,7 @@ impl TokenKind {
             TokenKind::KeywordDoubleColon => format!("::"),
             TokenKind::Colon => format!(":"),
             TokenKind::Comma => format!(","),
+            TokenKind::DoubleDot => format!(".."),
             TokenKind::StringLiteral => format!("string literal"),
             TokenKind::FloatLiteral => format!("float literal"),
             TokenKind::IntegerLiteral => format!("integer literal"),

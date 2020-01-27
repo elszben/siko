@@ -31,6 +31,7 @@ pub enum Pattern {
     IntegerLiteral(i64),
     StringLiteral(String),
     CharLiteral(char),
+    CharRange(char, char),
     Typed(PatternId, TypeSignatureId),
 }
 
